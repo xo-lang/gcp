@@ -37,8 +37,9 @@ behavior and error text:
   resumable, chunk sizes as Go's), media download, `googleapi.Error`
   with its details, and page iteration (`nextPageToken`).
 - Every generated module uses only this core; nothing service-specific
-  is hand-written, unless Go hand-writes it in its package (none in
-  to be confirmed per API by the bulk run).
+  is hand-written, unless Go hand-writes it in its package (none: in
+  v0.293.0 every API package's only non-test Go file is its generated
+  `-gen.go`).
 
 ## Consequences
 
