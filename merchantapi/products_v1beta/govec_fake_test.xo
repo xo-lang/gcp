@@ -1,0 +1,74 @@
+// The fake Google API the Go calls of govectors_test.xo are made again
+// against: each test's body, answered with 200, and every request noted
+// in the Go program's form (codegen/gen/vectors.xo). Copied into each
+// module by scripts/refresh.sh; do not edit.
+
+use std/http
+use std/testing
+use github.com/xo-lang/gcp/option
+
+struct GvFake {
+  log: Mutex[List[Str]]
+  body: Mutex[Str]
+}
+
+fn gv_note(f: GvFake, s: Str) {
+  f.log.with(fn(var l: List[Str]) { l.push(s) })
+}
+
+fn gv_note_lines(f: GvFake, s: Str) {
+  for line in s.split("\n") {
+    gv_note(f, line)
+  }
+}
+
+fn gv_set(f: GvFake, body: Str) {
+  f.body.with(fn(var b: Str) { b = body })
+}
+
+fn gv_answer(f: GvFake, req: http.Request) -> http.Response {
+  let body = f.body.with(fn(var b: Str) -> Str { b })
+  var hs: List[Str] = []
+  for (k, v) in req.headers {
+    let lk = k.to_lower()
+    if lk != "user-agent" && lk != "x-goog-api-client" && lk != "accept-encoding" && lk != "content-length" {
+      hs.push("${lk}=${v}")
+    }
+  }
+  let q = req.raw_query()
+  gv_note(f, "REQ ${req.method} ${req.url.scheme}://${req.url.host}${req.escaped_path()}${if q == "" { "" } else { "?${q}" }}")
+  gv_note(f, "  H ${hs.sort().join(" | ")}")
+  gv_note_lines(f, "  B ${req.body.to_str_lossy()}")
+  gv_note(f, "  SERVED 200 ${body}")
+  http.Response{status: 200, headers: {"Content-Type": "application/json"}, body: body.bytes()}
+}
+
+fn gv_new_fake(net: testing.FakeNet, host: Str) -> GvFake {
+  let f = GvFake{log: Mutex[List[Str]].new([]), body: Mutex[Str].new("")}
+  let h = fn(req: http.Request) -> http.Response { gv_answer(f, req) }
+  for m in ["GET", "PUT", "POST", "DELETE", "HEAD", "PATCH"] {
+    net.handle("${m} ${host}/{rest...}", h)
+  }
+  f
+}
+
+fn gv_opts() -> option.ClientOptions {
+  option.ClientOptions{without_authentication: true}
+}
+
+fn gv_log_of(f: GvFake) -> List[Str] {
+  f.log.with(fn(var l: List[Str]) -> List[Str] { l })
+}
+
+/// Compares the lines one by one.
+fn gv_compare(got: List[Str], want: List[Str]) {
+  var k = 0
+  while k < want.len() || k < got.len() {
+    let a = want.get(k) ?? "<end>"
+    let b = got.get(k) ?? "<end>"
+    if a != b {
+      fault("line ${k}:\n  go:   ${a}\n  ours: ${b}")
+    }
+    k += 1
+  }
+}

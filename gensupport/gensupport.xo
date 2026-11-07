@@ -128,18 +128,24 @@ pub fn new_core[fx: Effects](net: Net, opts: option.ClientOptions[fx], base_path
 pub fn json_body[T: Json](v: T, data_wrapper: Bool = false) -> Bytes {
   let s = json.encode_str(v)
   if data_wrapper {
-    return "{\"data\":${s}}\n".bytes()
+    // Go's `{"data": `, json.Encoder's text with its newline, then `}`
+    return "{\"data\": ${s}\n}".bytes()
   }
   "${s}\n".bytes()
 }
 
-struct DataWrapper[T: Json] {
-  data as "data": T
+struct DataWrapper {
+  data as "data": json.Value? = None
 } derive Json
 
 /// `resp`'s body as T under Go's data wrapper (`{"data": ...}`, the
 /// Discovery feature `dataWrapper`).
 pub fn decode_data[T: Json](resp: http.Response) -> T ! CallErr {
-  let w = decode[DataWrapper[T]](resp)?
-  Ok(w.data)
+  // Go decodes into `{Data: ret}`: without `data` the result stays empty
+  let w = decode[DataWrapper](resp)?
+  let text = match w.data {
+    Some(v) => v.encode()
+    None => "{}"
+  }
+  json.decode_str[T](text) ?? e => Err(CallErr.Decode(e.display()))
 }

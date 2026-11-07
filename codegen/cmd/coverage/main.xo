@@ -1,0 +1,52 @@
+// The coverage report, run from the repository root:
+//   xo run ./codegen/cmd/coverage
+// writes docs/reports/gcp-go-coverage.md from the tree (decision 0005):
+// a module is Go-verified when it has Go vectors (govectors_test.xo,
+// committed only when every test passes) or no methods at all, compiled
+// when it is generated without them, not generated when its row has no
+// module. Never written by hand.
+
+use std/toml
+
+struct Service {
+  pub dir: Str
+  pub package: Str
+  pub doc: Str
+} derive Json
+
+struct Services {
+  pub go_version: Str
+  pub service: List[Service]
+} derive Json
+
+fn main(os: Os) -> () ! Error {
+  let services = toml.decode[Services](os.fs.read_text("codegen/services.toml")?)?
+  var verified = 0
+  var compiled = 0
+  var missing = 0
+  var rows: List[Str] = []
+  for s in services.service {
+    let svc = "${s.dir}/service.xo"
+    if !os.fs.exists(svc)? {
+      missing = missing + 1
+      rows.push("| ${s.dir} | not generated | |")
+      continue
+    }
+    let methods = os.fs.read_text(svc)?.split("\n").filter(fn(l: Str) -> Bool { l.starts_with("pub fn (r: ") }).len()
+    if os.fs.exists("${s.dir}/govectors_test.xo")? {
+      verified = verified + 1
+      rows.push("| ${s.dir} | Go-verified | ${methods} |")
+    } else if methods == 0 {
+      verified = verified + 1
+      rows.push("| ${s.dir} | Go-verified (no methods) | 0 |")
+    } else {
+      compiled = compiled + 1
+      rows.push("| ${s.dir} | compiled | ${methods} |")
+    }
+  }
+  var out = "# Go coverage\n\nWritten by `codegen/cmd/coverage` from the tree; do not edit. Every\nAPI version google.golang.org/api ${services.go_version} ships, by status (decision 0005):\nGo-verified (its Go vectors pass: every method called in Go and here\nwith the same arguments, comparing the request, the response served and\nthe result), compiled (generated and type-checked), not generated.\n\n"
+  out = out + "- Go-verified: ${verified}\n- compiled: ${compiled}\n- not generated: ${missing}\n\n| Module | Status | Methods |\n| --- | --- | --- |\n" + rows.join("\n") + "\n"
+  os.fs.write("docs/reports/gcp-go-coverage.md", out.bytes())?
+  os.stdio.println("Go-verified ${verified}, compiled ${compiled}, not generated ${missing}")
+  Ok(())
+}

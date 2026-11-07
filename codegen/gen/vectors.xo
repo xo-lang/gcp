@@ -85,6 +85,13 @@ fn (g: Gen) sample_text(name: Str) -> Str {
   }
 }
 
+/// The body a response is served with: the sample, inside `{"data": ...}`
+/// for an API with Discovery's dataWrapper feature.
+fn served_text(doc: json.Value, sample: Str) -> Str {
+  let wrapper = list_of(doc.get("features")).any(fn(f: json.Value) -> Bool { str_of(Some(f)) == "dataWrapper" })
+  if wrapper && sample != "" { "{\"data\":${sample}}" } else { sample }
+}
+
 /// An argument's sample: Xo's expression and Go's.
 fn arg_sample(a: Arg, n: Int) -> (Str, Str) {
   let one: (Str, Str) = if a.go_t == "string" {
@@ -147,11 +154,11 @@ pub fn go_program(doc: json.Value, m: Module, import_path: Str, header: Str, pre
   let g = new_gen(doc)
   var o = "${header}\npackage main\n\nimport (\n\t\"context\"\n\t\"encoding/json\"\n\t\"fmt\"\n\t\"io\"\n\t\"net/http\"\n\t\"os\"\n\t\"sort\"\n\t\"strings\"\n\n\t\"google.golang.org/api/option\"\n\tapi \"${import_path}\"\n)\n"
   o = o + "\n" + prelude
-  o = o + "\nfunc main() {\n\thttp.DefaultTransport = nil\n\tctx := context.Background()\n\tsvc, err := api.NewService(ctx, option.WithHTTPClient(&http.Client{Transport: fake{}}), option.WithoutAuthentication())\n\tif err != nil {\n\t\tpanic(err)\n\t}\n\tonly := \"\"\n\tif len(os.Args) > 1 {\n\t\tonly = os.Args[1]\n\t}\n"
+  o = o + "\nfunc main() {\n\thttp.DefaultTransport = nil\n\tctx := context.Background()\n\tsvc, err := api.NewService(ctx, option.WithHTTPClient(&http.Client{Transport: fake{}}), option.WithoutAuthentication())\n\tif err != nil {\n\t\tpanic(err)\n\t}\n\t_ = svc\n\tonly := \"\"\n\tif len(os.Args) > 1 {\n\t\tonly = os.Args[1]\n\t}\n\t_ = only\n"
   for i in vector_calls(m) {
     o = o + "\tif only == \"\" || only == ${go_lit(i.id)} {\n"
     o = o + "\t\tfmt.Println(${go_lit("CALL ${i.id}")})\n"
-    o = o + "\t\tserved = ${go_lit(g.sample_text(i.resp_schema))}\n"
+    o = o + "\t\tserved = ${go_lit(served_text(doc, g.sample_text(i.resp_schema)))}\n"
     var gargs: List[Str] = []
     var n = 0
     for a in i.args {
@@ -236,7 +243,7 @@ pub fn vectors_test(doc: json.Value, m: Module, go_out: Str, header: Str, base_p
     o = o + "]\n\ntest ${xo_lit("Go's ${i.id}")} {\n"
     o = o + "  let f = gv_new_fake(os.net, GV_HOST)\n"
     o = o + "  let svc = new_service(os.net, gv_opts())\n"
-    o = o + "  gv_set(f, ${xo_lit(g.sample_text(i.resp_schema))})\n"
+    o = o + "  gv_set(f, ${xo_lit(served_text(doc, g.sample_text(i.resp_schema)))})\n"
     o = o + "  gv_note(f, ${xo_lit("CALL ${i.id}")})\n"
     var xargs: List[Str] = []
     var n = 0
