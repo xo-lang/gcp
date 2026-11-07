@@ -1,0 +1,746 @@
+// A module from a Discovery document, as google-api-go-generator
+// writes Go's package (gen.go and internal/disco; BSD-3-Clause,
+// Copyright (c) 2011 Google Inc.; NOTICE.md), in Xo's shape (decision
+// 0004): a service, its resources nested as in Discovery, a function per
+// method taking the required parameters and an options struct.
+
+use std/json
+
+/// What one module is: its files and what was not handled.
+pub struct Module {
+  pub models: Str
+  pub service: Str
+  pub report: List[Str] = []
+  pub methods: Int = 0
+  pub schemas: Int = 0
+}
+
+/// The Xo type of a JSON string carrying an integer (format int64,
+/// uint64, int32 or uint32), Go's `,string` fields. One switch for the
+/// whole generator: `Str` until std/json takes a `string` option (the
+/// ADR Lang 3 drafts), then `Int`.
+pub fn int_as_string_type() -> Str {
+  "Str"
+}
+
+pub fn str_of(v: json.Value?) -> Str {
+  match v {
+    Some(json.Value.Str(s)) => s
+    _ => ""
+  }
+}
+
+fn bool_of(v: json.Value?) -> Bool {
+  match v {
+    Some(json.Value.Bool(b)) => b
+    _ => false
+  }
+}
+
+/// An object's fields sorted by key (Go's sortedKeys); none for any
+/// other value.
+fn fields_of(v: json.Value?) -> List[(Str, json.Value)] {
+  match v {
+    Some(json.Value.Object(fs)) => fs.sort_by(fn(f: (Str, json.Value)) -> Str { f.0 })
+    _ => []
+  }
+}
+
+fn list_of(v: json.Value?) -> List[json.Value] {
+  match v {
+    Some(json.Value.List(l)) => l
+    _ => []
+  }
+}
+
+/// Go's disco Kind.
+fn kind(v: json.Value) -> Str {
+  if str_of(v.get("\$ref")) != "" {
+    return "ref"
+  }
+  match str_of(v.get("type")) {
+    "string" | "number" | "integer" | "boolean" | "any" => "simple"
+    "object" => match v.get("additionalProperties") {
+      Some(ap) => if str_of(ap.get("type")) == "any" { "anystruct" } else { "map" }
+      None => "struct"
+    }
+    "array" => "array"
+    t => "unknown:${t}"
+  }
+}
+
+/// The element schema of an array (items) or a map
+/// (additionalProperties).
+fn elem(v: json.Value) -> json.Value {
+  match kind(v) {
+    "array" => v.get("items") ?? json.Value.Null
+    _ => v.get("additionalProperties") ?? json.Value.Null
+  }
+}
+
+fn is_int_as_string(v: json.Value) -> Bool {
+  str_of(v.get("type")) == "string" && str_of(v.get("format")).contains("int")
+}
+
+/// Go's simpleTypeConvert in Xo.
+fn simple_type(typ: Str, format: Str) -> Str {
+  match typ {
+    "boolean" => "Bool"
+    "string" => match format {
+      "int64" | "uint64" | "int32" | "uint32" => int_as_string_type()
+      _ => "Str"
+    }
+    "number" => "Float"
+    "integer" => "Int"
+    _ => "json.Value"
+  }
+}
+
+fn zero_of(t: Str) -> Str {
+  if t == "Str" {
+    "\"\""
+  } else if t == "Int" {
+    "0"
+  } else if t == "Float" {
+    "0.0"
+  } else if t == "Bool" {
+    "false"
+  } else if t.starts_with("List[") {
+    "[]"
+  } else if t.starts_with("Map[") {
+    "{}"
+  } else {
+    "None"
+  }
+}
+
+/// A field, parameter or result type: its Xo type and whether Go's is a
+/// pointer (or an interface, or json): an Option in Xo, None when unset.
+struct Ty {
+  t: Str
+  opt: Bool = false
+}
+
+/// The fields of Go's pointerFields list (gen.go): API id, schema and
+/// field Go names.
+const POINTER_FIELDS: List[Str] = ["androidpublisher:v1.1 InappPurchase PurchaseType", "androidpublisher:v2 ProductPurchase PurchaseType", "androidpublisher:v3 ProductPurchase PurchaseType", "androidpublisher:v2 SubscriptionPurchase CancelReason", "androidpublisher:v2 SubscriptionPurchase PaymentState", "androidpublisher:v3 SubscriptionPurchase PaymentState", "androidpublisher:v2 SubscriptionPurchase PurchaseType", "androidpublisher:v3 SubscriptionPurchase PurchaseType", "cloudmonitoring:v2beta2 Point BoolValue", "cloudmonitoring:v2beta2 Point DoubleValue", "cloudmonitoring:v2beta2 Point Int64Value", "cloudmonitoring:v2beta2 Point StringValue", "compute:alpha ExternalVpnGateway Id", "compute:alpha MetadataItems Value", "compute:alpha Scheduling AutomaticRestart", "compute:beta ExternalVpnGateway Id", "compute:beta MetadataItems Value", "compute:beta Scheduling AutomaticRestart", "compute:v1 ExternalVpnGateway Id", "compute:v1 MetadataItems Value", "compute:v1 Scheduling AutomaticRestart", "content:v2 AccountUser Admin", "datastore:v1beta2 Property BlobKeyValue", "datastore:v1beta2 Property BlobValue", "datastore:v1beta2 Property BooleanValue", "datastore:v1beta2 Property DateTimeValue", "datastore:v1beta2 Property DoubleValue", "datastore:v1beta2 Property Indexed", "datastore:v1beta2 Property IntegerValue", "datastore:v1beta2 Property StringValue", "datastore:v1beta3 Value BlobValue", "datastore:v1beta3 Value BooleanValue", "datastore:v1beta3 Value DoubleValue", "datastore:v1beta3 Value IntegerValue", "datastore:v1beta3 Value StringValue", "datastore:v1beta3 Value TimestampValue", "genomics:v1beta2 Dataset IsPublic", "monitoring:v3 TypedValue BoolValue", "monitoring:v3 TypedValue DoubleValue", "monitoring:v3 TypedValue Int64Value", "monitoring:v3 TypedValue StringValue", "servicecontrol:v1 MetricValue BoolValue", "servicecontrol:v1 MetricValue DoubleValue", "servicecontrol:v1 MetricValue Int64Value", "servicecontrol:v1 MetricValue StringValue", "sheets:v4 ExtendedValue BoolValue", "sheets:v4 ExtendedValue FormulaValue", "sheets:v4 ExtendedValue NumberValue", "sheets:v4 ExtendedValue StringValue", "slides:v1 Range EndIndex", "slides:v1 Range StartIndex", "sqladmin:v1beta4 Settings StorageAutoResize", "sqladmin:v1 Settings StorageAutoResize", "storage:v1 BucketLifecycleRuleCondition IsLive", "storage:v1 BucketLifecycleRuleCondition Age", "storage:v1beta2 BucketLifecycleRuleCondition IsLive", "tasks:v1 Task Completed", "youtube:v3 ChannelSectionSnippet Position", "youtube:v3 MonitorStreamInfo EnableMonitorStream"]
+
+/// The generator's state for one document.
+pub struct Gen {
+  doc: json.Value
+  api_id: Str
+  api_name: Str
+  /// Every schema Go makes a type of, top level and nested, by API name
+  /// (`Bucket`, `Bucket.lifecycle`, `Bucket.lifecycle.rule`).
+  schemas: Map[Str, json.Value] = {}
+  /// Top-level schemas by their `id` (Go's resolveRef).
+  by_id: Map[Str, Str] = {}
+  /// Go's usedNames pool, and each schema's Go name once given.
+  used: Pool = Pool{}
+  go_names: Map[Str, Str] = {}
+  /// Schemas a method returns (Go's responseTypes).
+  responses: Map[Str, Bool] = {}
+  report: List[Str] = []
+}
+
+pub fn new_gen(doc: json.Value) -> Gen {
+  let id = str_of(doc.get("id"))
+  var g = Gen{doc: doc, api_id: id, api_name: str_of(doc.get("name"))}
+  for (name, s) in fields_of(doc.get("schemas")) {
+    g.by_id[str_of(s.get("id"))] = name
+    g.schemas[name] = s
+  }
+  for (name, s) in fields_of(doc.get("schemas")) {
+    g.populate(name, s)
+  }
+  g
+}
+
+/// Go's populateSubSchemas.
+fn (var g: Gen) add_sub(name: Str, v: json.Value) {
+  if g.schemas.contains(name) {
+    g.report.push("duplicate schema name ${name}")
+    return
+  }
+  g.schemas[name] = v
+  g.populate(name, v)
+}
+
+fn (var g: Gen) populate(name: Str, v: json.Value) {
+  match kind(v) {
+    "struct" => {
+      for (p, ps) in fields_of(v.get("properties")) {
+        let sub = "${name}.${p}"
+        match kind(ps) {
+          "map" | "array" => {
+            let e = elem(ps)
+            let k = kind(e)
+            if k != "simple" && k != "ref" {
+              g.add_sub(sub, e)
+            }
+          }
+          "struct" => g.add_sub(sub, ps)
+          _ => {}
+        }
+      }
+    }
+    "array" => {
+      let sub = "${name}.Item"
+      let at = elem(v)
+      match kind(at) {
+        "map" | "array" => {
+          let e = elem(at)
+          let k = kind(e)
+          if k != "simple" && k != "ref" {
+            g.add_sub(sub, e)
+          }
+        }
+        "struct" => g.add_sub(sub, at)
+        _ => {}
+      }
+    }
+    _ => {}
+  }
+}
+
+/// The Go name of a schema (Go's Schema.GoName), from the pool the
+/// first time it is asked for.
+fn (var g: Gen) go_name(name: Str) -> Str {
+  if let Some(n) = g.go_names.get(name) {
+    return n
+  }
+  var base = initial_cap(name)
+  if g.api_name == "monitoring" && base == "Service" {
+    base = "MService"
+  }
+  let n = g.used.get(base)
+  g.go_names[name] = n
+  n
+}
+
+/// The Xo type of a schema's name.
+fn (var g: Gen) xo_name(name: Str) -> Str {
+  type_name(g.go_name(name))
+}
+
+/// The top-level schema a `$ref` names.
+fn (g: Gen) resolve(r: Str) -> (Str, json.Value)? {
+  let name = g.by_id.get(r) ?? (if g.schemas.contains(r) { r } else { return None })
+  Some((name, g.schemas.get(name) ?? json.Value.Null))
+}
+
+/// Go's typeAsGo, in Xo. `ctx` is the name a struct at this place has
+/// (`Bucket.lifecycle`), `named` whether the schema itself is a named
+/// array (whose items are `<ctx>.Item`).
+fn (var g: Gen) type_of(v: json.Value, ctx: Str, named: Bool = false) -> Ty {
+  match kind(v) {
+    "simple" => {
+      let t = simple_type(str_of(v.get("type")), str_of(v.get("format")))
+      Ty{t: t, opt: t == "json.Value"}
+    }
+    "array" => {
+      let e = elem(v)
+      if str_of(e.get("type")) == "string" && ["int64", "uint64", "int32", "uint32"].contains(str_of(e.get("format"))) {
+        return Ty{t: "List[${int_as_string_type()}]"}
+      }
+      // a named array's items are `<name>.Item`; a property's are the
+      // property's own name
+      let ectx = if named { "${ctx}.Item" } else { ctx }
+      let k = kind(e)
+      let et = g.type_of(e, ectx, named: k == "array")
+      Ty{t: "List[${et.t}]"}
+    }
+    "ref" => {
+      let r = str_of(v.get("\$ref"))
+      let (name, rs) = g.resolve(r) ?? {
+        g.report.push("unresolved \$ref ${r}")
+        return Ty{t: "json.Value", opt: true}
+      }
+      if kind(rs) == "simple" {
+        return Ty{t: g.xo_name(name)}
+      }
+      g.type_of(rs, name, named: true)
+    }
+    "map" => {
+      let e = elem(v)
+      if str_of(e.get("type")) == "string" {
+        return Ty{t: "Map[Str, Str]"}
+      }
+      let et = g.type_of(e, ctx, named: kind(e) == "array")
+      Ty{t: "Map[Str, ${et.t}]"}
+    }
+    "anystruct" => Ty{t: "json.Value", opt: true}
+    "struct" => {
+      if !g.schemas.contains(ctx) {
+        g.report.push("struct without a name at ${ctx}")
+        return Ty{t: "json.Value", opt: true}
+      }
+      if v.get("variant").is_some() {
+        return Ty{t: g.xo_name(ctx), opt: true}
+      }
+      Ty{t: g.xo_name(ctx), opt: true}
+    }
+    k => {
+      g.report.push("${ctx}: schema kind ${k}")
+      Ty{t: "json.Value", opt: true}
+    }
+  }
+}
+
+/// Go's Property.UnfortunateDefault: a zero value that is not the
+/// default, so Go makes the field a pointer.
+fn unfortunate_default(p: json.Value, t: Str) -> Bool {
+  let d = str_of(p.get("default"))
+  if t == "Bool" {
+    return d == "true"
+  }
+  if d == "" {
+    return false
+  }
+  if str_of(p.get("type")) == "string" && !is_int_as_string(p) {
+    let pat = str_of(p.get("pattern"))
+    let en = list_of(p.get("enum"))
+    if pat != "" && !en.is_empty() {
+      return false
+    }
+    // an empty pattern match needs a regexp; only an enum holding "" is
+    // checked
+    return en.any(fn(e: json.Value) -> Bool { str_of(Some(e)) == "" })
+  }
+  if t == "Int" || t == "Float" || is_int_as_string(p) {
+    return match Float.parse(d) {
+      Some(f) => f != 0.0
+      None => true
+    }
+  }
+  false
+}
+
+/// The response schema's name of a method, if a struct.
+fn (g: Gen) response_name(m: json.Value) -> Str? {
+  let r = str_of(m.get("response")?.get("\$ref"))
+  if r == "" {
+    return None
+  }
+  let (name, _) = g.resolve(r)?
+  Some(name)
+}
+
+/// Every method with its resource's full name (`` for the API's own,
+/// `.projects.locations` nested), in Go's order: the API's methods,
+/// then each resource depth first.
+fn methods_of(doc: json.Value) -> List[(Str, Str, json.Value)] {
+  var out: List[(Str, Str, json.Value)] = []
+  for (n, m) in fields_of(doc.get("methods")) {
+    out.push(("", n, m))
+  }
+  for (rn, r) in fields_of(doc.get("resources")) {
+    out = out + resource_methods(".${rn}", r)
+  }
+  out
+}
+
+fn resource_methods(full: Str, r: json.Value) -> List[(Str, Str, json.Value)] {
+  var out: List[(Str, Str, json.Value)] = []
+  for (n, m) in fields_of(r.get("methods")) {
+    out.push((full, n, m))
+  }
+  for (rn, c) in fields_of(r.get("resources")) {
+    out = out + resource_methods("${full}.${rn}", c)
+  }
+  out
+}
+
+/// The module for a document.
+pub fn generate(doc: json.Value, header: Str) -> Module {
+  var g = new_gen(doc)
+  // Go names first for the response types (cacheResponseTypes), then
+  // every schema in sorted order, as Go's generator asks for them
+  for (_, _, m) in methods_of(doc) {
+    if let Some(n) = g.response_name(m) {
+      g.go_name(n)
+      g.responses[n] = true
+    }
+  }
+  let names = g.schemas.keys().sort()
+  var models = ""
+  var nschemas = 0
+  for name in names {
+    let s = g.schemas.get(name) ?? json.Value.Null
+    match kind(s) {
+      "simple" => {
+        let t = simple_type(str_of(s.get("type")), str_of(s.get("format")))
+        models = models + "\n" + doc_lines("", "${g.xo_name(name)}: ${str_of(s.get("description"))}") + "pub type ${g.xo_name(name)} = ${t}\n"
+        nschemas = nschemas + 1
+      }
+      "struct" => {
+        models = models + g.struct_text(name, s)
+        nschemas = nschemas + 1
+      }
+      _ => {}
+    }
+  }
+  let svc = g.service_text(header)
+  let mi = imports(models, ["std/json"])
+  models = header + (if mi == "" { "" } else { "\n" + mi }) + models
+  Module{models: models, service: svc.0, report: g.report, methods: svc.1, schemas: nschemas}
+}
+
+/// A struct schema's type (Go's writeSchemaStruct).
+fn (var g: Gen) struct_text(name: Str, s: json.Value) -> Str {
+  let tn = g.xo_name(name)
+  let go_tn = g.go_name(name)
+  if s.get("variant").is_some() {
+    return "\n" + doc_lines("", "${tn}: one of several shapes, told apart by its `type` (Go's variant map).") + "pub type ${tn} = json.Value\n"
+  }
+  var out = "\n" + doc_lines("", "${tn}: ${str_of(s.get("description"))}") + "pub struct ${tn} {\n"
+  // Go's field names, from a pool holding its own fields first
+  var np = Pool{}
+  np.get("ForceSendFields")
+  np.get("NullFields")
+  if g.responses.contains(name) {
+    np.get("ServerResponse")
+  }
+  var xp = Pool{}
+  for (p, ps) in fields_of(s.get("properties")) {
+    let pname = np.get(initial_cap(p))
+    if pname.starts_with("@") {
+      continue
+    }
+    var ty = g.type_of(ps, "${name}.${p}")
+    if unfortunate_default(ps, ty.t) || POINTER_FIELDS.contains("${g.api_id} ${go_tn} ${pname}") {
+      ty = Ty{t: ty.t, opt: true}
+    }
+    if g.api_name == "monitoring" && str_of(g.doc.get("version")) == "v1" && go_tn == "HttpBody" && pname == "Data" {
+      ty = Ty{t: "json.Value", opt: true}
+    }
+    let fname = xp.get(snake(pname))
+    out = out + doc_lines("  ", str_of(ps.get("description")))
+    let t = if ty.opt { "${ty.t}?" } else { ty.t }
+    let z = if ty.opt { "None" } else { zero_of(ty.t) }
+    out = out + "  pub ${fname} as \"${esc(p)},omitempty\": ${t} = ${z}\n"
+  }
+  if out.ends_with(" {\n") {
+    return out.trim_suffix("\n") + "} derive Json\n"
+  }
+  out + "} derive Json\n"
+}
+
+/// A method's parameter.
+struct Arg {
+  /// The Discovery name (`bucket`, `ifMetagenerationMatch`).
+  api: Str
+  /// The Xo name.
+  name: Str
+  t: Str
+  location: Str
+  repeated: Bool = false
+}
+
+fn param_type(p: json.Value) -> Str {
+  let t = simple_type(str_of(p.get("type")), str_of(p.get("format")))
+  if bool_of(p.get("repeated")) { "List[${t}]" } else { t }
+}
+
+/// The text of a parameter value `x` of type `t` (Go's fmt.Sprint).
+fn text_of(t: Str, x: Str) -> Str {
+  if t == "Str" { x } else { "\"\${${x}}\"" }
+}
+
+/// The service, its resources and their methods.
+fn (var g: Gen) service_text(header: Str) -> (Str, Int) {
+  let d = g.doc
+  let root = str_of(d.get("rootUrl"))
+  let base = if root != "" { googleapi_resolve(root, str_of(d.get("servicePath"))) } else { str_of(d.get("baseUrl")) }
+  let mtls_root = str_of(d.get("mtlsRootUrl"))
+  let mtls = if mtls_root != "" { googleapi_resolve(mtls_root, str_of(d.get("servicePath"))) } else if root == "https://compute.googleapis.com/" { googleapi_resolve("https://compute.mtls.googleapis.com/", str_of(d.get("servicePath"))) } else { "" }
+  let svc_type = if g.api_name == "monitoring" && str_of(d.get("version")) == "v3" {
+    "Service"
+  } else if g.api_name == "appengine" || g.api_name == "content" {
+    "APIService"
+  } else if !g.schemas.contains("Service") {
+    "Service"
+  } else {
+    "APIService"
+  }
+  var out = ""
+  out = out + "/// The API's id in Discovery.\npub const API_ID: Str = \"${esc(g.api_id)}\"\n"
+  out = out + "/// The API's name in Discovery.\npub const API_NAME: Str = \"${esc(g.api_name)}\"\n"
+  out = out + "/// The API's version in Discovery.\npub const API_VERSION: Str = \"${esc(str_of(d.get("version")))}\"\n"
+  out = out + "/// The endpoint requests resolve against (Go's basePath).\npub const BASE_PATH: Str = \"${esc(base)}\"\n"
+  if mtls != "" {
+    out = out + "/// The mTLS endpoint (Go's mtlsBasePath).\npub const MTLS_BASE_PATH: Str = \"${esc(mtls)}\"\n"
+  }
+  let wrapper = list_of(d.get("features")).any(fn(f: json.Value) -> Bool { str_of(Some(f)) == "dataWrapper" })
+  // the service: the API's own methods and its top-level resources
+  let (stext, n0) = g.resource_text(svc_type, "", d, wrapper, true)
+  out = out + "\n" + doc_lines("", "${svc_type}: the ${str_of(d.get("title"))} (Go's ${initial_cap(g.api_name)} package's ${svc_type}).")
+  out = out + stext
+  out = out + "\n/// A service sending through `net`, with `opts`.\npub fn new_service[fx: Effects](net: Net, opts: option.ClientOptions[fx] = option.ClientOptions{}) -> ${svc_type}[fx] {\n  new_${snake(svc_type)}_from(gensupport.new_core(net, opts, BASE_PATH))\n}\n"
+  (header + "\n" + imports(out, ["std/http", "std/json", "std/url", "github.com/xo-lang/gcp/gensupport", "github.com/xo-lang/gcp/googleapi", "github.com/xo-lang/gcp/option"]) + "\n" + out, n0)
+}
+
+/// The `use` lines of the packages `body` names (`json.`, `http.`).
+fn imports(body: Str, pkgs: List[Str]) -> Str {
+  let code = body.split("\n").filter(fn(l: Str) -> Bool { !l.trim_start().starts_with("//") }).join("\n")
+  pkgs.filter(fn(p: Str) -> Bool {
+    let last = p.split("/").last() ?? p
+    code.contains(" ${last}.") || code.contains("(${last}.") || code.contains("[${last}.")
+  }).map(fn(p: Str) -> Str { "use ${p}\n" }).join("")
+}
+
+/// A resource's struct (or the service's), its constructor from the core,
+/// its methods, then its child resources'.
+fn (var g: Gen) resource_text(tn: Str, full: Str, r: json.Value, wrapper: Bool, top: Bool) -> (Str, Int) {
+  // member names: methods first, then `core` and the child resources
+  var members = Pool{}
+  let meths = fields_of(r.get("methods"))
+  for (mn, _) in meths {
+    members.get(snake(initial_cap(mn)))
+  }
+  let core = members.get("core")
+  var out = ""
+  if !top {
+    out = out + "\n/// ${tn}: the `${full[1..full.len()]}` resource.\n"
+  }
+  out = out + "pub struct ${tn}[fx: Effects] {\n  ${core}: gensupport.Core[fx]\n"
+  var kids: List[(Str, Str, Str, json.Value)] = []
+  for (rn, c) in fields_of(r.get("resources")) {
+    let cfull = "${full}.${rn}"
+    let ctn = type_name(initial_cap("${cfull}Service"))
+    let f = members.get(snake(initial_cap(rn)))
+    kids.push((f, ctn, cfull, c))
+    out = out + "  pub ${f}: ${ctn}[fx]\n"
+  }
+  out = out + "}\n\nfn new_${snake(tn)}_from[fx: Effects](core: gensupport.Core[fx]) -> ${tn}[fx] {\n  ${tn}{${core}: core"
+  for (f, ctn, _, _) in kids {
+    out = out + ", ${f}: new_${snake(ctn)}_from(core)"
+  }
+  out = out + "}\n}\n"
+  var n = 0
+  for (mn, m) in meths {
+    out = out + g.method_text(tn, core, full, mn, m, wrapper)
+    n = n + 1
+  }
+  for (_, ctn, cfull, c) in kids {
+    let (t, k) = g.resource_text(ctn, cfull, c, wrapper, false)
+    out = out + t
+    n = n + k
+  }
+  (out, n)
+}
+
+/// One method (Go's Method.generateCode): its options struct and its
+/// function.
+fn (var g: Gen) method_text(tn: Str, core: Str, full: Str, mn: Str, m: json.Value, wrapper: Bool) -> Str {
+  let method_go = initial_cap(mn)
+  let prefix = if full == "" { "" } else { initial_cap(full) }
+  let fname = snake(method_go)
+  let opts_tn = type_name(g.used.get("${prefix}${method_go}Options"))
+  let http_method = str_of(m.get("httpMethod"))
+  let id = str_of(m.get("id"))
+  let params = fields_of(m.get("parameters"))
+  // Go's generator refuses the whole API here (its committed package
+  // predates such a document), so the method is not generated
+  for (pn, p) in params {
+    if bool_of(p.get("repeated")) && str_of(p.get("type")) == "object" {
+      g.report.push("${id}: repeated object query parameter ${pn} (not in Go's package)")
+      return ""
+    }
+  }
+  // the arguments: parameterOrder (or the required parameters sorted),
+  // then the body (Go's NewArguments)
+  var order: List[Str] = list_of(m.get("parameterOrder")).map(fn(x: json.Value) -> Str { str_of(Some(x)) })
+  if order.is_empty() {
+    order = params.filter(fn(p: (Str, json.Value)) -> Bool { bool_of(p.1.get("required")) }).map(fn(p: (Str, json.Value)) -> Str { p.0 })
+  }
+  var go_args = Pool{}
+  var xo_args = Pool{}
+  // the function's own names and the packages it uses
+  for n in ["options", "r", "v", "url", "json", "http", "gensupport", "googleapi", "option"] {
+    xo_args.get(n)
+  }
+  xo_args.get("q")
+  xo_args.get("hs")
+  xo_args.get("u")
+  xo_args.get("resp")
+  var args: List[Arg] = []
+  for pn in order {
+    let p = params.filter(fn(x: (Str, json.Value)) -> Bool { x.0 == pn }).get(0) ?? {
+      g.report.push("${id}: parameterOrder names ${pn}, not a parameter")
+      continue
+    }
+    var gn = valid_go_ident(pn)
+    if str_of(p.1.get("description")).contains("identifier") && !gn.to_lower().ends_with("id") {
+      gn = "${gn}id"
+    }
+    gn = go_args.get(gn)
+    args.push(Arg{api: pn, name: xo_args.get(snake(gn)), t: param_type(p.1), location: str_of(p.1.get("location")), repeated: bool_of(p.1.get("repeated"))})
+  }
+  let req = m.get("request")
+  var body_arg: Arg? = None
+  var raw_request = false
+  var proto_request = false
+  if let Some(rq) = req {
+    let rref = str_of(rq.get("\$ref"))
+    if g.api_name == "healthcare" && rref == "HttpBody" {
+      raw_request = true
+      body_arg = Some(Arg{api: "REQUEST", name: xo_args.get("body"), t: "Bytes", location: "body"})
+    } else if rref == "GoogleProtobufStruct" {
+      proto_request = true
+      body_arg = Some(Arg{api: "REQUEST", name: xo_args.get("req"), t: "json.Value", location: "body"})
+    } else {
+      let (rname, _) = g.resolve(rref) ?? {
+        g.report.push("${id}: request \$ref ${rref} does not resolve")
+        return ""
+      }
+      let gn = go_args.get(valid_go_ident(rref.to_lower()))
+      body_arg = Some(Arg{api: "REQUEST", name: xo_args.get(snake(gn)), t: g.xo_name(rname), location: "body"})
+    }
+  }
+  // the result
+  let resp_ref = match m.get("response") {
+    Some(rv) => str_of(rv.get("\$ref"))
+    None => ""
+  }
+  let raw_response = raw_request || (g.api_name == "healthcare" && resp_ref == "HttpBody")
+  var ret = "()"
+  if raw_response {
+    ret = "http.Response"
+  } else if resp_ref == "GoogleProtobufStruct" {
+    ret = "json.Value"
+  } else if resp_ref != "" {
+    match g.resolve(resp_ref) {
+      Some((rn, rs)) => {
+        ret = if kind(rs) == "struct" { g.xo_name(rn) } else { g.type_of(rs, rn, named: true).t }
+      }
+      None => {
+        g.report.push("${id}: response \$ref ${resp_ref} does not resolve")
+        ret = "json.Value"
+      }
+    }
+  }
+  if m.get("mediaUpload").is_some() {
+    g.report.push("${id}: media upload (the metadata-only call is generated)")
+  }
+  if bool_of(m.get("supportsMediaDownload")) {
+    g.report.push("${id}: media download (the JSON call is generated)")
+  }
+  // the options: Go's setters for the optional parameters, then fields,
+  // If-None-Match (GET) and extra headers
+  var ofields = Pool{}
+  let fields_f = ofields.get("fields")
+  let headers_f = ofields.get("headers")
+  let inm_f = if http_method == "GET" { ofields.get("if_none_match") } else { "" }
+  var out = "\n/// ${opts_tn}: the optional parameters of ${tn}.${fname}.\npub struct ${opts_tn} {\n"
+  var opt_args: List[Arg] = []
+  for (pn, p) in params {
+    if bool_of(p.get("required")) {
+      continue
+    }
+    if str_of(p.get("location")) != "query" {
+      g.report.push("${id}: optional parameter ${pn} in ${str_of(p.get("location"))}")
+      continue
+    }
+    let a = Arg{api: pn, name: ofields.get(snake(initial_cap(pn))), t: param_type(p), location: "query", repeated: bool_of(p.get("repeated"))}
+    out = out + doc_lines("  ", str_of(p.get("description")))
+    if a.repeated {
+      out = out + "  pub ${a.name}: ${a.t} = []\n"
+    } else {
+      out = out + "  pub ${a.name}: ${a.t}? = None\n"
+    }
+    opt_args.push(a)
+  }
+  out = out + "  /// The fields of the result to return (Go's Fields), joined with commas.\n  pub ${fields_f}: List[Str] = []\n"
+  if inm_f != "" {
+    out = out + "  /// Fail with 304 when the result's ETag is this (Go's IfNoneMatch).\n  pub ${inm_f}: Str = \"\"\n"
+  }
+  out = out + "  /// More request headers (Go's Header).\n  pub ${headers_f}: List[(Str, Str)] = []\n}\n"
+  // the function
+  var sig: List[Str] = args.map(fn(a: Arg) -> Str { "${a.name}: ${a.t}" })
+  if let Some(b) = body_arg {
+    sig.push("${b.name}: ${b.t}")
+  }
+  sig.push("options: ${opts_tn} = ${opts_tn}{}")
+  out = out + "\n" + doc_lines("", "${fname}: ${str_of(m.get("description"))}") + "/// (Go's ${id}.)\n"
+  out = out + "pub fn (r: ${tn}[fx]) ${fname}(${sig.join(", ")}) -> ${ret} ! gensupport.CallErr uses (net.dial, clock, rand, fx) {\n"
+  out = out + "  var q = url.values()\n"
+  for a in args {
+    if a.location != "query" {
+      continue
+    }
+    if a.repeated {
+      out = out + "  for v in ${a.name} {\n    q.add(\"${esc(a.api)}\", ${text_of(a.t.trim_prefix("List[").trim_suffix("]"), "v")})\n  }\n"
+    } else {
+      out = out + "  q.set(\"${esc(a.api)}\", ${text_of(a.t, a.name)})\n"
+    }
+  }
+  for a in opt_args {
+    if a.repeated {
+      out = out + "  for v in options.${a.name} {\n    q.add(\"${esc(a.api)}\", ${text_of(a.t.trim_prefix("List[").trim_suffix("]"), "v")})\n  }\n"
+    } else {
+      out = out + "  if let Some(v) = options.${a.name} {\n    q.set(\"${esc(a.api)}\", ${text_of(a.t, "v")})\n  }\n"
+    }
+  }
+  out = out + "  if !options.${fields_f}.is_empty() {\n    q.set(\"fields\", options.${fields_f}.join(\",\"))\n  }\n"
+  let has_body = body_arg.is_some() && (raw_request || proto_request || http_method != "GET")
+  if !raw_request && !proto_request {
+    out = out + "  q.set(\"alt\", \"json\")\n  q.set(\"prettyPrint\", \"false\")\n"
+  }
+  out = out + "  var hs: List[(Str, Str)] = []\n"
+  if (!raw_request && body_arg.is_some() && http_method != "GET") || (m.get("mediaUpload").is_some() && body_arg.is_none()) {
+    out = out + "  hs.push((\"Content-Type\", \"application/json\"))\n"
+  }
+  let av = str_of(m.get("apiVersion"))
+  if av != "" {
+    out = out + "  hs.push((\"x-goog-api-version\", \"${esc(av)}\"))\n"
+  }
+  if inm_f != "" {
+    out = out + "  if options.${inm_f} != \"\" {\n    hs.push((\"If-None-Match\", options.${inm_f}))\n  }\n"
+  }
+  out = out + "  hs = hs + options.${headers_f}\n"
+  let path_args = args.filter(fn(a: Arg) -> Bool { a.location == "path" })
+  var pvals: List[Str] = []
+  for a in path_args {
+    let v = if a.repeated { "${a.name}.get(0) ?? \"\"" } else { text_of(a.t, a.name) }
+    pvals.push("\"${esc(a.api)}\": ${v}")
+  }
+  let pmap = if pvals.is_empty() { "{}" } else { "{${pvals.join(", ")}}" }
+  out = out + "  let u = googleapi.expand(googleapi.resolve_relative(r.${core}.base_path, \"${esc(str_of(m.get("path")))}\"), ${pmap})\n"
+  var body = "b\"\""
+  if has_body {
+    let b = body_arg ?? Arg{api: "", name: "", t: "", location: ""}
+    body = if raw_request { b.name } else if proto_request { "${b.name}.encode().bytes()" } else { "gensupport.json_body(${b.name}, data_wrapper: ${wrapper})" }
+  }
+  out = out + "  let resp = r.${core}.client.send(gensupport.Request{method: \"${http_method}\", url: u, query: q, headers: hs, body: ${body}})?\n"
+  if raw_response {
+    out = out + "  gensupport.check(resp)?\n  Ok(resp)\n}\n"
+  } else if ret == "()" {
+    out = out + "  gensupport.check(resp)?\n  Ok(())\n}\n"
+  } else if wrapper {
+    out = out + "  gensupport.check(resp)?\n  gensupport.decode_data[${ret}](resp)\n}\n"
+  } else {
+    out = out + "  gensupport.check(resp)?\n  gensupport.decode[${ret}](resp)\n}\n"
+  }
+  out
+}
+
+/// Go's resolveRelative for the base path (url.Parse(base).ResolveReference(rel)).
+fn googleapi_resolve(base: Str, rel: Str) -> Str {
+  if rel.starts_with("https://") || rel.starts_with("http://") {
+    return rel
+  }
+  if rel.starts_with("/") {
+    let se = (base.find("://") ?? 0) + 3
+    let he = match base[se..base.len()].find("/") {
+      Some(j) => se + j
+      None => base.len()
+    }
+    return base[0..he] + rel
+  }
+  let dir = match base.rfind("/") {
+    Some(j) => base[0..j + 1]
+    None => "${base}/"
+  }
+  dir + rel
+}

@@ -1,0 +1,198 @@
+// Google API errors and URL helpers, as google.golang.org/api's
+// googleapi package (BSD-3-Clause, Copyright (c) 2011 Google Inc.;
+// NOTICE.md) and its internal/third_party/uritemplates.
+
+use std/http
+use std/json
+
+/// The error a Google API answers with a status outside 2xx (Go's
+/// googleapi.Error).
+pub struct ApiErr {
+  /// The HTTP status code.
+  pub code: Int
+  /// The server's message, when the body names one.
+  pub message: Str = ""
+  /// The `details` of the error, as JSON values.
+  pub details: List[json.Value] = []
+  /// The response body as it came.
+  pub body: Str = ""
+  /// The response headers.
+  pub header: Map[Str, Str] = {}
+  pub errors: List[ErrorItem] = []
+}
+
+/// One entry of an error's `errors` list (Go's googleapi.ErrorItem).
+pub struct ErrorItem {
+  pub reason as "reason": Str = ""
+  pub message as "message": Str = ""
+} derive Json
+
+struct ErrorJson {
+  code as "code": Int = 0
+  message as "message": Str = ""
+  details as "details": List[json.Value] = []
+  errors as "errors": List[ErrorItem] = []
+} derive Json
+
+struct ErrorReply {
+  error as "error": ErrorJson? = None
+} derive Json
+
+/// Go's Error.Error().
+pub fn (e: ApiErr) display() -> Str {
+  if e.errors.is_empty() && e.message == "" {
+    return "googleapi: got HTTP response code ${e.code} with body: ${e.body}"
+  }
+  var buf = "googleapi: Error ${e.code}: "
+  if e.message != "" {
+    buf = buf + e.message
+  }
+  if !e.details.is_empty() {
+    // json.Encoder with SetIndent("", "  "), which ends with a newline
+    let d = json.indent(json.Value.List(e.details).encode(), "", "  ").ok() ?? ""
+    buf = buf + "\nDetails:\n" + d + "\n"
+  }
+  if e.errors.is_empty() {
+    return buf.trim()
+  }
+  if e.errors.len() == 1 && e.errors[0].message == e.message {
+    return "${buf}, ${e.errors[0].reason}"
+  }
+  buf = buf + "\nMore details:\n"
+  for v in e.errors {
+    buf = buf + "Reason: ${v.reason}, Message: ${v.message}\n"
+  }
+  buf
+}
+
+/// None for a 2xx response, else its Error (Go's CheckResponse): the
+/// body's `{"error": {...}}` (or the first element of an array of such)
+/// when it has one, the status and body otherwise.
+pub fn check_response(resp: http.Response) -> ApiErr? {
+  if resp.status >= 200 && resp.status <= 299 {
+    return None
+  }
+  let body = resp.body.to_str_lossy()
+  let reply: ErrorReply? = if body.starts_with("[") {
+    match json.decode_str[List[ErrorReply]](body) {
+      Ok(l) => l.get(0)
+      Err(_) => None
+    }
+  } else {
+    json.decode_str[ErrorReply](body).ok()
+  }
+  if let Some(r) = reply {
+    if let Some(e) = r.error {
+      return Some(ApiErr{code: if e.code == 0 { resp.status } else { e.code }, message: e.message, details: e.details, body: body, header: resp.headers, errors: e.errors})
+    }
+  }
+  Some(ApiErr{code: resp.status, body: body, header: resp.headers})
+}
+
+/// `rel` resolved against `base` (Go's ResolveRelative): the text after
+/// a colon in `rel` (a custom method, `:cancel`) is kept as it is, and
+/// `{`, `}` and `*` stay unescaped.
+pub fn resolve_relative(base: Str, rel: Str) -> Str {
+  var r = rel
+  var after = ""
+  if let Some(i) = rel.find(":") {
+    if i > 0 {
+      after = rel[i + 1..rel.len()]
+      r = rel[0..i]
+    }
+  }
+  // RFC 3986 reference resolution of a path-only reference
+  let scheme_end = (base.find("://") ?? 0) + 3
+  let host_end = match base[scheme_end..base.len()].find("/") {
+    Some(j) => scheme_end + j
+    None => base.len()
+  }
+  let origin = base[0..host_end]
+  let base_path = base[host_end..base.len()]
+  var path = if r.starts_with("/") {
+    r
+  } else if r == "" {
+    base_path
+  } else {
+    let dir = match base_path.rfind("/") {
+      Some(j) => base_path[0..j + 1]
+      None => "/"
+    }
+    dir + r
+  }
+  path = remove_dot_segments(path)
+  var us = origin + path
+  if after != "" {
+    us = "${us}:${after}"
+  }
+  us.replace("%7B", "{").replace("%7D", "}").replace("%2A", "*")
+}
+
+fn remove_dot_segments(p: Str) -> Str {
+  if !p.contains("/.") {
+    return p
+  }
+  var out: List[Str] = []
+  let segs = p.split("/")
+  for k in 0..segs.len() {
+    let s = segs[k]
+    if s == "." {
+      if k == segs.len() - 1 {
+        out.push("")
+      }
+    } else if s == ".." {
+      if out.len() > 1 {
+        out.pop()
+      }
+      if k == segs.len() - 1 {
+        out.push("")
+      }
+    } else {
+      out.push(s)
+    }
+  }
+  out.join("/")
+}
+
+/// `template` (a URL whose path holds `{name}` and `{+name}`
+/// expressions) with each expression replaced by its value, escaped as
+/// Go's uritemplates escapes it: `{name}` keeps only unreserved
+/// characters, `{+name}` reserved ones too; a name without a value
+/// expands to nothing.
+pub fn expand(template: Str, values: Map[Str, Str]) -> Str {
+  var out = ""
+  var rest = template
+  while let Some(i) = rest.find("{") {
+    let j = rest[i..rest.len()].find("}") ?? break
+    out = out + rest[0..i]
+    var expr = rest[i + 1..i + j]
+    var reserved = false
+    if expr.starts_with("+") {
+      reserved = true
+      expr = expr[1..expr.len()]
+    }
+    if let Some(v) = values.get(expr) {
+      out = out + escape(v, reserved)
+    }
+    rest = rest[i + j + 1..rest.len()]
+  }
+  out + rest
+}
+
+const HEX: Str = "0123456789ABCDEF"
+
+fn escape(s: Str, reserved: Bool) -> Str {
+  var out = ""
+  let b = s.bytes()
+  for i in 0..b.len() {
+    let c = b[i]
+    let keep = (c >= 0x41 && c <= 0x5a) || (c >= 0x61 && c <= 0x7a) || (c >= 0x30 && c <= 0x39) || c == 0x2d || c == 0x2e || c == 0x5f || c == 0x7e || (reserved && c < 0x80 && ":/?#[]@!$&'()*+,;=".contains(s[i..i + 1]))
+    if keep {
+      out = out + s[i..i + 1]
+    } else {
+      let h = Int(c)
+      out = out + "%" + HEX[h / 16..h / 16 + 1] + HEX[h % 16..h % 16 + 1]
+    }
+  }
+  out
+}

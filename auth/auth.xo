@@ -1,0 +1,45 @@
+// Tokens and token providers, as cloud.google.com/go/auth's Token and
+// TokenProvider (Apache-2.0, Copyright Google LLC; NOTICE.md).
+// Application Default Credentials and the credential files come in
+// their own slices (decision 0003); a client takes any TokenProvider.
+
+/// An OAuth 2.0 access token (Go's auth.Token).
+pub struct Token {
+  pub value: Secret[Str]
+  /// The token type, `Bearer` when the server names none.
+  pub token_type: Str = "Bearer"
+  /// When it expires; None for never.
+  pub expiry: Time? = None
+}
+
+/// Why a provider gave no token.
+pub struct AuthErr {
+  pub msg: Str
+  /// The HTTP status of the token endpoint's error response, 0 for none.
+  pub status: Int = 0
+}
+
+pub fn (e: AuthErr) display() -> Str {
+  "auth: ${e.msg}"
+}
+
+/// A source of tokens (Go's auth.TokenProvider).
+pub interface TokenProvider[fx: Effects] {
+  fn token(self) -> Token ! AuthErr uses (net.dial, clock, rand, fx)
+}
+
+/// A provider that always gives one token (Go's
+/// auth.NewCredentials with a static TokenProvider).
+pub struct StaticToken {
+  pub value: Token
+}
+
+pub fn (s: StaticToken) token() -> Token ! AuthErr uses (net.dial, clock, rand) {
+  Ok(s.value)
+}
+
+/// The `Authorization` header value of `t`: `<type> <value>`.
+pub fn authorization(t: Token) -> Str {
+  let kind = if t.token_type == "" { "Bearer" } else { t.token_type }
+  "${kind} ${t.value.reveal()}"
+}

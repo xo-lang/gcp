@@ -1,0 +1,145 @@
+// What every generated call is built and sent with, as
+// google.golang.org/api's internal/gensupport (BSD-3-Clause, Copyright
+// (c) 2011 Google Inc.; NOTICE.md): the request headers, the send, the
+// response check and its decoding.
+
+use std/http
+use std/json
+use std/url
+use github.com/xo-lang/gcp/auth
+use github.com/xo-lang/gcp/googleapi
+use github.com/xo-lang/gcp/option
+
+/// This library's version, in its User-Agent.
+pub const VERSION: Str = "0.1.0"
+
+/// Why a call gave no result.
+pub enum CallErr {
+  /// The transport failed (connect, timeout, protocol).
+  Http(e: http.ClientErr)
+  /// The credentials gave no token.
+  Auth(e: auth.AuthErr)
+  /// The service answered with a status outside 2xx.
+  Api(e: googleapi.ApiErr)
+  /// The response body was not the result's JSON.
+  Decode(msg: Str)
+  /// No credentials, and authentication was not turned off.
+  NoCredentials
+}
+
+pub fn (e: CallErr) display() -> Str {
+  match e {
+    Http(he) => he.display()
+    Auth(ae) => ae.display()
+    Api(ge) => ge.display()
+    Decode(m) => m
+    NoCredentials => "google: no credentials: pass option.ClientOptions.credentials, or set without_authentication"
+  }
+}
+
+/// The client a service sends through.
+pub struct Client[fx: Effects] {
+  pub http: http.Client
+  pub user_agent: Str
+  pub api_key: Str = ""
+  pub quota_project: Str = ""
+  pub credentials: auth.TokenProvider[fx]? = None
+  pub without_authentication: Bool = false
+}
+
+/// The client for `opts`.
+pub fn new_client[fx: Effects](net: Net, opts: option.ClientOptions[fx]) -> Client[fx] {
+  let ua = if opts.user_agent == "" { "xo-lang-gcp/${VERSION}" } else { "xo-lang-gcp/${VERSION} ${opts.user_agent}" }
+  Client{http: http.client(net, opts.timeout), user_agent: ua, api_key: opts.api_key, quota_project: opts.quota_project, credentials: opts.credentials, without_authentication: opts.without_authentication}
+}
+
+/// One request a generated call makes.
+pub struct Request {
+  pub method: Str
+  /// The URL, its path expanded (googleapi.expand), without the query.
+  pub url: Str
+  pub query: url.Values
+  /// The call's own headers (If-None-Match, a body's Content-Type,
+  /// the caller's extra headers), in order.
+  pub headers: List[(Str, Str)] = []
+  pub body: Bytes = b""
+}
+
+/// Sends `req` (Go's SendRequest, under the transport the options make):
+/// the User-Agent and `x-goog-api-client` headers (SetHeaders), the
+/// credentials' Authorization, the quota project, and the API key as the
+/// `key` query parameter.
+pub fn (c: Client[fx]) send(req: Request) -> http.Response ! CallErr uses (net.dial, clock, rand, fx) {
+  var q = req.query
+  if c.api_key != "" {
+    q.set("key", c.api_key)
+  }
+  let qs = q.encode()
+  let u = if qs == "" { req.url } else { "${req.url}?${qs}" }
+  var hreq = http.new_request(req.method, u, {}, req.body)
+  hreq = hreq.with_header("x-goog-api-client", "gl-xo/preview gdcl/${VERSION}")
+  hreq = hreq.with_header("User-Agent", c.user_agent)
+  for (k, v) in req.headers {
+    hreq = hreq.with_header(k, v)
+  }
+  if c.quota_project != "" {
+    hreq = hreq.with_header("X-Goog-User-Project", c.quota_project)
+  }
+  if !c.without_authentication {
+    let p = c.credentials ?? return Err(CallErr.NoCredentials)
+    let t = p.token() ?? e => return Err(CallErr.Auth(e))
+    hreq = hreq.with_header("Authorization", auth.authorization(t))
+  }
+  hreq = hreq.with_header("Accept-Encoding", "identity")
+  c.http.send(hreq) ?? e => Err(CallErr.Http(e))
+}
+
+/// `resp`'s error for a status outside 2xx (googleapi.CheckResponse).
+pub fn check(resp: http.Response) -> () ! CallErr {
+  match googleapi.check_response(resp) {
+    Some(e) => Err(CallErr.Api(e))
+    None => Ok(())
+  }
+}
+
+/// `resp`'s body as T (Go's DecodeResponse); an empty body (204) is T's
+/// JSON `{}`.
+pub fn decode[T: Json](resp: http.Response) -> T ! CallErr {
+  let body = if resp.body.is_empty() || resp.status == 204 { b"{}" } else { resp.body }
+  json.decode[T](body) ?? e => Err(CallErr.Decode(e.display()))
+}
+
+/// What a generated service and each of its resources share: the client
+/// and the base path its requests resolve against.
+pub struct Core[fx: Effects] {
+  pub client: Client[fx]
+  pub base_path: Str
+}
+
+/// The core for `opts`, `base_path` unless `opts.endpoint` names
+/// another (Go's option.WithEndpoint).
+pub fn new_core[fx: Effects](net: Net, opts: option.ClientOptions[fx], base_path: Str) -> Core[fx] {
+  Core{client: new_client(net, opts), base_path: if opts.endpoint == "" { base_path } else { opts.endpoint }}
+}
+
+/// A request body as Go's googleapi.WithoutDataWrapper.JSONBuffer (or
+/// WithDataWrapper's `{"data": ...}`) writes it: json.Encoder's text,
+/// ending with a newline.
+pub fn json_body[T: Json](v: T, data_wrapper: Bool = false) -> Bytes {
+  let s = json.encode_str(v)
+  if data_wrapper {
+    return "{\"data\":${s}}\n".bytes()
+  }
+  "${s}\n".bytes()
+}
+
+struct DataWrapper[T: Json] {
+  data as "data": T
+} derive Json
+
+/// `resp`'s body as T under Go's data wrapper (`{"data": ...}`, the
+/// Discovery feature `dataWrapper`).
+pub fn decode_data[T: Json](resp: http.Response) -> T ! CallErr {
+  let w = decode[DataWrapper[T]](resp)?
+  Ok(w.data)
+}

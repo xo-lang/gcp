@@ -1,0 +1,25 @@
+use std/http
+
+test "resolve_relative as Go's ResolveRelative" {
+  expect(resolve_relative("https://storage.googleapis.com/storage/v1/", "b/{bucket}/o")) == "https://storage.googleapis.com/storage/v1/b/{bucket}/o"
+  expect(resolve_relative("https://example.googleapis.com/", "v1/{+name}:cancel")) == "https://example.googleapis.com/v1/{+name}:cancel"
+  expect(resolve_relative("https://example.googleapis.com/v1/", "/upload/x")) == "https://example.googleapis.com/upload/x"
+  expect(resolve_relative("https://example.googleapis.com/a/b", "../c")) == "https://example.googleapis.com/c"
+}
+
+test "expand escapes as Go's uritemplates" {
+  expect(expand("https://h/b/{bucket}/o/{object}", {"bucket": "my bucket", "object": "a/b.txt"})) == "https://h/b/my%20bucket/o/a%2Fb.txt"
+  expect(expand("https://h/v1/{+name}", {"name": "projects/p/locations/-"})) == "https://h/v1/projects/p/locations/-"
+  expect(expand("https://h/v1/{missing}", {})) == "https://h/v1/"
+}
+
+test "check_response reads the error body" {
+  let ok = http.Response{status: 200, headers: {}, body: b"{}"}
+  expect(check_response(ok).is_none()) == true
+  let body = "{\"error\":{\"code\":404,\"message\":\"Not Found\",\"errors\":[{\"reason\":\"notFound\",\"message\":\"Not Found\"}]}}"
+  let e = check_response(http.Response{status: 404, headers: {}, body: body.bytes()}) ?? ApiErr{code: 0}
+  expect(e.code) == 404
+  expect(e.display()) == "googleapi: Error 404: Not Found, notFound"
+  let plain = check_response(http.Response{status: 502, headers: {}, body: b"bad gateway"}) ?? ApiErr{code: 0}
+  expect(plain.display()) == "googleapi: got HTTP response code 502 with body: bad gateway"
+}

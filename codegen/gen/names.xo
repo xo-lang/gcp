@@ -1,0 +1,161 @@
+// Names, as google-api-go-generator writes them (its depunct,
+// initialCap and validGoIdentifer; BSD-3-Clause, Copyright (c) 2011
+// Google Inc.; NOTICE.md), then in Xo style (decision 0002): Go's names
+// in snake_case for functions, fields and parameters, PascalCase types.
+
+/// Xo's keywords and predeclared values (spec/core.md 1.4).
+const KEYWORDS: List[Str] = ["as", "break", "const", "continue", "defer", "else", "ensures", "enum", "fn", "for", "if", "in", "interface", "invariant", "let", "match", "pub", "requires", "return", "select", "struct", "test", "type", "use", "uses", "var", "while", "true", "false", "self", "target", "fault", "dbg"]
+
+/// The type names Xo predeclares, the derivable interfaces, and the
+/// generator's own (json.Value's `Value`).
+const RESERVED_TYPES: List[Str] = ["Bool", "Int", "Int8", "Int16", "Int32", "Int64", "UInt8", "UInt16", "UInt32", "UInt64", "Float", "Float32", "Rune", "Str", "Bytes", "Duration", "Time", "List", "Map", "Set", "Buf", "Chan", "Mutex", "Atomic", "Secret", "Option", "Result", "Never", "StrBuilder", "BytesBuilder", "Error", "Os", "Net", "Fs", "Clock", "Rand", "Env", "Proc", "Stdio", "Display", "Debug", "Eq", "Hash", "Ord", "Json", "OpenApi", "Proto", "SqlRow", "Xml", "Yaml", "Cbor", "Value"]
+
+const GO_KEYWORDS: List[Str] = ["break", "default", "func", "interface", "select", "case", "defer", "go", "map", "struct", "chan", "else", "goto", "package", "switch", "const", "fallthrough", "if", "range", "type", "continue", "for", "import", "return", "var"]
+
+/// Go's depunct: `_` (unless doubled), `-`, `.`, `$` and `/` dropped,
+/// the letter after each in capitals.
+pub fn depunct(ident: Str, cap_first: Bool) -> Str {
+  var out = ""
+  var need_cap = cap_first
+  var preserve = false
+  let n = ident.len()
+  for i in 0..n {
+    let c = ident[i..i + 1]
+    if c == "_" {
+      if preserve || ident[i..n].starts_with("__") {
+        preserve = true
+      } else {
+        need_cap = true
+        continue
+      }
+    } else {
+      preserve = false
+    }
+    if c == "-" || c == "." || c == "$" || c == "/" {
+      need_cap = true
+      continue
+    }
+    if need_cap {
+      out = out + c.to_upper()
+      need_cap = false
+    } else {
+      out = out + c
+    }
+  }
+  out
+}
+
+/// Go's initialCap.
+pub fn initial_cap(ident: Str) -> Str {
+  depunct(ident, true)
+}
+
+/// Go's validGoIdentifer.
+pub fn valid_go_ident(ident: Str) -> Str {
+  let id = depunct(ident, false)
+  if GO_KEYWORDS.contains(id) { "${id}_" } else { id }
+}
+
+fn is_upper(c: Str) -> Bool {
+  c >= "A" && c <= "Z"
+}
+
+fn is_lower(c: Str) -> Bool {
+  c >= "a" && c <= "z"
+}
+
+fn is_digit(c: Str) -> Bool {
+  c >= "0" && c <= "9"
+}
+
+/// Words of a Go name: split at separators, at a lower-case letter or
+/// digit before a capital, and before the last capital of a run that a
+/// lower-case letter follows (`IPAddress` is IP Address).
+pub fn words(s: Str) -> List[Str] {
+  var out: List[Str] = []
+  var cur = ""
+  let n = s.len()
+  for i in 0..n {
+    let c = s[i..i + 1]
+    if !(is_upper(c) || is_lower(c) || is_digit(c)) {
+      if cur != "" {
+        out.push(cur)
+        cur = ""
+      }
+      continue
+    }
+    if cur != "" && is_upper(c) {
+      let prev = s[i - 1..i]
+      let next_lower = i + 1 < n && is_lower(s[i + 1..i + 2])
+      // a plural initialism stays whole: VMs, IDs (an `s` ending the word)
+      let plural = next_lower && s[i + 1..i + 2] == "s" && (i + 2 >= n || !is_lower(s[i + 2..i + 3]))
+      if is_lower(prev) || is_digit(prev) || (is_upper(prev) && next_lower && !plural) {
+        out.push(cur)
+        cur = ""
+      }
+    }
+    cur = cur + c
+  }
+  if cur != "" {
+    out.push(cur)
+  }
+  out
+}
+
+/// snake_case of a Go name, not a keyword, not starting with a digit.
+pub fn snake(s: Str) -> Str {
+  var n = words(s).map(fn(w: Str) -> Str { w.to_lower() }).join("_")
+  if n == "" {
+    n = "value"
+  }
+  if is_digit(n[0..1]) {
+    n = "n${n}"
+  }
+  if KEYWORDS.contains(n) {
+    n = "${n}_"
+  }
+  n
+}
+
+/// A Go type name as an Xo type: `Model` after a name Xo predeclares, a
+/// leading digit prefixed.
+pub fn type_name(go: Str) -> Str {
+  var n = words(go).map(fn(w: Str) -> Str { "${w[0..1].to_upper()}${w[1..w.len()]}" }).join("")
+  if n == "" {
+    n = "Value"
+  }
+  if is_digit(n[0..1]) {
+    n = "N${n}"
+  }
+  if RESERVED_TYPES.contains(n) { "${n}Model" } else { n }
+}
+
+/// `s` as the text of an Xo string literal.
+pub fn esc(s: Str) -> Str {
+  s.replace("\\", "\\\\").replace("\"", "\\\"").replace("$", "\\$").replace("\n", "\\n").replace("\r", "\\r").replace("\t", "\\t")
+}
+
+/// `s` as doc comment lines at `indent`.
+pub fn doc_lines(indent: Str, s: Str) -> Str {
+  let t = s.trim()
+  if t == "" {
+    return ""
+  }
+  t.replace("\r", "").split("\n").map(fn(l: Str) -> Str { "${indent}/// ${l}".trim_end() + "\n" }).join("")
+}
+
+/// Go's namePool: `preferred`, or it with 1, 2, ... after it.
+pub struct Pool {
+  pub used: Map[Str, Bool] = {}
+}
+
+pub fn (var p: Pool) get(preferred: Str) -> Str {
+  var name = preferred
+  var tries = 0
+  while p.used.contains(name) {
+    tries = tries + 1
+    name = "${preferred}${tries}"
+  }
+  p.used[name] = true
+  name
+}
