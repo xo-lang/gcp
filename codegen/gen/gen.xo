@@ -13,6 +13,7 @@ pub struct Module {
   pub report: List[Str] = []
   pub methods: Int = 0
   pub schemas: Int = 0
+  pub infos: List[MInfo] = []
 }
 
 /// The Xo type of a JSON string carrying an integer (format int64,
@@ -141,6 +142,8 @@ pub struct Gen {
   /// Schemas a method returns (Go's responseTypes).
   responses: Map[Str, Bool] = {}
   report: List[Str] = []
+  /// Each generated method, for the Go vectors.
+  pub infos: List[MInfo] = []
 }
 
 pub fn new_gen(doc: json.Value) -> Gen {
@@ -383,7 +386,7 @@ pub fn generate(doc: json.Value, header: Str) -> Module {
   let svc = g.service_text(header)
   let mi = imports(models, ["std/json"])
   models = header + (if mi == "" { "" } else { "\n" + mi }) + models
-  Module{models: models, service: svc.0, report: g.report, methods: svc.1, schemas: nschemas}
+  Module{models: models, service: svc.0, report: g.report, methods: svc.1, schemas: nschemas, infos: g.infos}
 }
 
 /// A struct schema's type (Go's writeSchemaStruct).
@@ -427,14 +430,58 @@ fn (var g: Gen) struct_text(name: Str, s: json.Value) -> Str {
 }
 
 /// A method's parameter.
-struct Arg {
+pub struct Arg {
   /// The Discovery name (`bucket`, `ifMetagenerationMatch`).
-  api: Str
+  pub api: Str
   /// The Xo name.
-  name: Str
-  t: Str
-  location: Str
-  repeated: Bool = false
+  pub name: Str
+  pub t: Str
+  pub location: Str
+  pub repeated: Bool = false
+  /// Go's element type (`string`, `int64`), or its type's Go name for a
+  /// body.
+  pub go_t: Str = ""
+  /// Go's setter for an optional parameter.
+  pub setter: Str = ""
+  /// The schema's API name, for a body.
+  pub schema: Str = ""
+}
+
+/// One generated method, as the Go vectors call it in both languages.
+pub struct MInfo {
+  pub id: Str
+  /// The resource's fields from the service (`projects.locations`, and
+  /// Go's `Projects.Locations`).
+  pub xo_chain: List[Str]
+  pub go_chain: List[Str]
+  pub fname: Str
+  pub go_method: Str
+  pub opts_tn: Str
+  pub args: List[Arg]
+  pub body: Arg? = None
+  /// "" for a JSON body, else why the vectors leave the method out.
+  pub special: Str = ""
+  pub opts: List[Arg] = []
+  pub fields_f: Str
+  pub headers_f: Str
+  pub inm_f: Str
+  pub ret: Str
+  /// The response schema's API name ("" for none).
+  pub resp_schema: Str = ""
+}
+
+/// Go's type of a parameter's element (simpleTypeConvert).
+fn go_param_type(p: json.Value) -> Str {
+  match str_of(p.get("type")) {
+    "boolean" => "bool"
+    "string" => match str_of(p.get("format")) {
+      "int64" | "uint64" | "int32" | "uint32" => str_of(p.get("format"))
+      _ => "string"
+    }
+    "number" => "float64"
+    "integer" => "int64"
+    _ => "any"
+  }
 }
 
 fn param_type(p: json.Value) -> Str {
@@ -491,7 +538,7 @@ fn imports(body: Str, pkgs: List[Str]) -> Str {
 
 /// A resource's struct (or the service's), its constructor from the core,
 /// its methods, then its child resources'.
-fn (var g: Gen) resource_text(tn: Str, full: Str, r: json.Value, wrapper: Bool, top: Bool) -> (Str, Int) {
+fn (var g: Gen) resource_text(tn: Str, full: Str, r: json.Value, wrapper: Bool, top: Bool, xo_chain: List[Str] = [], go_chain: List[Str] = []) -> (Str, Int) {
   // member names: methods first, then `core` and the child resources
   var members = Pool{}
   let meths = fields_of(r.get("methods"))
@@ -504,26 +551,28 @@ fn (var g: Gen) resource_text(tn: Str, full: Str, r: json.Value, wrapper: Bool, 
     out = out + "\n/// ${tn}: the `${full[1..full.len()]}` resource.\n"
   }
   out = out + "pub struct ${tn}[fx: Effects] {\n  ${core}: gensupport.Core[fx]\n"
-  var kids: List[(Str, Str, Str, json.Value)] = []
+  var kids: List[(Str, Str, Str, json.Value, Str)] = []
   for (rn, c) in fields_of(r.get("resources")) {
     let cfull = "${full}.${rn}"
     let ctn = type_name(initial_cap("${cfull}Service"))
     let f = members.get(snake(initial_cap(rn)))
-    kids.push((f, ctn, cfull, c))
+    // Go's resourceGoField: `_` after a name a method of the parent has
+    let gof = if !top && meths.any(fn(x: (Str, json.Value)) -> Bool { x.0 == rn }) { "${initial_cap(rn)}_" } else { initial_cap(rn) }
+    kids.push((f, ctn, cfull, c, gof))
     out = out + "  pub ${f}: ${ctn}[fx]\n"
   }
   out = out + "}\n\nfn new_${snake(tn)}_from[fx: Effects](core: gensupport.Core[fx]) -> ${tn}[fx] {\n  ${tn}{${core}: core"
-  for (f, ctn, _, _) in kids {
+  for (f, ctn, _, _, _) in kids {
     out = out + ", ${f}: new_${snake(ctn)}_from(core)"
   }
   out = out + "}\n}\n"
   var n = 0
   for (mn, m) in meths {
-    out = out + g.method_text(tn, core, full, mn, m, wrapper)
+    out = out + g.method_text(tn, core, full, mn, m, wrapper, xo_chain, go_chain)
     n = n + 1
   }
-  for (_, ctn, cfull, c) in kids {
-    let (t, k) = g.resource_text(ctn, cfull, c, wrapper, false)
+  for (f, ctn, cfull, c, gof) in kids {
+    let (t, k) = g.resource_text(ctn, cfull, c, wrapper, false, xo_chain + [f], go_chain + [gof])
     out = out + t
     n = n + k
   }
@@ -532,7 +581,7 @@ fn (var g: Gen) resource_text(tn: Str, full: Str, r: json.Value, wrapper: Bool, 
 
 /// One method (Go's Method.generateCode): its options struct and its
 /// function.
-fn (var g: Gen) method_text(tn: Str, core: Str, full: Str, mn: Str, m: json.Value, wrapper: Bool) -> Str {
+fn (var g: Gen) method_text(tn: Str, core: Str, full: Str, mn: Str, m: json.Value, wrapper: Bool, xo_chain: List[Str], go_chain: List[Str]) -> Str {
   let method_go = initial_cap(mn)
   let prefix = if full == "" { "" } else { initial_cap(full) }
   let fname = snake(method_go)
@@ -575,7 +624,7 @@ fn (var g: Gen) method_text(tn: Str, core: Str, full: Str, mn: Str, m: json.Valu
       gn = "${gn}id"
     }
     gn = go_args.get(gn)
-    args.push(Arg{api: pn, name: xo_args.get(snake(gn)), t: param_type(p.1), location: str_of(p.1.get("location")), repeated: bool_of(p.1.get("repeated"))})
+    args.push(Arg{api: pn, name: xo_args.get(snake(gn)), t: param_type(p.1), location: str_of(p.1.get("location")), repeated: bool_of(p.1.get("repeated")), go_t: go_param_type(p.1)})
   }
   let req = m.get("request")
   var body_arg: Arg? = None
@@ -595,7 +644,7 @@ fn (var g: Gen) method_text(tn: Str, core: Str, full: Str, mn: Str, m: json.Valu
         return ""
       }
       let gn = go_args.get(valid_go_ident(rref.to_lower()))
-      body_arg = Some(Arg{api: "REQUEST", name: xo_args.get(snake(gn)), t: g.xo_name(rname), location: "body"})
+      body_arg = Some(Arg{api: "REQUEST", name: xo_args.get(snake(gn)), t: g.xo_name(rname), location: "body", go_t: g.go_name(rname), schema: rname})
     }
   }
   // the result
@@ -642,7 +691,7 @@ fn (var g: Gen) method_text(tn: Str, core: Str, full: Str, mn: Str, m: json.Valu
       g.report.push("${id}: optional parameter ${pn} in ${str_of(p.get("location"))}")
       continue
     }
-    let a = Arg{api: pn, name: ofields.get(snake(initial_cap(pn))), t: param_type(p), location: "query", repeated: bool_of(p.get("repeated"))}
+    let a = Arg{api: pn, name: ofields.get(snake(initial_cap(pn))), t: param_type(p), location: "query", repeated: bool_of(p.get("repeated")), go_t: go_param_type(p), setter: initial_cap(pn)}
     out = out + doc_lines("  ", str_of(p.get("description")))
     if a.repeated {
       out = out + "  pub ${a.name}: ${a.t} = []\n"
@@ -722,6 +771,12 @@ fn (var g: Gen) method_text(tn: Str, core: Str, full: Str, mn: Str, m: json.Valu
   } else {
     out = out + "  gensupport.check(resp)?\n  gensupport.decode[${ret}](resp)\n}\n"
   }
+  let special = if raw_request || raw_response { "raw HttpBody" } else if proto_request || resp_ref == "GoogleProtobufStruct" { "protobuf Struct" } else { "" }
+  let resp_schema = match g.resolve(resp_ref) {
+    Some((rn, _)) => rn
+    None => ""
+  }
+  g.infos.push(MInfo{id: id, xo_chain: xo_chain, go_chain: go_chain, fname: fname, go_method: method_go, opts_tn: opts_tn, args: args, body: body_arg, special: special, opts: opt_args, fields_f: fields_f, headers_f: headers_f, inm_f: inm_f, ret: ret, resp_schema: if resp_ref == "" { "" } else { resp_schema }})
   out
 }
 

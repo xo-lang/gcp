@@ -1,0 +1,277 @@
+// The Go vectors (decision 0005): one call per generated method with
+// every argument and optional parameter set, the same in both languages.
+// `go_program` writes the Go program that makes each call with Go's
+// package through a fake transport (no network) and prints the request,
+// the response it served and the result; `vectors_test` writes the Xo
+// test that makes the same calls here and compares those lines with the
+// Go program's output. Request and response bodies are one sample JSON
+// text per schema, which both sides decode into their own types.
+
+use std/json
+
+/// The calls the vectors make: every generated method with a JSON body
+/// (or none), in generation order.
+pub fn vector_calls(m: Module) -> List[MInfo] {
+  m.infos.filter(fn(i: MInfo) -> Bool { i.special == "" })
+}
+
+/// A sample value of a schema: every property set, to a depth.
+fn (g: Gen) sample(v: json.Value, prop: Str, depth: Int) -> json.Value? {
+  match kind(v) {
+    "ref" => {
+      if depth > 5 {
+        return None
+      }
+      let (_, rs) = g.resolve(str_of(v.get("\$ref")))?
+      g.sample(rs, prop, depth + 1)
+    }
+    "simple" => Some(sample_simple(v, prop))
+    "struct" => {
+      if depth > 5 {
+        return None
+      }
+      if v.get("variant").is_some() {
+        return Some(json.Value.Object([("k", json.Value.Str("v"))]))
+      }
+      var fs: List[(Str, json.Value)] = []
+      for (p, ps) in fields_of(v.get("properties")) {
+        if p.starts_with("@") {
+          continue
+        }
+        if let Some(x) = g.sample(ps, p, depth + 1) {
+          fs.push((p, x))
+        }
+      }
+      Some(json.Value.Object(fs))
+    }
+    "array" => {
+      if depth > 5 {
+        return None
+      }
+      let e = g.sample(elem(v), prop, depth + 1)?
+      Some(json.Value.List([e]))
+    }
+    "map" => {
+      if depth > 5 {
+        return None
+      }
+      let e = g.sample(elem(v), prop, depth + 1)?
+      Some(json.Value.Object([("k1", e)]))
+    }
+    "anystruct" => Some(json.Value.Object([("k", json.Value.Str("v"))]))
+    _ => None
+  }
+}
+
+fn sample_simple(v: json.Value, prop: Str) -> json.Value {
+  match str_of(v.get("type")) {
+    "string" => if is_int_as_string(v) { json.Value.Str("7") } else if str_of(v.get("format")) == "byte" { json.Value.Str("YWI=") } else { json.Value.Str("s-${prop.to_lower()}") }
+    "integer" => json.Value.Int(7)
+    "number" => json.Value.Num(1.5)
+    "boolean" => json.Value.Bool(true)
+    _ => json.Value.Object([("k", json.Value.Str("v"))])
+  }
+}
+
+/// The sample JSON text of a schema by API name ("" for none).
+fn (g: Gen) sample_text(name: Str) -> Str {
+  if name == "" {
+    return ""
+  }
+  let s = g.schemas.get(name) ?? return ""
+  match g.sample(s, name, 0) {
+    Some(v) => v.encode()
+    None => ""
+  }
+}
+
+/// An argument's sample: Xo's expression and Go's.
+fn arg_sample(a: Arg, n: Int) -> (Str, Str) {
+  let one: (Str, Str) = if a.go_t == "string" {
+    let s = if a.location == "path" { "id${n}/ x" } else { "s-${a.api.to_lower()}" }
+    ("\"${esc(s)}\"", go_lit(s))
+  } else if a.go_t == "bool" {
+    ("true", "true")
+  } else if a.go_t == "float64" {
+    ("1.5", "1.5")
+  } else if a.t.contains("Str") {
+    // an integer carried as a string (int_as_string_type)
+    ("\"7\"", "7")
+  } else {
+    ("7", "7")
+  }
+  if a.repeated {
+    return ("[${one.0}]", "[]${a.go_t}{${one.1}}")
+  }
+  one
+}
+
+/// `s` as a Go string literal.
+pub fn go_lit(s: Str) -> Str {
+  "\"" + s.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r").replace("\t", "\\t") + "\""
+}
+
+/// `s` as an Xo string literal, control characters as `\u{...}`.
+pub fn xo_lit(s: Str) -> Str {
+  var o = "\""
+  for ch in s.runes() {
+    let c = Int(ch)
+    if ch == '"' {
+      o = o + "\\\""
+    } else if ch == '\\' {
+      o = o + "\\\\"
+    } else if ch == '$' {
+      o = o + "\\$"
+    } else if c < 0x20 || c == 0x7f {
+      o = o + "\\u{${hex4(c)}}"
+    } else {
+      o = o + "${ch}"
+    }
+  }
+  o + "\""
+}
+
+fn hex4(c: Int) -> Str {
+  let d = "0123456789abcdef"
+  var s = ""
+  var n = c
+  for _ in 0..4 {
+    s = d[n % 16..n % 16 + 1] + s
+    n = n / 16
+  }
+  s
+}
+
+/// The Go program for a module (`import_path` is Go's package).
+pub fn go_program(doc: json.Value, m: Module, import_path: Str, header: Str, prelude: Str) -> Str {
+  let g = new_gen(doc)
+  var o = "${header}\npackage main\n\nimport (\n\t\"context\"\n\t\"encoding/json\"\n\t\"fmt\"\n\t\"io\"\n\t\"net/http\"\n\t\"os\"\n\t\"sort\"\n\t\"strings\"\n\n\t\"google.golang.org/api/option\"\n\tapi \"${import_path}\"\n)\n"
+  o = o + "\n" + prelude
+  o = o + "\nfunc main() {\n\thttp.DefaultTransport = nil\n\tctx := context.Background()\n\tsvc, err := api.NewService(ctx, option.WithHTTPClient(&http.Client{Transport: fake{}}), option.WithoutAuthentication())\n\tif err != nil {\n\t\tpanic(err)\n\t}\n\tonly := \"\"\n\tif len(os.Args) > 1 {\n\t\tonly = os.Args[1]\n\t}\n"
+  for i in vector_calls(m) {
+    o = o + "\tif only == \"\" || only == ${go_lit(i.id)} {\n"
+    o = o + "\t\tfmt.Println(${go_lit("CALL ${i.id}")})\n"
+    o = o + "\t\tserved = ${go_lit(g.sample_text(i.resp_schema))}\n"
+    var gargs: List[Str] = []
+    var n = 0
+    for a in i.args {
+      n = n + 1
+      gargs.push(arg_sample(a, n).1)
+    }
+    if let Some(b) = i.body {
+      gargs.push("body[api.${b.go_t}](${go_lit(g.sample_text(b.schema))})")
+    }
+    let chain = (["svc"] + i.go_chain).join(".")
+    o = o + "\t\tc := ${chain}.${i.go_method}(${gargs.join(", ")})\n"
+    for a in i.opts {
+      let v = arg_sample(Arg{api: a.api, name: a.name, t: a.t, location: a.location, go_t: a.go_t}, 0).1
+      o = o + "\t\tc.${a.setter}(${v})\n"
+    }
+    o = o + "\t\tc.Fields(\"kind\", \"id\")\n"
+    if i.inm_f != "" {
+      o = o + "\t\tc.IfNoneMatch(\"etag-1\")\n"
+    }
+    o = o + "\t\tc.Header().Set(\"X-Extra\", \"v1\")\n"
+    if i.ret == "()" {
+      o = o + "\t\toutErr(c.Do())\n"
+    } else {
+      o = o + "\t\tout(c.Do())\n"
+    }
+    o = o + "\t}\n"
+  }
+  o + "}\n"
+}
+
+/// The Go program's output by call: each CALL line's id and the lines
+/// from it to the next.
+fn go_blocks(go_out: Str) -> Map[Str, List[Str]] {
+  var out: Map[Str, List[Str]] = {}
+  var cur = ""
+  var lines: List[Str] = []
+  for l in go_out.split("\n") {
+    if l.starts_with("CALL ") {
+      if cur != "" {
+        out[cur] = lines
+      }
+      cur = l[5..l.len()]
+      lines = [l]
+    } else if cur != "" {
+      lines.push(l)
+    }
+  }
+  if cur != "" {
+    out[cur] = lines
+  }
+  // a block ends at its OUT line (the output's last newline leaves an
+  // empty line after it)
+  var trimmed: Map[Str, List[Str]] = {}
+  for (k, v) in out {
+    var w = v
+    while w.len() > 0 && w[w.len() - 1] == "" {
+      w = w[0..w.len() - 1]
+    }
+    trimmed[k] = w
+  }
+  trimmed
+}
+
+/// The Xo test of a module's vectors from the Go program's output.
+pub fn vectors_test(doc: json.Value, m: Module, go_out: Str, header: Str, base_path: Str) -> Str {
+  let g = new_gen(doc)
+  let blocks = go_blocks(go_out)
+  let se = (base_path.find("://") ?? 0) + 3
+  let host = match base_path[se..base_path.len()].find("/") {
+    Some(j) => base_path[0..se + j]
+    None => base_path
+  }
+  var o = "${header}\nuse std/json\n"
+  o = o + "\nconst GV_HOST: Str = ${xo_lit(host)}\n"
+  var k = 0
+  for i in vector_calls(m) {
+    let want = blocks.get(i.id) ?? continue
+    o = o + "\nconst GO_${k}: List[Str] = [\n"
+    for l in want {
+      o = o + "  ${xo_lit(l)},\n"
+    }
+    o = o + "]\n\ntest ${xo_lit("Go's ${i.id}")} {\n"
+    o = o + "  let f = gv_new_fake(os.net, GV_HOST)\n"
+    o = o + "  let svc = new_service(os.net, gv_opts())\n"
+    o = o + "  gv_set(f, ${xo_lit(g.sample_text(i.resp_schema))})\n"
+    o = o + "  gv_note(f, ${xo_lit("CALL ${i.id}")})\n"
+    var xargs: List[Str] = []
+    var n = 0
+    for a in i.args {
+      n = n + 1
+      xargs.push(arg_sample(a, n).0)
+    }
+    if let Some(b) = i.body {
+      xargs.push("json.decode_str[${b.t}](${xo_lit(g.sample_text(b.schema))}) ?? e => fault(e.display())")
+    }
+    var ofs: List[Str] = []
+    for a in i.opts {
+      let v = arg_sample(Arg{api: a.api, name: a.name, t: a.t, location: a.location, go_t: a.go_t}, 0).0
+      if a.repeated {
+        ofs.push("${a.name}: [${v}]")
+      } else {
+        ofs.push("${a.name}: Some(${v})")
+      }
+    }
+    ofs.push("${i.fields_f}: [\"kind\", \"id\"]")
+    if i.inm_f != "" {
+      ofs.push("${i.inm_f}: \"etag-1\"")
+    }
+    ofs.push("${i.headers_f}: [(\"X-Extra\", \"v1\")]")
+    xargs.push("options: ${i.opts_tn}{${ofs.join(", ")}}")
+    let chain = (["svc"] + i.xo_chain).join(".")
+    o = o + "  match ${chain}.${i.fname}(${xargs.join(", ")}) {\n"
+    if i.ret == "()" {
+      o = o + "    Ok(_) => gv_note(f, \"OUT: ok\")\n"
+    } else {
+      o = o + "    Ok(r) => gv_note(f, \"OUT: \${json.encode_str(r)}\")\n"
+    }
+    o = o + "    Err(e) => gv_note_lines(f, \"OUT: error: \${e.display().replace(\"\\n\", \"\\n| \")}\")\n  }\n"
+    o = o + "  gv_compare(gv_log_of(f), GO_${k})\n}\n"
+    k = k + 1
+  }
+  o
+}
