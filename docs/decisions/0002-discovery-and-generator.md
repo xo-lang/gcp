@@ -1,6 +1,6 @@
 # 0002: Discovery documents as Go pins them, a generator in Xo
 
-Status: Proposed (for the owner's approval, through the lead).
+Status: Accepted (by the owner, through the lead, 2026-11-07).
 
 ## Context
 

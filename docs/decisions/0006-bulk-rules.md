@@ -1,6 +1,6 @@
 # 0006: Bulk rules from the start
 
-Status: Proposed (for the owner's approval, through the lead).
+Status: Accepted (by the owner, through the lead, 2026-11-07).
 
 ## Context
 

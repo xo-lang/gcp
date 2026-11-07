@@ -1,6 +1,6 @@
 # 0007: gRPC clients wait for a std decision
 
-Status: Proposed (for the owner's approval, through the lead).
+Status: Accepted (by the owner, through the lead, 2026-11-07).
 
 ## Context
 

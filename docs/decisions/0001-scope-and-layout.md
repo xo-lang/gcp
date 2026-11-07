@@ -1,6 +1,6 @@
 # 0001: Scope, parity target and module layout
 
-Status: Proposed (for the owner's approval, through the lead).
+Status: Accepted (by the owner, through the lead, 2026-11-07).
 
 ## Context
 

@@ -1,6 +1,6 @@
 # 0004: Go's service and call shape, in Xo style
 
-Status: Proposed (for the owner's approval, through the lead).
+Status: Accepted (by the owner, through the lead, 2026-11-07).
 
 ## Context
 

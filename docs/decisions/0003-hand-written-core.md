@@ -1,6 +1,6 @@
 # 0003: The hand-written core is auth and transport, as in Go
 
-Status: Proposed (for the owner's approval, through the lead).
+Status: Accepted (by the owner, through the lead, 2026-11-07).
 
 ## Context
 
