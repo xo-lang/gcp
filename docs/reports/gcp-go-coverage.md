@@ -6,8 +6,8 @@ Go-verified (its Go vectors pass: every method called in Go and here
 with the same arguments, comparing the request, the response served and
 the result), compiled (generated and type-checked), not generated.
 
-- Go-verified: 665
-- Go-verified on some targets only (an xo bug blocks the rest): 2
+- Go-verified: 667
+- Go-verified on some targets only (an xo bug blocks the rest): 0
 - compiled: 0
 - not generated: 0
 
@@ -49,7 +49,7 @@ the result), compiled (generated and type-checked), not generated.
 | agentidentitycredentials/v1beta | Go-verified | 2 |
 | agentregistry/v1 | Go-verified | 74 |
 | agentregistry/v1alpha | Go-verified | 74 |
-| aiplatform/v1 | Go-verified where an xo bug allows: linux/arm64 native and the go backend pass; on darwin/arm64 the default separate link fails with branch out of range (reported to Lang 4), XO_SEPCOMP=0 passes | 1342 |
+| aiplatform/v1 | Go-verified | 1342 |
 | aiplatform/v1beta1 | Go-verified | 959 |
 | airquality/v1 | Go-verified | 6 |
 | alertcenter/v1beta1 | Go-verified | 12 |
@@ -202,7 +202,7 @@ the result), compiled (generated and type-checked), not generated.
 | commentanalyzer/v1alpha1 | Go-verified | 2 |
 | composer/v1 | Go-verified | 35 |
 | composer/v1beta1 | Go-verified | 37 |
-| compute/v0.alpha | Go-verified where an xo bug allows: linux/arm64 native and the go backend pass; on darwin/arm64 the default separate link fails with branch out of range (reported to Lang 4), XO_SEPCOMP=0 passes | 1447 |
+| compute/v0.alpha | Go-verified | 1447 |
 | compute/v0.beta | Go-verified | 1340 |
 | compute/v1 | Go-verified | 1224 |
 | compute/v1.preview | Go-verified | 1315 |
