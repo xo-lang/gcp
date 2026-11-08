@@ -17,11 +17,12 @@ pub struct Module {
 }
 
 /// The Xo type of a JSON string carrying an integer (format int64,
-/// uint64, int32 or uint32), Go's `,string` fields. One switch for the
-/// whole generator: `Str` until std/json takes a `string` option (the
-/// ADR Lang 3 drafts), then `Int`.
+/// uint64, int32 or uint32), Go's `,string` fields: Int, its struct
+/// field tagged `,string` (ADR 0555). A list of them stays List[Str]
+/// (Go's googleapi.Int64s; 0555 covers single values only), and so does
+/// a map's value (Go's map[string]string).
 pub fn int_as_string_type() -> Str {
-  "Str"
+  "Int"
 }
 
 pub fn str_of(v: json.Value?) -> Str {
@@ -244,7 +245,7 @@ fn (var g: Gen) type_of(v: json.Value, ctx: Str, named: Bool = false) -> Ty {
     "array" => {
       let e = elem(v)
       if str_of(e.get("type")) == "string" && ["int64", "uint64", "int32", "uint32"].contains(str_of(e.get("format"))) {
-        return Ty{t: "List[${int_as_string_type()}]"}
+        return Ty{t: "List[Str]"}
       }
       // a named array's items are `<name>.Item`; a property's are the
       // property's own name
@@ -421,7 +422,9 @@ fn (var g: Gen) struct_text(name: Str, s: json.Value) -> Str {
     out = out + doc_lines("  ", str_of(ps.get("description")))
     let t = if ty.opt { "${ty.t}?" } else { ty.t }
     let z = if ty.opt { "None" } else { zero_of(ty.t) }
-    out = out + "  pub ${fname} as \"${esc(p)},omitempty\": ${t} = ${z}\n"
+    // Go's IsIntAsString: the integer travels as a JSON string
+    let wire = if kind(ps) == "simple" && ty.t == "Int" && is_int_as_string(ps) { ",string" } else { "" }
+    out = out + "  pub ${fname} as \"${esc(p)},omitempty${wire}\": ${t} = ${z}\n"
   }
   if out.ends_with(" {\n") {
     return out.trim_suffix("\n") + "} derive Json\n"
