@@ -44,7 +44,9 @@ for d in "$@"; do
     continue
   fi
   cp codegen/govec/fake_test.xo.txt "$d/govec_fake_test.xo"
-  (cd "$d" && "$xo" test . > "$work/$n.test" 2>&1)
+  # XO_TEST_FLAGS: e.g. --backend=go, for a module the native backend
+  # cannot build yet (an xo bug the coverage report names)
+  (cd "$d" && "$xo" test ${XO_TEST_FLAGS:-} . > "$work/$n.test" 2>&1)
   r=$(grep -E '^(ok|FAIL): ' "$work/$n.test" | tail -1)
   case $r in
     ok:*) echo "$d Go-verified" ;;

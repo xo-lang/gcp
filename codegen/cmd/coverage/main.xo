@@ -4,7 +4,9 @@
 // a module is Go-verified when it has Go vectors (govectors_test.xo,
 // committed only when every test passes) or no methods at all, compiled
 // when it is generated without them, not generated when its row has no
-// module. Never written by hand.
+// module. A row's `blocked` names an xo bug that keeps a module's vectors
+// off the native backend: Go-verified on the go backend only, counted
+// apart. Never written by hand.
 
 use std/toml
 
@@ -12,6 +14,7 @@ struct Service {
   pub dir: Str
   pub package: Str
   pub doc: Str
+  pub blocked: Str = ""
 } derive Json
 
 struct Services {
@@ -22,6 +25,7 @@ struct Services {
 fn main(os: Os) -> () ! Error {
   let services = toml.decode[Services](os.fs.read_text("codegen/services.toml")?)?
   var verified = 0
+  var verified_go = 0
   var compiled = 0
   var missing = 0
   var rows: List[Str] = []
@@ -33,7 +37,10 @@ fn main(os: Os) -> () ! Error {
       continue
     }
     let methods = os.fs.read_text(svc)?.split("\n").filter(fn(l: Str) -> Bool { l.starts_with("pub fn (r: ") }).len()
-    if os.fs.exists("${s.dir}/govectors_test.xo")? {
+    if os.fs.exists("${s.dir}/govectors_test.xo")? && s.blocked != "" {
+      verified_go = verified_go + 1
+      rows.push("| ${s.dir} | Go-verified on the go backend; native arm64 blocked by ${s.blocked} | ${methods} |")
+    } else if os.fs.exists("${s.dir}/govectors_test.xo")? {
       verified = verified + 1
       rows.push("| ${s.dir} | Go-verified | ${methods} |")
     } else if methods == 0 {
@@ -45,8 +52,8 @@ fn main(os: Os) -> () ! Error {
     }
   }
   var out = "# Go coverage\n\nWritten by `codegen/cmd/coverage` from the tree; do not edit. Every\nAPI version google.golang.org/api ${services.go_version} ships, by status (decision 0005):\nGo-verified (its Go vectors pass: every method called in Go and here\nwith the same arguments, comparing the request, the response served and\nthe result), compiled (generated and type-checked), not generated.\n\n"
-  out = out + "- Go-verified: ${verified}\n- compiled: ${compiled}\n- not generated: ${missing}\n\n| Module | Status | Methods |\n| --- | --- | --- |\n" + rows.join("\n") + "\n"
+  out = out + "- Go-verified: ${verified}\n- Go-verified on the go backend only (an xo bug blocks native arm64): ${verified_go}\n- compiled: ${compiled}\n- not generated: ${missing}\n\n| Module | Status | Methods |\n| --- | --- | --- |\n" + rows.join("\n") + "\n"
   os.fs.write("docs/reports/gcp-go-coverage.md", out.bytes())?
-  os.stdio.println("Go-verified ${verified}, compiled ${compiled}, not generated ${missing}")
+  os.stdio.println("Go-verified ${verified}, go backend only ${verified_go}, compiled ${compiled}, not generated ${missing}")
   Ok(())
 }

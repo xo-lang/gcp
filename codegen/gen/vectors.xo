@@ -149,13 +149,42 @@ fn hex4(c: Int) -> Str {
   s
 }
 
+/// Whether Go's package has the call's method: its `// Do executes the
+/// "<id>" call.` in its source (`go_src`, "" for any). A Discovery document
+/// can list methods its Go package does not (discoveryengine/v1's
+/// billingAccounts and projects.locations.provision in v0.311.0); those
+/// get no vector.
+pub fn go_has(go_src: Str, i: MInfo) -> Bool {
+  go_src == "" || go_src.contains("// Do executes the \"${i.id}\" call.")
+}
+
+/// The Go call type of a method (`ProjectsLocationsProvisionCall`), from
+/// the `func (c *T) Do(` after its doc; "" when not found.
+fn go_call_type(go_src: Str, id: Str) -> Str {
+  let at = go_src.find("// Do executes the \"${id}\" call.") ?? return ""
+  let rest = go_src[at..go_src.len()]
+  let f = rest.find("func (c *") ?? return ""
+  let t = rest[f + 9..rest.len()]
+  t[0..(t.find(")") ?? 0)]
+}
+
+/// Whether Go's call has an option's setter (discoveryengine/v1's
+/// dataStores.sessions.create lists a sessionId its Go call lacks).
+pub fn go_has_opt(go_src: Str, i: MInfo, setter: Str) -> Bool {
+  if go_src == "" {
+    return true
+  }
+  let t = go_call_type(go_src, i.id)
+  t == "" || go_src.contains("func (c *${t}) ${setter}(")
+}
+
 /// The Go program for a module (`import_path` is Go's package).
-pub fn go_program(doc: json.Value, m: Module, import_path: Str, header: Str, prelude: Str) -> Str {
+pub fn go_program(doc: json.Value, m: Module, import_path: Str, header: Str, prelude: Str, go_src: Str = "") -> Str {
   let g = new_gen(doc)
   var o = "${header}\npackage main\n\nimport (\n\t\"context\"\n\t\"encoding/json\"\n\t\"fmt\"\n\t\"io\"\n\t\"net/http\"\n\t\"os\"\n\t\"sort\"\n\t\"strings\"\n\n\t\"google.golang.org/api/option\"\n\tapi \"${import_path}\"\n)\n"
   o = o + "\n" + prelude
   o = o + "\nfunc main() {\n\thttp.DefaultTransport = nil\n\tctx := context.Background()\n\tsvc, err := api.NewService(ctx, option.WithHTTPClient(&http.Client{Transport: fake{}}), option.WithoutAuthentication())\n\tif err != nil {\n\t\tpanic(err)\n\t}\n\t_ = svc\n\tonly := \"\"\n\tif len(os.Args) > 1 {\n\t\tonly = os.Args[1]\n\t}\n\t_ = only\n"
-  for i in vector_calls(m) {
+  for i in vector_calls(m).filter(fn(i: MInfo) -> Bool { go_has(go_src, i) }) {
     o = o + "\tif only == \"\" || only == ${go_lit(i.id)} {\n"
     o = o + "\t\tfmt.Println(${go_lit("CALL ${i.id}")})\n"
     o = o + "\t\tserved = ${go_lit(served_text(doc, g.sample_text(i.resp_schema)))}\n"
@@ -170,7 +199,7 @@ pub fn go_program(doc: json.Value, m: Module, import_path: Str, header: Str, pre
     }
     let chain = (["svc"] + i.go_chain).join(".")
     o = o + "\t\tc := ${chain}.${i.go_method}(${gargs.join(", ")})\n"
-    for a in i.opts {
+    for a in i.opts.filter(fn(a: Arg) -> Bool { go_has_opt(go_src, i, a.setter) }) {
       let v = arg_sample(Arg{api: a.api, name: a.name, t: a.t, location: a.location, go_t: a.go_t}, 0).1
       o = o + "\t\tc.${a.setter}(${v})\n"
     }
@@ -223,7 +252,7 @@ fn go_blocks(go_out: Str) -> Map[Str, List[Str]] {
 }
 
 /// The Xo test of a module's vectors from the Go program's output.
-pub fn vectors_test(doc: json.Value, m: Module, go_out: Str, header: Str, base_path: Str) -> Str {
+pub fn vectors_test(doc: json.Value, m: Module, go_out: Str, header: Str, base_path: Str, go_src: Str = "") -> Str {
   let g = new_gen(doc)
   let blocks = go_blocks(go_out)
   let se = (base_path.find("://") ?? 0) + 3
@@ -257,7 +286,7 @@ pub fn vectors_test(doc: json.Value, m: Module, go_out: Str, header: Str, base_p
       xargs.push("json.decode_str[${b.t}](${xo_lit(g.sample_text(b.schema))}) ?? e => fault(e.display())")
     }
     var ofs: List[Str] = []
-    for a in i.opts {
+    for a in i.opts.filter(fn(a: Arg) -> Bool { go_has_opt(go_src, i, a.setter) }) {
       let v = arg_sample(Arg{api: a.api, name: a.name, t: a.t, location: a.location, go_t: a.go_t}, 0).0
       if a.repeated {
         ofs.push("${a.name}: [${v}]")

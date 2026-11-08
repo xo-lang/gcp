@@ -6,8 +6,9 @@ Go-verified (its Go vectors pass: every method called in Go and here
 with the same arguments, comparing the request, the response served and
 the result), compiled (generated and type-checked), not generated.
 
-- Go-verified: 589
-- compiled: 78
+- Go-verified: 660
+- Go-verified on the go backend only (an xo bug blocks native arm64): 2
+- compiled: 5
 - not generated: 0
 
 | Module | Status | Methods |
@@ -22,13 +23,13 @@ the result), compiled (generated and type-checked), not generated.
 | adexchangebuyer/v1.2 | Go-verified | 7 |
 | adexchangebuyer/v1.3 | Go-verified | 21 |
 | adexchangebuyer/v1.4 | Go-verified | 38 |
-| adexchangebuyer2/v2beta1 | compiled | 78 |
+| adexchangebuyer2/v2beta1 | Go-verified | 78 |
 | adexchangeseller/v1 | Go-verified | 11 |
 | adexchangeseller/v1.1 | Go-verified | 17 |
 | adexchangeseller/v2.0 | Go-verified | 14 |
 | adexperiencereport/v1 | Go-verified | 2 |
 | admin/datatransfer/v1 | Go-verified | 5 |
-| admin/directory/v1 | compiled | 128 |
+| admin/directory/v1 | Go-verified | 128 |
 | admin/reports/v1 | Go-verified | 6 |
 | admob/v1 | Go-verified | 6 |
 | admob/v1beta | Go-verified | 19 |
@@ -56,8 +57,8 @@ the result), compiled (generated and type-checked), not generated.
 | alloydb/v1alpha | Go-verified | 45 |
 | alloydb/v1beta | Go-verified | 45 |
 | analytics/v2.4 | Go-verified | 6 |
-| analytics/v3 | compiled | 88 |
-| analyticsadmin/v1alpha | compiled | 166 |
+| analytics/v3 | Go-verified | 88 |
+| analyticsadmin/v1alpha | Go-verified | 166 |
 | analyticsadmin/v1beta | Go-verified | 55 |
 | analyticsdata/v1alpha | Go-verified | 6 |
 | analyticsdata/v1beta | Go-verified | 11 |
@@ -71,14 +72,14 @@ the result), compiled (generated and type-checked), not generated.
 | androidpublisher/v1 | Go-verified (no methods) | 0 |
 | androidpublisher/v1.1 | Go-verified | 1 |
 | androidpublisher/v2 | Go-verified | 2 |
-| androidpublisher/v3 | compiled | 145 |
+| androidpublisher/v3 | Go-verified | 145 |
 | apigateway/v1 | Go-verified | 30 |
 | apigateway/v1alpha1 | Go-verified | 15 |
 | apigateway/v1alpha2 | Go-verified | 15 |
 | apigateway/v1beta | Go-verified | 30 |
-| apigee/v1 | compiled | 374 |
-| apigeeregistry/v1 | compiled | 101 |
-| apihub/v1 | compiled | 97 |
+| apigee/v1 | Go-verified on the go backend; native arm64 blocked by the closure capture word limit (xo.frameargs of a large options struct, arm64 backend) | 374 |
+| apigeeregistry/v1 | Go-verified | 101 |
+| apihub/v1 | Go-verified | 97 |
 | apikeys/v2 | Go-verified | 9 |
 | apim/v1alpha | Go-verified | 23 |
 | appengine/v1 | Go-verified | 59 |
@@ -121,7 +122,7 @@ the result), compiled (generated and type-checked), not generated.
 | bigqueryreservation/v1alpha2 | Go-verified | 15 |
 | bigqueryreservation/v1beta1 | Go-verified | 20 |
 | bigtableadmin/v1 | Go-verified (no methods) | 0 |
-| bigtableadmin/v2 | compiled | 82 |
+| bigtableadmin/v2 | Go-verified | 82 |
 | billingbudgets/v1 | Go-verified | 5 |
 | billingbudgets/v1beta1 | Go-verified | 5 |
 | binaryauthorization/v1 | Go-verified | 21 |
@@ -134,7 +135,7 @@ the result), compiled (generated and type-checked), not generated.
 | calendar/v3 | Go-verified | 38 |
 | certificatemanager/v1 | Go-verified | 36 |
 | ces/v1 | Go-verified | 73 |
-| ces/v1beta | compiled | 117 |
+| ces/v1beta | Go-verified | 117 |
 | chat/v1 | Go-verified | 55 |
 | checks/v1alpha | Go-verified | 15 |
 | chromemanagement/v1 | Go-verified | 70 |
@@ -143,7 +144,7 @@ the result), compiled (generated and type-checked), not generated.
 | chromewebstore/v1.1 | Go-verified | 4 |
 | chromewebstore/v2 | Go-verified | 9 |
 | civicinfo/v2 | Go-verified | 4 |
-| classroom/v1 | compiled | 105 |
+| classroom/v1 | Go-verified | 105 |
 | cloudasset/v1 | Go-verified | 24 |
 | cloudasset/v1beta1 | Go-verified | 8 |
 | cloudasset/v1p1beta1 | Go-verified | 2 |
@@ -172,7 +173,7 @@ the result), compiled (generated and type-checked), not generated.
 | cloudidentity/v1 | Go-verified | 70 |
 | cloudidentity/v1beta1 | Go-verified | 71 |
 | cloudiot/v1 | Go-verified | 23 |
-| cloudkms/v1 | compiled | 87 |
+| cloudkms/v1 | Go-verified | 87 |
 | cloudlocationfinder/v1 | Go-verified | 5 |
 | cloudlocationfinder/v1alpha | Go-verified | 5 |
 | cloudnumberregistry/v1alpha | Go-verified | 44 |
@@ -184,7 +185,7 @@ the result), compiled (generated and type-checked), not generated.
 | cloudresourcemanager/v1beta1 | Go-verified | 16 |
 | cloudresourcemanager/v2 | Go-verified | 12 |
 | cloudresourcemanager/v2beta1 | Go-verified | 12 |
-| cloudresourcemanager/v3 | compiled | 92 |
+| cloudresourcemanager/v3 | Go-verified | 92 |
 | cloudscheduler/v1 | Go-verified | 16 |
 | cloudscheduler/v1beta1 | Go-verified | 14 |
 | cloudsearch/v1 | Go-verified | 49 |
@@ -202,22 +203,22 @@ the result), compiled (generated and type-checked), not generated.
 | composer/v1 | Go-verified | 29 |
 | composer/v1beta1 | Go-verified | 31 |
 | compute/v0.alpha | compiled | 1212 |
-| compute/v0.beta | compiled | 1130 |
-| compute/v1 | compiled | 1025 |
-| compute/v1.preview | compiled | 1092 |
+| compute/v0.beta | Go-verified | 1130 |
+| compute/v1 | Go-verified | 1025 |
+| compute/v1.preview | Go-verified | 1092 |
 | config/v1 | Go-verified | 47 |
-| connectors/v1 | compiled | 80 |
+| connectors/v1 | Go-verified | 80 |
 | connectors/v2 | Go-verified | 26 |
 | consumersurveys/v2 | Go-verified | 11 |
 | contactcenteraiplatform/v1alpha1 | Go-verified | 13 |
-| contactcenterinsights/v1 | compiled | 188 |
+| contactcenterinsights/v1 | Go-verified | 188 |
 | container/v1 | Go-verified | 71 |
 | container/v1beta1 | Go-verified | 72 |
 | containeranalysis/v1 | Go-verified | 44 |
 | containeranalysis/v1alpha1 | Go-verified | 33 |
 | containeranalysis/v1beta1 | Go-verified | 46 |
-| content/v2 | compiled | 86 |
-| content/v2.1 | compiled | 125 |
+| content/v2 | Go-verified | 86 |
+| content/v2.1 | Go-verified | 125 |
 | content/v2sandbox | Go-verified | 30 |
 | contentwarehouse/v1 | Go-verified | 36 |
 | css/v1 | Go-verified | 13 |
@@ -227,8 +228,8 @@ the result), compiled (generated and type-checked), not generated.
 | datacatalog/v1 | Go-verified | 71 |
 | datacatalog/v1beta1 | Go-verified | 55 |
 | dataflow/v1b3 | Go-verified | 57 |
-| dataform/v1 | compiled | 89 |
-| dataform/v1beta1 | compiled | 96 |
+| dataform/v1 | Go-verified | 89 |
+| dataform/v1beta1 | Go-verified | 96 |
 | datafusion/v1 | Go-verified | 19 |
 | datafusion/v1beta1 | Go-verified | 25 |
 | datalabeling/v1beta1 | Go-verified | 47 |
@@ -237,10 +238,10 @@ the result), compiled (generated and type-checked), not generated.
 | datamigration/v1 | Go-verified | 70 |
 | datamigration/v1beta1 | Go-verified | 29 |
 | datapipelines/v1 | Go-verified | 8 |
-| dataplex/v1 | compiled | 206 |
+| dataplex/v1 | Go-verified | 206 |
 | dataportability/v1 | Go-verified | 6 |
 | dataportability/v1beta | Go-verified | 6 |
-| dataproc/v1 | compiled | 136 |
+| dataproc/v1 | Go-verified | 136 |
 | dataproc/v1beta2 | Go-verified | 65 |
 | datastore/v1 | Go-verified | 18 |
 | datastore/v1beta1 | Go-verified | 2 |
@@ -256,34 +257,34 @@ the result), compiled (generated and type-checked), not generated.
 | developerknowledge/v1alpha | Go-verified | 4 |
 | devicerun/v1 | Go-verified | 10 |
 | devicerun/v1alpha | Go-verified | 16 |
-| dfareporting/v2.7 | compiled | 204 |
-| dfareporting/v3.0 | compiled | 204 |
-| dfareporting/v3.1 | compiled | 204 |
-| dfareporting/v3.2 | compiled | 206 |
-| dfareporting/v3.3 | compiled | 204 |
-| dfareporting/v3.4 | compiled | 205 |
+| dfareporting/v2.7 | Go-verified | 204 |
+| dfareporting/v3.0 | Go-verified | 204 |
+| dfareporting/v3.1 | Go-verified | 204 |
+| dfareporting/v3.2 | Go-verified | 206 |
+| dfareporting/v3.3 | Go-verified | 204 |
+| dfareporting/v3.4 | Go-verified | 205 |
 | dfareporting/v3.5 | Go-verified | 1 |
-| dfareporting/v4 | compiled | 224 |
-| dfareporting/v5 | compiled | 218 |
-| dialogflow/v2 | compiled | 284 |
-| dialogflow/v2beta1 | compiled | 271 |
-| dialogflow/v3 | compiled | 158 |
+| dfareporting/v4 | Go-verified | 224 |
+| dfareporting/v5 | Go-verified | 218 |
+| dialogflow/v2 | Go-verified | 284 |
+| dialogflow/v2beta1 | Go-verified | 271 |
+| dialogflow/v3 | Go-verified | 158 |
 | dialogflow/v3alpha1 | Go-verified | 6 |
-| dialogflow/v3beta1 | compiled | 162 |
+| dialogflow/v3beta1 | Go-verified | 162 |
 | digitalassetlinks/v1 | Go-verified | 3 |
 | discovery/v1 | Go-verified | 2 |
 | discoveryengine/v1 | compiled | 277 |
 | discoveryengine/v1alpha | compiled | 385 |
-| discoveryengine/v1beta | compiled | 276 |
-| displayvideo/v1 | compiled | 150 |
+| discoveryengine/v1beta | Go-verified | 276 |
+| displayvideo/v1 | Go-verified | 150 |
 | displayvideo/v1beta | Go-verified | 3 |
 | displayvideo/v1beta2 | Go-verified | 2 |
 | displayvideo/v1dev | Go-verified | 2 |
-| displayvideo/v2 | compiled | 144 |
-| displayvideo/v3 | compiled | 151 |
-| displayvideo/v4 | compiled | 179 |
+| displayvideo/v2 | Go-verified | 144 |
+| displayvideo/v3 | Go-verified | 151 |
+| displayvideo/v4 | Go-verified | 179 |
 | displayvideo/v5 | Go-verified | 4 |
-| dlp/v2 | compiled | 150 |
+| dlp/v2 | Go-verified | 150 |
 | dns/v1 | Go-verified | 51 |
 | dns/v1beta2 | Go-verified | 51 |
 | dns/v2 | Go-verified | 37 |
@@ -351,15 +352,15 @@ the result), compiled (generated and type-checked), not generated.
 | genomics/v2alpha1 | Go-verified | 6 |
 | gkebackup/v1 | Go-verified | 67 |
 | gkehub/v1 | Go-verified | 73 |
-| gkehub/v1alpha | compiled | 77 |
+| gkehub/v1alpha | Go-verified | 77 |
 | gkehub/v1alpha2 | Go-verified | 16 |
 | gkehub/v1beta | Go-verified | 73 |
 | gkehub/v1beta1 | Go-verified | 17 |
 | gkehub/v2 | Go-verified | 10 |
 | gkehub/v2alpha | Go-verified | 10 |
 | gkehub/v2beta | Go-verified | 10 |
-| gkeonprem/v1 | compiled | 79 |
-| gmail/v1 | compiled | 79 |
+| gkeonprem/v1 | Go-verified | 79 |
+| gmail/v1 | Go-verified | 79 |
 | gmailpostmastertools/v1 | Go-verified | 4 |
 | gmailpostmastertools/v1beta1 | Go-verified | 4 |
 | gmailpostmastertools/v2 | Go-verified | 14 |
@@ -367,13 +368,13 @@ the result), compiled (generated and type-checked), not generated.
 | groupssettings/v1 | Go-verified | 3 |
 | health/v4 | Go-verified | 27 |
 | health/v4beta | Go-verified | 27 |
-| healthcare/v1 | compiled | 154 |
+| healthcare/v1 | Go-verified | 154 |
 | healthcare/v1alpha | Go-verified | 13 |
-| healthcare/v1alpha2 | compiled | 97 |
-| healthcare/v1beta1 | compiled | 170 |
+| healthcare/v1alpha2 | Go-verified | 97 |
+| healthcare/v1beta1 | Go-verified | 170 |
 | homegraph/v1 | Go-verified | 5 |
 | hypercomputecluster/v1 | Go-verified | 11 |
-| iam/v1 | compiled | 137 |
+| iam/v1 | Go-verified | 137 |
 | iam/v2 | Go-verified | 6 |
 | iam/v2beta | Go-verified | 6 |
 | iamcredentials/v1 | Go-verified | 7 |
@@ -386,8 +387,8 @@ the result), compiled (generated and type-checked), not generated.
 | identitytoolkit/v3 | Go-verified | 20 |
 | ids/v1 | Go-verified | 11 |
 | indexing/v3 | Go-verified | 2 |
-| integrations/v1 | compiled | 109 |
-| integrations/v1alpha | compiled | 86 |
+| integrations/v1 | Go-verified | 109 |
+| integrations/v1alpha | Go-verified | 86 |
 | jobs/v2 | Go-verified | 17 |
 | jobs/v3 | Go-verified | 15 |
 | jobs/v3p1beta1 | Go-verified | 16 |
@@ -403,13 +404,13 @@ the result), compiled (generated and type-checked), not generated.
 | licensing/v1 | Go-verified | 7 |
 | lifesciences/v2beta | Go-verified | 6 |
 | localservices/v1 | Go-verified | 2 |
-| logging/v2 | compiled | 254 |
+| logging/v2 | Go-verified | 254 |
 | logging/v2beta1 | Go-verified | 13 |
 | looker/v1 | Go-verified | 20 |
 | managedidentities/v1 | Go-verified | 45 |
 | managedidentities/v1alpha1 | Go-verified | 45 |
 | managedidentities/v1beta1 | Go-verified | 45 |
-| managedkafka/v1 | compiled | 89 |
+| managedkafka/v1 | Go-verified | 89 |
 | manufacturers/v1 | Go-verified | 8 |
 | marketingplatformadmin/v1alpha | Go-verified | 22 |
 | meet/v2 | Go-verified | 24 |
@@ -461,16 +462,16 @@ the result), compiled (generated and type-checked), not generated.
 | mybusinessplaceactions/v1 | Go-verified | 6 |
 | mybusinessqanda/v1 | Go-verified | 7 |
 | mybusinessverifications/v1 | Go-verified | 6 |
-| netapp/v1 | compiled | 82 |
-| netapp/v1beta1 | compiled | 82 |
-| networkconnectivity/v1 | compiled | 108 |
+| netapp/v1 | Go-verified | 82 |
+| netapp/v1beta1 | Go-verified | 82 |
+| networkconnectivity/v1 | Go-verified | 108 |
 | networkconnectivity/v1alpha1 | Go-verified | 30 |
 | networkmanagement/v1 | Go-verified | 48 |
 | networkmanagement/v1beta1 | Go-verified | 33 |
-| networksecurity/v1 | compiled | 185 |
-| networksecurity/v1beta1 | compiled | 190 |
-| networkservices/v1 | compiled | 122 |
-| networkservices/v1beta1 | compiled | 118 |
+| networksecurity/v1 | Go-verified | 185 |
+| networksecurity/v1beta1 | Go-verified | 190 |
+| networkservices/v1 | Go-verified | 122 |
+| networkservices/v1beta1 | Go-verified | 118 |
 | notebooks/v1 | Go-verified | 62 |
 | notebooks/v2 | Go-verified | 28 |
 | oauth2/v1 | Go-verified | 3 |
@@ -478,7 +479,7 @@ the result), compiled (generated and type-checked), not generated.
 | observability/v1 | Go-verified | 44 |
 | ondemandscanning/v1 | Go-verified | 7 |
 | ondemandscanning/v1beta1 | Go-verified | 7 |
-| oracledatabase/v1 | compiled | 107 |
+| oracledatabase/v1 | Go-verified | 107 |
 | orgpolicy/v2 | Go-verified | 26 |
 | osconfig/v1 | Go-verified | 28 |
 | osconfig/v1alpha | Go-verified | 16 |
@@ -522,7 +523,7 @@ the result), compiled (generated and type-checked), not generated.
 | poly/v1 | Go-verified | 4 |
 | privateca/v1 | Go-verified | 44 |
 | privateca/v1beta1 | Go-verified | 15 |
-| prod_tt_sasportal/v1alpha1 | compiled | 82 |
+| prod_tt_sasportal/v1alpha1 | Go-verified | 82 |
 | proximitybeacon/v1beta1 | Go-verified | 17 |
 | publicca/v1 | Go-verified | 1 |
 | publicca/v1alpha1 | Go-verified | 1 |
@@ -550,7 +551,7 @@ the result), compiled (generated and type-checked), not generated.
 | reseller/v1 | Go-verified | 17 |
 | resourcesettings/v1 | Go-verified | 9 |
 | retail/v2 | Go-verified | 71 |
-| retail/v2alpha | compiled | 88 |
+| retail/v2alpha | Go-verified | 88 |
 | retail/v2beta | Go-verified | 76 |
 | run/v1 | Go-verified | 76 |
 | run/v1alpha1 | Go-verified | 4 |
@@ -562,16 +563,16 @@ the result), compiled (generated and type-checked), not generated.
 | saasservicemgmt/v1beta1 | Go-verified | 66 |
 | safebrowsing/v4 | Go-verified | 7 |
 | safebrowsing/v5 | Go-verified | 5 |
-| sasportal/v1alpha1 | compiled | 82 |
+| sasportal/v1alpha1 | Go-verified | 82 |
 | script/v1 | Go-verified | 16 |
 | searchads360/v0 | Go-verified | 6 |
-| searchads360/v23 | compiled | 161 |
+| searchads360/v23 | Go-verified on the go backend; native arm64 blocked by the closure capture word limit (xo.frameargs of a large options struct, arm64 backend) | 161 |
 | searchconsole/v1 | Go-verified | 11 |
 | secretmanager/v1 | Go-verified | 36 |
 | secretmanager/v1beta1 | Go-verified | 17 |
 | secretmanager/v1beta2 | Go-verified | 32 |
 | securesourcemanager/v1 | Go-verified | 61 |
-| securitycenter/v1 | compiled | 172 |
+| securitycenter/v1 | Go-verified | 172 |
 | securitycenter/v1beta1 | Go-verified | 23 |
 | securitycenter/v1beta2 | Go-verified | 61 |
 | securitycenter/v1p1alpha1 | Go-verified | 4 |
@@ -598,7 +599,7 @@ the result), compiled (generated and type-checked), not generated.
 | smartdevicemanagement/v1 | Go-verified | 7 |
 | solar/v1 | Go-verified | 3 |
 | sourcerepo/v1 | Go-verified | 11 |
-| spanner/v1 | compiled | 99 |
+| spanner/v1 | Go-verified | 99 |
 | spectrum/v1explorer | Go-verified | 6 |
 | speech/v1 | Go-verified | 14 |
 | speech/v1beta1 | Go-verified | 4 |
@@ -606,8 +607,8 @@ the result), compiled (generated and type-checked), not generated.
 | speech/v2beta | Go-verified | 2 |
 | speech/v2beta1 | Go-verified | 2 |
 | sql/v1beta4 | Go-verified | 47 |
-| sqladmin/v1 | compiled | 85 |
-| sqladmin/v1beta4 | compiled | 85 |
+| sqladmin/v1 | Go-verified | 85 |
+| sqladmin/v1beta4 | Go-verified | 85 |
 | storage/v1 | Go-verified | 87 |
 | storage/v1beta1 | Go-verified | 24 |
 | storage/v1beta2 | Go-verified | 34 |
@@ -618,7 +619,7 @@ the result), compiled (generated and type-checked), not generated.
 | sts/v1beta | Go-verified | 1 |
 | surveys/v2 | Go-verified | 8 |
 | tagmanager/v1 | Go-verified | 49 |
-| tagmanager/v2 | compiled | 106 |
+| tagmanager/v2 | Go-verified | 106 |
 | tasks/v1 | Go-verified | 14 |
 | testing/v1 | Go-verified | 10 |
 | texttospeech/v1 | Go-verified | 7 |
@@ -655,10 +656,10 @@ the result), compiled (generated and type-checked), not generated.
 | vision/v1p2beta1 | Go-verified | 12 |
 | vmmigration/v1 | Go-verified | 68 |
 | vmmigration/v1alpha1 | Go-verified | 68 |
-| vmwareengine/v1 | compiled | 103 |
+| vmwareengine/v1 | Go-verified | 103 |
 | vpcaccess/v1 | Go-verified | 8 |
 | vpcaccess/v1beta1 | Go-verified | 8 |
-| walletobjects/v1 | compiled | 99 |
+| walletobjects/v1 | Go-verified | 99 |
 | webcontentpublisher/v1 | Go-verified | 11 |
 | webfonts/v1 | Go-verified | 1 |
 | webmasters/v3 | Go-verified | 9 |
@@ -674,7 +675,7 @@ the result), compiled (generated and type-checked), not generated.
 | workspaceevents/v1 | Go-verified | 7 |
 | workstations/v1 | Go-verified | 33 |
 | workstations/v1beta | Go-verified | 32 |
-| youtube/v3 | compiled | 83 |
+| youtube/v3 | Go-verified | 83 |
 | youtubeanalytics/v1 | Go-verified (no methods) | 0 |
 | youtubeanalytics/v1beta1 | Go-verified | 8 |
 | youtubeanalytics/v2 | Go-verified | 8 |
