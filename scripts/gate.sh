@@ -15,8 +15,14 @@ done
 echo "== codegen"
 (cd codegen && "$xo" test ./gen) || fail=1
 echo "== check (generated modules)"
-# shellcheck disable=SC2086
-"$xo" check $gen || fail=1
+# one module a process: all 667 in one `xo check` passed 12 GB of memory
+for d in $gen; do
+  if ! out=$("$xo" check "$d" 2>&1); then
+    echo "$out"
+    echo "gate: $d does not check"
+    fail=1
+  fi
+done
 if ! "$xo" fmt --check ./...; then
   echo "gate: xo fmt --check: the files above need xo fmt"
   fail=1
