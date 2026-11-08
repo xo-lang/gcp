@@ -39,3 +39,22 @@ media methods add `.Media(r)`, `.ResumableMedia(...)` and
 - Builders as in Go: closer in form, but every optional parameter would
   be a method on a call struct, and Xo's options structs already carry
   the same information with defaults.
+
+## Addendum (2026-11-07): pagers, downloads and uploads as built
+
+The Decision above stands; this records the shapes as generated.
+
+- A paged method `m` (Go's Pages: a page token in the query or the
+  request body, a string page token in the response) also has
+  `m_pages(...)`, whose `next_page()` calls `m` and moves the token on
+  while `more()` is true.
+- A download method has `m_download(...)` (Go's Download: the same
+  request with alt=media, the response as it came).
+- An upload method has `m_media(clock, rand, ..., media:
+  gensupport.Media, options)` (Go's Media): multipart below the chunk
+  size, resumable above. The body is Bytes for now; a reader form is
+  later work.
+- `m_media` takes the Clock and Rand itself, as the Azure port's
+  clients do: the resumable chunks retry with Go's backoff (a clock to
+  sleep on, random pauses) and each chunk's session id is random.
+  `new_service` stays as it is for every other call.

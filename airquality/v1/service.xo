@@ -100,6 +100,35 @@ pub fn (r: ForecastService[fx]) lookup(lookupforecastrequest: LookupForecastRequ
   gensupport.decode[LookupForecastResponse](resp)
 }
 
+/// ForecastLookupPages: the pages of ForecastService.lookup (Go's Pages).
+/// Call next_page while more() is true.
+pub struct ForecastLookupPages[fx: Effects] {
+  r: ForecastService[fx]
+  lookupforecastrequest: LookupForecastRequest
+  options: ForecastLookupOptions
+  next_token: Str = ""
+  started: Bool = false
+}
+
+/// lookup_pages: ForecastService.lookup's pages, from the first.
+pub fn (r: ForecastService[fx]) lookup_pages(lookupforecastrequest: LookupForecastRequest, options: ForecastLookupOptions = ForecastLookupOptions{}) -> ForecastLookupPages[fx] {
+  ForecastLookupPages{r: r, lookupforecastrequest: lookupforecastrequest, options: options}
+}
+
+/// Whether there is a page left to fetch.
+pub fn (p: ForecastLookupPages[fx]) more() -> Bool {
+  !p.started || p.next_token != ""
+}
+
+/// The next page.
+pub fn (var p: ForecastLookupPages[fx]) next_page() -> LookupForecastResponse ! gensupport.CallErr uses (net.dial, clock, rand, fx) {
+  let b = if p.started { p.lookupforecastrequest with {page_token: p.next_token} } else { p.lookupforecastrequest }
+  let v = p.r.lookup(b, p.options)?
+  p.started = true
+  p.next_token = v.next_page_token
+  Ok(v)
+}
+
 /// HistoryService: the `history` resource.
 pub struct HistoryService[fx: Effects] {
   core: gensupport.Core[fx]
@@ -133,6 +162,35 @@ pub fn (r: HistoryService[fx]) lookup(lookuphistoryrequest: LookupHistoryRequest
   let resp = r.core.client.send(gensupport.Request{method: "POST", url: u, query: q, headers: hs, body: gensupport.json_body(lookuphistoryrequest, data_wrapper: false)})?
   gensupport.check(resp)?
   gensupport.decode[LookupHistoryResponse](resp)
+}
+
+/// HistoryLookupPages: the pages of HistoryService.lookup (Go's Pages).
+/// Call next_page while more() is true.
+pub struct HistoryLookupPages[fx: Effects] {
+  r: HistoryService[fx]
+  lookuphistoryrequest: LookupHistoryRequest
+  options: HistoryLookupOptions
+  next_token: Str = ""
+  started: Bool = false
+}
+
+/// lookup_pages: HistoryService.lookup's pages, from the first.
+pub fn (r: HistoryService[fx]) lookup_pages(lookuphistoryrequest: LookupHistoryRequest, options: HistoryLookupOptions = HistoryLookupOptions{}) -> HistoryLookupPages[fx] {
+  HistoryLookupPages{r: r, lookuphistoryrequest: lookuphistoryrequest, options: options}
+}
+
+/// Whether there is a page left to fetch.
+pub fn (p: HistoryLookupPages[fx]) more() -> Bool {
+  !p.started || p.next_token != ""
+}
+
+/// The next page.
+pub fn (var p: HistoryLookupPages[fx]) next_page() -> LookupHistoryResponse ! gensupport.CallErr uses (net.dial, clock, rand, fx) {
+  let b = if p.started { p.lookuphistoryrequest with {page_token: p.next_token} } else { p.lookuphistoryrequest }
+  let v = p.r.lookup(b, p.options)?
+  p.started = true
+  p.next_token = v.next_page_token
+  Ok(v)
 }
 
 /// MapTypesService: the `mapTypes` resource.

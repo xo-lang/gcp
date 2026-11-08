@@ -25,6 +25,8 @@ pub enum CallErr {
   Decode(msg: Str)
   /// No credentials, and authentication was not turned off.
   NoCredentials
+  /// A media upload failed (Go's resumable upload errors).
+  Upload(msg: Str)
 }
 
 pub fn (e: CallErr) display() -> Str {
@@ -33,6 +35,7 @@ pub fn (e: CallErr) display() -> Str {
     Auth(ae) => ae.display()
     Api(ge) => ge.display()
     Decode(m) => m
+    Upload(m) => m
     NoCredentials => "google: no credentials: pass option.ClientOptions.credentials, or set without_authentication"
   }
 }
@@ -97,6 +100,15 @@ pub fn (c: Client[fx]) send(req: Request) -> http.Response ! CallErr uses (net.d
 /// `resp`'s error for a status outside 2xx (googleapi.CheckResponse).
 pub fn check(resp: http.Response) -> () ! CallErr {
   match googleapi.check_response(resp) {
+    Some(e) => Err(CallErr.Api(e))
+    None => Ok(())
+  }
+}
+
+/// `resp`'s error for a status outside 2xx, the body not parsed
+/// (googleapi.CheckMediaResponse, for storage's downloads).
+pub fn check_media(resp: http.Response) -> () ! CallErr {
+  match googleapi.check_media_response(resp) {
     Some(e) => Err(CallErr.Api(e))
     None => Ok(())
   }

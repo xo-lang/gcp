@@ -278,6 +278,37 @@ pub fn (r: BlobsService[fx]) get_tree(instance_name: Str, hash: Str, size_bytes:
   gensupport.decode[BuildBazelRemoteExecutionV2GetTreeResponse](resp)
 }
 
+/// BlobsGetTreePages: the pages of BlobsService.get_tree (Go's Pages).
+/// Call next_page while more() is true.
+pub struct BlobsGetTreePages[fx: Effects] {
+  r: BlobsService[fx]
+  instance_name: Str
+  hash: Str
+  size_bytes: Str
+  options: BlobsGetTreeOptions
+  next_token: Str = ""
+  started: Bool = false
+}
+
+/// get_tree_pages: BlobsService.get_tree's pages, from the first.
+pub fn (r: BlobsService[fx]) get_tree_pages(instance_name: Str, hash: Str, size_bytes: Str, options: BlobsGetTreeOptions = BlobsGetTreeOptions{}) -> BlobsGetTreePages[fx] {
+  BlobsGetTreePages{r: r, instance_name: instance_name, hash: hash, size_bytes: size_bytes, options: options}
+}
+
+/// Whether there is a page left to fetch.
+pub fn (p: BlobsGetTreePages[fx]) more() -> Bool {
+  !p.started || p.next_token != ""
+}
+
+/// The next page.
+pub fn (var p: BlobsGetTreePages[fx]) next_page() -> BuildBazelRemoteExecutionV2GetTreeResponse ! gensupport.CallErr uses (net.dial, clock, rand, fx) {
+  let o = if p.started { p.options with {page_token: Some(p.next_token)} } else { p.options }
+  let v = p.r.get_tree(p.instance_name, p.hash, p.size_bytes, o)?
+  p.started = true
+  p.next_token = v.next_page_token
+  Ok(v)
+}
+
 /// OperationsService: the `operations` resource.
 pub struct OperationsService[fx: Effects] {
   core: gensupport.Core[fx]

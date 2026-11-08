@@ -158,6 +158,34 @@ pub fn (r: TasklistsService[fx]) list(options: TasklistsListOptions = TasklistsL
   gensupport.decode[TaskLists](resp)
 }
 
+/// TasklistsListPages: the pages of TasklistsService.list (Go's Pages).
+/// Call next_page while more() is true.
+pub struct TasklistsListPages[fx: Effects] {
+  r: TasklistsService[fx]
+  options: TasklistsListOptions
+  next_token: Str = ""
+  started: Bool = false
+}
+
+/// list_pages: TasklistsService.list's pages, from the first.
+pub fn (r: TasklistsService[fx]) list_pages(options: TasklistsListOptions = TasklistsListOptions{}) -> TasklistsListPages[fx] {
+  TasklistsListPages{r: r, options: options}
+}
+
+/// Whether there is a page left to fetch.
+pub fn (p: TasklistsListPages[fx]) more() -> Bool {
+  !p.started || p.next_token != ""
+}
+
+/// The next page.
+pub fn (var p: TasklistsListPages[fx]) next_page() -> TaskLists ! gensupport.CallErr uses (net.dial, clock, rand, fx) {
+  let o = if p.started { p.options with {page_token: Some(p.next_token)} } else { p.options }
+  let v = p.r.list(o)?
+  p.started = true
+  p.next_token = v.next_page_token
+  Ok(v)
+}
+
 /// TasklistsPatchOptions: the optional parameters of TasklistsService.patch.
 pub struct TasklistsPatchOptions {
   /// The fields of the result to return (Go's Fields), joined with commas.
@@ -418,6 +446,35 @@ pub fn (r: TasksService[fx]) list(tasklistid: Str, options: TasksListOptions = T
   let resp = r.core.client.send(gensupport.Request{method: "GET", url: u, query: q, headers: hs, body: b""})?
   gensupport.check(resp)?
   gensupport.decode[Tasks](resp)
+}
+
+/// TasksListPages: the pages of TasksService.list (Go's Pages).
+/// Call next_page while more() is true.
+pub struct TasksListPages[fx: Effects] {
+  r: TasksService[fx]
+  tasklistid: Str
+  options: TasksListOptions
+  next_token: Str = ""
+  started: Bool = false
+}
+
+/// list_pages: TasksService.list's pages, from the first.
+pub fn (r: TasksService[fx]) list_pages(tasklistid: Str, options: TasksListOptions = TasksListOptions{}) -> TasksListPages[fx] {
+  TasksListPages{r: r, tasklistid: tasklistid, options: options}
+}
+
+/// Whether there is a page left to fetch.
+pub fn (p: TasksListPages[fx]) more() -> Bool {
+  !p.started || p.next_token != ""
+}
+
+/// The next page.
+pub fn (var p: TasksListPages[fx]) next_page() -> Tasks ! gensupport.CallErr uses (net.dial, clock, rand, fx) {
+  let o = if p.started { p.options with {page_token: Some(p.next_token)} } else { p.options }
+  let v = p.r.list(p.tasklistid, o)?
+  p.started = true
+  p.next_token = v.next_page_token
+  Ok(v)
 }
 
 /// TasksMoveOptions: the optional parameters of TasksService.move.

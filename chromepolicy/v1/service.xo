@@ -77,6 +77,36 @@ pub fn (r: CustomersPoliciesService[fx]) resolve(customer: Str, googlechromepoli
   gensupport.decode[GoogleChromePolicyVersionsV1ResolveResponse](resp)
 }
 
+/// CustomersPoliciesResolvePages: the pages of CustomersPoliciesService.resolve (Go's Pages).
+/// Call next_page while more() is true.
+pub struct CustomersPoliciesResolvePages[fx: Effects] {
+  r: CustomersPoliciesService[fx]
+  customer: Str
+  googlechromepolicyversionsv1resolverequest: GoogleChromePolicyVersionsV1ResolveRequest
+  options: CustomersPoliciesResolveOptions
+  next_token: Str = ""
+  started: Bool = false
+}
+
+/// resolve_pages: CustomersPoliciesService.resolve's pages, from the first.
+pub fn (r: CustomersPoliciesService[fx]) resolve_pages(customer: Str, googlechromepolicyversionsv1resolverequest: GoogleChromePolicyVersionsV1ResolveRequest, options: CustomersPoliciesResolveOptions = CustomersPoliciesResolveOptions{}) -> CustomersPoliciesResolvePages[fx] {
+  CustomersPoliciesResolvePages{r: r, customer: customer, googlechromepolicyversionsv1resolverequest: googlechromepolicyversionsv1resolverequest, options: options}
+}
+
+/// Whether there is a page left to fetch.
+pub fn (p: CustomersPoliciesResolvePages[fx]) more() -> Bool {
+  !p.started || p.next_token != ""
+}
+
+/// The next page.
+pub fn (var p: CustomersPoliciesResolvePages[fx]) next_page() -> GoogleChromePolicyVersionsV1ResolveResponse ! gensupport.CallErr uses (net.dial, clock, rand, fx) {
+  let b = if p.started { p.googlechromepolicyversionsv1resolverequest with {page_token: p.next_token} } else { p.googlechromepolicyversionsv1resolverequest }
+  let v = p.r.resolve(p.customer, b, p.options)?
+  p.started = true
+  p.next_token = v.next_page_token
+  Ok(v)
+}
+
 /// CustomersPoliciesGroupsService: the `customers.policies.groups` resource.
 pub struct CustomersPoliciesGroupsService[fx: Effects] {
   core: gensupport.Core[fx]
@@ -448,6 +478,35 @@ pub fn (r: CustomersPolicySchemasService[fx]) list(parent: Str, options: Custome
   gensupport.decode[GoogleChromePolicyVersionsV1ListPolicySchemasResponse](resp)
 }
 
+/// CustomersPolicySchemasListPages: the pages of CustomersPolicySchemasService.list (Go's Pages).
+/// Call next_page while more() is true.
+pub struct CustomersPolicySchemasListPages[fx: Effects] {
+  r: CustomersPolicySchemasService[fx]
+  parent: Str
+  options: CustomersPolicySchemasListOptions
+  next_token: Str = ""
+  started: Bool = false
+}
+
+/// list_pages: CustomersPolicySchemasService.list's pages, from the first.
+pub fn (r: CustomersPolicySchemasService[fx]) list_pages(parent: Str, options: CustomersPolicySchemasListOptions = CustomersPolicySchemasListOptions{}) -> CustomersPolicySchemasListPages[fx] {
+  CustomersPolicySchemasListPages{r: r, parent: parent, options: options}
+}
+
+/// Whether there is a page left to fetch.
+pub fn (p: CustomersPolicySchemasListPages[fx]) more() -> Bool {
+  !p.started || p.next_token != ""
+}
+
+/// The next page.
+pub fn (var p: CustomersPolicySchemasListPages[fx]) next_page() -> GoogleChromePolicyVersionsV1ListPolicySchemasResponse ! gensupport.CallErr uses (net.dial, clock, rand, fx) {
+  let o = if p.started { p.options with {page_token: Some(p.next_token)} } else { p.options }
+  let v = p.r.list(p.parent, o)?
+  p.started = true
+  p.next_token = v.next_page_token
+  Ok(v)
+}
+
 /// MediaService: the `media` resource.
 pub struct MediaService[fx: Effects] {
   core: gensupport.Core[fx]
@@ -479,6 +538,26 @@ pub fn (r: MediaService[fx]) upload(customer: Str, googlechromepolicyversionsv1u
   hs = hs + options.headers
   let u = googleapi.expand(googleapi.resolve_relative(r.core.base_path, "v1/{+customer}/policies/files:uploadPolicyFile"), {"customer": customer})
   let resp = r.core.client.send(gensupport.Request{method: "POST", url: u, query: q, headers: hs, body: gensupport.json_body(googlechromepolicyversionsv1uploadpolicyfilerequest, data_wrapper: false)})?
+  gensupport.check(resp)?
+  gensupport.decode[GoogleChromePolicyVersionsV1UploadPolicyFileResponse](resp)
+}
+
+/// upload_media: MediaService.upload with media (Go's Media): in one
+/// multipart request below the media's chunk size, else a resumable
+/// upload of chunks.
+pub fn (r: MediaService[fx]) upload_media(clock: Clock, rand: Rand, customer: Str, googlechromepolicyversionsv1uploadpolicyfilerequest: GoogleChromePolicyVersionsV1UploadPolicyFileRequest, media: gensupport.Media, options: MediaUploadOptions = MediaUploadOptions{}) -> GoogleChromePolicyVersionsV1UploadPolicyFileResponse ! gensupport.CallErr uses (net.dial, clock, rand, fx) {
+  var q = url.values()
+  if !options.fields.is_empty() {
+    q.set("fields", options.fields.join(","))
+  }
+  q.set("alt", "json")
+  q.set("prettyPrint", "false")
+  var hs: List[(Str, Str)] = []
+  hs.push(("Content-Type", "application/json"))
+  hs = hs + options.headers
+  let u = googleapi.expand(googleapi.resolve_relative(r.core.base_path, "v1/{+customer}/policies/files:uploadPolicyFile"), {"customer": customer})
+  let mu = googleapi.expand(googleapi.resolve_relative(r.core.base_path, "/upload/v1/{+customer}/policies/files:uploadPolicyFile"), {"customer": customer})
+  let resp = r.core.client.upload(clock, rand, gensupport.Request{method: "POST", url: u, query: q, headers: hs, body: gensupport.json_body(googlechromepolicyversionsv1uploadpolicyfilerequest, data_wrapper: false)}, mu, media)?
   gensupport.check(resp)?
   gensupport.decode[GoogleChromePolicyVersionsV1UploadPolicyFileResponse](resp)
 }

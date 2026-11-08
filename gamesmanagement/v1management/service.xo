@@ -215,6 +215,35 @@ pub fn (r: ApplicationsService[fx]) list_hidden(application_id: Str, options: Ap
   gensupport.decode[HiddenPlayerList](resp)
 }
 
+/// ApplicationsListHiddenPages: the pages of ApplicationsService.list_hidden (Go's Pages).
+/// Call next_page while more() is true.
+pub struct ApplicationsListHiddenPages[fx: Effects] {
+  r: ApplicationsService[fx]
+  application_id: Str
+  options: ApplicationsListHiddenOptions
+  next_token: Str = ""
+  started: Bool = false
+}
+
+/// list_hidden_pages: ApplicationsService.list_hidden's pages, from the first.
+pub fn (r: ApplicationsService[fx]) list_hidden_pages(application_id: Str, options: ApplicationsListHiddenOptions = ApplicationsListHiddenOptions{}) -> ApplicationsListHiddenPages[fx] {
+  ApplicationsListHiddenPages{r: r, application_id: application_id, options: options}
+}
+
+/// Whether there is a page left to fetch.
+pub fn (p: ApplicationsListHiddenPages[fx]) more() -> Bool {
+  !p.started || p.next_token != ""
+}
+
+/// The next page.
+pub fn (var p: ApplicationsListHiddenPages[fx]) next_page() -> HiddenPlayerList ! gensupport.CallErr uses (net.dial, clock, rand, fx) {
+  let o = if p.started { p.options with {page_token: Some(p.next_token)} } else { p.options }
+  let v = p.r.list_hidden(p.application_id, o)?
+  p.started = true
+  p.next_token = v.next_page_token
+  Ok(v)
+}
+
 /// EventsService: the `events` resource.
 pub struct EventsService[fx: Effects] {
   core: gensupport.Core[fx]

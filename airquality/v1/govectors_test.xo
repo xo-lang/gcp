@@ -53,6 +53,46 @@ test "Go's airquality.forecast.lookup" {
 }
 
 const GO_2: List[Str] = [
+  "CALL airquality.forecast.lookup pages",
+  "REQ POST https://airquality.googleapis.com/v1/forecast:lookup?alt=json&fields=kind%2Cid&prettyPrint=false",
+  "  H content-type=application/json | x-extra=v1",
+  "  B {\"customLocalAqis\":[{\"aqi\":\"s-aqi\",\"regionCode\":\"s-regioncode\"}],\"dateTime\":\"s-datetime\",\"extraComputations\":[\"s-extracomputations\"],\"languageCode\":\"s-languagecode\",\"location\":{\"latitude\":1.5,\"longitude\":1.5},\"pageSize\":7,\"pageToken\":\"s-pagetoken\",\"period\":{\"endTime\":\"s-endtime\",\"startTime\":\"s-starttime\"},\"uaqiColorPalette\":\"s-uaqicolorpalette\",\"universalAqi\":true}",
+  "",
+  "  SERVED 200 {\"hourlyForecasts\":[{\"dateTime\":\"s-datetime\",\"healthRecommendations\":{\"athletes\":\"s-athletes\",\"children\":\"s-children\",\"elderly\":\"s-elderly\",\"generalPopulation\":\"s-generalpopulation\",\"heartDiseasePopulation\":\"s-heartdiseasepopulation\",\"lungDiseasePopulation\":\"s-lungdiseasepopulation\",\"pregnantWomen\":\"s-pregnantwomen\"}}],\"nextPageToken\":\"s-nextpagetoken\",\"regionCode\":\"s-regioncode\"}",
+  "OUT: {\"hourlyForecasts\":[{\"dateTime\":\"s-datetime\",\"healthRecommendations\":{\"athletes\":\"s-athletes\",\"children\":\"s-children\",\"elderly\":\"s-elderly\",\"generalPopulation\":\"s-generalpopulation\",\"heartDiseasePopulation\":\"s-heartdiseasepopulation\",\"lungDiseasePopulation\":\"s-lungdiseasepopulation\",\"pregnantWomen\":\"s-pregnantwomen\"}}],\"nextPageToken\":\"s-nextpagetoken\",\"regionCode\":\"s-regioncode\"}",
+  "REQ POST https://airquality.googleapis.com/v1/forecast:lookup?alt=json&fields=kind%2Cid&prettyPrint=false",
+  "  H content-type=application/json | x-extra=v1",
+  "  B {\"customLocalAqis\":[{\"aqi\":\"s-aqi\",\"regionCode\":\"s-regioncode\"}],\"dateTime\":\"s-datetime\",\"extraComputations\":[\"s-extracomputations\"],\"languageCode\":\"s-languagecode\",\"location\":{\"latitude\":1.5,\"longitude\":1.5},\"pageSize\":7,\"pageToken\":\"s-nextpagetoken\",\"period\":{\"endTime\":\"s-endtime\",\"startTime\":\"s-starttime\"},\"uaqiColorPalette\":\"s-uaqicolorpalette\",\"universalAqi\":true}",
+  "",
+  "  SERVED 200 {\"hourlyForecasts\":[{\"dateTime\":\"s-datetime\",\"healthRecommendations\":{\"athletes\":\"s-athletes\",\"children\":\"s-children\",\"elderly\":\"s-elderly\",\"generalPopulation\":\"s-generalpopulation\",\"heartDiseasePopulation\":\"s-heartdiseasepopulation\",\"lungDiseasePopulation\":\"s-lungdiseasepopulation\",\"pregnantWomen\":\"s-pregnantwomen\"}}],\"regionCode\":\"s-regioncode\"}",
+  "OUT: {\"hourlyForecasts\":[{\"dateTime\":\"s-datetime\",\"healthRecommendations\":{\"athletes\":\"s-athletes\",\"children\":\"s-children\",\"elderly\":\"s-elderly\",\"generalPopulation\":\"s-generalpopulation\",\"heartDiseasePopulation\":\"s-heartdiseasepopulation\",\"lungDiseasePopulation\":\"s-lungdiseasepopulation\",\"pregnantWomen\":\"s-pregnantwomen\"}}],\"regionCode\":\"s-regioncode\"}",
+  "OUT: ok",
+]
+
+test "Go's airquality.forecast.lookup pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"hourlyForecasts\":[{\"dateTime\":\"s-datetime\",\"healthRecommendations\":{\"athletes\":\"s-athletes\",\"children\":\"s-children\",\"elderly\":\"s-elderly\",\"generalPopulation\":\"s-generalpopulation\",\"heartDiseasePopulation\":\"s-heartdiseasepopulation\",\"lungDiseasePopulation\":\"s-lungdiseasepopulation\",\"pregnantWomen\":\"s-pregnantwomen\"}}],\"nextPageToken\":\"s-nextpagetoken\",\"regionCode\":\"s-regioncode\"}")
+  gv_queue(f, "{\"hourlyForecasts\":[{\"dateTime\":\"s-datetime\",\"healthRecommendations\":{\"athletes\":\"s-athletes\",\"children\":\"s-children\",\"elderly\":\"s-elderly\",\"generalPopulation\":\"s-generalpopulation\",\"heartDiseasePopulation\":\"s-heartdiseasepopulation\",\"lungDiseasePopulation\":\"s-lungdiseasepopulation\",\"pregnantWomen\":\"s-pregnantwomen\"}}],\"regionCode\":\"s-regioncode\"}")
+  gv_note(f, "CALL airquality.forecast.lookup pages")
+  var p = svc.forecast.lookup_pages(json.decode_str[LookupForecastRequest]("{\"customLocalAqis\":[{\"aqi\":\"s-aqi\",\"regionCode\":\"s-regioncode\"}],\"dateTime\":\"s-datetime\",\"extraComputations\":[\"s-extracomputations\"],\"languageCode\":\"s-languagecode\",\"location\":{\"latitude\":1.5,\"longitude\":1.5},\"pageSize\":7,\"pageToken\":\"s-pagetoken\",\"period\":{\"endTime\":\"s-endtime\",\"startTime\":\"s-starttime\"},\"uaqiColorPalette\":\"s-uaqicolorpalette\",\"universalAqi\":true}") ?? e => fault(e.display()), options: ForecastLookupOptions{fields: ["kind", "id"], headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_2)
+}
+
+const GO_3: List[Str] = [
   "CALL airquality.history.lookup",
   "REQ POST https://airquality.googleapis.com/v1/history:lookup?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -71,10 +111,50 @@ test "Go's airquality.history.lookup" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_2)
+  gv_compare(gv_log_of(f), GO_3)
 }
 
-const GO_3: List[Str] = [
+const GO_4: List[Str] = [
+  "CALL airquality.history.lookup pages",
+  "REQ POST https://airquality.googleapis.com/v1/history:lookup?alt=json&fields=kind%2Cid&prettyPrint=false",
+  "  H content-type=application/json | x-extra=v1",
+  "  B {\"customLocalAqis\":[{\"aqi\":\"s-aqi\",\"regionCode\":\"s-regioncode\"}],\"dateTime\":\"s-datetime\",\"extraComputations\":[\"s-extracomputations\"],\"hours\":7,\"languageCode\":\"s-languagecode\",\"location\":{\"latitude\":1.5,\"longitude\":1.5},\"pageSize\":7,\"pageToken\":\"s-pagetoken\",\"period\":{\"endTime\":\"s-endtime\",\"startTime\":\"s-starttime\"},\"uaqiColorPalette\":\"s-uaqicolorpalette\",\"universalAqi\":true}",
+  "",
+  "  SERVED 200 {\"hoursInfo\":[{\"dateTime\":\"s-datetime\",\"healthRecommendations\":{\"athletes\":\"s-athletes\",\"children\":\"s-children\",\"elderly\":\"s-elderly\",\"generalPopulation\":\"s-generalpopulation\",\"heartDiseasePopulation\":\"s-heartdiseasepopulation\",\"lungDiseasePopulation\":\"s-lungdiseasepopulation\",\"pregnantWomen\":\"s-pregnantwomen\"}}],\"nextPageToken\":\"s-nextpagetoken\",\"regionCode\":\"s-regioncode\"}",
+  "OUT: {\"hoursInfo\":[{\"dateTime\":\"s-datetime\",\"healthRecommendations\":{\"athletes\":\"s-athletes\",\"children\":\"s-children\",\"elderly\":\"s-elderly\",\"generalPopulation\":\"s-generalpopulation\",\"heartDiseasePopulation\":\"s-heartdiseasepopulation\",\"lungDiseasePopulation\":\"s-lungdiseasepopulation\",\"pregnantWomen\":\"s-pregnantwomen\"}}],\"nextPageToken\":\"s-nextpagetoken\",\"regionCode\":\"s-regioncode\"}",
+  "REQ POST https://airquality.googleapis.com/v1/history:lookup?alt=json&fields=kind%2Cid&prettyPrint=false",
+  "  H content-type=application/json | x-extra=v1",
+  "  B {\"customLocalAqis\":[{\"aqi\":\"s-aqi\",\"regionCode\":\"s-regioncode\"}],\"dateTime\":\"s-datetime\",\"extraComputations\":[\"s-extracomputations\"],\"hours\":7,\"languageCode\":\"s-languagecode\",\"location\":{\"latitude\":1.5,\"longitude\":1.5},\"pageSize\":7,\"pageToken\":\"s-nextpagetoken\",\"period\":{\"endTime\":\"s-endtime\",\"startTime\":\"s-starttime\"},\"uaqiColorPalette\":\"s-uaqicolorpalette\",\"universalAqi\":true}",
+  "",
+  "  SERVED 200 {\"hoursInfo\":[{\"dateTime\":\"s-datetime\",\"healthRecommendations\":{\"athletes\":\"s-athletes\",\"children\":\"s-children\",\"elderly\":\"s-elderly\",\"generalPopulation\":\"s-generalpopulation\",\"heartDiseasePopulation\":\"s-heartdiseasepopulation\",\"lungDiseasePopulation\":\"s-lungdiseasepopulation\",\"pregnantWomen\":\"s-pregnantwomen\"}}],\"regionCode\":\"s-regioncode\"}",
+  "OUT: {\"hoursInfo\":[{\"dateTime\":\"s-datetime\",\"healthRecommendations\":{\"athletes\":\"s-athletes\",\"children\":\"s-children\",\"elderly\":\"s-elderly\",\"generalPopulation\":\"s-generalpopulation\",\"heartDiseasePopulation\":\"s-heartdiseasepopulation\",\"lungDiseasePopulation\":\"s-lungdiseasepopulation\",\"pregnantWomen\":\"s-pregnantwomen\"}}],\"regionCode\":\"s-regioncode\"}",
+  "OUT: ok",
+]
+
+test "Go's airquality.history.lookup pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"hoursInfo\":[{\"dateTime\":\"s-datetime\",\"healthRecommendations\":{\"athletes\":\"s-athletes\",\"children\":\"s-children\",\"elderly\":\"s-elderly\",\"generalPopulation\":\"s-generalpopulation\",\"heartDiseasePopulation\":\"s-heartdiseasepopulation\",\"lungDiseasePopulation\":\"s-lungdiseasepopulation\",\"pregnantWomen\":\"s-pregnantwomen\"}}],\"nextPageToken\":\"s-nextpagetoken\",\"regionCode\":\"s-regioncode\"}")
+  gv_queue(f, "{\"hoursInfo\":[{\"dateTime\":\"s-datetime\",\"healthRecommendations\":{\"athletes\":\"s-athletes\",\"children\":\"s-children\",\"elderly\":\"s-elderly\",\"generalPopulation\":\"s-generalpopulation\",\"heartDiseasePopulation\":\"s-heartdiseasepopulation\",\"lungDiseasePopulation\":\"s-lungdiseasepopulation\",\"pregnantWomen\":\"s-pregnantwomen\"}}],\"regionCode\":\"s-regioncode\"}")
+  gv_note(f, "CALL airquality.history.lookup pages")
+  var p = svc.history.lookup_pages(json.decode_str[LookupHistoryRequest]("{\"customLocalAqis\":[{\"aqi\":\"s-aqi\",\"regionCode\":\"s-regioncode\"}],\"dateTime\":\"s-datetime\",\"extraComputations\":[\"s-extracomputations\"],\"hours\":7,\"languageCode\":\"s-languagecode\",\"location\":{\"latitude\":1.5,\"longitude\":1.5},\"pageSize\":7,\"pageToken\":\"s-pagetoken\",\"period\":{\"endTime\":\"s-endtime\",\"startTime\":\"s-starttime\"},\"uaqiColorPalette\":\"s-uaqicolorpalette\",\"universalAqi\":true}") ?? e => fault(e.display()), options: HistoryLookupOptions{fields: ["kind", "id"], headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_4)
+}
+
+const GO_5: List[Str] = [
   "CALL airquality.mapTypes.heatmapTiles.lookupHeatmapTile",
   "REQ GET https://airquality.googleapis.com/v1/mapTypes/id1%2F%20x/heatmapTiles/7/7/7?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -92,5 +172,5 @@ test "Go's airquality.mapTypes.heatmapTiles.lookupHeatmapTile" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_3)
+  gv_compare(gv_log_of(f), GO_5)
 }

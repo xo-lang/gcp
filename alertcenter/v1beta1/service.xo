@@ -245,6 +245,34 @@ pub fn (r: AlertsService[fx]) list(options: AlertsListOptions = AlertsListOption
   gensupport.decode[ListAlertsResponse](resp)
 }
 
+/// AlertsListPages: the pages of AlertsService.list (Go's Pages).
+/// Call next_page while more() is true.
+pub struct AlertsListPages[fx: Effects] {
+  r: AlertsService[fx]
+  options: AlertsListOptions
+  next_token: Str = ""
+  started: Bool = false
+}
+
+/// list_pages: AlertsService.list's pages, from the first.
+pub fn (r: AlertsService[fx]) list_pages(options: AlertsListOptions = AlertsListOptions{}) -> AlertsListPages[fx] {
+  AlertsListPages{r: r, options: options}
+}
+
+/// Whether there is a page left to fetch.
+pub fn (p: AlertsListPages[fx]) more() -> Bool {
+  !p.started || p.next_token != ""
+}
+
+/// The next page.
+pub fn (var p: AlertsListPages[fx]) next_page() -> ListAlertsResponse ! gensupport.CallErr uses (net.dial, clock, rand, fx) {
+  let o = if p.started { p.options with {page_token: Some(p.next_token)} } else { p.options }
+  let v = p.r.list(o)?
+  p.started = true
+  p.next_token = v.next_page_token
+  Ok(v)
+}
+
 /// AlertsUndeleteOptions: the optional parameters of AlertsService.undelete.
 pub struct AlertsUndeleteOptions {
   /// The fields of the result to return (Go's Fields), joined with commas.

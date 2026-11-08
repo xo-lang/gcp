@@ -5,6 +5,7 @@
 // compares the request, the response served and the result.
 
 use std/json
+use github.com/xo-lang/gcp/gensupport
 
 const GV_HOST: Str = "https://chromewebstore.googleapis.com"
 
@@ -51,6 +52,67 @@ test "Go's chromewebstore.items.insert" {
 }
 
 const GO_2: List[Str] = [
+  "CALL chromewebstore.items.insert media",
+  "REQ POST https://chromewebstore.googleapis.com/upload/chromewebstore/v1.1/items?alt=json&fields=kind%2Cid&prettyPrint=false&publisherEmail=s-publisheremail&uploadType=multipart",
+  "  H content-type=multipart/related; boundary=BOUNDARY | x-extra=v1",
+  "  B --BOUNDARY\u{000d}",
+  "Content-Type: application/json\u{000d}",
+  "\u{000d}",
+  "\u{000d}",
+  "--BOUNDARY\u{000d}",
+  "Content-Type: text/plain\u{000d}",
+  "\u{000d}",
+  "hello media\u{000d}",
+  "--BOUNDARY--\u{000d}",
+  "",
+  "  SERVED 200 {\"crxVersion\":\"s-crxversion\",\"id\":\"s-id\",\"itemError\":[{\"error_code\":\"s-error_code\",\"error_detail\":\"s-error_detail\"}],\"kind\":\"s-kind\",\"publicKey\":\"s-publickey\",\"uploadState\":\"s-uploadstate\"}",
+  "OUT: {\"crxVersion\":\"s-crxversion\",\"id\":\"s-id\",\"itemError\":[{\"error_code\":\"s-error_code\",\"error_detail\":\"s-error_detail\"}],\"kind\":\"s-kind\",\"publicKey\":\"s-publickey\",\"uploadState\":\"s-uploadstate\"}",
+]
+
+test "Go's chromewebstore.items.insert media" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"crxVersion\":\"s-crxversion\",\"id\":\"s-id\",\"itemError\":[{\"error_code\":\"s-error_code\",\"error_detail\":\"s-error_detail\"}],\"kind\":\"s-kind\",\"publicKey\":\"s-publickey\",\"uploadState\":\"s-uploadstate\"}")
+  gv_note(f, "CALL chromewebstore.items.insert media")
+  match svc.items.insert_media(os.clock, os.rand, media: gensupport.Media{data: "hello media".bytes(), content_type: "text/plain"}, options: ItemsInsertOptions{publisher_email: Some("s-publisheremail"), fields: ["kind", "id"], headers: [("X-Extra", "v1")]}) {
+    Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+    Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+  }
+  gv_compare(gv_log_of(f), GO_2)
+}
+
+const GO_3: List[Str] = [
+  "CALL chromewebstore.items.insert resumable",
+  "REQ POST https://chromewebstore.googleapis.com/upload/chromewebstore/v1.1/items?alt=json&fields=kind%2Cid&prettyPrint=false&publisherEmail=s-publisheremail&uploadType=resumable",
+  "  H content-type=application/json | x-extra=v1 | x-upload-content-type=text/plain",
+  "  B ",
+  "  SERVED 200 @H Location=https://chromewebstore.googleapis.com/upload/session-1 @B ",
+  "REQ POST https://chromewebstore.googleapis.com/upload/session-1",
+  "  H content-range=bytes 0-262143/* | content-type=text/plain | x-goog-gcs-idempotency-token=UUID | x-guploader-no-308=yes",
+  "  B <262144 bytes> 0123456789abcdef0123456789abcdef...0123456789abcdef0123456789abcdef",
+  "  SERVED 200 @H X-Http-Status-Code-Override=308 @B ",
+  "REQ POST https://chromewebstore.googleapis.com/upload/session-1",
+  "  H content-range=bytes 262144-262153/262154 | content-type=text/plain | x-goog-gcs-idempotency-token=UUID | x-guploader-no-308=yes",
+  "  B 0123456789",
+  "  SERVED 200 {\"crxVersion\":\"s-crxversion\",\"id\":\"s-id\",\"itemError\":[{\"error_code\":\"s-error_code\",\"error_detail\":\"s-error_detail\"}],\"kind\":\"s-kind\",\"publicKey\":\"s-publickey\",\"uploadState\":\"s-uploadstate\"}",
+  "OUT: {\"crxVersion\":\"s-crxversion\",\"id\":\"s-id\",\"itemError\":[{\"error_code\":\"s-error_code\",\"error_detail\":\"s-error_detail\"}],\"kind\":\"s-kind\",\"publicKey\":\"s-publickey\",\"uploadState\":\"s-uploadstate\"}",
+]
+
+test "Go's chromewebstore.items.insert resumable" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "@H Location=https://chromewebstore.googleapis.com/upload/session-1 @B ")
+  gv_queue(f, "@H X-Http-Status-Code-Override=308 @B ")
+  gv_queue(f, "{\"crxVersion\":\"s-crxversion\",\"id\":\"s-id\",\"itemError\":[{\"error_code\":\"s-error_code\",\"error_detail\":\"s-error_detail\"}],\"kind\":\"s-kind\",\"publicKey\":\"s-publickey\",\"uploadState\":\"s-uploadstate\"}")
+  gv_note(f, "CALL chromewebstore.items.insert resumable")
+  match svc.items.insert_media(os.clock, os.rand, media: gensupport.Media{data: gv_big(), content_type: "text/plain", chunk_size: 262144}, options: ItemsInsertOptions{publisher_email: Some("s-publisheremail"), fields: ["kind", "id"], headers: [("X-Extra", "v1")]}) {
+    Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+    Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+  }
+  gv_compare(gv_log_of(f), GO_3)
+}
+
+const GO_4: List[Str] = [
   "CALL chromewebstore.items.publish",
   "REQ POST https://chromewebstore.googleapis.com/chromewebstore/v1.1/items/id1%2F%20x/publish?alt=json&deployPercentage=7&fields=kind%2Cid&prettyPrint=false&publishTarget=s-publishtarget&reviewExemption=true",
   "  H content-type=application/json | x-extra=v1",
@@ -69,10 +131,10 @@ test "Go's chromewebstore.items.publish" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_2)
+  gv_compare(gv_log_of(f), GO_4)
 }
 
-const GO_3: List[Str] = [
+const GO_5: List[Str] = [
   "CALL chromewebstore.items.update",
   "REQ PUT https://chromewebstore.googleapis.com/chromewebstore/v1.1/items/id1%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -91,5 +153,68 @@ test "Go's chromewebstore.items.update" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_3)
+  gv_compare(gv_log_of(f), GO_5)
+}
+
+const GO_6: List[Str] = [
+  "CALL chromewebstore.items.update media",
+  "REQ PUT https://chromewebstore.googleapis.com/upload/chromewebstore/v1.1/items/id1%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false&uploadType=multipart",
+  "  H content-type=multipart/related; boundary=BOUNDARY | x-extra=v1",
+  "  B --BOUNDARY\u{000d}",
+  "Content-Type: application/json\u{000d}",
+  "\u{000d}",
+  "{\"crxVersion\":\"s-crxversion\",\"id\":\"s-id\",\"itemError\":[{\"error_code\":\"s-error_code\",\"error_detail\":\"s-error_detail\"}],\"kind\":\"s-kind\",\"publicKey\":\"s-publickey\",\"uploadState\":\"s-uploadstate\"}",
+  "\u{000d}",
+  "--BOUNDARY\u{000d}",
+  "Content-Type: text/plain\u{000d}",
+  "\u{000d}",
+  "hello media\u{000d}",
+  "--BOUNDARY--\u{000d}",
+  "",
+  "  SERVED 200 {\"crxVersion\":\"s-crxversion\",\"id\":\"s-id\",\"itemError\":[{\"error_code\":\"s-error_code\",\"error_detail\":\"s-error_detail\"}],\"kind\":\"s-kind\",\"publicKey\":\"s-publickey\",\"uploadState\":\"s-uploadstate\"}",
+  "OUT: {\"crxVersion\":\"s-crxversion\",\"id\":\"s-id\",\"itemError\":[{\"error_code\":\"s-error_code\",\"error_detail\":\"s-error_detail\"}],\"kind\":\"s-kind\",\"publicKey\":\"s-publickey\",\"uploadState\":\"s-uploadstate\"}",
+]
+
+test "Go's chromewebstore.items.update media" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"crxVersion\":\"s-crxversion\",\"id\":\"s-id\",\"itemError\":[{\"error_code\":\"s-error_code\",\"error_detail\":\"s-error_detail\"}],\"kind\":\"s-kind\",\"publicKey\":\"s-publickey\",\"uploadState\":\"s-uploadstate\"}")
+  gv_note(f, "CALL chromewebstore.items.update media")
+  match svc.items.update_media(os.clock, os.rand, "id1/ x", json.decode_str[Item]("{\"crxVersion\":\"s-crxversion\",\"id\":\"s-id\",\"itemError\":[{\"error_code\":\"s-error_code\",\"error_detail\":\"s-error_detail\"}],\"kind\":\"s-kind\",\"publicKey\":\"s-publickey\",\"uploadState\":\"s-uploadstate\"}") ?? e => fault(e.display()), media: gensupport.Media{data: "hello media".bytes(), content_type: "text/plain"}, options: ItemsUpdateOptions{fields: ["kind", "id"], headers: [("X-Extra", "v1")]}) {
+    Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+    Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+  }
+  gv_compare(gv_log_of(f), GO_6)
+}
+
+const GO_7: List[Str] = [
+  "CALL chromewebstore.items.update resumable",
+  "REQ PUT https://chromewebstore.googleapis.com/upload/chromewebstore/v1.1/items/id1%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false&uploadType=resumable",
+  "  H content-type=application/json | x-extra=v1 | x-upload-content-type=text/plain",
+  "  B {\"crxVersion\":\"s-crxversion\",\"id\":\"s-id\",\"itemError\":[{\"error_code\":\"s-error_code\",\"error_detail\":\"s-error_detail\"}],\"kind\":\"s-kind\",\"publicKey\":\"s-publickey\",\"uploadState\":\"s-uploadstate\"}",
+  "",
+  "  SERVED 200 @H Location=https://chromewebstore.googleapis.com/upload/session-1 @B ",
+  "REQ POST https://chromewebstore.googleapis.com/upload/session-1",
+  "  H content-range=bytes 0-262143/* | content-type=text/plain | x-goog-gcs-idempotency-token=UUID | x-guploader-no-308=yes",
+  "  B <262144 bytes> 0123456789abcdef0123456789abcdef...0123456789abcdef0123456789abcdef",
+  "  SERVED 200 @H X-Http-Status-Code-Override=308 @B ",
+  "REQ POST https://chromewebstore.googleapis.com/upload/session-1",
+  "  H content-range=bytes 262144-262153/262154 | content-type=text/plain | x-goog-gcs-idempotency-token=UUID | x-guploader-no-308=yes",
+  "  B 0123456789",
+  "  SERVED 200 {\"crxVersion\":\"s-crxversion\",\"id\":\"s-id\",\"itemError\":[{\"error_code\":\"s-error_code\",\"error_detail\":\"s-error_detail\"}],\"kind\":\"s-kind\",\"publicKey\":\"s-publickey\",\"uploadState\":\"s-uploadstate\"}",
+  "OUT: {\"crxVersion\":\"s-crxversion\",\"id\":\"s-id\",\"itemError\":[{\"error_code\":\"s-error_code\",\"error_detail\":\"s-error_detail\"}],\"kind\":\"s-kind\",\"publicKey\":\"s-publickey\",\"uploadState\":\"s-uploadstate\"}",
+]
+
+test "Go's chromewebstore.items.update resumable" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "@H Location=https://chromewebstore.googleapis.com/upload/session-1 @B ")
+  gv_queue(f, "@H X-Http-Status-Code-Override=308 @B ")
+  gv_queue(f, "{\"crxVersion\":\"s-crxversion\",\"id\":\"s-id\",\"itemError\":[{\"error_code\":\"s-error_code\",\"error_detail\":\"s-error_detail\"}],\"kind\":\"s-kind\",\"publicKey\":\"s-publickey\",\"uploadState\":\"s-uploadstate\"}")
+  gv_note(f, "CALL chromewebstore.items.update resumable")
+  match svc.items.update_media(os.clock, os.rand, "id1/ x", json.decode_str[Item]("{\"crxVersion\":\"s-crxversion\",\"id\":\"s-id\",\"itemError\":[{\"error_code\":\"s-error_code\",\"error_detail\":\"s-error_detail\"}],\"kind\":\"s-kind\",\"publicKey\":\"s-publickey\",\"uploadState\":\"s-uploadstate\"}") ?? e => fault(e.display()), media: gensupport.Media{data: gv_big(), content_type: "text/plain", chunk_size: 262144}, options: ItemsUpdateOptions{fields: ["kind", "id"], headers: [("X-Extra", "v1")]}) {
+    Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+    Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+  }
+  gv_compare(gv_log_of(f), GO_7)
 }

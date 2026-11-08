@@ -160,6 +160,35 @@ pub fn (r: PlacesService[fx]) search_text(googlemapsplacesv1searchtextrequest: G
   gensupport.decode[GoogleMapsPlacesV1SearchTextResponse](resp)
 }
 
+/// PlacesSearchTextPages: the pages of PlacesService.search_text (Go's Pages).
+/// Call next_page while more() is true.
+pub struct PlacesSearchTextPages[fx: Effects] {
+  r: PlacesService[fx]
+  googlemapsplacesv1searchtextrequest: GoogleMapsPlacesV1SearchTextRequest
+  options: PlacesSearchTextOptions
+  next_token: Str = ""
+  started: Bool = false
+}
+
+/// search_text_pages: PlacesService.search_text's pages, from the first.
+pub fn (r: PlacesService[fx]) search_text_pages(googlemapsplacesv1searchtextrequest: GoogleMapsPlacesV1SearchTextRequest, options: PlacesSearchTextOptions = PlacesSearchTextOptions{}) -> PlacesSearchTextPages[fx] {
+  PlacesSearchTextPages{r: r, googlemapsplacesv1searchtextrequest: googlemapsplacesv1searchtextrequest, options: options}
+}
+
+/// Whether there is a page left to fetch.
+pub fn (p: PlacesSearchTextPages[fx]) more() -> Bool {
+  !p.started || p.next_token != ""
+}
+
+/// The next page.
+pub fn (var p: PlacesSearchTextPages[fx]) next_page() -> GoogleMapsPlacesV1SearchTextResponse ! gensupport.CallErr uses (net.dial, clock, rand, fx) {
+  let b = if p.started { p.googlemapsplacesv1searchtextrequest with {page_token: p.next_token} } else { p.googlemapsplacesv1searchtextrequest }
+  let v = p.r.search_text(b, p.options)?
+  p.started = true
+  p.next_token = v.next_page_token
+  Ok(v)
+}
+
 /// PlacesPhotosService: the `places.photos` resource.
 pub struct PlacesPhotosService[fx: Effects] {
   core: gensupport.Core[fx]

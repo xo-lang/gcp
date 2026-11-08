@@ -74,12 +74,13 @@ fn sample_simple(v: json.Value, prop: Str) -> json.Value {
 }
 
 /// The sample JSON text of a schema by API name ("" for none).
-fn (g: Gen) sample_text(name: Str) -> Str {
+fn (g: Gen) sample_text(name: Str, without: Str = "") -> Str {
   if name == "" {
     return ""
   }
   let s = g.schemas.get(name) ?? return ""
   match g.sample(s, name, 0) {
+    Some(json.Value.Object(fs)) => json.Value.Object(fs.filter(fn(f: (Str, json.Value)) -> Bool { without == "" || f.0 != without })).encode()
     Some(v) => v.encode()
     None => ""
   }
@@ -178,42 +179,138 @@ pub fn go_has_opt(go_src: Str, i: MInfo, setter: Str) -> Bool {
   t == "" || go_src.contains("func (c *${t}) ${setter}(")
 }
 
+/// Whether a paged call's vectors page too: Go's call has Pages.
+fn go_has_pages(go_src: Str, i: MInfo) -> Bool {
+  i.page.resp != "" && go_has_method(go_src, i, "Pages")
+}
+
+/// Whether Go's call type has the method `name` ("" source: any).
+fn go_has_method(go_src: Str, i: MInfo, name: Str) -> Bool {
+  if go_src == "" {
+    return true
+  }
+  let t = go_call_type(go_src, i.id)
+  t != "" && go_src.contains("func (c *${t}) ${name}(")
+}
+
+/// The answer opening a resumable upload vector's session: its Location.
+fn session_answer(doc: json.Value) -> Str {
+  "@H Location=${str_of(doc.get("rootUrl"))}upload/session-1 @B "
+}
+
+/// The answer to a resumable upload's chunk before the last.
+const CHUNK_308: Str = "@H X-Http-Status-Code-Override=308 @B "
+
+/// The body a download vector is served with.
+const MEDIA: Str = "media-bytes \u{1}\u{ff}"
+
+/// Go's call `c` of a vector: every argument and option set.
+fn (g: Gen) go_call(i: MInfo, go_src: Str) -> Str {
+  var gargs: List[Str] = []
+  var n = 0
+  for a in i.args {
+    n = n + 1
+    gargs.push(arg_sample(a, n).1)
+  }
+  if let Some(b) = i.body {
+    gargs.push("body[api.${b.go_t}](${go_lit(g.sample_text(b.schema))})")
+  }
+  let chain = (["svc"] + i.go_chain).join(".")
+  var o = "\t\tc := ${chain}.${i.go_method}(${gargs.join(", ")})\n"
+  for a in i.opts.filter(fn(a: Arg) -> Bool { go_has_opt(go_src, i, a.setter) }) {
+    let v = arg_sample(Arg{api: a.api, name: a.name, t: a.t, location: a.location, go_t: a.go_t}, 0).1
+    o = o + "\t\tc.${a.setter}(${v})\n"
+  }
+  o = o + "\t\tc.Fields(\"kind\", \"id\")\n"
+  if i.inm_f != "" {
+    o = o + "\t\tc.IfNoneMatch(\"etag-1\")\n"
+  }
+  o + "\t\tc.Header().Set(\"X-Extra\", \"v1\")\n"
+}
+
+/// Xo's arguments of a vector's call: the same as go_call's.
+fn (g: Gen) xo_args(i: MInfo, go_src: Str) -> List[Str] {
+  var xargs: List[Str] = []
+  var n = 0
+  for a in i.args {
+    n = n + 1
+    xargs.push(arg_sample(a, n).0)
+  }
+  if let Some(b) = i.body {
+    xargs.push("json.decode_str[${b.t}](${xo_lit(g.sample_text(b.schema))}) ?? e => fault(e.display())")
+  }
+  var ofs: List[Str] = []
+  for a in i.opts.filter(fn(a: Arg) -> Bool { go_has_opt(go_src, i, a.setter) }) {
+    let v = arg_sample(Arg{api: a.api, name: a.name, t: a.t, location: a.location, go_t: a.go_t}, 0).0
+    if a.repeated {
+      ofs.push("${a.name}: [${v}]")
+    } else {
+      ofs.push("${a.name}: Some(${v})")
+    }
+  }
+  ofs.push("${i.fields_f}: [\"kind\", \"id\"]")
+  if i.inm_f != "" {
+    ofs.push("${i.inm_f}: \"etag-1\"")
+  }
+  ofs.push("${i.headers_f}: [(\"X-Extra\", \"v1\")]")
+  xargs.push("options: ${i.opts_tn}{${ofs.join(", ")}}")
+  xargs
+}
+
 /// The Go program for a module (`import_path` is Go's package).
 pub fn go_program(doc: json.Value, m: Module, import_path: Str, header: Str, prelude: Str, go_src: Str = "") -> Str {
   let g = new_gen(doc)
-  var o = "${header}\npackage main\n\nimport (\n\t\"context\"\n\t\"encoding/json\"\n\t\"fmt\"\n\t\"io\"\n\t\"net/http\"\n\t\"os\"\n\t\"sort\"\n\t\"strings\"\n\n\t\"google.golang.org/api/option\"\n\tapi \"${import_path}\"\n)\n"
+  var o = "${header}\npackage main\n\nimport (\n\t\"context\"\n\t\"encoding/json\"\n\t\"fmt\"\n\t\"io\"\n\t\"net/http\"\n\t\"os\"\n\t\"sort\"\n\t\"strings\"\n\n\t\"google.golang.org/api/googleapi\"\n\t\"google.golang.org/api/option\"\n\tapi \"${import_path}\"\n)\n"
   o = o + "\n" + prelude
   o = o + "\nfunc main() {\n\thttp.DefaultTransport = nil\n\tctx := context.Background()\n\tsvc, err := api.NewService(ctx, option.WithHTTPClient(&http.Client{Transport: fake{}}), option.WithoutAuthentication())\n\tif err != nil {\n\t\tpanic(err)\n\t}\n\t_ = svc\n\tonly := \"\"\n\tif len(os.Args) > 1 {\n\t\tonly = os.Args[1]\n\t}\n\t_ = only\n"
   for i in vector_calls(m).filter(fn(i: MInfo) -> Bool { go_has(go_src, i) }) {
     o = o + "\tif only == \"\" || only == ${go_lit(i.id)} {\n"
     o = o + "\t\tfmt.Println(${go_lit("CALL ${i.id}")})\n"
     o = o + "\t\tserved = ${go_lit(served_text(doc, g.sample_text(i.resp_schema)))}\n"
-    var gargs: List[Str] = []
-    var n = 0
-    for a in i.args {
-      n = n + 1
-      gargs.push(arg_sample(a, n).1)
-    }
-    if let Some(b) = i.body {
-      gargs.push("body[api.${b.go_t}](${go_lit(g.sample_text(b.schema))})")
-    }
-    let chain = (["svc"] + i.go_chain).join(".")
-    o = o + "\t\tc := ${chain}.${i.go_method}(${gargs.join(", ")})\n"
-    for a in i.opts.filter(fn(a: Arg) -> Bool { go_has_opt(go_src, i, a.setter) }) {
-      let v = arg_sample(Arg{api: a.api, name: a.name, t: a.t, location: a.location, go_t: a.go_t}, 0).1
-      o = o + "\t\tc.${a.setter}(${v})\n"
-    }
-    o = o + "\t\tc.Fields(\"kind\", \"id\")\n"
-    if i.inm_f != "" {
-      o = o + "\t\tc.IfNoneMatch(\"etag-1\")\n"
-    }
-    o = o + "\t\tc.Header().Set(\"X-Extra\", \"v1\")\n"
+    o = o + g.go_call(i, go_src)
     if i.ret == "()" {
       o = o + "\t\toutErr(c.Do())\n"
     } else {
       o = o + "\t\tout(c.Do())\n"
     }
     o = o + "\t}\n"
+    if i.media && go_has_method(go_src, i, "Media") {
+      let done = if i.ret == "()" { "outErr(c.Do())" } else { "out(c.Do())" }
+      let mid = "${i.id} media"
+      o = o + "\tif only == \"\" || only == ${go_lit(mid)} {\n"
+      o = o + "\t\tfmt.Println(${go_lit("CALL ${mid}")})\n"
+      o = o + "\t\tserved = ${go_lit(served_text(doc, g.sample_text(i.resp_schema)))}\n"
+      o = o + g.go_call(i, go_src)
+      o = o + "\t\tc.Media(strings.NewReader(\"hello media\"), googleapi.ContentType(\"text/plain\"))\n"
+      o = o + "\t\t${done}\n\t}\n"
+      let rid = "${i.id} resumable"
+      o = o + "\tif only == \"\" || only == ${go_lit(rid)} {\n"
+      o = o + "\t\tfmt.Println(${go_lit("CALL ${rid}")})\n"
+      o = o + "\t\tserved = ${go_lit(session_answer(doc))}\n"
+      o = o + "\t\tqueue = []string{${go_lit(CHUNK_308)}, ${go_lit(served_text(doc, g.sample_text(i.resp_schema)))}}\n"
+      o = o + g.go_call(i, go_src)
+      o = o + "\t\tc.Media(strings.NewReader(big()), googleapi.ContentType(\"text/plain\"), googleapi.ChunkSize(262144))\n"
+      o = o + "\t\t${done}\n\t}\n"
+    }
+    if i.download && go_has_method(go_src, i, "Download") {
+      let did = "${i.id} download"
+      o = o + "\tif only == \"\" || only == ${go_lit(did)} {\n"
+      o = o + "\t\tfmt.Println(${go_lit("CALL ${did}")})\n"
+      o = o + "\t\tserved = ${go_lit(MEDIA)}\n"
+      o = o + g.go_call(i, go_src)
+      o = o + "\t\toutMedia(c.Download())\n"
+      o = o + "\t}\n"
+    }
+    if go_has_pages(go_src, i) {
+      let pid = "${i.id} pages"
+      o = o + "\tif only == \"\" || only == ${go_lit(pid)} {\n"
+      o = o + "\t\tfmt.Println(${go_lit("CALL ${pid}")})\n"
+      o = o + "\t\tserved = ${go_lit(served_text(doc, g.sample_text(i.resp_schema)))}\n"
+      o = o + "\t\tqueue = []string{${go_lit(served_text(doc, g.sample_text(i.resp_schema, without: i.page.resp_api)))}}\n"
+      o = o + g.go_call(i, go_src)
+      o = o + "\t\toutErr(c.Pages(ctx, func(x *api.${i.page.go_ret}) error {\n\t\t\tout(x, nil)\n\t\t\treturn nil\n\t\t}))\n"
+      o = o + "\t}\n"
+    }
   }
   o + "}\n"
 }
@@ -263,6 +360,9 @@ pub fn vectors_test(doc: json.Value, m: Module, go_out: Str, header: Str, base_p
   // std/json when a call decodes a body or encodes a result
   let uses_json = vector_calls(m).any(fn(i: MInfo) -> Bool { i.body.is_some() || i.ret != "()" })
   var o = if uses_json { "${header}\nuse std/json\n" } else { header }
+  if vector_calls(m).any(fn(i: MInfo) -> Bool { i.media && blocks.contains("${i.id} media") }) {
+    o = o + "use github.com/xo-lang/gcp/gensupport\n"
+  }
   o = o + "\nconst GV_HOST: Str = ${xo_lit(host)}\n"
   var k = 0
   for i in vector_calls(m) {
@@ -276,30 +376,7 @@ pub fn vectors_test(doc: json.Value, m: Module, go_out: Str, header: Str, base_p
     o = o + "  let svc = new_service(os.net, gv_opts())\n"
     o = o + "  gv_set(f, ${xo_lit(served_text(doc, g.sample_text(i.resp_schema)))})\n"
     o = o + "  gv_note(f, ${xo_lit("CALL ${i.id}")})\n"
-    var xargs: List[Str] = []
-    var n = 0
-    for a in i.args {
-      n = n + 1
-      xargs.push(arg_sample(a, n).0)
-    }
-    if let Some(b) = i.body {
-      xargs.push("json.decode_str[${b.t}](${xo_lit(g.sample_text(b.schema))}) ?? e => fault(e.display())")
-    }
-    var ofs: List[Str] = []
-    for a in i.opts.filter(fn(a: Arg) -> Bool { go_has_opt(go_src, i, a.setter) }) {
-      let v = arg_sample(Arg{api: a.api, name: a.name, t: a.t, location: a.location, go_t: a.go_t}, 0).0
-      if a.repeated {
-        ofs.push("${a.name}: [${v}]")
-      } else {
-        ofs.push("${a.name}: Some(${v})")
-      }
-    }
-    ofs.push("${i.fields_f}: [\"kind\", \"id\"]")
-    if i.inm_f != "" {
-      ofs.push("${i.inm_f}: \"etag-1\"")
-    }
-    ofs.push("${i.headers_f}: [(\"X-Extra\", \"v1\")]")
-    xargs.push("options: ${i.opts_tn}{${ofs.join(", ")}}")
+    let xargs = g.xo_args(i, go_src)
     let chain = (["svc"] + i.xo_chain).join(".")
     o = o + "  match ${chain}.${i.fname}(${xargs.join(", ")}) {\n"
     if i.ret == "()" {
@@ -308,6 +385,72 @@ pub fn vectors_test(doc: json.Value, m: Module, go_out: Str, header: Str, base_p
       o = o + "    Ok(r) => gv_note(f, \"OUT: \${json.encode_str(r)}\")\n"
     }
     o = o + "    Err(e) => gv_note_lines(f, \"OUT: error: \${e.display().replace(\"\\n\", \"\\n| \")}\")\n  }\n"
+    o = o + "  gv_compare(gv_log_of(f), GO_${k})\n}\n"
+    k = k + 1
+    for (suffix, data) in [("media", "\"hello media\".bytes()"), ("resumable", "gv_big()")] {
+      let mid = "${i.id} ${suffix}"
+      let mwant = blocks.get(mid) ?? continue
+      o = o + "\nconst GO_${k}: List[Str] = [\n"
+      for l in mwant {
+        o = o + "  ${xo_lit(l)},\n"
+      }
+      o = o + "]\n\ntest ${xo_lit("Go's ${mid}")} {\n"
+      o = o + "  let f = gv_new_fake(os.net, GV_HOST)\n"
+      o = o + "  let svc = new_service(os.net, gv_opts())\n"
+      if suffix == "media" {
+        o = o + "  gv_set(f, ${xo_lit(served_text(doc, g.sample_text(i.resp_schema)))})\n"
+      } else {
+        o = o + "  gv_set(f, ${xo_lit(session_answer(doc))})\n"
+        o = o + "  gv_queue(f, ${xo_lit(CHUNK_308)})\n"
+        o = o + "  gv_queue(f, ${xo_lit(served_text(doc, g.sample_text(i.resp_schema)))})\n"
+      }
+      o = o + "  gv_note(f, ${xo_lit("CALL ${mid}")})\n"
+      let cs = if suffix == "media" { "" } else { ", chunk_size: 262144" }
+      let margs = ["os.clock", "os.rand"] + xargs[0..xargs.len() - 1] + ["media: gensupport.Media{data: ${data}, content_type: \"text/plain\"${cs}}", xargs[xargs.len() - 1]]
+      o = o + "  match ${chain}.${i.fname}_media(${margs.join(", ")}) {\n"
+      if i.ret == "()" {
+        o = o + "    Ok(_) => gv_note(f, \"OUT: ok\")\n"
+      } else {
+        o = o + "    Ok(r) => gv_note(f, \"OUT: \${json.encode_str(r)}\")\n"
+      }
+      o = o + "    Err(e) => gv_note_lines(f, \"OUT: error: \${e.display().replace(\"\\n\", \"\\n| \")}\")\n  }\n"
+      o = o + "  gv_compare(gv_log_of(f), GO_${k})\n}\n"
+      k = k + 1
+    }
+    if let Some(dwant) = blocks.get("${i.id} download") {
+      let did = "${i.id} download"
+      o = o + "\nconst GO_${k}: List[Str] = [\n"
+      for l in dwant {
+        o = o + "  ${xo_lit(l)},\n"
+      }
+      o = o + "]\n\ntest ${xo_lit("Go's ${did}")} {\n"
+      o = o + "  let f = gv_new_fake(os.net, GV_HOST)\n"
+      o = o + "  let svc = new_service(os.net, gv_opts())\n"
+      o = o + "  gv_set(f, ${xo_lit(MEDIA)})\n"
+      o = o + "  gv_note(f, ${xo_lit("CALL ${did}")})\n"
+      o = o + "  match ${chain}.${i.fname}_download(${xargs.join(", ")}) {\n"
+      o = o + "    Ok(r) => gv_note(f, \"OUT: media \${r.status} \${r.body.to_str_lossy()}\")\n"
+      o = o + "    Err(e) => gv_note_lines(f, \"OUT: error: \${e.display().replace(\"\\n\", \"\\n| \")}\")\n  }\n"
+      o = o + "  gv_compare(gv_log_of(f), GO_${k})\n}\n"
+      k = k + 1
+    }
+    let pid = "${i.id} pages"
+    let pwant = blocks.get(pid) ?? continue
+    o = o + "\nconst GO_${k}: List[Str] = [\n"
+    for l in pwant {
+      o = o + "  ${xo_lit(l)},\n"
+    }
+    o = o + "]\n\ntest ${xo_lit("Go's ${pid}")} {\n"
+    o = o + "  let f = gv_new_fake(os.net, GV_HOST)\n"
+    o = o + "  let svc = new_service(os.net, gv_opts())\n"
+    o = o + "  gv_set(f, ${xo_lit(served_text(doc, g.sample_text(i.resp_schema)))})\n"
+    o = o + "  gv_queue(f, ${xo_lit(served_text(doc, g.sample_text(i.resp_schema, without: i.page.resp_api)))})\n"
+    o = o + "  gv_note(f, ${xo_lit("CALL ${pid}")})\n"
+    o = o + "  var p = ${chain}.${i.fname}_pages(${xargs.join(", ")})\n"
+    o = o + "  var failed = false\n  while !failed && p.more() {\n    match p.next_page() {\n"
+    o = o + "      Ok(r) => gv_note(f, \"OUT: \${json.encode_str(r)}\")\n"
+    o = o + "      Err(e) => {\n        gv_note_lines(f, \"OUT: error: \${e.display().replace(\"\\n\", \"\\n| \")}\")\n        failed = true\n      }\n    }\n  }\n"
+    o = o + "  if !failed {\n    gv_note(f, \"OUT: ok\")\n  }\n"
     o = o + "  gv_compare(gv_log_of(f), GO_${k})\n}\n"
     k = k + 1
   }

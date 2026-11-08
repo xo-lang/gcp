@@ -29,3 +29,43 @@ test "Go's driveactivity.activity.query" {
   }
   gv_compare(gv_log_of(f), GO_0)
 }
+
+const GO_1: List[Str] = [
+  "CALL driveactivity.activity.query pages",
+  "REQ POST https://driveactivity.googleapis.com/v2/activity:query?alt=json&fields=kind%2Cid&prettyPrint=false",
+  "  H content-type=application/json | x-extra=v1",
+  "  B {\"ancestorName\":\"s-ancestorname\",\"consolidationStrategy\":{\"legacy\":{},\"none\":{}},\"filter\":\"s-filter\",\"itemName\":\"s-itemname\",\"pageSize\":7,\"pageToken\":\"s-pagetoken\"}",
+  "",
+  "  SERVED 200 {\"activities\":[{\"primaryActionDetail\":{},\"timeRange\":{\"endTime\":\"s-endtime\",\"startTime\":\"s-starttime\"},\"timestamp\":\"s-timestamp\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"activities\":[{\"primaryActionDetail\":{},\"timeRange\":{\"endTime\":\"s-endtime\",\"startTime\":\"s-starttime\"},\"timestamp\":\"s-timestamp\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ POST https://driveactivity.googleapis.com/v2/activity:query?alt=json&fields=kind%2Cid&prettyPrint=false",
+  "  H content-type=application/json | x-extra=v1",
+  "  B {\"ancestorName\":\"s-ancestorname\",\"consolidationStrategy\":{\"legacy\":{},\"none\":{}},\"filter\":\"s-filter\",\"itemName\":\"s-itemname\",\"pageSize\":7,\"pageToken\":\"s-nextpagetoken\"}",
+  "",
+  "  SERVED 200 {\"activities\":[{\"primaryActionDetail\":{},\"timeRange\":{\"endTime\":\"s-endtime\",\"startTime\":\"s-starttime\"},\"timestamp\":\"s-timestamp\"}]}",
+  "OUT: {\"activities\":[{\"primaryActionDetail\":{},\"timeRange\":{\"endTime\":\"s-endtime\",\"startTime\":\"s-starttime\"},\"timestamp\":\"s-timestamp\"}]}",
+  "OUT: ok",
+]
+
+test "Go's driveactivity.activity.query pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"activities\":[{\"primaryActionDetail\":{},\"timeRange\":{\"endTime\":\"s-endtime\",\"startTime\":\"s-starttime\"},\"timestamp\":\"s-timestamp\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"activities\":[{\"primaryActionDetail\":{},\"timeRange\":{\"endTime\":\"s-endtime\",\"startTime\":\"s-starttime\"},\"timestamp\":\"s-timestamp\"}]}")
+  gv_note(f, "CALL driveactivity.activity.query pages")
+  var p = svc.activity.query_pages(json.decode_str[QueryDriveActivityRequest]("{\"ancestorName\":\"s-ancestorname\",\"consolidationStrategy\":{\"legacy\":{},\"none\":{}},\"filter\":\"s-filter\",\"itemName\":\"s-itemname\",\"pageSize\":7,\"pageToken\":\"s-pagetoken\"}") ?? e => fault(e.display()), options: ActivityQueryOptions{fields: ["kind", "id"], headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_1)
+}

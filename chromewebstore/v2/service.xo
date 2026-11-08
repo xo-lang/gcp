@@ -63,6 +63,26 @@ pub fn (r: MediaService[fx]) upload(name: Str, uploaditempackagerequest: UploadI
   gensupport.decode[UploadItemPackageResponse](resp)
 }
 
+/// upload_media: MediaService.upload with media (Go's Media): in one
+/// multipart request below the media's chunk size, else a resumable
+/// upload of chunks.
+pub fn (r: MediaService[fx]) upload_media(clock: Clock, rand: Rand, name: Str, uploaditempackagerequest: UploadItemPackageRequest, media: gensupport.Media, options: MediaUploadOptions = MediaUploadOptions{}) -> UploadItemPackageResponse ! gensupport.CallErr uses (net.dial, clock, rand, fx) {
+  var q = url.values()
+  if !options.fields.is_empty() {
+    q.set("fields", options.fields.join(","))
+  }
+  q.set("alt", "json")
+  q.set("prettyPrint", "false")
+  var hs: List[(Str, Str)] = []
+  hs.push(("Content-Type", "application/json"))
+  hs = hs + options.headers
+  let u = googleapi.expand(googleapi.resolve_relative(r.core.base_path, "v2/{+name}:upload"), {"name": name})
+  let mu = googleapi.expand(googleapi.resolve_relative(r.core.base_path, "/upload/v2/{+name}:upload"), {"name": name})
+  let resp = r.core.client.upload(clock, rand, gensupport.Request{method: "POST", url: u, query: q, headers: hs, body: gensupport.json_body(uploaditempackagerequest, data_wrapper: false)}, mu, media)?
+  gensupport.check(resp)?
+  gensupport.decode[UploadItemPackageResponse](resp)
+}
+
 /// PublishersService: the `publishers` resource.
 pub struct PublishersService[fx: Effects] {
   core: gensupport.Core[fx]
@@ -156,6 +176,35 @@ pub fn (r: PublishersItemsService[fx]) fetch_reviews(name: Str, options: Publish
   let resp = r.core.client.send(gensupport.Request{method: "GET", url: u, query: q, headers: hs, body: b""})?
   gensupport.check(resp)?
   gensupport.decode[FetchItemReviewsResponse](resp)
+}
+
+/// PublishersItemsFetchReviewsPages: the pages of PublishersItemsService.fetch_reviews (Go's Pages).
+/// Call next_page while more() is true.
+pub struct PublishersItemsFetchReviewsPages[fx: Effects] {
+  r: PublishersItemsService[fx]
+  name: Str
+  options: PublishersItemsFetchReviewsOptions
+  next_token: Str = ""
+  started: Bool = false
+}
+
+/// fetch_reviews_pages: PublishersItemsService.fetch_reviews's pages, from the first.
+pub fn (r: PublishersItemsService[fx]) fetch_reviews_pages(name: Str, options: PublishersItemsFetchReviewsOptions = PublishersItemsFetchReviewsOptions{}) -> PublishersItemsFetchReviewsPages[fx] {
+  PublishersItemsFetchReviewsPages{r: r, name: name, options: options}
+}
+
+/// Whether there is a page left to fetch.
+pub fn (p: PublishersItemsFetchReviewsPages[fx]) more() -> Bool {
+  !p.started || p.next_token != ""
+}
+
+/// The next page.
+pub fn (var p: PublishersItemsFetchReviewsPages[fx]) next_page() -> FetchItemReviewsResponse ! gensupport.CallErr uses (net.dial, clock, rand, fx) {
+  let o = if p.started { p.options with {page_token: Some(p.next_token)} } else { p.options }
+  let v = p.r.fetch_reviews(p.name, o)?
+  p.started = true
+  p.next_token = v.next_page_token
+  Ok(v)
 }
 
 /// PublishersItemsFetchStatusOptions: the optional parameters of PublishersItemsService.fetch_status.
@@ -322,6 +371,35 @@ pub fn (r: PublishersItemsService[fx]) query_metrics(name: Str, options: Publish
   let resp = r.core.client.send(gensupport.Request{method: "GET", url: u, query: q, headers: hs, body: b""})?
   gensupport.check(resp)?
   gensupport.decode[QueryItemMetricsResponse](resp)
+}
+
+/// PublishersItemsQueryMetricsPages: the pages of PublishersItemsService.query_metrics (Go's Pages).
+/// Call next_page while more() is true.
+pub struct PublishersItemsQueryMetricsPages[fx: Effects] {
+  r: PublishersItemsService[fx]
+  name: Str
+  options: PublishersItemsQueryMetricsOptions
+  next_token: Str = ""
+  started: Bool = false
+}
+
+/// query_metrics_pages: PublishersItemsService.query_metrics's pages, from the first.
+pub fn (r: PublishersItemsService[fx]) query_metrics_pages(name: Str, options: PublishersItemsQueryMetricsOptions = PublishersItemsQueryMetricsOptions{}) -> PublishersItemsQueryMetricsPages[fx] {
+  PublishersItemsQueryMetricsPages{r: r, name: name, options: options}
+}
+
+/// Whether there is a page left to fetch.
+pub fn (p: PublishersItemsQueryMetricsPages[fx]) more() -> Bool {
+  !p.started || p.next_token != ""
+}
+
+/// The next page.
+pub fn (var p: PublishersItemsQueryMetricsPages[fx]) next_page() -> QueryItemMetricsResponse ! gensupport.CallErr uses (net.dial, clock, rand, fx) {
+  let o = if p.started { p.options with {page_token: Some(p.next_token)} } else { p.options }
+  let v = p.r.query_metrics(p.name, o)?
+  p.started = true
+  p.next_token = v.next_page_token
+  Ok(v)
 }
 
 /// PublishersItemsRollbackOptions: the optional parameters of PublishersItemsService.rollback.

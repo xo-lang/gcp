@@ -157,6 +157,36 @@ pub fn (r: PoolsService[fx]) list(project_name: Str, zone: Str, options: PoolsLi
   gensupport.decode[PoolsListResponse](resp)
 }
 
+/// PoolsListPages: the pages of PoolsService.list (Go's Pages).
+/// Call next_page while more() is true.
+pub struct PoolsListPages[fx: Effects] {
+  r: PoolsService[fx]
+  project_name: Str
+  zone: Str
+  options: PoolsListOptions
+  next_token: Str = ""
+  started: Bool = false
+}
+
+/// list_pages: PoolsService.list's pages, from the first.
+pub fn (r: PoolsService[fx]) list_pages(project_name: Str, zone: Str, options: PoolsListOptions = PoolsListOptions{}) -> PoolsListPages[fx] {
+  PoolsListPages{r: r, project_name: project_name, zone: zone, options: options}
+}
+
+/// Whether there is a page left to fetch.
+pub fn (p: PoolsListPages[fx]) more() -> Bool {
+  !p.started || p.next_token != ""
+}
+
+/// The next page.
+pub fn (var p: PoolsListPages[fx]) next_page() -> PoolsListResponse ! gensupport.CallErr uses (net.dial, clock, rand, fx) {
+  let o = if p.started { p.options with {page_token: Some(p.next_token)} } else { p.options }
+  let v = p.r.list(p.project_name, p.zone, o)?
+  p.started = true
+  p.next_token = v.next_page_token
+  Ok(v)
+}
+
 /// PoolsResizeOptions: the optional parameters of PoolsService.resize.
 pub struct PoolsResizeOptions {
   /// The desired number of replicas to resize to. If this number is larger than the existing number of replicas, new replicas will be added. If the number is smaller, then existing replicas will be deleted.
@@ -316,6 +346,37 @@ pub fn (r: ReplicasService[fx]) list(project_name: Str, zone: Str, pool_name: St
   let resp = r.core.client.send(gensupport.Request{method: "GET", url: u, query: q, headers: hs, body: b""})?
   gensupport.check(resp)?
   gensupport.decode[ReplicasListResponse](resp)
+}
+
+/// ReplicasListPages: the pages of ReplicasService.list (Go's Pages).
+/// Call next_page while more() is true.
+pub struct ReplicasListPages[fx: Effects] {
+  r: ReplicasService[fx]
+  project_name: Str
+  zone: Str
+  pool_name: Str
+  options: ReplicasListOptions
+  next_token: Str = ""
+  started: Bool = false
+}
+
+/// list_pages: ReplicasService.list's pages, from the first.
+pub fn (r: ReplicasService[fx]) list_pages(project_name: Str, zone: Str, pool_name: Str, options: ReplicasListOptions = ReplicasListOptions{}) -> ReplicasListPages[fx] {
+  ReplicasListPages{r: r, project_name: project_name, zone: zone, pool_name: pool_name, options: options}
+}
+
+/// Whether there is a page left to fetch.
+pub fn (p: ReplicasListPages[fx]) more() -> Bool {
+  !p.started || p.next_token != ""
+}
+
+/// The next page.
+pub fn (var p: ReplicasListPages[fx]) next_page() -> ReplicasListResponse ! gensupport.CallErr uses (net.dial, clock, rand, fx) {
+  let o = if p.started { p.options with {page_token: Some(p.next_token)} } else { p.options }
+  let v = p.r.list(p.project_name, p.zone, p.pool_name, o)?
+  p.started = true
+  p.next_token = v.next_page_token
+  Ok(v)
 }
 
 /// ReplicasRestartOptions: the optional parameters of ReplicasService.restart.

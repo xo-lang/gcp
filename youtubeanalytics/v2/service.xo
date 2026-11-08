@@ -269,6 +269,34 @@ pub fn (r: GroupsService[fx]) list(options: GroupsListOptions = GroupsListOption
   gensupport.decode[ListGroupsResponse](resp)
 }
 
+/// GroupsListPages: the pages of GroupsService.list (Go's Pages).
+/// Call next_page while more() is true.
+pub struct GroupsListPages[fx: Effects] {
+  r: GroupsService[fx]
+  options: GroupsListOptions
+  next_token: Str = ""
+  started: Bool = false
+}
+
+/// list_pages: GroupsService.list's pages, from the first.
+pub fn (r: GroupsService[fx]) list_pages(options: GroupsListOptions = GroupsListOptions{}) -> GroupsListPages[fx] {
+  GroupsListPages{r: r, options: options}
+}
+
+/// Whether there is a page left to fetch.
+pub fn (p: GroupsListPages[fx]) more() -> Bool {
+  !p.started || p.next_token != ""
+}
+
+/// The next page.
+pub fn (var p: GroupsListPages[fx]) next_page() -> ListGroupsResponse ! gensupport.CallErr uses (net.dial, clock, rand, fx) {
+  let o = if p.started { p.options with {page_token: Some(p.next_token)} } else { p.options }
+  let v = p.r.list(o)?
+  p.started = true
+  p.next_token = v.next_page_token
+  Ok(v)
+}
+
 /// GroupsUpdateOptions: the optional parameters of GroupsService.update.
 pub struct GroupsUpdateOptions {
   /// This parameter can only be used in a properly authorized request. **Note:** This parameter is intended exclusively for YouTube content partners that own and manage many different YouTube channels. The `onBehalfOfContentOwner` parameter indicates that the request's authorization credentials identify a YouTube user who is acting on behalf of the content owner specified in the parameter value. It allows content owners to authenticate once and get access to all their video and channel data, without having to provide authentication credentials for each individual channel. The account that the user authenticates with must be linked to the specified YouTube content owner.

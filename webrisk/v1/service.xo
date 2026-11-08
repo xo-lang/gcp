@@ -230,6 +230,35 @@ pub fn (r: ProjectsOperationsService[fx]) list(name: Str, options: ProjectsOpera
   gensupport.decode[GoogleLongrunningListOperationsResponse](resp)
 }
 
+/// ProjectsOperationsListPages: the pages of ProjectsOperationsService.list (Go's Pages).
+/// Call next_page while more() is true.
+pub struct ProjectsOperationsListPages[fx: Effects] {
+  r: ProjectsOperationsService[fx]
+  name: Str
+  options: ProjectsOperationsListOptions
+  next_token: Str = ""
+  started: Bool = false
+}
+
+/// list_pages: ProjectsOperationsService.list's pages, from the first.
+pub fn (r: ProjectsOperationsService[fx]) list_pages(name: Str, options: ProjectsOperationsListOptions = ProjectsOperationsListOptions{}) -> ProjectsOperationsListPages[fx] {
+  ProjectsOperationsListPages{r: r, name: name, options: options}
+}
+
+/// Whether there is a page left to fetch.
+pub fn (p: ProjectsOperationsListPages[fx]) more() -> Bool {
+  !p.started || p.next_token != ""
+}
+
+/// The next page.
+pub fn (var p: ProjectsOperationsListPages[fx]) next_page() -> GoogleLongrunningListOperationsResponse ! gensupport.CallErr uses (net.dial, clock, rand, fx) {
+  let o = if p.started { p.options with {page_token: Some(p.next_token)} } else { p.options }
+  let v = p.r.list(p.name, o)?
+  p.started = true
+  p.next_token = v.next_page_token
+  Ok(v)
+}
+
 /// ProjectsSubmissionsService: the `projects.submissions` resource.
 pub struct ProjectsSubmissionsService[fx: Effects] {
   core: gensupport.Core[fx]

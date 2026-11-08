@@ -468,6 +468,141 @@ pub struct MInfo {
   pub ret: Str
   /// The response schema's API name ("" for none).
   pub resp_schema: Str = ""
+  /// The pager, when Go's call has Pages.
+  pub page: Page = Page{}
+  /// Whether the method has `<fname>_download` (Go's Download).
+  pub download: Bool = false
+  /// Whether the method has `<fname>_media` (Go's Media).
+  pub media: Bool = false
+}
+
+/// A paged method's tokens (Go's pageTokenGenerator).
+pub struct Page {
+  /// The pager's type name ("" for none).
+  pub tn: Str = ""
+  /// The token's options field, or its request body field.
+  pub field: Str = ""
+  /// Whether the token is a request body field.
+  pub in_body: Bool = false
+  /// Whether that body field is optional.
+  pub body_opt: Bool = false
+  /// The response's token field ("" for no pager).
+  pub resp: Str = ""
+  pub resp_opt: Bool = false
+  /// The response token's JSON name.
+  pub resp_api: Str = ""
+  /// Go's response type name.
+  pub go_ret: Str = ""
+}
+
+fn is_page_token(n: Str) -> Bool {
+  n == "pageToken" || n == "nextPageToken"
+}
+
+/// The Xo name of a struct schema's first page token property (Go's
+/// supportsPaging), and whether it is optional: struct_text's pools,
+/// replayed.
+fn (g: Gen) token_field(name: Str, s: json.Value) -> (Str, Bool, Str)? {
+  var np = Pool{}
+  np.get("ForceSendFields")
+  np.get("NullFields")
+  if g.responses.contains(name) {
+    np.get("ServerResponse")
+  }
+  var xp = Pool{}
+  for (p, ps) in fields_of(s.get("properties")) {
+    let pname = np.get(initial_cap(p))
+    if pname.starts_with("@") {
+      continue
+    }
+    let fname = xp.get(snake(pname))
+    if is_page_token(p) && kind(ps) == "simple" && str_of(ps.get("type")) == "string" {
+      if str_of(ps.get("format")) != "" {
+        return None
+      }
+      // (POINTER_FIELDS holds no page token)
+      return Some((fname, unfortunate_default(ps, "Str"), p))
+    }
+  }
+  None
+}
+
+fn (var g: Gen) page_of(id: Str, params: List[(Str, json.Value)], opt_args: List[Arg], body_arg: Arg?, resp_ref: Str) -> Page {
+  var page = Page{}
+  let tps = params.filter(fn(p: (Str, json.Value)) -> Bool { is_page_token(p.0) })
+  if tps.len() > 1 {
+    g.report.push("${id}: two page token parameters (Go panics)")
+    return Page{}
+  }
+  if tps.len() == 1 {
+    let (pn, _) = tps.get(0) ?? return Page{}
+    let a = opt_args.filter(fn(x: Arg) -> Bool { x.api == pn }).get(0) ?? return Page{}
+    if a.t != "Str" || a.repeated {
+      g.report.push("${id}: page token ${pn} is ${a.t} (no pager)")
+      return Page{}
+    }
+    page = Page{field: a.name}
+  } else {
+    let b = body_arg ?? return Page{}
+    if b.schema == "" {
+      return Page{}
+    }
+    let bs = g.schemas.get(b.schema) ?? return Page{}
+    let (f, o, _) = g.token_field(b.schema, bs) ?? return Page{}
+    page = Page{field: f, in_body: true, body_opt: o}
+  }
+  let (rn, rs) = g.resolve(resp_ref) ?? return Page{}
+  if kind(rs) != "struct" {
+    return Page{}
+  }
+  let (rf, ro, ra) = g.token_field(rn, rs) ?? return Page{}
+  page with {resp: rf, resp_opt: ro, resp_api: ra, go_ret: g.go_name(rn)}
+}
+
+/// A paged method's pager: next_page calls the method, then sets the
+/// token to the response's for the call after (Go's Pages loop).
+fn (var g: Gen) pager_text(tn: Str, fname: Str, opts_tn: Str, args: List[Arg], body_arg: Arg?, ret: Str, page0: Page) -> Str {
+  for a in args {
+    if a.name == "next_token" || a.name == "started" {
+      g.report.push("${tn}.${fname}: an argument named ${a.name} (no pager)")
+      return ""
+    }
+  }
+  let pg = page0.tn
+  var all = args
+  if let Some(b) = body_arg {
+    all.push(b)
+  }
+  var out = "\n/// ${pg}: the pages of ${tn}.${fname} (Go's Pages).\n/// Call next_page while more() is true.\npub struct ${pg}[fx: Effects] {\n  r: ${tn}[fx]\n"
+  for a in all {
+    out = out + "  ${a.name}: ${a.t}\n"
+  }
+  out = out + "  options: ${opts_tn}\n  next_token: Str = \"\"\n  started: Bool = false\n}\n"
+  var sig: List[Str] = all.map(fn(a: Arg) -> Str { "${a.name}: ${a.t}" })
+  sig.push("options: ${opts_tn} = ${opts_tn}{}")
+  let inits = all.map(fn(a: Arg) -> Str { "${a.name}: ${a.name}" }).join(", ")
+  let sep = if inits == "" { "" } else { ", " }
+  out = out + "\n/// ${fname}_pages: ${tn}.${fname}'s pages, from the first.\npub fn (r: ${tn}[fx]) ${fname}_pages(${sig.join(", ")}) -> ${pg}[fx] {\n  ${pg}{r: r${sep}${inits}, options: options}\n}\n"
+  out = out + "\n/// Whether there is a page left to fetch.\npub fn (p: ${pg}[fx]) more() -> Bool {\n  !p.started || p.next_token != \"\"\n}\n"
+  out = out + "\n/// The next page.\npub fn (var p: ${pg}[fx]) next_page() -> ${ret} ! gensupport.CallErr uses (net.dial, clock, rand, fx) {\n"
+  var cargs: List[Str] = args.map(fn(a: Arg) -> Str { "p.${a.name}" })
+  let tok = "p.next_token"
+  if page0.in_body {
+    let b = body_arg ?? return ""
+    let v = if page0.body_opt { "Some(${tok})" } else { tok }
+    out = out + "  let b = if p.started { p.${b.name} with {${page0.field}: ${v}} } else { p.${b.name} }\n"
+    cargs.push("b")
+    cargs.push("p.options")
+  } else {
+    if let Some(b) = body_arg {
+      cargs.push("p.${b.name}")
+    }
+    out = out + "  let o = if p.started { p.options with {${page0.field}: Some(${tok})} } else { p.options }\n"
+    cargs.push("o")
+  }
+  let rv = if page0.resp_opt { "v.${page0.resp} ?? \"\"" } else { "v.${page0.resp}" }
+  out = out + "  let v = p.r.${fname}(${cargs.join(", ")})?\n  p.started = true\n  p.next_token = ${rv}\n  Ok(v)\n}\n"
+  out
 }
 
 /// Go's type of a parameter's element (simpleTypeConvert).
@@ -669,12 +804,9 @@ fn (var g: Gen) method_text(tn: Str, core: Str, full: Str, mn: Str, m: json.Valu
       }
     }
   }
-  if m.get("mediaUpload").is_some() {
-    g.report.push("${id}: media upload (the metadata-only call is generated)")
-  }
-  if bool_of(m.get("supportsMediaDownload")) {
-    g.report.push("${id}: media download (the JSON call is generated)")
-  }
+  // Go's supportsMediaDownload: not for a method that uploads
+  // (storage.objects.insert claims both)
+  let download = bool_of(m.get("supportsMediaDownload")) && m.get("mediaUpload").is_none()
   // the options: Go's setters for the optional parameters, then fields,
   // If-None-Match (GET) and extra headers
   var ofields = Pool{}
@@ -713,6 +845,7 @@ fn (var g: Gen) method_text(tn: Str, core: Str, full: Str, mn: Str, m: json.Valu
   sig.push("options: ${opts_tn} = ${opts_tn}{}")
   out = out + "\n" + doc_lines("", "${fname}: ${str_of(m.get("description"))}") + "/// (Go's ${id}.)\n"
   out = out + "pub fn (r: ${tn}[fx]) ${fname}(${sig.join(", ")}) -> ${ret} ! gensupport.CallErr uses (net.dial, clock, rand, fx) {\n"
+  let req_at = out.len()
   out = out + "  var q = url.values()\n"
   for a in args {
     if a.location != "query" {
@@ -763,7 +896,21 @@ fn (var g: Gen) method_text(tn: Str, core: Str, full: Str, mn: Str, m: json.Valu
     // JSON (google-api-go-generator's special case for this method)
     body = if raw_request { b.name } else if proto_request { "${b.name}.encode().bytes()" } else if id == "ml.projects.predict" { "(${b.name}.http_body.map(fn(h: GoogleApiHttpBody) -> Str { h.data }) ?? \"\").bytes()" } else { "gensupport.json_body(${b.name}, data_wrapper: ${wrapper})" }
   }
+  let send_at = out.len()
   out = out + "  let resp = r.${core}.client.send(gensupport.Request{method: \"${http_method}\", url: u, query: q, headers: hs, body: ${body}})?\n"
+  let send_end = out.len()
+  // Go's Download: the same request for alt=media, its response as it
+  // came (CheckMediaResponse for storage, CheckResponse otherwise)
+  var dl = ""
+  if download {
+    if raw_request || proto_request {
+      g.report.push("${id}: media download of a raw request (not generated)")
+    } else {
+      let req_text = out[req_at..out.len()].replace("  q.set(\"alt\", \"json\")\n", "  q.set(\"alt\", \"media\")\n")
+      let ck = if g.api_name == "storage" { "check_media" } else { "check" }
+      dl = "\n/// ${fname}_download: ${tn}.${fname}'s media (alt=media) instead of its\n/// JSON result (Go's Download): the response of a 2xx status.\npub fn (r: ${tn}[fx]) ${fname}_download(${sig.join(", ")}) -> http.Response ! gensupport.CallErr uses (net.dial, clock, rand, fx) {\n${req_text}  gensupport.${ck}(resp)?\n  Ok(resp)\n}\n"
+    }
+  }
   if raw_response {
     out = out + "  gensupport.check(resp)?\n  Ok(resp)\n}\n"
   } else if ret == "()" {
@@ -776,12 +923,45 @@ fn (var g: Gen) method_text(tn: Str, core: Str, full: Str, mn: Str, m: json.Valu
   } else {
     out = out + "  gensupport.check(resp)?\n  gensupport.decode[${ret}](resp)\n}\n"
   }
+  out = out + dl
+  // Go's Media: the same call with media, to the upload path
+  // (multipart below the chunk size, resumable above)
+  var media_fn = false
+  if let Some(mu) = m.get("mediaUpload") {
+    let mpath = str_of(mu.get("protocols").and_then(fn(p: json.Value) -> json.Value? { p.get("simple") }).and_then(fn(p: json.Value) -> json.Value? { p.get("path") }))
+    let clash = args.any(fn(a: Arg) -> Bool { ["clock", "rand", "media", "mu"].contains(a.name) }) || (body_arg.map(fn(b: Arg) -> Bool { ["clock", "rand", "media", "mu"].contains(b.name) }) ?? false)
+    if raw_request || proto_request || raw_response || mpath == "" || clash || http_method == "GET" {
+      g.report.push("${id}: media upload (only the metadata call is generated)")
+    } else {
+      var msig: List[Str] = ["clock: Clock", "rand: Rand"]
+      msig = msig + sig.filter(fn(x: Str) -> Bool { !x.starts_with("options: ") })
+      msig.push("media: gensupport.Media")
+      msig.push("options: ${opts_tn} = ${opts_tn}{}")
+      let send = "  let mu = googleapi.expand(googleapi.resolve_relative(r.${core}.base_path, \"${esc(mpath)}\"), ${pmap})\n  let resp = r.${core}.client.upload(clock, rand, gensupport.Request{method: \"${http_method}\", url: u, query: q, headers: hs, body: ${body}}, mu, media)?\n"
+      out = out + "\n/// ${fname}_media: ${tn}.${fname} with media (Go's Media): in one\n/// multipart request below the media's chunk size, else a resumable\n/// upload of chunks.\npub fn (r: ${tn}[fx]) ${fname}_media(${msig.join(", ")}) -> ${ret} ! gensupport.CallErr uses (net.dial, clock, rand, fx) {\n" + out[req_at..send_at] + send + out[send_end..out.len() - dl.len()]
+      media_fn = true
+    }
+  }
+  // Go's Pages: a page token in the query (or the request body) and a
+  // string page token in the response
+  var page = Page{}
+  if !raw_response && !raw_request && !proto_request && ret != "()" {
+    page = g.page_of(id, params, opt_args, body_arg, resp_ref)
+  }
+  if page.resp != "" {
+    page = page with {tn: type_name(g.used.get("${prefix}${method_go}Pages"))}
+    let pt = g.pager_text(tn, fname, opts_tn, args, body_arg, ret, page)
+    if pt == "" {
+      page = Page{}
+    }
+    out = out + pt
+  }
   let special = if raw_request || raw_response { "raw HttpBody" } else if proto_request || resp_ref == "GoogleProtobufStruct" { "protobuf Struct" } else { "" }
   let resp_schema = match g.resolve(resp_ref) {
     Some((rn, _)) => rn
     None => ""
   }
-  g.infos.push(MInfo{id: id, xo_chain: xo_chain, go_chain: go_chain, fname: fname, go_method: method_go, opts_tn: opts_tn, args: args, body: body_arg, special: special, opts: opt_args, fields_f: fields_f, headers_f: headers_f, inm_f: inm_f, ret: ret, resp_schema: if resp_ref == "" { "" } else { resp_schema }})
+  g.infos.push(MInfo{id: id, xo_chain: xo_chain, go_chain: go_chain, fname: fname, go_method: method_go, opts_tn: opts_tn, args: args, body: body_arg, special: special, opts: opt_args, fields_f: fields_f, headers_f: headers_f, inm_f: inm_f, ret: ret, resp_schema: if resp_ref == "" { "" } else { resp_schema }, page: page, download: dl != "", media: media_fn})
   out
 }
 

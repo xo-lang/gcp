@@ -222,6 +222,34 @@ pub fn (r: SubscriptionsService[fx]) list(options: SubscriptionsListOptions = Su
   gensupport.decode[ListSubscriptionsResponse](resp)
 }
 
+/// SubscriptionsListPages: the pages of SubscriptionsService.list (Go's Pages).
+/// Call next_page while more() is true.
+pub struct SubscriptionsListPages[fx: Effects] {
+  r: SubscriptionsService[fx]
+  options: SubscriptionsListOptions
+  next_token: Str = ""
+  started: Bool = false
+}
+
+/// list_pages: SubscriptionsService.list's pages, from the first.
+pub fn (r: SubscriptionsService[fx]) list_pages(options: SubscriptionsListOptions = SubscriptionsListOptions{}) -> SubscriptionsListPages[fx] {
+  SubscriptionsListPages{r: r, options: options}
+}
+
+/// Whether there is a page left to fetch.
+pub fn (p: SubscriptionsListPages[fx]) more() -> Bool {
+  !p.started || p.next_token != ""
+}
+
+/// The next page.
+pub fn (var p: SubscriptionsListPages[fx]) next_page() -> ListSubscriptionsResponse ! gensupport.CallErr uses (net.dial, clock, rand, fx) {
+  let o = if p.started { p.options with {page_token: Some(p.next_token)} } else { p.options }
+  let v = p.r.list(o)?
+  p.started = true
+  p.next_token = v.next_page_token
+  Ok(v)
+}
+
 /// SubscriptionsPatchOptions: the optional parameters of SubscriptionsService.patch.
 pub struct SubscriptionsPatchOptions {
   /// Optional. The field to update. If omitted, updates any fields included in the request. You can update one of the following fields in a subscription: * `expire_time`: The timestamp when the subscription expires. * `ttl`: The time-to-live (TTL) or duration of the subscription. * `event_types`: The list of event types to receive about the target resource. When using the `*` wildcard (equivalent to `PUT`), omitted fields are set to empty values and rejected if they're invalid.

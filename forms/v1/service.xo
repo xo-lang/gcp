@@ -235,6 +235,35 @@ pub fn (r: FormsResponsesService[fx]) list(form_id: Str, options: FormsResponses
   gensupport.decode[ListFormResponsesResponse](resp)
 }
 
+/// FormsResponsesListPages: the pages of FormsResponsesService.list (Go's Pages).
+/// Call next_page while more() is true.
+pub struct FormsResponsesListPages[fx: Effects] {
+  r: FormsResponsesService[fx]
+  form_id: Str
+  options: FormsResponsesListOptions
+  next_token: Str = ""
+  started: Bool = false
+}
+
+/// list_pages: FormsResponsesService.list's pages, from the first.
+pub fn (r: FormsResponsesService[fx]) list_pages(form_id: Str, options: FormsResponsesListOptions = FormsResponsesListOptions{}) -> FormsResponsesListPages[fx] {
+  FormsResponsesListPages{r: r, form_id: form_id, options: options}
+}
+
+/// Whether there is a page left to fetch.
+pub fn (p: FormsResponsesListPages[fx]) more() -> Bool {
+  !p.started || p.next_token != ""
+}
+
+/// The next page.
+pub fn (var p: FormsResponsesListPages[fx]) next_page() -> ListFormResponsesResponse ! gensupport.CallErr uses (net.dial, clock, rand, fx) {
+  let o = if p.started { p.options with {page_token: Some(p.next_token)} } else { p.options }
+  let v = p.r.list(p.form_id, o)?
+  p.started = true
+  p.next_token = v.next_page_token
+  Ok(v)
+}
+
 /// FormsWatchesService: the `forms.watches` resource.
 pub struct FormsWatchesService[fx: Effects] {
   core: gensupport.Core[fx]

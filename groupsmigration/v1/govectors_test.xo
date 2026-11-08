@@ -5,6 +5,7 @@
 // compares the request, the response served and the result.
 
 use std/json
+use github.com/xo-lang/gcp/gensupport
 
 const GV_HOST: Str = "https://groupsmigration.googleapis.com"
 
@@ -27,4 +28,65 @@ test "Go's groupsmigration.archive.insert" {
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
   gv_compare(gv_log_of(f), GO_0)
+}
+
+const GO_1: List[Str] = [
+  "CALL groupsmigration.archive.insert media",
+  "REQ POST https://groupsmigration.googleapis.com/upload/groups/v1/groups/id1%2F%20x/archive?alt=json&fields=kind%2Cid&prettyPrint=false&uploadType=multipart",
+  "  H content-type=multipart/related; boundary=BOUNDARY | x-extra=v1",
+  "  B --BOUNDARY\u{000d}",
+  "Content-Type: application/json\u{000d}",
+  "\u{000d}",
+  "\u{000d}",
+  "--BOUNDARY\u{000d}",
+  "Content-Type: text/plain\u{000d}",
+  "\u{000d}",
+  "hello media\u{000d}",
+  "--BOUNDARY--\u{000d}",
+  "",
+  "  SERVED 200 {\"kind\":\"s-kind\",\"responseCode\":\"s-responsecode\"}",
+  "OUT: {\"kind\":\"s-kind\",\"responseCode\":\"s-responsecode\"}",
+]
+
+test "Go's groupsmigration.archive.insert media" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"kind\":\"s-kind\",\"responseCode\":\"s-responsecode\"}")
+  gv_note(f, "CALL groupsmigration.archive.insert media")
+  match svc.archive.insert_media(os.clock, os.rand, "id1/ x", media: gensupport.Media{data: "hello media".bytes(), content_type: "text/plain"}, options: ArchiveInsertOptions{fields: ["kind", "id"], headers: [("X-Extra", "v1")]}) {
+    Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+    Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+  }
+  gv_compare(gv_log_of(f), GO_1)
+}
+
+const GO_2: List[Str] = [
+  "CALL groupsmigration.archive.insert resumable",
+  "REQ POST https://groupsmigration.googleapis.com/upload/groups/v1/groups/id1%2F%20x/archive?alt=json&fields=kind%2Cid&prettyPrint=false&uploadType=resumable",
+  "  H content-type=application/json | x-extra=v1 | x-upload-content-type=text/plain",
+  "  B ",
+  "  SERVED 200 @H Location=https://groupsmigration.googleapis.com/upload/session-1 @B ",
+  "REQ POST https://groupsmigration.googleapis.com/upload/session-1",
+  "  H content-range=bytes 0-262143/* | content-type=text/plain | x-goog-gcs-idempotency-token=UUID | x-guploader-no-308=yes",
+  "  B <262144 bytes> 0123456789abcdef0123456789abcdef...0123456789abcdef0123456789abcdef",
+  "  SERVED 200 @H X-Http-Status-Code-Override=308 @B ",
+  "REQ POST https://groupsmigration.googleapis.com/upload/session-1",
+  "  H content-range=bytes 262144-262153/262154 | content-type=text/plain | x-goog-gcs-idempotency-token=UUID | x-guploader-no-308=yes",
+  "  B 0123456789",
+  "  SERVED 200 {\"kind\":\"s-kind\",\"responseCode\":\"s-responsecode\"}",
+  "OUT: {\"kind\":\"s-kind\",\"responseCode\":\"s-responsecode\"}",
+]
+
+test "Go's groupsmigration.archive.insert resumable" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "@H Location=https://groupsmigration.googleapis.com/upload/session-1 @B ")
+  gv_queue(f, "@H X-Http-Status-Code-Override=308 @B ")
+  gv_queue(f, "{\"kind\":\"s-kind\",\"responseCode\":\"s-responsecode\"}")
+  gv_note(f, "CALL groupsmigration.archive.insert resumable")
+  match svc.archive.insert_media(os.clock, os.rand, "id1/ x", media: gensupport.Media{data: gv_big(), content_type: "text/plain", chunk_size: 262144}, options: ArchiveInsertOptions{fields: ["kind", "id"], headers: [("X-Extra", "v1")]}) {
+    Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+    Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+  }
+  gv_compare(gv_log_of(f), GO_2)
 }

@@ -10,6 +10,8 @@ use github.com/xo-lang/gcp/option
 struct GvFake {
   log: Mutex[List[Str]]
   body: Mutex[Str]
+  /// The bodies served after it, one per request (a pager's pages).
+  queue: Mutex[List[Str]]
 }
 
 fn gv_note(f: GvFake, s: Str) {
@@ -26,8 +28,20 @@ fn gv_set(f: GvFake, body: Str) {
   f.body.with(fn(var b: Str) { b = body })
 }
 
+fn gv_queue(f: GvFake, body: Str) {
+  f.queue.with(fn(var q: List[Str]) { q.push(body) })
+}
+
 fn gv_answer(f: GvFake, req: http.Request) -> http.Response {
   let body = f.body.with(fn(var b: Str) -> Str { b })
+  let next = f.queue.with(fn(var q: List[Str]) -> Str? {
+    let x = q.get(0)?
+    q = q[1..q.len()]
+    Some(x)
+  })
+  if let Some(n) = next {
+    gv_set(f, n)
+  }
   var hs: List[Str] = []
   for (k, v) in req.headers {
     let lk = k.to_lower()
@@ -44,7 +58,7 @@ fn gv_answer(f: GvFake, req: http.Request) -> http.Response {
 }
 
 fn gv_new_fake(net: testing.FakeNet, host: Str) -> GvFake {
-  let f = GvFake{log: Mutex[List[Str]].new([]), body: Mutex[Str].new("")}
+  let f = GvFake{log: Mutex[List[Str]].new([]), body: Mutex[Str].new(""), queue: Mutex[List[Str]].new([])}
   let h = fn(req: http.Request) -> http.Response { gv_answer(f, req) }
   for m in ["GET", "PUT", "POST", "DELETE", "HEAD", "PATCH"] {
     net.handle("${m} ${host}/{rest...}", h)

@@ -145,6 +145,34 @@ pub fn (r: AccountsService[fx]) list(options: AccountsListOptions = AccountsList
   gensupport.decode[ListAccountsResponse](resp)
 }
 
+/// AccountsListPages: the pages of AccountsService.list (Go's Pages).
+/// Call next_page while more() is true.
+pub struct AccountsListPages[fx: Effects] {
+  r: AccountsService[fx]
+  options: AccountsListOptions
+  next_token: Str = ""
+  started: Bool = false
+}
+
+/// list_pages: AccountsService.list's pages, from the first.
+pub fn (r: AccountsService[fx]) list_pages(options: AccountsListOptions = AccountsListOptions{}) -> AccountsListPages[fx] {
+  AccountsListPages{r: r, options: options}
+}
+
+/// Whether there is a page left to fetch.
+pub fn (p: AccountsListPages[fx]) more() -> Bool {
+  !p.started || p.next_token != ""
+}
+
+/// The next page.
+pub fn (var p: AccountsListPages[fx]) next_page() -> ListAccountsResponse ! gensupport.CallErr uses (net.dial, clock, rand, fx) {
+  let o = if p.started { p.options with {page_token: Some(p.next_token)} } else { p.options }
+  let v = p.r.list(o)?
+  p.started = true
+  p.next_token = v.next_page_token
+  Ok(v)
+}
+
 /// AccountsPatchOptions: the optional parameters of AccountsService.patch.
 pub struct AccountsPatchOptions {
   /// Required. The specific fields that should be updated. The only editable field is `accountName`.

@@ -86,6 +86,35 @@ pub fn (r: AccountsQuotasService[fx]) list(parent: Str, options: AccountsQuotasL
   gensupport.decode[ListQuotaGroupsResponse](resp)
 }
 
+/// AccountsQuotasListPages: the pages of AccountsQuotasService.list (Go's Pages).
+/// Call next_page while more() is true.
+pub struct AccountsQuotasListPages[fx: Effects] {
+  r: AccountsQuotasService[fx]
+  parent: Str
+  options: AccountsQuotasListOptions
+  next_token: Str = ""
+  started: Bool = false
+}
+
+/// list_pages: AccountsQuotasService.list's pages, from the first.
+pub fn (r: AccountsQuotasService[fx]) list_pages(parent: Str, options: AccountsQuotasListOptions = AccountsQuotasListOptions{}) -> AccountsQuotasListPages[fx] {
+  AccountsQuotasListPages{r: r, parent: parent, options: options}
+}
+
+/// Whether there is a page left to fetch.
+pub fn (p: AccountsQuotasListPages[fx]) more() -> Bool {
+  !p.started || p.next_token != ""
+}
+
+/// The next page.
+pub fn (var p: AccountsQuotasListPages[fx]) next_page() -> ListQuotaGroupsResponse ! gensupport.CallErr uses (net.dial, clock, rand, fx) {
+  let o = if p.started { p.options with {page_token: Some(p.next_token)} } else { p.options }
+  let v = p.r.list(p.parent, o)?
+  p.started = true
+  p.next_token = v.next_page_token
+  Ok(v)
+}
+
 /// A service sending through `net`, with `opts`.
 pub fn new_service[fx: Effects](net: Net, opts: option.ClientOptions[fx] = option.ClientOptions{}) -> Service[fx] {
   new_service_from(gensupport.new_core(net, opts, BASE_PATH))

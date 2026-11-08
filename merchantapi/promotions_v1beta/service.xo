@@ -142,6 +142,35 @@ pub fn (r: AccountsPromotionsService[fx]) list(parent: Str, options: AccountsPro
   gensupport.decode[ListPromotionsResponse](resp)
 }
 
+/// AccountsPromotionsListPages: the pages of AccountsPromotionsService.list (Go's Pages).
+/// Call next_page while more() is true.
+pub struct AccountsPromotionsListPages[fx: Effects] {
+  r: AccountsPromotionsService[fx]
+  parent: Str
+  options: AccountsPromotionsListOptions
+  next_token: Str = ""
+  started: Bool = false
+}
+
+/// list_pages: AccountsPromotionsService.list's pages, from the first.
+pub fn (r: AccountsPromotionsService[fx]) list_pages(parent: Str, options: AccountsPromotionsListOptions = AccountsPromotionsListOptions{}) -> AccountsPromotionsListPages[fx] {
+  AccountsPromotionsListPages{r: r, parent: parent, options: options}
+}
+
+/// Whether there is a page left to fetch.
+pub fn (p: AccountsPromotionsListPages[fx]) more() -> Bool {
+  !p.started || p.next_token != ""
+}
+
+/// The next page.
+pub fn (var p: AccountsPromotionsListPages[fx]) next_page() -> ListPromotionsResponse ! gensupport.CallErr uses (net.dial, clock, rand, fx) {
+  let o = if p.started { p.options with {page_token: Some(p.next_token)} } else { p.options }
+  let v = p.r.list(p.parent, o)?
+  p.started = true
+  p.next_token = v.next_page_token
+  Ok(v)
+}
+
 /// A service sending through `net`, with `opts`.
 pub fn new_service[fx: Effects](net: Net, opts: option.ClientOptions[fx] = option.ClientOptions{}) -> Service[fx] {
   new_service_from(gensupport.new_core(net, opts, BASE_PATH))

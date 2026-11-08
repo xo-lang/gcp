@@ -194,6 +194,35 @@ pub fn (r: AccountsDataSourcesService[fx]) list(parent: Str, options: AccountsDa
   gensupport.decode[ListDataSourcesResponse](resp)
 }
 
+/// AccountsDataSourcesListPages: the pages of AccountsDataSourcesService.list (Go's Pages).
+/// Call next_page while more() is true.
+pub struct AccountsDataSourcesListPages[fx: Effects] {
+  r: AccountsDataSourcesService[fx]
+  parent: Str
+  options: AccountsDataSourcesListOptions
+  next_token: Str = ""
+  started: Bool = false
+}
+
+/// list_pages: AccountsDataSourcesService.list's pages, from the first.
+pub fn (r: AccountsDataSourcesService[fx]) list_pages(parent: Str, options: AccountsDataSourcesListOptions = AccountsDataSourcesListOptions{}) -> AccountsDataSourcesListPages[fx] {
+  AccountsDataSourcesListPages{r: r, parent: parent, options: options}
+}
+
+/// Whether there is a page left to fetch.
+pub fn (p: AccountsDataSourcesListPages[fx]) more() -> Bool {
+  !p.started || p.next_token != ""
+}
+
+/// The next page.
+pub fn (var p: AccountsDataSourcesListPages[fx]) next_page() -> ListDataSourcesResponse ! gensupport.CallErr uses (net.dial, clock, rand, fx) {
+  let o = if p.started { p.options with {page_token: Some(p.next_token)} } else { p.options }
+  let v = p.r.list(p.parent, o)?
+  p.started = true
+  p.next_token = v.next_page_token
+  Ok(v)
+}
+
 /// AccountsDataSourcesPatchOptions: the optional parameters of AccountsDataSourcesService.patch.
 pub struct AccountsDataSourcesPatchOptions {
   /// Required. The list of data source fields to be updated. Fields specified in the update mask without a value specified in the body will be deleted from the data source. Providing special "*" value for full data source replacement is not supported. For example, If you insert `updateMask=displayName` in the request, it will only update the `displayName` leaving all other fields untouched.

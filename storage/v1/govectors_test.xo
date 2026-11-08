@@ -5,6 +5,7 @@
 // compares the request, the response served and the result.
 
 use std/json
+use github.com/xo-lang/gcp/gensupport
 
 const GV_HOST: Str = "https://storage.googleapis.com"
 
@@ -94,6 +95,44 @@ test "Go's storage.anywhereCaches.list" {
 }
 
 const GO_4: List[Str] = [
+  "CALL storage.anywhereCaches.list pages",
+  "REQ GET https://storage.googleapis.com/storage/v1/b/id1%2F%20x/anywhereCaches?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"items\":[{\"admissionPolicy\":\"s-admissionpolicy\",\"anywhereCacheId\":\"s-anywherecacheid\",\"bucket\":\"s-bucket\",\"createTime\":\"s-createtime\",\"id\":\"s-id\",\"ingestOnWrite\":true,\"kind\":\"s-kind\",\"pendingUpdate\":true,\"selfLink\":\"s-selflink\",\"state\":\"s-state\",\"ttl\":\"s-ttl\",\"updateTime\":\"s-updatetime\",\"zone\":\"s-zone\"}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"items\":[{\"admissionPolicy\":\"s-admissionpolicy\",\"anywhereCacheId\":\"s-anywherecacheid\",\"bucket\":\"s-bucket\",\"createTime\":\"s-createtime\",\"id\":\"s-id\",\"ingestOnWrite\":true,\"kind\":\"s-kind\",\"pendingUpdate\":true,\"selfLink\":\"s-selflink\",\"state\":\"s-state\",\"ttl\":\"s-ttl\",\"updateTime\":\"s-updatetime\",\"zone\":\"s-zone\"}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://storage.googleapis.com/storage/v1/b/id1%2F%20x/anywhereCaches?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"items\":[{\"admissionPolicy\":\"s-admissionpolicy\",\"anywhereCacheId\":\"s-anywherecacheid\",\"bucket\":\"s-bucket\",\"createTime\":\"s-createtime\",\"id\":\"s-id\",\"ingestOnWrite\":true,\"kind\":\"s-kind\",\"pendingUpdate\":true,\"selfLink\":\"s-selflink\",\"state\":\"s-state\",\"ttl\":\"s-ttl\",\"updateTime\":\"s-updatetime\",\"zone\":\"s-zone\"}],\"kind\":\"s-kind\"}",
+  "OUT: {\"items\":[{\"admissionPolicy\":\"s-admissionpolicy\",\"anywhereCacheId\":\"s-anywherecacheid\",\"bucket\":\"s-bucket\",\"createTime\":\"s-createtime\",\"id\":\"s-id\",\"ingestOnWrite\":true,\"kind\":\"s-kind\",\"pendingUpdate\":true,\"selfLink\":\"s-selflink\",\"state\":\"s-state\",\"ttl\":\"s-ttl\",\"updateTime\":\"s-updatetime\",\"zone\":\"s-zone\"}],\"kind\":\"s-kind\"}",
+  "OUT: ok",
+]
+
+test "Go's storage.anywhereCaches.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"items\":[{\"admissionPolicy\":\"s-admissionpolicy\",\"anywhereCacheId\":\"s-anywherecacheid\",\"bucket\":\"s-bucket\",\"createTime\":\"s-createtime\",\"id\":\"s-id\",\"ingestOnWrite\":true,\"kind\":\"s-kind\",\"pendingUpdate\":true,\"selfLink\":\"s-selflink\",\"state\":\"s-state\",\"ttl\":\"s-ttl\",\"updateTime\":\"s-updatetime\",\"zone\":\"s-zone\"}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"items\":[{\"admissionPolicy\":\"s-admissionpolicy\",\"anywhereCacheId\":\"s-anywherecacheid\",\"bucket\":\"s-bucket\",\"createTime\":\"s-createtime\",\"id\":\"s-id\",\"ingestOnWrite\":true,\"kind\":\"s-kind\",\"pendingUpdate\":true,\"selfLink\":\"s-selflink\",\"state\":\"s-state\",\"ttl\":\"s-ttl\",\"updateTime\":\"s-updatetime\",\"zone\":\"s-zone\"}],\"kind\":\"s-kind\"}")
+  gv_note(f, "CALL storage.anywhereCaches.list pages")
+  var p = svc.anywhere_caches.list_pages("id1/ x", options: AnywhereCachesListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_4)
+}
+
+const GO_5: List[Str] = [
   "CALL storage.anywhereCaches.pause",
   "REQ POST https://storage.googleapis.com/storage/v1/b/id1%2F%20x/anywhereCaches/id2%2F%20x/pause?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -111,10 +150,10 @@ test "Go's storage.anywhereCaches.pause" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_4)
+  gv_compare(gv_log_of(f), GO_5)
 }
 
-const GO_5: List[Str] = [
+const GO_6: List[Str] = [
   "CALL storage.anywhereCaches.resume",
   "REQ POST https://storage.googleapis.com/storage/v1/b/id1%2F%20x/anywhereCaches/id2%2F%20x/resume?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -132,10 +171,10 @@ test "Go's storage.anywhereCaches.resume" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_5)
+  gv_compare(gv_log_of(f), GO_6)
 }
 
-const GO_6: List[Str] = [
+const GO_7: List[Str] = [
   "CALL storage.anywhereCaches.update",
   "REQ PATCH https://storage.googleapis.com/storage/v1/b/id1%2F%20x/anywhereCaches/id2%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -154,10 +193,10 @@ test "Go's storage.anywhereCaches.update" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_6)
+  gv_compare(gv_log_of(f), GO_7)
 }
 
-const GO_7: List[Str] = [
+const GO_8: List[Str] = [
   "CALL storage.bucketAccessControls.delete",
   "REQ DELETE https://storage.googleapis.com/storage/v1/b/id1%2F%20x/acl/id2%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false&userProject=s-userproject",
   "  H x-extra=v1",
@@ -175,10 +214,10 @@ test "Go's storage.bucketAccessControls.delete" {
     Ok(_) => gv_note(f, "OUT: ok")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_7)
+  gv_compare(gv_log_of(f), GO_8)
 }
 
-const GO_8: List[Str] = [
+const GO_9: List[Str] = [
   "CALL storage.bucketAccessControls.get",
   "REQ GET https://storage.googleapis.com/storage/v1/b/id1%2F%20x/acl/id2%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false&userProject=s-userproject",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -196,10 +235,10 @@ test "Go's storage.bucketAccessControls.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_8)
+  gv_compare(gv_log_of(f), GO_9)
 }
 
-const GO_9: List[Str] = [
+const GO_10: List[Str] = [
   "CALL storage.bucketAccessControls.insert",
   "REQ POST https://storage.googleapis.com/storage/v1/b/id1%2F%20x/acl?alt=json&fields=kind%2Cid&prettyPrint=false&userProject=s-userproject",
   "  H content-type=application/json | x-extra=v1",
@@ -218,10 +257,10 @@ test "Go's storage.bucketAccessControls.insert" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_9)
+  gv_compare(gv_log_of(f), GO_10)
 }
 
-const GO_10: List[Str] = [
+const GO_11: List[Str] = [
   "CALL storage.bucketAccessControls.list",
   "REQ GET https://storage.googleapis.com/storage/v1/b/id1%2F%20x/acl?alt=json&fields=kind%2Cid&prettyPrint=false&userProject=s-userproject",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -239,10 +278,10 @@ test "Go's storage.bucketAccessControls.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_10)
+  gv_compare(gv_log_of(f), GO_11)
 }
 
-const GO_11: List[Str] = [
+const GO_12: List[Str] = [
   "CALL storage.bucketAccessControls.patch",
   "REQ PATCH https://storage.googleapis.com/storage/v1/b/id1%2F%20x/acl/id2%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false&userProject=s-userproject",
   "  H content-type=application/json | x-extra=v1",
@@ -261,10 +300,10 @@ test "Go's storage.bucketAccessControls.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_11)
+  gv_compare(gv_log_of(f), GO_12)
 }
 
-const GO_12: List[Str] = [
+const GO_13: List[Str] = [
   "CALL storage.bucketAccessControls.update",
   "REQ PUT https://storage.googleapis.com/storage/v1/b/id1%2F%20x/acl/id2%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false&userProject=s-userproject",
   "  H content-type=application/json | x-extra=v1",
@@ -283,10 +322,10 @@ test "Go's storage.bucketAccessControls.update" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_12)
+  gv_compare(gv_log_of(f), GO_13)
 }
 
-const GO_13: List[Str] = [
+const GO_14: List[Str] = [
   "CALL storage.buckets.delete",
   "REQ DELETE https://storage.googleapis.com/storage/v1/b/id1%2F%20x?alt=json&fields=kind%2Cid&ifMetagenerationMatch=7&ifMetagenerationNotMatch=7&prettyPrint=false&userProject=s-userproject",
   "  H x-extra=v1",
@@ -304,10 +343,10 @@ test "Go's storage.buckets.delete" {
     Ok(_) => gv_note(f, "OUT: ok")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_13)
+  gv_compare(gv_log_of(f), GO_14)
 }
 
-const GO_14: List[Str] = [
+const GO_15: List[Str] = [
   "CALL storage.buckets.get",
   "REQ GET https://storage.googleapis.com/storage/v1/b/id1%2F%20x?alt=json&fields=kind%2Cid&generation=7&ifMetagenerationMatch=7&ifMetagenerationNotMatch=7&prettyPrint=false&projection=s-projection&softDeleted=true&userProject=s-userproject",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -325,10 +364,10 @@ test "Go's storage.buckets.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_14)
+  gv_compare(gv_log_of(f), GO_15)
 }
 
-const GO_15: List[Str] = [
+const GO_16: List[Str] = [
   "CALL storage.buckets.getIamPolicy",
   "REQ GET https://storage.googleapis.com/storage/v1/b/id1%2F%20x/iam?alt=json&fields=kind%2Cid&optionsRequestedPolicyVersion=7&prettyPrint=false&userProject=s-userproject",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -346,10 +385,10 @@ test "Go's storage.buckets.getIamPolicy" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_15)
+  gv_compare(gv_log_of(f), GO_16)
 }
 
-const GO_16: List[Str] = [
+const GO_17: List[Str] = [
   "CALL storage.buckets.getStorageLayout",
   "REQ GET https://storage.googleapis.com/storage/v1/b/id1%2F%20x/storageLayout?alt=json&fields=kind%2Cid&prefix=s-prefix&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -367,14 +406,14 @@ test "Go's storage.buckets.getStorageLayout" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_16)
+  gv_compare(gv_log_of(f), GO_17)
 }
 
-const GO_17: List[Str] = [
+const GO_18: List[Str] = [
   "CALL storage.buckets.insert",
   "REQ POST https://storage.googleapis.com/storage/v1/b?alt=json&enableObjectRetention=true&fields=kind%2Cid&predefinedAcl=s-predefinedacl&predefinedDefaultObjectAcl=s-predefineddefaultobjectacl&prettyPrint=false&project=s-project&projection=s-projection&userProject=s-userproject",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"acl\":[{\"bucket\":\"s-bucket\",\"domain\":\"s-domain\",\"email\":\"s-email\",\"entity\":\"s-entity\",\"entityId\":\"s-entityid\",\"etag\":\"s-etag\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"projectTeam\":{\"projectNumber\":\"s-projectnumber\",\"team\":\"s-team\"},\"role\":\"s-role\",\"selfLink\":\"s-selflink\"}],\"autoclass\":{\"enabled\":true,\"terminalStorageClass\":\"s-terminalstorageclass\",\"terminalStorageClassUpdateTime\":\"s-terminalstorageclassupdatetime\",\"toggleTime\":\"s-toggletime\"},\"billing\":{\"requesterPays\":true},\"cors\":[{\"maxAgeSeconds\":7,\"method\":[\"s-method\"],\"origin\":[\"s-origin\"],\"responseHeader\":[\"s-responseheader\"]}],\"customPlacementConfig\":{\"dataLocations\":[\"s-datalocations\"]},\"defaultEventBasedHold\":true,\"defaultObjectAcl\":[{\"bucket\":\"s-bucket\",\"domain\":\"s-domain\",\"email\":\"s-email\",\"entity\":\"s-entity\",\"entityId\":\"s-entityid\",\"etag\":\"s-etag\",\"generation\":\"7\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"object\":\"s-object\",\"projectTeam\":{\"projectNumber\":\"s-projectnumber\",\"team\":\"s-team\"},\"role\":\"s-role\",\"selfLink\":\"s-selflink\"}],\"encryption\":{\"customerManagedEncryptionEnforcementConfig\":{\"effectiveTime\":\"s-effectivetime\",\"restrictionMode\":\"s-restrictionmode\"},\"customerSuppliedEncryptionEnforcementConfig\":{\"effectiveTime\":\"s-effectivetime\",\"restrictionMode\":\"s-restrictionmode\"},\"defaultKmsKeyName\":\"s-defaultkmskeyname\",\"googleManagedEncryptionEnforcementConfig\":{\"effectiveTime\":\"s-effectivetime\",\"restrictionMode\":\"s-restrictionmode\"}},\"etag\":\"s-etag\",\"generation\":\"7\",\"hardDeleteTime\":\"s-harddeletetime\",\"hierarchicalNamespace\":{\"enabled\":true},\"iamConfiguration\":{\"bucketPolicyOnly\":{\"enabled\":true,\"lockedTime\":\"s-lockedtime\"},\"publicAccessPrevention\":\"s-publicaccessprevention\",\"uniformBucketLevelAccess\":{\"enabled\":true,\"lockedTime\":\"s-lockedtime\"}},\"id\":\"s-id\",\"ipFilter\":{\"allowAllServiceAgentAccess\":true,\"allowCrossOrgVpcs\":true,\"mode\":\"s-mode\",\"publicNetworkSource\":{\"allowedIpCidrRanges\":[\"s-allowedipcidrranges\"]},\"vpcNetworkSources\":[{\"allowedIpCidrRanges\":[\"s-allowedipcidrranges\"],\"network\":\"s-network\"}]},\"kind\":\"s-kind\",\"labels\":{\"k1\":\"s-labels\"},\"lifecycle\":{\"rule\":[{\"action\":{\"storageClass\":\"s-storageclass\",\"type\":\"s-type\"},\"condition\":{\"age\":7,\"createdBefore\":\"s-createdbefore\",\"customTimeBefore\":\"s-customtimebefore\",\"daysSinceCustomTime\":7,\"daysSinceNoncurrentTime\":7,\"isLive\":true,\"matchesPattern\":\"s-matchespattern\",\"matchesPrefix\":[\"s-matchesprefix\"],\"matchesStorageClass\":[\"s-matchesstorageclass\"],\"matchesSuffix\":[\"s-matchessuffix\"],\"noncurrentTimeBefore\":\"s-noncurrenttimebefore\",\"numNewerVersions\":7,\"sizeAboveBytes\":\"7\",\"sizeBelowBytes\":\"7\"}}]},\"location\":\"s-location\",\"locationType\":\"s-locationtype\",\"logging\":{\"logBucket\":\"s-logbucket\",\"logObjectPrefix\":\"s-logobjectprefix\"},\"metageneration\":\"7\",\"name\":\"s-name\",\"objectRetention\":{\"mode\":\"s-mode\"},\"owner\":{\"entity\":\"s-entity\",\"entityId\":\"s-entityid\"},\"projectNumber\":\"7\",\"retentionPolicy\":{\"effectiveTime\":\"s-effectivetime\",\"isLocked\":true,\"retentionPeriod\":\"7\"},\"rpo\":\"s-rpo\",\"satisfiesPZI\":true,\"satisfiesPZS\":true,\"selfLink\":\"s-selflink\",\"softDeletePolicy\":{\"effectiveTime\":\"s-effectivetime\",\"hardDeletePause\":{\"effectiveTime\":\"s-effectivetime\",\"enabled\":true},\"retentionDurationSeconds\":\"7\"},\"softDeleteTime\":\"s-softdeletetime\",\"storageClass\":\"s-storageclass\",\"timeCreated\":\"s-timecreated\",\"updated\":\"s-updated\",\"versioning\":{\"enabled\":true},\"website\":{\"mainPageSuffix\":\"s-mainpagesuffix\",\"notFoundPage\":\"s-notfoundpage\"}}",
+  "  B <3372 bytes> {\"acl\":[{\"bucket\":\"s-bucket\",\"do...otFoundPage\":\"s-notfoundpage\"}}",
   "",
   "  SERVED 200 {\"acl\":[{\"bucket\":\"s-bucket\",\"domain\":\"s-domain\",\"email\":\"s-email\",\"entity\":\"s-entity\",\"entityId\":\"s-entityid\",\"etag\":\"s-etag\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"projectTeam\":{\"projectNumber\":\"s-projectnumber\",\"team\":\"s-team\"},\"role\":\"s-role\",\"selfLink\":\"s-selflink\"}],\"autoclass\":{\"enabled\":true,\"terminalStorageClass\":\"s-terminalstorageclass\",\"terminalStorageClassUpdateTime\":\"s-terminalstorageclassupdatetime\",\"toggleTime\":\"s-toggletime\"},\"billing\":{\"requesterPays\":true},\"cors\":[{\"maxAgeSeconds\":7,\"method\":[\"s-method\"],\"origin\":[\"s-origin\"],\"responseHeader\":[\"s-responseheader\"]}],\"customPlacementConfig\":{\"dataLocations\":[\"s-datalocations\"]},\"defaultEventBasedHold\":true,\"defaultObjectAcl\":[{\"bucket\":\"s-bucket\",\"domain\":\"s-domain\",\"email\":\"s-email\",\"entity\":\"s-entity\",\"entityId\":\"s-entityid\",\"etag\":\"s-etag\",\"generation\":\"7\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"object\":\"s-object\",\"projectTeam\":{\"projectNumber\":\"s-projectnumber\",\"team\":\"s-team\"},\"role\":\"s-role\",\"selfLink\":\"s-selflink\"}],\"encryption\":{\"customerManagedEncryptionEnforcementConfig\":{\"effectiveTime\":\"s-effectivetime\",\"restrictionMode\":\"s-restrictionmode\"},\"customerSuppliedEncryptionEnforcementConfig\":{\"effectiveTime\":\"s-effectivetime\",\"restrictionMode\":\"s-restrictionmode\"},\"defaultKmsKeyName\":\"s-defaultkmskeyname\",\"googleManagedEncryptionEnforcementConfig\":{\"effectiveTime\":\"s-effectivetime\",\"restrictionMode\":\"s-restrictionmode\"}},\"etag\":\"s-etag\",\"generation\":\"7\",\"hardDeleteTime\":\"s-harddeletetime\",\"hierarchicalNamespace\":{\"enabled\":true},\"iamConfiguration\":{\"bucketPolicyOnly\":{\"enabled\":true,\"lockedTime\":\"s-lockedtime\"},\"publicAccessPrevention\":\"s-publicaccessprevention\",\"uniformBucketLevelAccess\":{\"enabled\":true,\"lockedTime\":\"s-lockedtime\"}},\"id\":\"s-id\",\"ipFilter\":{\"allowAllServiceAgentAccess\":true,\"allowCrossOrgVpcs\":true,\"mode\":\"s-mode\",\"publicNetworkSource\":{\"allowedIpCidrRanges\":[\"s-allowedipcidrranges\"]},\"vpcNetworkSources\":[{\"allowedIpCidrRanges\":[\"s-allowedipcidrranges\"],\"network\":\"s-network\"}]},\"kind\":\"s-kind\",\"labels\":{\"k1\":\"s-labels\"},\"lifecycle\":{\"rule\":[{\"action\":{\"storageClass\":\"s-storageclass\",\"type\":\"s-type\"},\"condition\":{\"age\":7,\"createdBefore\":\"s-createdbefore\",\"customTimeBefore\":\"s-customtimebefore\",\"daysSinceCustomTime\":7,\"daysSinceNoncurrentTime\":7,\"isLive\":true,\"matchesPattern\":\"s-matchespattern\",\"matchesPrefix\":[\"s-matchesprefix\"],\"matchesStorageClass\":[\"s-matchesstorageclass\"],\"matchesSuffix\":[\"s-matchessuffix\"],\"noncurrentTimeBefore\":\"s-noncurrenttimebefore\",\"numNewerVersions\":7,\"sizeAboveBytes\":\"7\",\"sizeBelowBytes\":\"7\"}}]},\"location\":\"s-location\",\"locationType\":\"s-locationtype\",\"logging\":{\"logBucket\":\"s-logbucket\",\"logObjectPrefix\":\"s-logobjectprefix\"},\"metageneration\":\"7\",\"name\":\"s-name\",\"objectRetention\":{\"mode\":\"s-mode\"},\"owner\":{\"entity\":\"s-entity\",\"entityId\":\"s-entityid\"},\"projectNumber\":\"7\",\"retentionPolicy\":{\"effectiveTime\":\"s-effectivetime\",\"isLocked\":true,\"retentionPeriod\":\"7\"},\"rpo\":\"s-rpo\",\"satisfiesPZI\":true,\"satisfiesPZS\":true,\"selfLink\":\"s-selflink\",\"softDeletePolicy\":{\"effectiveTime\":\"s-effectivetime\",\"hardDeletePause\":{\"effectiveTime\":\"s-effectivetime\",\"enabled\":true},\"retentionDurationSeconds\":\"7\"},\"softDeleteTime\":\"s-softdeletetime\",\"storageClass\":\"s-storageclass\",\"timeCreated\":\"s-timecreated\",\"updated\":\"s-updated\",\"versioning\":{\"enabled\":true},\"website\":{\"mainPageSuffix\":\"s-mainpagesuffix\",\"notFoundPage\":\"s-notfoundpage\"}}",
   "OUT: {\"acl\":[{\"bucket\":\"s-bucket\",\"domain\":\"s-domain\",\"email\":\"s-email\",\"entity\":\"s-entity\",\"entityId\":\"s-entityid\",\"etag\":\"s-etag\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"projectTeam\":{\"projectNumber\":\"s-projectnumber\",\"team\":\"s-team\"},\"role\":\"s-role\",\"selfLink\":\"s-selflink\"}],\"autoclass\":{\"enabled\":true,\"terminalStorageClass\":\"s-terminalstorageclass\",\"terminalStorageClassUpdateTime\":\"s-terminalstorageclassupdatetime\",\"toggleTime\":\"s-toggletime\"},\"billing\":{\"requesterPays\":true},\"cors\":[{\"maxAgeSeconds\":7,\"method\":[\"s-method\"],\"origin\":[\"s-origin\"],\"responseHeader\":[\"s-responseheader\"]}],\"customPlacementConfig\":{\"dataLocations\":[\"s-datalocations\"]},\"defaultEventBasedHold\":true,\"defaultObjectAcl\":[{\"bucket\":\"s-bucket\",\"domain\":\"s-domain\",\"email\":\"s-email\",\"entity\":\"s-entity\",\"entityId\":\"s-entityid\",\"etag\":\"s-etag\",\"generation\":\"7\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"object\":\"s-object\",\"projectTeam\":{\"projectNumber\":\"s-projectnumber\",\"team\":\"s-team\"},\"role\":\"s-role\",\"selfLink\":\"s-selflink\"}],\"encryption\":{\"customerManagedEncryptionEnforcementConfig\":{\"effectiveTime\":\"s-effectivetime\",\"restrictionMode\":\"s-restrictionmode\"},\"customerSuppliedEncryptionEnforcementConfig\":{\"effectiveTime\":\"s-effectivetime\",\"restrictionMode\":\"s-restrictionmode\"},\"defaultKmsKeyName\":\"s-defaultkmskeyname\",\"googleManagedEncryptionEnforcementConfig\":{\"effectiveTime\":\"s-effectivetime\",\"restrictionMode\":\"s-restrictionmode\"}},\"etag\":\"s-etag\",\"generation\":\"7\",\"hardDeleteTime\":\"s-harddeletetime\",\"hierarchicalNamespace\":{\"enabled\":true},\"iamConfiguration\":{\"bucketPolicyOnly\":{\"enabled\":true,\"lockedTime\":\"s-lockedtime\"},\"publicAccessPrevention\":\"s-publicaccessprevention\",\"uniformBucketLevelAccess\":{\"enabled\":true,\"lockedTime\":\"s-lockedtime\"}},\"id\":\"s-id\",\"ipFilter\":{\"allowAllServiceAgentAccess\":true,\"allowCrossOrgVpcs\":true,\"mode\":\"s-mode\",\"publicNetworkSource\":{\"allowedIpCidrRanges\":[\"s-allowedipcidrranges\"]},\"vpcNetworkSources\":[{\"allowedIpCidrRanges\":[\"s-allowedipcidrranges\"],\"network\":\"s-network\"}]},\"kind\":\"s-kind\",\"labels\":{\"k1\":\"s-labels\"},\"lifecycle\":{\"rule\":[{\"action\":{\"storageClass\":\"s-storageclass\",\"type\":\"s-type\"},\"condition\":{\"age\":7,\"createdBefore\":\"s-createdbefore\",\"customTimeBefore\":\"s-customtimebefore\",\"daysSinceCustomTime\":7,\"daysSinceNoncurrentTime\":7,\"isLive\":true,\"matchesPattern\":\"s-matchespattern\",\"matchesPrefix\":[\"s-matchesprefix\"],\"matchesStorageClass\":[\"s-matchesstorageclass\"],\"matchesSuffix\":[\"s-matchessuffix\"],\"noncurrentTimeBefore\":\"s-noncurrenttimebefore\",\"numNewerVersions\":7,\"sizeAboveBytes\":\"7\",\"sizeBelowBytes\":\"7\"}}]},\"location\":\"s-location\",\"locationType\":\"s-locationtype\",\"logging\":{\"logBucket\":\"s-logbucket\",\"logObjectPrefix\":\"s-logobjectprefix\"},\"metageneration\":\"7\",\"name\":\"s-name\",\"objectRetention\":{\"mode\":\"s-mode\"},\"owner\":{\"entity\":\"s-entity\",\"entityId\":\"s-entityid\"},\"projectNumber\":\"7\",\"retentionPolicy\":{\"effectiveTime\":\"s-effectivetime\",\"isLocked\":true,\"retentionPeriod\":\"7\"},\"rpo\":\"s-rpo\",\"satisfiesPZI\":true,\"satisfiesPZS\":true,\"selfLink\":\"s-selflink\",\"softDeletePolicy\":{\"effectiveTime\":\"s-effectivetime\",\"hardDeletePause\":{\"effectiveTime\":\"s-effectivetime\",\"enabled\":true},\"retentionDurationSeconds\":\"7\"},\"softDeleteTime\":\"s-softdeletetime\",\"storageClass\":\"s-storageclass\",\"timeCreated\":\"s-timecreated\",\"updated\":\"s-updated\",\"versioning\":{\"enabled\":true},\"website\":{\"mainPageSuffix\":\"s-mainpagesuffix\",\"notFoundPage\":\"s-notfoundpage\"}}",
@@ -389,10 +428,10 @@ test "Go's storage.buckets.insert" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_17)
+  gv_compare(gv_log_of(f), GO_18)
 }
 
-const GO_18: List[Str] = [
+const GO_19: List[Str] = [
   "CALL storage.buckets.list",
   "REQ GET https://storage.googleapis.com/storage/v1/b?alt=json&fields=kind%2Cid&maxResults=7&pageToken=s-pagetoken&prefix=s-prefix&prettyPrint=false&project=s-project&projection=s-projection&returnPartialSuccess=true&softDeleted=true&userProject=s-userproject",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -410,10 +449,48 @@ test "Go's storage.buckets.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_18)
+  gv_compare(gv_log_of(f), GO_19)
 }
 
-const GO_19: List[Str] = [
+const GO_20: List[Str] = [
+  "CALL storage.buckets.list pages",
+  "REQ GET https://storage.googleapis.com/storage/v1/b?alt=json&fields=kind%2Cid&maxResults=7&pageToken=s-pagetoken&prefix=s-prefix&prettyPrint=false&project=s-project&projection=s-projection&returnPartialSuccess=true&softDeleted=true&userProject=s-userproject",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"items\":[{\"autoclass\":{\"enabled\":true,\"terminalStorageClass\":\"s-terminalstorageclass\",\"terminalStorageClassUpdateTime\":\"s-terminalstorageclassupdatetime\",\"toggleTime\":\"s-toggletime\"},\"billing\":{\"requesterPays\":true},\"cors\":[{\"maxAgeSeconds\":7}],\"customPlacementConfig\":{\"dataLocations\":[\"s-datalocations\"]},\"defaultEventBasedHold\":true,\"encryption\":{\"customerManagedEncryptionEnforcementConfig\":{\"effectiveTime\":\"s-effectivetime\",\"restrictionMode\":\"s-restrictionmode\"},\"customerSuppliedEncryptionEnforcementConfig\":{\"effectiveTime\":\"s-effectivetime\",\"restrictionMode\":\"s-restrictionmode\"},\"defaultKmsKeyName\":\"s-defaultkmskeyname\",\"googleManagedEncryptionEnforcementConfig\":{\"effectiveTime\":\"s-effectivetime\",\"restrictionMode\":\"s-restrictionmode\"}},\"etag\":\"s-etag\",\"generation\":\"7\",\"hardDeleteTime\":\"s-harddeletetime\",\"hierarchicalNamespace\":{\"enabled\":true},\"iamConfiguration\":{\"bucketPolicyOnly\":{\"enabled\":true,\"lockedTime\":\"s-lockedtime\"},\"publicAccessPrevention\":\"s-publicaccessprevention\",\"uniformBucketLevelAccess\":{\"enabled\":true,\"lockedTime\":\"s-lockedtime\"}},\"id\":\"s-id\",\"ipFilter\":{\"allowAllServiceAgentAccess\":true,\"allowCrossOrgVpcs\":true,\"mode\":\"s-mode\",\"publicNetworkSource\":{}},\"kind\":\"s-kind\",\"labels\":{\"k1\":\"s-labels\"},\"lifecycle\":{},\"location\":\"s-location\",\"locationType\":\"s-locationtype\",\"logging\":{\"logBucket\":\"s-logbucket\",\"logObjectPrefix\":\"s-logobjectprefix\"},\"metageneration\":\"7\",\"name\":\"s-name\",\"objectRetention\":{\"mode\":\"s-mode\"},\"owner\":{\"entity\":\"s-entity\",\"entityId\":\"s-entityid\"},\"projectNumber\":\"7\",\"retentionPolicy\":{\"effectiveTime\":\"s-effectivetime\",\"isLocked\":true,\"retentionPeriod\":\"7\"},\"rpo\":\"s-rpo\",\"satisfiesPZI\":true,\"satisfiesPZS\":true,\"selfLink\":\"s-selflink\",\"softDeletePolicy\":{\"effectiveTime\":\"s-effectivetime\",\"hardDeletePause\":{\"effectiveTime\":\"s-effectivetime\",\"enabled\":true},\"retentionDurationSeconds\":\"7\"},\"softDeleteTime\":\"s-softdeletetime\",\"storageClass\":\"s-storageclass\",\"timeCreated\":\"s-timecreated\",\"updated\":\"s-updated\",\"versioning\":{\"enabled\":true},\"website\":{\"mainPageSuffix\":\"s-mainpagesuffix\",\"notFoundPage\":\"s-notfoundpage\"}}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"items\":[{\"autoclass\":{\"enabled\":true,\"terminalStorageClass\":\"s-terminalstorageclass\",\"terminalStorageClassUpdateTime\":\"s-terminalstorageclassupdatetime\",\"toggleTime\":\"s-toggletime\"},\"billing\":{\"requesterPays\":true},\"cors\":[{\"maxAgeSeconds\":7}],\"customPlacementConfig\":{\"dataLocations\":[\"s-datalocations\"]},\"defaultEventBasedHold\":true,\"encryption\":{\"customerManagedEncryptionEnforcementConfig\":{\"effectiveTime\":\"s-effectivetime\",\"restrictionMode\":\"s-restrictionmode\"},\"customerSuppliedEncryptionEnforcementConfig\":{\"effectiveTime\":\"s-effectivetime\",\"restrictionMode\":\"s-restrictionmode\"},\"defaultKmsKeyName\":\"s-defaultkmskeyname\",\"googleManagedEncryptionEnforcementConfig\":{\"effectiveTime\":\"s-effectivetime\",\"restrictionMode\":\"s-restrictionmode\"}},\"etag\":\"s-etag\",\"generation\":\"7\",\"hardDeleteTime\":\"s-harddeletetime\",\"hierarchicalNamespace\":{\"enabled\":true},\"iamConfiguration\":{\"bucketPolicyOnly\":{\"enabled\":true,\"lockedTime\":\"s-lockedtime\"},\"publicAccessPrevention\":\"s-publicaccessprevention\",\"uniformBucketLevelAccess\":{\"enabled\":true,\"lockedTime\":\"s-lockedtime\"}},\"id\":\"s-id\",\"ipFilter\":{\"allowAllServiceAgentAccess\":true,\"allowCrossOrgVpcs\":true,\"mode\":\"s-mode\",\"publicNetworkSource\":{}},\"kind\":\"s-kind\",\"labels\":{\"k1\":\"s-labels\"},\"lifecycle\":{},\"location\":\"s-location\",\"locationType\":\"s-locationtype\",\"logging\":{\"logBucket\":\"s-logbucket\",\"logObjectPrefix\":\"s-logobjectprefix\"},\"metageneration\":\"7\",\"name\":\"s-name\",\"objectRetention\":{\"mode\":\"s-mode\"},\"owner\":{\"entity\":\"s-entity\",\"entityId\":\"s-entityid\"},\"projectNumber\":\"7\",\"retentionPolicy\":{\"effectiveTime\":\"s-effectivetime\",\"isLocked\":true,\"retentionPeriod\":\"7\"},\"rpo\":\"s-rpo\",\"satisfiesPZI\":true,\"satisfiesPZS\":true,\"selfLink\":\"s-selflink\",\"softDeletePolicy\":{\"effectiveTime\":\"s-effectivetime\",\"hardDeletePause\":{\"effectiveTime\":\"s-effectivetime\",\"enabled\":true},\"retentionDurationSeconds\":\"7\"},\"softDeleteTime\":\"s-softdeletetime\",\"storageClass\":\"s-storageclass\",\"timeCreated\":\"s-timecreated\",\"updated\":\"s-updated\",\"versioning\":{\"enabled\":true},\"website\":{\"mainPageSuffix\":\"s-mainpagesuffix\",\"notFoundPage\":\"s-notfoundpage\"}}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}",
+  "REQ GET https://storage.googleapis.com/storage/v1/b?alt=json&fields=kind%2Cid&maxResults=7&pageToken=s-nextpagetoken&prefix=s-prefix&prettyPrint=false&project=s-project&projection=s-projection&returnPartialSuccess=true&softDeleted=true&userProject=s-userproject",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"items\":[{\"autoclass\":{\"enabled\":true,\"terminalStorageClass\":\"s-terminalstorageclass\",\"terminalStorageClassUpdateTime\":\"s-terminalstorageclassupdatetime\",\"toggleTime\":\"s-toggletime\"},\"billing\":{\"requesterPays\":true},\"cors\":[{\"maxAgeSeconds\":7}],\"customPlacementConfig\":{\"dataLocations\":[\"s-datalocations\"]},\"defaultEventBasedHold\":true,\"encryption\":{\"customerManagedEncryptionEnforcementConfig\":{\"effectiveTime\":\"s-effectivetime\",\"restrictionMode\":\"s-restrictionmode\"},\"customerSuppliedEncryptionEnforcementConfig\":{\"effectiveTime\":\"s-effectivetime\",\"restrictionMode\":\"s-restrictionmode\"},\"defaultKmsKeyName\":\"s-defaultkmskeyname\",\"googleManagedEncryptionEnforcementConfig\":{\"effectiveTime\":\"s-effectivetime\",\"restrictionMode\":\"s-restrictionmode\"}},\"etag\":\"s-etag\",\"generation\":\"7\",\"hardDeleteTime\":\"s-harddeletetime\",\"hierarchicalNamespace\":{\"enabled\":true},\"iamConfiguration\":{\"bucketPolicyOnly\":{\"enabled\":true,\"lockedTime\":\"s-lockedtime\"},\"publicAccessPrevention\":\"s-publicaccessprevention\",\"uniformBucketLevelAccess\":{\"enabled\":true,\"lockedTime\":\"s-lockedtime\"}},\"id\":\"s-id\",\"ipFilter\":{\"allowAllServiceAgentAccess\":true,\"allowCrossOrgVpcs\":true,\"mode\":\"s-mode\",\"publicNetworkSource\":{}},\"kind\":\"s-kind\",\"labels\":{\"k1\":\"s-labels\"},\"lifecycle\":{},\"location\":\"s-location\",\"locationType\":\"s-locationtype\",\"logging\":{\"logBucket\":\"s-logbucket\",\"logObjectPrefix\":\"s-logobjectprefix\"},\"metageneration\":\"7\",\"name\":\"s-name\",\"objectRetention\":{\"mode\":\"s-mode\"},\"owner\":{\"entity\":\"s-entity\",\"entityId\":\"s-entityid\"},\"projectNumber\":\"7\",\"retentionPolicy\":{\"effectiveTime\":\"s-effectivetime\",\"isLocked\":true,\"retentionPeriod\":\"7\"},\"rpo\":\"s-rpo\",\"satisfiesPZI\":true,\"satisfiesPZS\":true,\"selfLink\":\"s-selflink\",\"softDeletePolicy\":{\"effectiveTime\":\"s-effectivetime\",\"hardDeletePause\":{\"effectiveTime\":\"s-effectivetime\",\"enabled\":true},\"retentionDurationSeconds\":\"7\"},\"softDeleteTime\":\"s-softdeletetime\",\"storageClass\":\"s-storageclass\",\"timeCreated\":\"s-timecreated\",\"updated\":\"s-updated\",\"versioning\":{\"enabled\":true},\"website\":{\"mainPageSuffix\":\"s-mainpagesuffix\",\"notFoundPage\":\"s-notfoundpage\"}}],\"kind\":\"s-kind\",\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"items\":[{\"autoclass\":{\"enabled\":true,\"terminalStorageClass\":\"s-terminalstorageclass\",\"terminalStorageClassUpdateTime\":\"s-terminalstorageclassupdatetime\",\"toggleTime\":\"s-toggletime\"},\"billing\":{\"requesterPays\":true},\"cors\":[{\"maxAgeSeconds\":7}],\"customPlacementConfig\":{\"dataLocations\":[\"s-datalocations\"]},\"defaultEventBasedHold\":true,\"encryption\":{\"customerManagedEncryptionEnforcementConfig\":{\"effectiveTime\":\"s-effectivetime\",\"restrictionMode\":\"s-restrictionmode\"},\"customerSuppliedEncryptionEnforcementConfig\":{\"effectiveTime\":\"s-effectivetime\",\"restrictionMode\":\"s-restrictionmode\"},\"defaultKmsKeyName\":\"s-defaultkmskeyname\",\"googleManagedEncryptionEnforcementConfig\":{\"effectiveTime\":\"s-effectivetime\",\"restrictionMode\":\"s-restrictionmode\"}},\"etag\":\"s-etag\",\"generation\":\"7\",\"hardDeleteTime\":\"s-harddeletetime\",\"hierarchicalNamespace\":{\"enabled\":true},\"iamConfiguration\":{\"bucketPolicyOnly\":{\"enabled\":true,\"lockedTime\":\"s-lockedtime\"},\"publicAccessPrevention\":\"s-publicaccessprevention\",\"uniformBucketLevelAccess\":{\"enabled\":true,\"lockedTime\":\"s-lockedtime\"}},\"id\":\"s-id\",\"ipFilter\":{\"allowAllServiceAgentAccess\":true,\"allowCrossOrgVpcs\":true,\"mode\":\"s-mode\",\"publicNetworkSource\":{}},\"kind\":\"s-kind\",\"labels\":{\"k1\":\"s-labels\"},\"lifecycle\":{},\"location\":\"s-location\",\"locationType\":\"s-locationtype\",\"logging\":{\"logBucket\":\"s-logbucket\",\"logObjectPrefix\":\"s-logobjectprefix\"},\"metageneration\":\"7\",\"name\":\"s-name\",\"objectRetention\":{\"mode\":\"s-mode\"},\"owner\":{\"entity\":\"s-entity\",\"entityId\":\"s-entityid\"},\"projectNumber\":\"7\",\"retentionPolicy\":{\"effectiveTime\":\"s-effectivetime\",\"isLocked\":true,\"retentionPeriod\":\"7\"},\"rpo\":\"s-rpo\",\"satisfiesPZI\":true,\"satisfiesPZS\":true,\"selfLink\":\"s-selflink\",\"softDeletePolicy\":{\"effectiveTime\":\"s-effectivetime\",\"hardDeletePause\":{\"effectiveTime\":\"s-effectivetime\",\"enabled\":true},\"retentionDurationSeconds\":\"7\"},\"softDeleteTime\":\"s-softdeletetime\",\"storageClass\":\"s-storageclass\",\"timeCreated\":\"s-timecreated\",\"updated\":\"s-updated\",\"versioning\":{\"enabled\":true},\"website\":{\"mainPageSuffix\":\"s-mainpagesuffix\",\"notFoundPage\":\"s-notfoundpage\"}}],\"kind\":\"s-kind\",\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: ok",
+]
+
+test "Go's storage.buckets.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"items\":[{\"autoclass\":{\"enabled\":true,\"terminalStorageClass\":\"s-terminalstorageclass\",\"terminalStorageClassUpdateTime\":\"s-terminalstorageclassupdatetime\",\"toggleTime\":\"s-toggletime\"},\"billing\":{\"requesterPays\":true},\"cors\":[{\"maxAgeSeconds\":7}],\"customPlacementConfig\":{\"dataLocations\":[\"s-datalocations\"]},\"defaultEventBasedHold\":true,\"encryption\":{\"customerManagedEncryptionEnforcementConfig\":{\"effectiveTime\":\"s-effectivetime\",\"restrictionMode\":\"s-restrictionmode\"},\"customerSuppliedEncryptionEnforcementConfig\":{\"effectiveTime\":\"s-effectivetime\",\"restrictionMode\":\"s-restrictionmode\"},\"defaultKmsKeyName\":\"s-defaultkmskeyname\",\"googleManagedEncryptionEnforcementConfig\":{\"effectiveTime\":\"s-effectivetime\",\"restrictionMode\":\"s-restrictionmode\"}},\"etag\":\"s-etag\",\"generation\":\"7\",\"hardDeleteTime\":\"s-harddeletetime\",\"hierarchicalNamespace\":{\"enabled\":true},\"iamConfiguration\":{\"bucketPolicyOnly\":{\"enabled\":true,\"lockedTime\":\"s-lockedtime\"},\"publicAccessPrevention\":\"s-publicaccessprevention\",\"uniformBucketLevelAccess\":{\"enabled\":true,\"lockedTime\":\"s-lockedtime\"}},\"id\":\"s-id\",\"ipFilter\":{\"allowAllServiceAgentAccess\":true,\"allowCrossOrgVpcs\":true,\"mode\":\"s-mode\",\"publicNetworkSource\":{}},\"kind\":\"s-kind\",\"labels\":{\"k1\":\"s-labels\"},\"lifecycle\":{},\"location\":\"s-location\",\"locationType\":\"s-locationtype\",\"logging\":{\"logBucket\":\"s-logbucket\",\"logObjectPrefix\":\"s-logobjectprefix\"},\"metageneration\":\"7\",\"name\":\"s-name\",\"objectRetention\":{\"mode\":\"s-mode\"},\"owner\":{\"entity\":\"s-entity\",\"entityId\":\"s-entityid\"},\"projectNumber\":\"7\",\"retentionPolicy\":{\"effectiveTime\":\"s-effectivetime\",\"isLocked\":true,\"retentionPeriod\":\"7\"},\"rpo\":\"s-rpo\",\"satisfiesPZI\":true,\"satisfiesPZS\":true,\"selfLink\":\"s-selflink\",\"softDeletePolicy\":{\"effectiveTime\":\"s-effectivetime\",\"hardDeletePause\":{\"effectiveTime\":\"s-effectivetime\",\"enabled\":true},\"retentionDurationSeconds\":\"7\"},\"softDeleteTime\":\"s-softdeletetime\",\"storageClass\":\"s-storageclass\",\"timeCreated\":\"s-timecreated\",\"updated\":\"s-updated\",\"versioning\":{\"enabled\":true},\"website\":{\"mainPageSuffix\":\"s-mainpagesuffix\",\"notFoundPage\":\"s-notfoundpage\"}}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}")
+  gv_queue(f, "{\"items\":[{\"autoclass\":{\"enabled\":true,\"terminalStorageClass\":\"s-terminalstorageclass\",\"terminalStorageClassUpdateTime\":\"s-terminalstorageclassupdatetime\",\"toggleTime\":\"s-toggletime\"},\"billing\":{\"requesterPays\":true},\"cors\":[{\"maxAgeSeconds\":7}],\"customPlacementConfig\":{\"dataLocations\":[\"s-datalocations\"]},\"defaultEventBasedHold\":true,\"encryption\":{\"customerManagedEncryptionEnforcementConfig\":{\"effectiveTime\":\"s-effectivetime\",\"restrictionMode\":\"s-restrictionmode\"},\"customerSuppliedEncryptionEnforcementConfig\":{\"effectiveTime\":\"s-effectivetime\",\"restrictionMode\":\"s-restrictionmode\"},\"defaultKmsKeyName\":\"s-defaultkmskeyname\",\"googleManagedEncryptionEnforcementConfig\":{\"effectiveTime\":\"s-effectivetime\",\"restrictionMode\":\"s-restrictionmode\"}},\"etag\":\"s-etag\",\"generation\":\"7\",\"hardDeleteTime\":\"s-harddeletetime\",\"hierarchicalNamespace\":{\"enabled\":true},\"iamConfiguration\":{\"bucketPolicyOnly\":{\"enabled\":true,\"lockedTime\":\"s-lockedtime\"},\"publicAccessPrevention\":\"s-publicaccessprevention\",\"uniformBucketLevelAccess\":{\"enabled\":true,\"lockedTime\":\"s-lockedtime\"}},\"id\":\"s-id\",\"ipFilter\":{\"allowAllServiceAgentAccess\":true,\"allowCrossOrgVpcs\":true,\"mode\":\"s-mode\",\"publicNetworkSource\":{}},\"kind\":\"s-kind\",\"labels\":{\"k1\":\"s-labels\"},\"lifecycle\":{},\"location\":\"s-location\",\"locationType\":\"s-locationtype\",\"logging\":{\"logBucket\":\"s-logbucket\",\"logObjectPrefix\":\"s-logobjectprefix\"},\"metageneration\":\"7\",\"name\":\"s-name\",\"objectRetention\":{\"mode\":\"s-mode\"},\"owner\":{\"entity\":\"s-entity\",\"entityId\":\"s-entityid\"},\"projectNumber\":\"7\",\"retentionPolicy\":{\"effectiveTime\":\"s-effectivetime\",\"isLocked\":true,\"retentionPeriod\":\"7\"},\"rpo\":\"s-rpo\",\"satisfiesPZI\":true,\"satisfiesPZS\":true,\"selfLink\":\"s-selflink\",\"softDeletePolicy\":{\"effectiveTime\":\"s-effectivetime\",\"hardDeletePause\":{\"effectiveTime\":\"s-effectivetime\",\"enabled\":true},\"retentionDurationSeconds\":\"7\"},\"softDeleteTime\":\"s-softdeletetime\",\"storageClass\":\"s-storageclass\",\"timeCreated\":\"s-timecreated\",\"updated\":\"s-updated\",\"versioning\":{\"enabled\":true},\"website\":{\"mainPageSuffix\":\"s-mainpagesuffix\",\"notFoundPage\":\"s-notfoundpage\"}}],\"kind\":\"s-kind\",\"unreachable\":[\"s-unreachable\"]}")
+  gv_note(f, "CALL storage.buckets.list pages")
+  var p = svc.buckets.list_pages("s-project", options: BucketsListOptions{max_results: Some(7), page_token: Some("s-pagetoken"), prefix: Some("s-prefix"), projection: Some("s-projection"), return_partial_success: Some(true), soft_deleted: Some(true), user_project: Some("s-userproject"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_20)
+}
+
+const GO_21: List[Str] = [
   "CALL storage.buckets.lockRetentionPolicy",
   "REQ POST https://storage.googleapis.com/storage/v1/b/id1%2F%20x/lockRetentionPolicy?alt=json&fields=kind%2Cid&ifMetagenerationMatch=7&prettyPrint=false&userProject=s-userproject",
   "  H x-extra=v1",
@@ -431,14 +508,14 @@ test "Go's storage.buckets.lockRetentionPolicy" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_19)
+  gv_compare(gv_log_of(f), GO_21)
 }
 
-const GO_20: List[Str] = [
+const GO_22: List[Str] = [
   "CALL storage.buckets.patch",
   "REQ PATCH https://storage.googleapis.com/storage/v1/b/id1%2F%20x?alt=json&fields=kind%2Cid&ifMetagenerationMatch=7&ifMetagenerationNotMatch=7&predefinedAcl=s-predefinedacl&predefinedDefaultObjectAcl=s-predefineddefaultobjectacl&prettyPrint=false&projection=s-projection&userProject=s-userproject",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"acl\":[{\"bucket\":\"s-bucket\",\"domain\":\"s-domain\",\"email\":\"s-email\",\"entity\":\"s-entity\",\"entityId\":\"s-entityid\",\"etag\":\"s-etag\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"projectTeam\":{\"projectNumber\":\"s-projectnumber\",\"team\":\"s-team\"},\"role\":\"s-role\",\"selfLink\":\"s-selflink\"}],\"autoclass\":{\"enabled\":true,\"terminalStorageClass\":\"s-terminalstorageclass\",\"terminalStorageClassUpdateTime\":\"s-terminalstorageclassupdatetime\",\"toggleTime\":\"s-toggletime\"},\"billing\":{\"requesterPays\":true},\"cors\":[{\"maxAgeSeconds\":7,\"method\":[\"s-method\"],\"origin\":[\"s-origin\"],\"responseHeader\":[\"s-responseheader\"]}],\"customPlacementConfig\":{\"dataLocations\":[\"s-datalocations\"]},\"defaultEventBasedHold\":true,\"defaultObjectAcl\":[{\"bucket\":\"s-bucket\",\"domain\":\"s-domain\",\"email\":\"s-email\",\"entity\":\"s-entity\",\"entityId\":\"s-entityid\",\"etag\":\"s-etag\",\"generation\":\"7\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"object\":\"s-object\",\"projectTeam\":{\"projectNumber\":\"s-projectnumber\",\"team\":\"s-team\"},\"role\":\"s-role\",\"selfLink\":\"s-selflink\"}],\"encryption\":{\"customerManagedEncryptionEnforcementConfig\":{\"effectiveTime\":\"s-effectivetime\",\"restrictionMode\":\"s-restrictionmode\"},\"customerSuppliedEncryptionEnforcementConfig\":{\"effectiveTime\":\"s-effectivetime\",\"restrictionMode\":\"s-restrictionmode\"},\"defaultKmsKeyName\":\"s-defaultkmskeyname\",\"googleManagedEncryptionEnforcementConfig\":{\"effectiveTime\":\"s-effectivetime\",\"restrictionMode\":\"s-restrictionmode\"}},\"etag\":\"s-etag\",\"generation\":\"7\",\"hardDeleteTime\":\"s-harddeletetime\",\"hierarchicalNamespace\":{\"enabled\":true},\"iamConfiguration\":{\"bucketPolicyOnly\":{\"enabled\":true,\"lockedTime\":\"s-lockedtime\"},\"publicAccessPrevention\":\"s-publicaccessprevention\",\"uniformBucketLevelAccess\":{\"enabled\":true,\"lockedTime\":\"s-lockedtime\"}},\"id\":\"s-id\",\"ipFilter\":{\"allowAllServiceAgentAccess\":true,\"allowCrossOrgVpcs\":true,\"mode\":\"s-mode\",\"publicNetworkSource\":{\"allowedIpCidrRanges\":[\"s-allowedipcidrranges\"]},\"vpcNetworkSources\":[{\"allowedIpCidrRanges\":[\"s-allowedipcidrranges\"],\"network\":\"s-network\"}]},\"kind\":\"s-kind\",\"labels\":{\"k1\":\"s-labels\"},\"lifecycle\":{\"rule\":[{\"action\":{\"storageClass\":\"s-storageclass\",\"type\":\"s-type\"},\"condition\":{\"age\":7,\"createdBefore\":\"s-createdbefore\",\"customTimeBefore\":\"s-customtimebefore\",\"daysSinceCustomTime\":7,\"daysSinceNoncurrentTime\":7,\"isLive\":true,\"matchesPattern\":\"s-matchespattern\",\"matchesPrefix\":[\"s-matchesprefix\"],\"matchesStorageClass\":[\"s-matchesstorageclass\"],\"matchesSuffix\":[\"s-matchessuffix\"],\"noncurrentTimeBefore\":\"s-noncurrenttimebefore\",\"numNewerVersions\":7,\"sizeAboveBytes\":\"7\",\"sizeBelowBytes\":\"7\"}}]},\"location\":\"s-location\",\"locationType\":\"s-locationtype\",\"logging\":{\"logBucket\":\"s-logbucket\",\"logObjectPrefix\":\"s-logobjectprefix\"},\"metageneration\":\"7\",\"name\":\"s-name\",\"objectRetention\":{\"mode\":\"s-mode\"},\"owner\":{\"entity\":\"s-entity\",\"entityId\":\"s-entityid\"},\"projectNumber\":\"7\",\"retentionPolicy\":{\"effectiveTime\":\"s-effectivetime\",\"isLocked\":true,\"retentionPeriod\":\"7\"},\"rpo\":\"s-rpo\",\"satisfiesPZI\":true,\"satisfiesPZS\":true,\"selfLink\":\"s-selflink\",\"softDeletePolicy\":{\"effectiveTime\":\"s-effectivetime\",\"hardDeletePause\":{\"effectiveTime\":\"s-effectivetime\",\"enabled\":true},\"retentionDurationSeconds\":\"7\"},\"softDeleteTime\":\"s-softdeletetime\",\"storageClass\":\"s-storageclass\",\"timeCreated\":\"s-timecreated\",\"updated\":\"s-updated\",\"versioning\":{\"enabled\":true},\"website\":{\"mainPageSuffix\":\"s-mainpagesuffix\",\"notFoundPage\":\"s-notfoundpage\"}}",
+  "  B <3372 bytes> {\"acl\":[{\"bucket\":\"s-bucket\",\"do...otFoundPage\":\"s-notfoundpage\"}}",
   "",
   "  SERVED 200 {\"acl\":[{\"bucket\":\"s-bucket\",\"domain\":\"s-domain\",\"email\":\"s-email\",\"entity\":\"s-entity\",\"entityId\":\"s-entityid\",\"etag\":\"s-etag\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"projectTeam\":{\"projectNumber\":\"s-projectnumber\",\"team\":\"s-team\"},\"role\":\"s-role\",\"selfLink\":\"s-selflink\"}],\"autoclass\":{\"enabled\":true,\"terminalStorageClass\":\"s-terminalstorageclass\",\"terminalStorageClassUpdateTime\":\"s-terminalstorageclassupdatetime\",\"toggleTime\":\"s-toggletime\"},\"billing\":{\"requesterPays\":true},\"cors\":[{\"maxAgeSeconds\":7,\"method\":[\"s-method\"],\"origin\":[\"s-origin\"],\"responseHeader\":[\"s-responseheader\"]}],\"customPlacementConfig\":{\"dataLocations\":[\"s-datalocations\"]},\"defaultEventBasedHold\":true,\"defaultObjectAcl\":[{\"bucket\":\"s-bucket\",\"domain\":\"s-domain\",\"email\":\"s-email\",\"entity\":\"s-entity\",\"entityId\":\"s-entityid\",\"etag\":\"s-etag\",\"generation\":\"7\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"object\":\"s-object\",\"projectTeam\":{\"projectNumber\":\"s-projectnumber\",\"team\":\"s-team\"},\"role\":\"s-role\",\"selfLink\":\"s-selflink\"}],\"encryption\":{\"customerManagedEncryptionEnforcementConfig\":{\"effectiveTime\":\"s-effectivetime\",\"restrictionMode\":\"s-restrictionmode\"},\"customerSuppliedEncryptionEnforcementConfig\":{\"effectiveTime\":\"s-effectivetime\",\"restrictionMode\":\"s-restrictionmode\"},\"defaultKmsKeyName\":\"s-defaultkmskeyname\",\"googleManagedEncryptionEnforcementConfig\":{\"effectiveTime\":\"s-effectivetime\",\"restrictionMode\":\"s-restrictionmode\"}},\"etag\":\"s-etag\",\"generation\":\"7\",\"hardDeleteTime\":\"s-harddeletetime\",\"hierarchicalNamespace\":{\"enabled\":true},\"iamConfiguration\":{\"bucketPolicyOnly\":{\"enabled\":true,\"lockedTime\":\"s-lockedtime\"},\"publicAccessPrevention\":\"s-publicaccessprevention\",\"uniformBucketLevelAccess\":{\"enabled\":true,\"lockedTime\":\"s-lockedtime\"}},\"id\":\"s-id\",\"ipFilter\":{\"allowAllServiceAgentAccess\":true,\"allowCrossOrgVpcs\":true,\"mode\":\"s-mode\",\"publicNetworkSource\":{\"allowedIpCidrRanges\":[\"s-allowedipcidrranges\"]},\"vpcNetworkSources\":[{\"allowedIpCidrRanges\":[\"s-allowedipcidrranges\"],\"network\":\"s-network\"}]},\"kind\":\"s-kind\",\"labels\":{\"k1\":\"s-labels\"},\"lifecycle\":{\"rule\":[{\"action\":{\"storageClass\":\"s-storageclass\",\"type\":\"s-type\"},\"condition\":{\"age\":7,\"createdBefore\":\"s-createdbefore\",\"customTimeBefore\":\"s-customtimebefore\",\"daysSinceCustomTime\":7,\"daysSinceNoncurrentTime\":7,\"isLive\":true,\"matchesPattern\":\"s-matchespattern\",\"matchesPrefix\":[\"s-matchesprefix\"],\"matchesStorageClass\":[\"s-matchesstorageclass\"],\"matchesSuffix\":[\"s-matchessuffix\"],\"noncurrentTimeBefore\":\"s-noncurrenttimebefore\",\"numNewerVersions\":7,\"sizeAboveBytes\":\"7\",\"sizeBelowBytes\":\"7\"}}]},\"location\":\"s-location\",\"locationType\":\"s-locationtype\",\"logging\":{\"logBucket\":\"s-logbucket\",\"logObjectPrefix\":\"s-logobjectprefix\"},\"metageneration\":\"7\",\"name\":\"s-name\",\"objectRetention\":{\"mode\":\"s-mode\"},\"owner\":{\"entity\":\"s-entity\",\"entityId\":\"s-entityid\"},\"projectNumber\":\"7\",\"retentionPolicy\":{\"effectiveTime\":\"s-effectivetime\",\"isLocked\":true,\"retentionPeriod\":\"7\"},\"rpo\":\"s-rpo\",\"satisfiesPZI\":true,\"satisfiesPZS\":true,\"selfLink\":\"s-selflink\",\"softDeletePolicy\":{\"effectiveTime\":\"s-effectivetime\",\"hardDeletePause\":{\"effectiveTime\":\"s-effectivetime\",\"enabled\":true},\"retentionDurationSeconds\":\"7\"},\"softDeleteTime\":\"s-softdeletetime\",\"storageClass\":\"s-storageclass\",\"timeCreated\":\"s-timecreated\",\"updated\":\"s-updated\",\"versioning\":{\"enabled\":true},\"website\":{\"mainPageSuffix\":\"s-mainpagesuffix\",\"notFoundPage\":\"s-notfoundpage\"}}",
   "OUT: {\"acl\":[{\"bucket\":\"s-bucket\",\"domain\":\"s-domain\",\"email\":\"s-email\",\"entity\":\"s-entity\",\"entityId\":\"s-entityid\",\"etag\":\"s-etag\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"projectTeam\":{\"projectNumber\":\"s-projectnumber\",\"team\":\"s-team\"},\"role\":\"s-role\",\"selfLink\":\"s-selflink\"}],\"autoclass\":{\"enabled\":true,\"terminalStorageClass\":\"s-terminalstorageclass\",\"terminalStorageClassUpdateTime\":\"s-terminalstorageclassupdatetime\",\"toggleTime\":\"s-toggletime\"},\"billing\":{\"requesterPays\":true},\"cors\":[{\"maxAgeSeconds\":7,\"method\":[\"s-method\"],\"origin\":[\"s-origin\"],\"responseHeader\":[\"s-responseheader\"]}],\"customPlacementConfig\":{\"dataLocations\":[\"s-datalocations\"]},\"defaultEventBasedHold\":true,\"defaultObjectAcl\":[{\"bucket\":\"s-bucket\",\"domain\":\"s-domain\",\"email\":\"s-email\",\"entity\":\"s-entity\",\"entityId\":\"s-entityid\",\"etag\":\"s-etag\",\"generation\":\"7\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"object\":\"s-object\",\"projectTeam\":{\"projectNumber\":\"s-projectnumber\",\"team\":\"s-team\"},\"role\":\"s-role\",\"selfLink\":\"s-selflink\"}],\"encryption\":{\"customerManagedEncryptionEnforcementConfig\":{\"effectiveTime\":\"s-effectivetime\",\"restrictionMode\":\"s-restrictionmode\"},\"customerSuppliedEncryptionEnforcementConfig\":{\"effectiveTime\":\"s-effectivetime\",\"restrictionMode\":\"s-restrictionmode\"},\"defaultKmsKeyName\":\"s-defaultkmskeyname\",\"googleManagedEncryptionEnforcementConfig\":{\"effectiveTime\":\"s-effectivetime\",\"restrictionMode\":\"s-restrictionmode\"}},\"etag\":\"s-etag\",\"generation\":\"7\",\"hardDeleteTime\":\"s-harddeletetime\",\"hierarchicalNamespace\":{\"enabled\":true},\"iamConfiguration\":{\"bucketPolicyOnly\":{\"enabled\":true,\"lockedTime\":\"s-lockedtime\"},\"publicAccessPrevention\":\"s-publicaccessprevention\",\"uniformBucketLevelAccess\":{\"enabled\":true,\"lockedTime\":\"s-lockedtime\"}},\"id\":\"s-id\",\"ipFilter\":{\"allowAllServiceAgentAccess\":true,\"allowCrossOrgVpcs\":true,\"mode\":\"s-mode\",\"publicNetworkSource\":{\"allowedIpCidrRanges\":[\"s-allowedipcidrranges\"]},\"vpcNetworkSources\":[{\"allowedIpCidrRanges\":[\"s-allowedipcidrranges\"],\"network\":\"s-network\"}]},\"kind\":\"s-kind\",\"labels\":{\"k1\":\"s-labels\"},\"lifecycle\":{\"rule\":[{\"action\":{\"storageClass\":\"s-storageclass\",\"type\":\"s-type\"},\"condition\":{\"age\":7,\"createdBefore\":\"s-createdbefore\",\"customTimeBefore\":\"s-customtimebefore\",\"daysSinceCustomTime\":7,\"daysSinceNoncurrentTime\":7,\"isLive\":true,\"matchesPattern\":\"s-matchespattern\",\"matchesPrefix\":[\"s-matchesprefix\"],\"matchesStorageClass\":[\"s-matchesstorageclass\"],\"matchesSuffix\":[\"s-matchessuffix\"],\"noncurrentTimeBefore\":\"s-noncurrenttimebefore\",\"numNewerVersions\":7,\"sizeAboveBytes\":\"7\",\"sizeBelowBytes\":\"7\"}}]},\"location\":\"s-location\",\"locationType\":\"s-locationtype\",\"logging\":{\"logBucket\":\"s-logbucket\",\"logObjectPrefix\":\"s-logobjectprefix\"},\"metageneration\":\"7\",\"name\":\"s-name\",\"objectRetention\":{\"mode\":\"s-mode\"},\"owner\":{\"entity\":\"s-entity\",\"entityId\":\"s-entityid\"},\"projectNumber\":\"7\",\"retentionPolicy\":{\"effectiveTime\":\"s-effectivetime\",\"isLocked\":true,\"retentionPeriod\":\"7\"},\"rpo\":\"s-rpo\",\"satisfiesPZI\":true,\"satisfiesPZS\":true,\"selfLink\":\"s-selflink\",\"softDeletePolicy\":{\"effectiveTime\":\"s-effectivetime\",\"hardDeletePause\":{\"effectiveTime\":\"s-effectivetime\",\"enabled\":true},\"retentionDurationSeconds\":\"7\"},\"softDeleteTime\":\"s-softdeletetime\",\"storageClass\":\"s-storageclass\",\"timeCreated\":\"s-timecreated\",\"updated\":\"s-updated\",\"versioning\":{\"enabled\":true},\"website\":{\"mainPageSuffix\":\"s-mainpagesuffix\",\"notFoundPage\":\"s-notfoundpage\"}}",
@@ -453,10 +530,10 @@ test "Go's storage.buckets.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_20)
+  gv_compare(gv_log_of(f), GO_22)
 }
 
-const GO_21: List[Str] = [
+const GO_23: List[Str] = [
   "CALL storage.buckets.relocate",
   "REQ POST https://storage.googleapis.com/storage/v1/b/id1%2F%20x/relocate?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -475,10 +552,10 @@ test "Go's storage.buckets.relocate" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_21)
+  gv_compare(gv_log_of(f), GO_23)
 }
 
-const GO_22: List[Str] = [
+const GO_24: List[Str] = [
   "CALL storage.buckets.restore",
   "REQ POST https://storage.googleapis.com/storage/v1/b/id1%2F%20x/restore?alt=json&fields=kind%2Cid&generation=7&prettyPrint=false&projection=s-projection&userProject=s-userproject",
   "  H x-extra=v1",
@@ -496,10 +573,10 @@ test "Go's storage.buckets.restore" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_22)
+  gv_compare(gv_log_of(f), GO_24)
 }
 
-const GO_23: List[Str] = [
+const GO_25: List[Str] = [
   "CALL storage.buckets.setIamPolicy",
   "REQ PUT https://storage.googleapis.com/storage/v1/b/id1%2F%20x/iam?alt=json&fields=kind%2Cid&prettyPrint=false&userProject=s-userproject",
   "  H content-type=application/json | x-extra=v1",
@@ -518,10 +595,10 @@ test "Go's storage.buckets.setIamPolicy" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_23)
+  gv_compare(gv_log_of(f), GO_25)
 }
 
-const GO_24: List[Str] = [
+const GO_26: List[Str] = [
   "CALL storage.buckets.testIamPermissions",
   "REQ GET https://storage.googleapis.com/storage/v1/b/id1%2F%20x/iam/testPermissions?alt=json&fields=kind%2Cid&permissions=s-permissions&prettyPrint=false&userProject=s-userproject",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -539,14 +616,14 @@ test "Go's storage.buckets.testIamPermissions" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_24)
+  gv_compare(gv_log_of(f), GO_26)
 }
 
-const GO_25: List[Str] = [
+const GO_27: List[Str] = [
   "CALL storage.buckets.update",
   "REQ PUT https://storage.googleapis.com/storage/v1/b/id1%2F%20x?alt=json&fields=kind%2Cid&ifMetagenerationMatch=7&ifMetagenerationNotMatch=7&predefinedAcl=s-predefinedacl&predefinedDefaultObjectAcl=s-predefineddefaultobjectacl&prettyPrint=false&projection=s-projection&userProject=s-userproject",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"acl\":[{\"bucket\":\"s-bucket\",\"domain\":\"s-domain\",\"email\":\"s-email\",\"entity\":\"s-entity\",\"entityId\":\"s-entityid\",\"etag\":\"s-etag\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"projectTeam\":{\"projectNumber\":\"s-projectnumber\",\"team\":\"s-team\"},\"role\":\"s-role\",\"selfLink\":\"s-selflink\"}],\"autoclass\":{\"enabled\":true,\"terminalStorageClass\":\"s-terminalstorageclass\",\"terminalStorageClassUpdateTime\":\"s-terminalstorageclassupdatetime\",\"toggleTime\":\"s-toggletime\"},\"billing\":{\"requesterPays\":true},\"cors\":[{\"maxAgeSeconds\":7,\"method\":[\"s-method\"],\"origin\":[\"s-origin\"],\"responseHeader\":[\"s-responseheader\"]}],\"customPlacementConfig\":{\"dataLocations\":[\"s-datalocations\"]},\"defaultEventBasedHold\":true,\"defaultObjectAcl\":[{\"bucket\":\"s-bucket\",\"domain\":\"s-domain\",\"email\":\"s-email\",\"entity\":\"s-entity\",\"entityId\":\"s-entityid\",\"etag\":\"s-etag\",\"generation\":\"7\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"object\":\"s-object\",\"projectTeam\":{\"projectNumber\":\"s-projectnumber\",\"team\":\"s-team\"},\"role\":\"s-role\",\"selfLink\":\"s-selflink\"}],\"encryption\":{\"customerManagedEncryptionEnforcementConfig\":{\"effectiveTime\":\"s-effectivetime\",\"restrictionMode\":\"s-restrictionmode\"},\"customerSuppliedEncryptionEnforcementConfig\":{\"effectiveTime\":\"s-effectivetime\",\"restrictionMode\":\"s-restrictionmode\"},\"defaultKmsKeyName\":\"s-defaultkmskeyname\",\"googleManagedEncryptionEnforcementConfig\":{\"effectiveTime\":\"s-effectivetime\",\"restrictionMode\":\"s-restrictionmode\"}},\"etag\":\"s-etag\",\"generation\":\"7\",\"hardDeleteTime\":\"s-harddeletetime\",\"hierarchicalNamespace\":{\"enabled\":true},\"iamConfiguration\":{\"bucketPolicyOnly\":{\"enabled\":true,\"lockedTime\":\"s-lockedtime\"},\"publicAccessPrevention\":\"s-publicaccessprevention\",\"uniformBucketLevelAccess\":{\"enabled\":true,\"lockedTime\":\"s-lockedtime\"}},\"id\":\"s-id\",\"ipFilter\":{\"allowAllServiceAgentAccess\":true,\"allowCrossOrgVpcs\":true,\"mode\":\"s-mode\",\"publicNetworkSource\":{\"allowedIpCidrRanges\":[\"s-allowedipcidrranges\"]},\"vpcNetworkSources\":[{\"allowedIpCidrRanges\":[\"s-allowedipcidrranges\"],\"network\":\"s-network\"}]},\"kind\":\"s-kind\",\"labels\":{\"k1\":\"s-labels\"},\"lifecycle\":{\"rule\":[{\"action\":{\"storageClass\":\"s-storageclass\",\"type\":\"s-type\"},\"condition\":{\"age\":7,\"createdBefore\":\"s-createdbefore\",\"customTimeBefore\":\"s-customtimebefore\",\"daysSinceCustomTime\":7,\"daysSinceNoncurrentTime\":7,\"isLive\":true,\"matchesPattern\":\"s-matchespattern\",\"matchesPrefix\":[\"s-matchesprefix\"],\"matchesStorageClass\":[\"s-matchesstorageclass\"],\"matchesSuffix\":[\"s-matchessuffix\"],\"noncurrentTimeBefore\":\"s-noncurrenttimebefore\",\"numNewerVersions\":7,\"sizeAboveBytes\":\"7\",\"sizeBelowBytes\":\"7\"}}]},\"location\":\"s-location\",\"locationType\":\"s-locationtype\",\"logging\":{\"logBucket\":\"s-logbucket\",\"logObjectPrefix\":\"s-logobjectprefix\"},\"metageneration\":\"7\",\"name\":\"s-name\",\"objectRetention\":{\"mode\":\"s-mode\"},\"owner\":{\"entity\":\"s-entity\",\"entityId\":\"s-entityid\"},\"projectNumber\":\"7\",\"retentionPolicy\":{\"effectiveTime\":\"s-effectivetime\",\"isLocked\":true,\"retentionPeriod\":\"7\"},\"rpo\":\"s-rpo\",\"satisfiesPZI\":true,\"satisfiesPZS\":true,\"selfLink\":\"s-selflink\",\"softDeletePolicy\":{\"effectiveTime\":\"s-effectivetime\",\"hardDeletePause\":{\"effectiveTime\":\"s-effectivetime\",\"enabled\":true},\"retentionDurationSeconds\":\"7\"},\"softDeleteTime\":\"s-softdeletetime\",\"storageClass\":\"s-storageclass\",\"timeCreated\":\"s-timecreated\",\"updated\":\"s-updated\",\"versioning\":{\"enabled\":true},\"website\":{\"mainPageSuffix\":\"s-mainpagesuffix\",\"notFoundPage\":\"s-notfoundpage\"}}",
+  "  B <3372 bytes> {\"acl\":[{\"bucket\":\"s-bucket\",\"do...otFoundPage\":\"s-notfoundpage\"}}",
   "",
   "  SERVED 200 {\"acl\":[{\"bucket\":\"s-bucket\",\"domain\":\"s-domain\",\"email\":\"s-email\",\"entity\":\"s-entity\",\"entityId\":\"s-entityid\",\"etag\":\"s-etag\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"projectTeam\":{\"projectNumber\":\"s-projectnumber\",\"team\":\"s-team\"},\"role\":\"s-role\",\"selfLink\":\"s-selflink\"}],\"autoclass\":{\"enabled\":true,\"terminalStorageClass\":\"s-terminalstorageclass\",\"terminalStorageClassUpdateTime\":\"s-terminalstorageclassupdatetime\",\"toggleTime\":\"s-toggletime\"},\"billing\":{\"requesterPays\":true},\"cors\":[{\"maxAgeSeconds\":7,\"method\":[\"s-method\"],\"origin\":[\"s-origin\"],\"responseHeader\":[\"s-responseheader\"]}],\"customPlacementConfig\":{\"dataLocations\":[\"s-datalocations\"]},\"defaultEventBasedHold\":true,\"defaultObjectAcl\":[{\"bucket\":\"s-bucket\",\"domain\":\"s-domain\",\"email\":\"s-email\",\"entity\":\"s-entity\",\"entityId\":\"s-entityid\",\"etag\":\"s-etag\",\"generation\":\"7\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"object\":\"s-object\",\"projectTeam\":{\"projectNumber\":\"s-projectnumber\",\"team\":\"s-team\"},\"role\":\"s-role\",\"selfLink\":\"s-selflink\"}],\"encryption\":{\"customerManagedEncryptionEnforcementConfig\":{\"effectiveTime\":\"s-effectivetime\",\"restrictionMode\":\"s-restrictionmode\"},\"customerSuppliedEncryptionEnforcementConfig\":{\"effectiveTime\":\"s-effectivetime\",\"restrictionMode\":\"s-restrictionmode\"},\"defaultKmsKeyName\":\"s-defaultkmskeyname\",\"googleManagedEncryptionEnforcementConfig\":{\"effectiveTime\":\"s-effectivetime\",\"restrictionMode\":\"s-restrictionmode\"}},\"etag\":\"s-etag\",\"generation\":\"7\",\"hardDeleteTime\":\"s-harddeletetime\",\"hierarchicalNamespace\":{\"enabled\":true},\"iamConfiguration\":{\"bucketPolicyOnly\":{\"enabled\":true,\"lockedTime\":\"s-lockedtime\"},\"publicAccessPrevention\":\"s-publicaccessprevention\",\"uniformBucketLevelAccess\":{\"enabled\":true,\"lockedTime\":\"s-lockedtime\"}},\"id\":\"s-id\",\"ipFilter\":{\"allowAllServiceAgentAccess\":true,\"allowCrossOrgVpcs\":true,\"mode\":\"s-mode\",\"publicNetworkSource\":{\"allowedIpCidrRanges\":[\"s-allowedipcidrranges\"]},\"vpcNetworkSources\":[{\"allowedIpCidrRanges\":[\"s-allowedipcidrranges\"],\"network\":\"s-network\"}]},\"kind\":\"s-kind\",\"labels\":{\"k1\":\"s-labels\"},\"lifecycle\":{\"rule\":[{\"action\":{\"storageClass\":\"s-storageclass\",\"type\":\"s-type\"},\"condition\":{\"age\":7,\"createdBefore\":\"s-createdbefore\",\"customTimeBefore\":\"s-customtimebefore\",\"daysSinceCustomTime\":7,\"daysSinceNoncurrentTime\":7,\"isLive\":true,\"matchesPattern\":\"s-matchespattern\",\"matchesPrefix\":[\"s-matchesprefix\"],\"matchesStorageClass\":[\"s-matchesstorageclass\"],\"matchesSuffix\":[\"s-matchessuffix\"],\"noncurrentTimeBefore\":\"s-noncurrenttimebefore\",\"numNewerVersions\":7,\"sizeAboveBytes\":\"7\",\"sizeBelowBytes\":\"7\"}}]},\"location\":\"s-location\",\"locationType\":\"s-locationtype\",\"logging\":{\"logBucket\":\"s-logbucket\",\"logObjectPrefix\":\"s-logobjectprefix\"},\"metageneration\":\"7\",\"name\":\"s-name\",\"objectRetention\":{\"mode\":\"s-mode\"},\"owner\":{\"entity\":\"s-entity\",\"entityId\":\"s-entityid\"},\"projectNumber\":\"7\",\"retentionPolicy\":{\"effectiveTime\":\"s-effectivetime\",\"isLocked\":true,\"retentionPeriod\":\"7\"},\"rpo\":\"s-rpo\",\"satisfiesPZI\":true,\"satisfiesPZS\":true,\"selfLink\":\"s-selflink\",\"softDeletePolicy\":{\"effectiveTime\":\"s-effectivetime\",\"hardDeletePause\":{\"effectiveTime\":\"s-effectivetime\",\"enabled\":true},\"retentionDurationSeconds\":\"7\"},\"softDeleteTime\":\"s-softdeletetime\",\"storageClass\":\"s-storageclass\",\"timeCreated\":\"s-timecreated\",\"updated\":\"s-updated\",\"versioning\":{\"enabled\":true},\"website\":{\"mainPageSuffix\":\"s-mainpagesuffix\",\"notFoundPage\":\"s-notfoundpage\"}}",
   "OUT: {\"acl\":[{\"bucket\":\"s-bucket\",\"domain\":\"s-domain\",\"email\":\"s-email\",\"entity\":\"s-entity\",\"entityId\":\"s-entityid\",\"etag\":\"s-etag\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"projectTeam\":{\"projectNumber\":\"s-projectnumber\",\"team\":\"s-team\"},\"role\":\"s-role\",\"selfLink\":\"s-selflink\"}],\"autoclass\":{\"enabled\":true,\"terminalStorageClass\":\"s-terminalstorageclass\",\"terminalStorageClassUpdateTime\":\"s-terminalstorageclassupdatetime\",\"toggleTime\":\"s-toggletime\"},\"billing\":{\"requesterPays\":true},\"cors\":[{\"maxAgeSeconds\":7,\"method\":[\"s-method\"],\"origin\":[\"s-origin\"],\"responseHeader\":[\"s-responseheader\"]}],\"customPlacementConfig\":{\"dataLocations\":[\"s-datalocations\"]},\"defaultEventBasedHold\":true,\"defaultObjectAcl\":[{\"bucket\":\"s-bucket\",\"domain\":\"s-domain\",\"email\":\"s-email\",\"entity\":\"s-entity\",\"entityId\":\"s-entityid\",\"etag\":\"s-etag\",\"generation\":\"7\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"object\":\"s-object\",\"projectTeam\":{\"projectNumber\":\"s-projectnumber\",\"team\":\"s-team\"},\"role\":\"s-role\",\"selfLink\":\"s-selflink\"}],\"encryption\":{\"customerManagedEncryptionEnforcementConfig\":{\"effectiveTime\":\"s-effectivetime\",\"restrictionMode\":\"s-restrictionmode\"},\"customerSuppliedEncryptionEnforcementConfig\":{\"effectiveTime\":\"s-effectivetime\",\"restrictionMode\":\"s-restrictionmode\"},\"defaultKmsKeyName\":\"s-defaultkmskeyname\",\"googleManagedEncryptionEnforcementConfig\":{\"effectiveTime\":\"s-effectivetime\",\"restrictionMode\":\"s-restrictionmode\"}},\"etag\":\"s-etag\",\"generation\":\"7\",\"hardDeleteTime\":\"s-harddeletetime\",\"hierarchicalNamespace\":{\"enabled\":true},\"iamConfiguration\":{\"bucketPolicyOnly\":{\"enabled\":true,\"lockedTime\":\"s-lockedtime\"},\"publicAccessPrevention\":\"s-publicaccessprevention\",\"uniformBucketLevelAccess\":{\"enabled\":true,\"lockedTime\":\"s-lockedtime\"}},\"id\":\"s-id\",\"ipFilter\":{\"allowAllServiceAgentAccess\":true,\"allowCrossOrgVpcs\":true,\"mode\":\"s-mode\",\"publicNetworkSource\":{\"allowedIpCidrRanges\":[\"s-allowedipcidrranges\"]},\"vpcNetworkSources\":[{\"allowedIpCidrRanges\":[\"s-allowedipcidrranges\"],\"network\":\"s-network\"}]},\"kind\":\"s-kind\",\"labels\":{\"k1\":\"s-labels\"},\"lifecycle\":{\"rule\":[{\"action\":{\"storageClass\":\"s-storageclass\",\"type\":\"s-type\"},\"condition\":{\"age\":7,\"createdBefore\":\"s-createdbefore\",\"customTimeBefore\":\"s-customtimebefore\",\"daysSinceCustomTime\":7,\"daysSinceNoncurrentTime\":7,\"isLive\":true,\"matchesPattern\":\"s-matchespattern\",\"matchesPrefix\":[\"s-matchesprefix\"],\"matchesStorageClass\":[\"s-matchesstorageclass\"],\"matchesSuffix\":[\"s-matchessuffix\"],\"noncurrentTimeBefore\":\"s-noncurrenttimebefore\",\"numNewerVersions\":7,\"sizeAboveBytes\":\"7\",\"sizeBelowBytes\":\"7\"}}]},\"location\":\"s-location\",\"locationType\":\"s-locationtype\",\"logging\":{\"logBucket\":\"s-logbucket\",\"logObjectPrefix\":\"s-logobjectprefix\"},\"metageneration\":\"7\",\"name\":\"s-name\",\"objectRetention\":{\"mode\":\"s-mode\"},\"owner\":{\"entity\":\"s-entity\",\"entityId\":\"s-entityid\"},\"projectNumber\":\"7\",\"retentionPolicy\":{\"effectiveTime\":\"s-effectivetime\",\"isLocked\":true,\"retentionPeriod\":\"7\"},\"rpo\":\"s-rpo\",\"satisfiesPZI\":true,\"satisfiesPZS\":true,\"selfLink\":\"s-selflink\",\"softDeletePolicy\":{\"effectiveTime\":\"s-effectivetime\",\"hardDeletePause\":{\"effectiveTime\":\"s-effectivetime\",\"enabled\":true},\"retentionDurationSeconds\":\"7\"},\"softDeleteTime\":\"s-softdeletetime\",\"storageClass\":\"s-storageclass\",\"timeCreated\":\"s-timecreated\",\"updated\":\"s-updated\",\"versioning\":{\"enabled\":true},\"website\":{\"mainPageSuffix\":\"s-mainpagesuffix\",\"notFoundPage\":\"s-notfoundpage\"}}",
@@ -561,10 +638,10 @@ test "Go's storage.buckets.update" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_25)
+  gv_compare(gv_log_of(f), GO_27)
 }
 
-const GO_26: List[Str] = [
+const GO_28: List[Str] = [
   "CALL storage.defaultObjectAccessControls.delete",
   "REQ DELETE https://storage.googleapis.com/storage/v1/b/id1%2F%20x/defaultObjectAcl/id2%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false&userProject=s-userproject",
   "  H x-extra=v1",
@@ -582,10 +659,10 @@ test "Go's storage.defaultObjectAccessControls.delete" {
     Ok(_) => gv_note(f, "OUT: ok")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_26)
+  gv_compare(gv_log_of(f), GO_28)
 }
 
-const GO_27: List[Str] = [
+const GO_29: List[Str] = [
   "CALL storage.defaultObjectAccessControls.get",
   "REQ GET https://storage.googleapis.com/storage/v1/b/id1%2F%20x/defaultObjectAcl/id2%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false&userProject=s-userproject",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -603,10 +680,10 @@ test "Go's storage.defaultObjectAccessControls.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_27)
+  gv_compare(gv_log_of(f), GO_29)
 }
 
-const GO_28: List[Str] = [
+const GO_30: List[Str] = [
   "CALL storage.defaultObjectAccessControls.insert",
   "REQ POST https://storage.googleapis.com/storage/v1/b/id1%2F%20x/defaultObjectAcl?alt=json&fields=kind%2Cid&prettyPrint=false&userProject=s-userproject",
   "  H content-type=application/json | x-extra=v1",
@@ -625,10 +702,10 @@ test "Go's storage.defaultObjectAccessControls.insert" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_28)
+  gv_compare(gv_log_of(f), GO_30)
 }
 
-const GO_29: List[Str] = [
+const GO_31: List[Str] = [
   "CALL storage.defaultObjectAccessControls.list",
   "REQ GET https://storage.googleapis.com/storage/v1/b/id1%2F%20x/defaultObjectAcl?alt=json&fields=kind%2Cid&ifMetagenerationMatch=7&ifMetagenerationNotMatch=7&prettyPrint=false&userProject=s-userproject",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -646,10 +723,10 @@ test "Go's storage.defaultObjectAccessControls.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_29)
+  gv_compare(gv_log_of(f), GO_31)
 }
 
-const GO_30: List[Str] = [
+const GO_32: List[Str] = [
   "CALL storage.defaultObjectAccessControls.patch",
   "REQ PATCH https://storage.googleapis.com/storage/v1/b/id1%2F%20x/defaultObjectAcl/id2%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false&userProject=s-userproject",
   "  H content-type=application/json | x-extra=v1",
@@ -668,10 +745,10 @@ test "Go's storage.defaultObjectAccessControls.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_30)
+  gv_compare(gv_log_of(f), GO_32)
 }
 
-const GO_31: List[Str] = [
+const GO_33: List[Str] = [
   "CALL storage.defaultObjectAccessControls.update",
   "REQ PUT https://storage.googleapis.com/storage/v1/b/id1%2F%20x/defaultObjectAcl/id2%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false&userProject=s-userproject",
   "  H content-type=application/json | x-extra=v1",
@@ -690,10 +767,10 @@ test "Go's storage.defaultObjectAccessControls.update" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_31)
+  gv_compare(gv_log_of(f), GO_33)
 }
 
-const GO_32: List[Str] = [
+const GO_34: List[Str] = [
   "CALL storage.folders.delete",
   "REQ DELETE https://storage.googleapis.com/storage/v1/b/id1%2F%20x/folders/id2%2F%20x?alt=json&fields=kind%2Cid&ifMetagenerationMatch=7&ifMetagenerationNotMatch=7&prettyPrint=false",
   "  H x-extra=v1",
@@ -711,10 +788,10 @@ test "Go's storage.folders.delete" {
     Ok(_) => gv_note(f, "OUT: ok")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_32)
+  gv_compare(gv_log_of(f), GO_34)
 }
 
-const GO_33: List[Str] = [
+const GO_35: List[Str] = [
   "CALL storage.folders.deleteRecursive",
   "REQ POST https://storage.googleapis.com/storage/v1/b/id1%2F%20x/folders/id2%2F%20x/deleteRecursive?alt=json&fields=kind%2Cid&ifMetagenerationMatch=7&ifMetagenerationNotMatch=7&prettyPrint=false",
   "  H x-extra=v1",
@@ -732,10 +809,10 @@ test "Go's storage.folders.deleteRecursive" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_33)
+  gv_compare(gv_log_of(f), GO_35)
 }
 
-const GO_34: List[Str] = [
+const GO_36: List[Str] = [
   "CALL storage.folders.get",
   "REQ GET https://storage.googleapis.com/storage/v1/b/id1%2F%20x/folders/id2%2F%20x?alt=json&fields=kind%2Cid&ifMetagenerationMatch=7&ifMetagenerationNotMatch=7&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -753,10 +830,10 @@ test "Go's storage.folders.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_34)
+  gv_compare(gv_log_of(f), GO_36)
 }
 
-const GO_35: List[Str] = [
+const GO_37: List[Str] = [
   "CALL storage.folders.insert",
   "REQ POST https://storage.googleapis.com/storage/v1/b/id1%2F%20x/folders?alt=json&fields=kind%2Cid&prettyPrint=false&recursive=true",
   "  H content-type=application/json | x-extra=v1",
@@ -775,10 +852,10 @@ test "Go's storage.folders.insert" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_35)
+  gv_compare(gv_log_of(f), GO_37)
 }
 
-const GO_36: List[Str] = [
+const GO_38: List[Str] = [
   "CALL storage.folders.list",
   "REQ GET https://storage.googleapis.com/storage/v1/b/id1%2F%20x/folders?alt=json&delimiter=s-delimiter&endOffset=s-endoffset&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prefix=s-prefix&prettyPrint=false&startOffset=s-startoffset",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -796,10 +873,48 @@ test "Go's storage.folders.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_36)
+  gv_compare(gv_log_of(f), GO_38)
 }
 
-const GO_37: List[Str] = [
+const GO_39: List[Str] = [
+  "CALL storage.folders.list pages",
+  "REQ GET https://storage.googleapis.com/storage/v1/b/id1%2F%20x/folders?alt=json&delimiter=s-delimiter&endOffset=s-endoffset&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prefix=s-prefix&prettyPrint=false&startOffset=s-startoffset",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"items\":[{\"bucket\":\"s-bucket\",\"createTime\":\"s-createtime\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"metageneration\":\"7\",\"name\":\"s-name\",\"pendingRenameInfo\":{\"operationId\":\"s-operationid\"},\"selfLink\":\"s-selflink\",\"updateTime\":\"s-updatetime\"}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"items\":[{\"bucket\":\"s-bucket\",\"createTime\":\"s-createtime\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"metageneration\":\"7\",\"name\":\"s-name\",\"pendingRenameInfo\":{\"operationId\":\"s-operationid\"},\"selfLink\":\"s-selflink\",\"updateTime\":\"s-updatetime\"}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://storage.googleapis.com/storage/v1/b/id1%2F%20x/folders?alt=json&delimiter=s-delimiter&endOffset=s-endoffset&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prefix=s-prefix&prettyPrint=false&startOffset=s-startoffset",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"items\":[{\"bucket\":\"s-bucket\",\"createTime\":\"s-createtime\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"metageneration\":\"7\",\"name\":\"s-name\",\"pendingRenameInfo\":{\"operationId\":\"s-operationid\"},\"selfLink\":\"s-selflink\",\"updateTime\":\"s-updatetime\"}],\"kind\":\"s-kind\"}",
+  "OUT: {\"items\":[{\"bucket\":\"s-bucket\",\"createTime\":\"s-createtime\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"metageneration\":\"7\",\"name\":\"s-name\",\"pendingRenameInfo\":{\"operationId\":\"s-operationid\"},\"selfLink\":\"s-selflink\",\"updateTime\":\"s-updatetime\"}],\"kind\":\"s-kind\"}",
+  "OUT: ok",
+]
+
+test "Go's storage.folders.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"items\":[{\"bucket\":\"s-bucket\",\"createTime\":\"s-createtime\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"metageneration\":\"7\",\"name\":\"s-name\",\"pendingRenameInfo\":{\"operationId\":\"s-operationid\"},\"selfLink\":\"s-selflink\",\"updateTime\":\"s-updatetime\"}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"items\":[{\"bucket\":\"s-bucket\",\"createTime\":\"s-createtime\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"metageneration\":\"7\",\"name\":\"s-name\",\"pendingRenameInfo\":{\"operationId\":\"s-operationid\"},\"selfLink\":\"s-selflink\",\"updateTime\":\"s-updatetime\"}],\"kind\":\"s-kind\"}")
+  gv_note(f, "CALL storage.folders.list pages")
+  var p = svc.folders.list_pages("id1/ x", options: FoldersListOptions{delimiter: Some("s-delimiter"), end_offset: Some("s-endoffset"), page_size: Some(7), page_token: Some("s-pagetoken"), prefix: Some("s-prefix"), start_offset: Some("s-startoffset"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_39)
+}
+
+const GO_40: List[Str] = [
   "CALL storage.folders.rename",
   "REQ POST https://storage.googleapis.com/storage/v1/b/id1%2F%20x/folders/id2%2F%20x/renameTo/folders/id3%2F%20x?alt=json&fields=kind%2Cid&ifSourceMetagenerationMatch=7&ifSourceMetagenerationNotMatch=7&prettyPrint=false",
   "  H x-extra=v1",
@@ -817,10 +932,10 @@ test "Go's storage.folders.rename" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_37)
+  gv_compare(gv_log_of(f), GO_40)
 }
 
-const GO_38: List[Str] = [
+const GO_41: List[Str] = [
   "CALL storage.managedFolders.delete",
   "REQ DELETE https://storage.googleapis.com/storage/v1/b/id1%2F%20x/managedFolders/id2%2F%20x?allowNonEmpty=true&alt=json&fields=kind%2Cid&ifMetagenerationMatch=7&ifMetagenerationNotMatch=7&prettyPrint=false",
   "  H x-extra=v1",
@@ -838,10 +953,10 @@ test "Go's storage.managedFolders.delete" {
     Ok(_) => gv_note(f, "OUT: ok")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_38)
+  gv_compare(gv_log_of(f), GO_41)
 }
 
-const GO_39: List[Str] = [
+const GO_42: List[Str] = [
   "CALL storage.managedFolders.get",
   "REQ GET https://storage.googleapis.com/storage/v1/b/id1%2F%20x/managedFolders/id2%2F%20x?alt=json&fields=kind%2Cid&ifMetagenerationMatch=7&ifMetagenerationNotMatch=7&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -859,10 +974,10 @@ test "Go's storage.managedFolders.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_39)
+  gv_compare(gv_log_of(f), GO_42)
 }
 
-const GO_40: List[Str] = [
+const GO_43: List[Str] = [
   "CALL storage.managedFolders.getIamPolicy",
   "REQ GET https://storage.googleapis.com/storage/v1/b/id1%2F%20x/managedFolders/id2%2F%20x/iam?alt=json&fields=kind%2Cid&optionsRequestedPolicyVersion=7&prettyPrint=false&userProject=s-userproject",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -880,10 +995,10 @@ test "Go's storage.managedFolders.getIamPolicy" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_40)
+  gv_compare(gv_log_of(f), GO_43)
 }
 
-const GO_41: List[Str] = [
+const GO_44: List[Str] = [
   "CALL storage.managedFolders.insert",
   "REQ POST https://storage.googleapis.com/storage/v1/b/id1%2F%20x/managedFolders?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -902,10 +1017,10 @@ test "Go's storage.managedFolders.insert" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_41)
+  gv_compare(gv_log_of(f), GO_44)
 }
 
-const GO_42: List[Str] = [
+const GO_45: List[Str] = [
   "CALL storage.managedFolders.list",
   "REQ GET https://storage.googleapis.com/storage/v1/b/id1%2F%20x/managedFolders?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prefix=s-prefix&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -923,10 +1038,48 @@ test "Go's storage.managedFolders.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_42)
+  gv_compare(gv_log_of(f), GO_45)
 }
 
-const GO_43: List[Str] = [
+const GO_46: List[Str] = [
+  "CALL storage.managedFolders.list pages",
+  "REQ GET https://storage.googleapis.com/storage/v1/b/id1%2F%20x/managedFolders?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prefix=s-prefix&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"items\":[{\"bucket\":\"s-bucket\",\"createTime\":\"s-createtime\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"metageneration\":\"7\",\"name\":\"s-name\",\"rapidCacheConfig\":{},\"selfLink\":\"s-selflink\",\"updateTime\":\"s-updatetime\"}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"items\":[{\"bucket\":\"s-bucket\",\"createTime\":\"s-createtime\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"metageneration\":\"7\",\"name\":\"s-name\",\"rapidCacheConfig\":{},\"selfLink\":\"s-selflink\",\"updateTime\":\"s-updatetime\"}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://storage.googleapis.com/storage/v1/b/id1%2F%20x/managedFolders?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prefix=s-prefix&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"items\":[{\"bucket\":\"s-bucket\",\"createTime\":\"s-createtime\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"metageneration\":\"7\",\"name\":\"s-name\",\"rapidCacheConfig\":{},\"selfLink\":\"s-selflink\",\"updateTime\":\"s-updatetime\"}],\"kind\":\"s-kind\"}",
+  "OUT: {\"items\":[{\"bucket\":\"s-bucket\",\"createTime\":\"s-createtime\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"metageneration\":\"7\",\"name\":\"s-name\",\"rapidCacheConfig\":{},\"selfLink\":\"s-selflink\",\"updateTime\":\"s-updatetime\"}],\"kind\":\"s-kind\"}",
+  "OUT: ok",
+]
+
+test "Go's storage.managedFolders.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"items\":[{\"bucket\":\"s-bucket\",\"createTime\":\"s-createtime\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"metageneration\":\"7\",\"name\":\"s-name\",\"rapidCacheConfig\":{},\"selfLink\":\"s-selflink\",\"updateTime\":\"s-updatetime\"}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"items\":[{\"bucket\":\"s-bucket\",\"createTime\":\"s-createtime\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"metageneration\":\"7\",\"name\":\"s-name\",\"rapidCacheConfig\":{},\"selfLink\":\"s-selflink\",\"updateTime\":\"s-updatetime\"}],\"kind\":\"s-kind\"}")
+  gv_note(f, "CALL storage.managedFolders.list pages")
+  var p = svc.managed_folders.list_pages("id1/ x", options: ManagedFoldersListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), prefix: Some("s-prefix"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_46)
+}
+
+const GO_47: List[Str] = [
   "CALL storage.managedFolders.setIamPolicy",
   "REQ PUT https://storage.googleapis.com/storage/v1/b/id1%2F%20x/managedFolders/id2%2F%20x/iam?alt=json&fields=kind%2Cid&prettyPrint=false&userProject=s-userproject",
   "  H content-type=application/json | x-extra=v1",
@@ -945,10 +1098,10 @@ test "Go's storage.managedFolders.setIamPolicy" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_43)
+  gv_compare(gv_log_of(f), GO_47)
 }
 
-const GO_44: List[Str] = [
+const GO_48: List[Str] = [
   "CALL storage.managedFolders.testIamPermissions",
   "REQ GET https://storage.googleapis.com/storage/v1/b/id1%2F%20x/managedFolders/id2%2F%20x/iam/testPermissions?alt=json&fields=kind%2Cid&permissions=s-permissions&prettyPrint=false&userProject=s-userproject",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -966,10 +1119,10 @@ test "Go's storage.managedFolders.testIamPermissions" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_44)
+  gv_compare(gv_log_of(f), GO_48)
 }
 
-const GO_45: List[Str] = [
+const GO_49: List[Str] = [
   "CALL storage.managedFolders.update",
   "REQ PATCH https://storage.googleapis.com/storage/v1/b/id1%2F%20x/managedFolders/id2%2F%20x?alt=json&fields=kind%2Cid&ifMetagenerationMatch=7&ifMetagenerationNotMatch=7&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -988,10 +1141,10 @@ test "Go's storage.managedFolders.update" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_45)
+  gv_compare(gv_log_of(f), GO_49)
 }
 
-const GO_46: List[Str] = [
+const GO_50: List[Str] = [
   "CALL storage.notifications.delete",
   "REQ DELETE https://storage.googleapis.com/storage/v1/b/id1%2F%20x/notificationConfigs/id2%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false&userProject=s-userproject",
   "  H x-extra=v1",
@@ -1009,10 +1162,10 @@ test "Go's storage.notifications.delete" {
     Ok(_) => gv_note(f, "OUT: ok")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_46)
+  gv_compare(gv_log_of(f), GO_50)
 }
 
-const GO_47: List[Str] = [
+const GO_51: List[Str] = [
   "CALL storage.notifications.get",
   "REQ GET https://storage.googleapis.com/storage/v1/b/id1%2F%20x/notificationConfigs/id2%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false&userProject=s-userproject",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1030,10 +1183,10 @@ test "Go's storage.notifications.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_47)
+  gv_compare(gv_log_of(f), GO_51)
 }
 
-const GO_48: List[Str] = [
+const GO_52: List[Str] = [
   "CALL storage.notifications.insert",
   "REQ POST https://storage.googleapis.com/storage/v1/b/id1%2F%20x/notificationConfigs?alt=json&fields=kind%2Cid&prettyPrint=false&userProject=s-userproject",
   "  H content-type=application/json | x-extra=v1",
@@ -1052,10 +1205,10 @@ test "Go's storage.notifications.insert" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_48)
+  gv_compare(gv_log_of(f), GO_52)
 }
 
-const GO_49: List[Str] = [
+const GO_53: List[Str] = [
   "CALL storage.notifications.list",
   "REQ GET https://storage.googleapis.com/storage/v1/b/id1%2F%20x/notificationConfigs?alt=json&fields=kind%2Cid&prettyPrint=false&userProject=s-userproject",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1073,10 +1226,10 @@ test "Go's storage.notifications.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_49)
+  gv_compare(gv_log_of(f), GO_53)
 }
 
-const GO_50: List[Str] = [
+const GO_54: List[Str] = [
   "CALL storage.objectAccessControls.delete",
   "REQ DELETE https://storage.googleapis.com/storage/v1/b/id1%2F%20x/o/id2%2F%20x/acl/id3%2F%20x?alt=json&fields=kind%2Cid&generation=7&prettyPrint=false&userProject=s-userproject",
   "  H x-extra=v1",
@@ -1094,10 +1247,10 @@ test "Go's storage.objectAccessControls.delete" {
     Ok(_) => gv_note(f, "OUT: ok")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_50)
+  gv_compare(gv_log_of(f), GO_54)
 }
 
-const GO_51: List[Str] = [
+const GO_55: List[Str] = [
   "CALL storage.objectAccessControls.get",
   "REQ GET https://storage.googleapis.com/storage/v1/b/id1%2F%20x/o/id2%2F%20x/acl/id3%2F%20x?alt=json&fields=kind%2Cid&generation=7&prettyPrint=false&userProject=s-userproject",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1115,10 +1268,10 @@ test "Go's storage.objectAccessControls.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_51)
+  gv_compare(gv_log_of(f), GO_55)
 }
 
-const GO_52: List[Str] = [
+const GO_56: List[Str] = [
   "CALL storage.objectAccessControls.insert",
   "REQ POST https://storage.googleapis.com/storage/v1/b/id1%2F%20x/o/id2%2F%20x/acl?alt=json&fields=kind%2Cid&generation=7&prettyPrint=false&userProject=s-userproject",
   "  H content-type=application/json | x-extra=v1",
@@ -1137,10 +1290,10 @@ test "Go's storage.objectAccessControls.insert" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_52)
+  gv_compare(gv_log_of(f), GO_56)
 }
 
-const GO_53: List[Str] = [
+const GO_57: List[Str] = [
   "CALL storage.objectAccessControls.list",
   "REQ GET https://storage.googleapis.com/storage/v1/b/id1%2F%20x/o/id2%2F%20x/acl?alt=json&fields=kind%2Cid&generation=7&prettyPrint=false&userProject=s-userproject",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1158,10 +1311,10 @@ test "Go's storage.objectAccessControls.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_53)
+  gv_compare(gv_log_of(f), GO_57)
 }
 
-const GO_54: List[Str] = [
+const GO_58: List[Str] = [
   "CALL storage.objectAccessControls.patch",
   "REQ PATCH https://storage.googleapis.com/storage/v1/b/id1%2F%20x/o/id2%2F%20x/acl/id3%2F%20x?alt=json&fields=kind%2Cid&generation=7&prettyPrint=false&userProject=s-userproject",
   "  H content-type=application/json | x-extra=v1",
@@ -1180,10 +1333,10 @@ test "Go's storage.objectAccessControls.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_54)
+  gv_compare(gv_log_of(f), GO_58)
 }
 
-const GO_55: List[Str] = [
+const GO_59: List[Str] = [
   "CALL storage.objectAccessControls.update",
   "REQ PUT https://storage.googleapis.com/storage/v1/b/id1%2F%20x/o/id2%2F%20x/acl/id3%2F%20x?alt=json&fields=kind%2Cid&generation=7&prettyPrint=false&userProject=s-userproject",
   "  H content-type=application/json | x-extra=v1",
@@ -1202,10 +1355,10 @@ test "Go's storage.objectAccessControls.update" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_55)
+  gv_compare(gv_log_of(f), GO_59)
 }
 
-const GO_56: List[Str] = [
+const GO_60: List[Str] = [
   "CALL storage.objects.bulkRestore",
   "REQ POST https://storage.googleapis.com/storage/v1/b/id1%2F%20x/o/bulkRestore?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1224,14 +1377,14 @@ test "Go's storage.objects.bulkRestore" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_56)
+  gv_compare(gv_log_of(f), GO_60)
 }
 
-const GO_57: List[Str] = [
+const GO_61: List[Str] = [
   "CALL storage.objects.compose",
   "REQ POST https://storage.googleapis.com/storage/v1/b/id1%2F%20x/o/id2%2F%20x/compose?alt=json&destinationPredefinedAcl=s-destinationpredefinedacl&dropContextGroups=s-dropcontextgroups&fields=kind%2Cid&ifGenerationMatch=7&ifMetagenerationMatch=7&kmsKeyName=s-kmskeyname&prettyPrint=false&userProject=s-userproject",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"deleteSourceObjects\":true,\"destination\":{\"acl\":[{\"bucket\":\"s-bucket\",\"domain\":\"s-domain\",\"email\":\"s-email\",\"entity\":\"s-entity\",\"entityId\":\"s-entityid\",\"etag\":\"s-etag\",\"generation\":\"7\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"object\":\"s-object\",\"role\":\"s-role\",\"selfLink\":\"s-selflink\"}],\"bucket\":\"s-bucket\",\"cacheControl\":\"s-cachecontrol\",\"componentCount\":7,\"contentDisposition\":\"s-contentdisposition\",\"contentEncoding\":\"s-contentencoding\",\"contentLanguage\":\"s-contentlanguage\",\"contentType\":\"s-contenttype\",\"contexts\":{},\"crc32c\":\"s-crc32c\",\"customTime\":\"s-customtime\",\"customerEncryption\":{\"encryptionAlgorithm\":\"s-encryptionalgorithm\",\"keySha256\":\"s-keysha256\"},\"etag\":\"s-etag\",\"eventBasedHold\":true,\"generation\":\"7\",\"hardDeleteTime\":\"s-harddeletetime\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"kmsKeyName\":\"s-kmskeyname\",\"md5Hash\":\"s-md5hash\",\"mediaLink\":\"s-medialink\",\"metadata\":{\"k1\":\"s-metadata\"},\"metageneration\":\"7\",\"name\":\"s-name\",\"owner\":{\"entity\":\"s-entity\",\"entityId\":\"s-entityid\"},\"restoreToken\":\"s-restoretoken\",\"retention\":{\"mode\":\"s-mode\",\"retainUntilTime\":\"s-retainuntiltime\"},\"retentionExpirationTime\":\"s-retentionexpirationtime\",\"selfLink\":\"s-selflink\",\"size\":\"7\",\"softDeleteTime\":\"s-softdeletetime\",\"storageClass\":\"s-storageclass\",\"temporaryHold\":true,\"timeCreated\":\"s-timecreated\",\"timeDeleted\":\"s-timedeleted\",\"timeFinalized\":\"s-timefinalized\",\"timeStorageClassUpdated\":\"s-timestorageclassupdated\",\"updated\":\"s-updated\"},\"kind\":\"s-kind\",\"sourceObjects\":[{\"generation\":\"7\",\"name\":\"s-name\",\"objectPreconditions\":{\"ifGenerationMatch\":\"7\"}}]}",
+  "  B <1538 bytes> {\"deleteSourceObjects\":true,\"des...s\":{\"ifGenerationMatch\":\"7\"}}]}",
   "",
   "  SERVED 200 {\"acl\":[{\"bucket\":\"s-bucket\",\"domain\":\"s-domain\",\"email\":\"s-email\",\"entity\":\"s-entity\",\"entityId\":\"s-entityid\",\"etag\":\"s-etag\",\"generation\":\"7\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"object\":\"s-object\",\"projectTeam\":{\"projectNumber\":\"s-projectnumber\",\"team\":\"s-team\"},\"role\":\"s-role\",\"selfLink\":\"s-selflink\"}],\"bucket\":\"s-bucket\",\"cacheControl\":\"s-cachecontrol\",\"componentCount\":7,\"contentDisposition\":\"s-contentdisposition\",\"contentEncoding\":\"s-contentencoding\",\"contentLanguage\":\"s-contentlanguage\",\"contentType\":\"s-contenttype\",\"contexts\":{\"custom\":{\"k1\":{\"createTime\":\"s-createtime\",\"extendedDataTypeUrl\":\"s-extendeddatatypeurl\",\"updateTime\":\"s-updatetime\",\"value\":\"s-value\"}}},\"crc32c\":\"s-crc32c\",\"customTime\":\"s-customtime\",\"customerEncryption\":{\"encryptionAlgorithm\":\"s-encryptionalgorithm\",\"keySha256\":\"s-keysha256\"},\"etag\":\"s-etag\",\"eventBasedHold\":true,\"generation\":\"7\",\"hardDeleteTime\":\"s-harddeletetime\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"kmsKeyName\":\"s-kmskeyname\",\"md5Hash\":\"s-md5hash\",\"mediaLink\":\"s-medialink\",\"metadata\":{\"k1\":\"s-metadata\"},\"metageneration\":\"7\",\"name\":\"s-name\",\"owner\":{\"entity\":\"s-entity\",\"entityId\":\"s-entityid\"},\"restoreToken\":\"s-restoretoken\",\"retention\":{\"mode\":\"s-mode\",\"retainUntilTime\":\"s-retainuntiltime\"},\"retentionExpirationTime\":\"s-retentionexpirationtime\",\"selfLink\":\"s-selflink\",\"size\":\"7\",\"softDeleteTime\":\"s-softdeletetime\",\"storageClass\":\"s-storageclass\",\"temporaryHold\":true,\"timeCreated\":\"s-timecreated\",\"timeDeleted\":\"s-timedeleted\",\"timeFinalized\":\"s-timefinalized\",\"timeStorageClassUpdated\":\"s-timestorageclassupdated\",\"updated\":\"s-updated\"}",
   "OUT: {\"acl\":[{\"bucket\":\"s-bucket\",\"domain\":\"s-domain\",\"email\":\"s-email\",\"entity\":\"s-entity\",\"entityId\":\"s-entityid\",\"etag\":\"s-etag\",\"generation\":\"7\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"object\":\"s-object\",\"projectTeam\":{\"projectNumber\":\"s-projectnumber\",\"team\":\"s-team\"},\"role\":\"s-role\",\"selfLink\":\"s-selflink\"}],\"bucket\":\"s-bucket\",\"cacheControl\":\"s-cachecontrol\",\"componentCount\":7,\"contentDisposition\":\"s-contentdisposition\",\"contentEncoding\":\"s-contentencoding\",\"contentLanguage\":\"s-contentlanguage\",\"contentType\":\"s-contenttype\",\"contexts\":{\"custom\":{\"k1\":{\"createTime\":\"s-createtime\",\"extendedDataTypeUrl\":\"s-extendeddatatypeurl\",\"updateTime\":\"s-updatetime\",\"value\":\"s-value\"}}},\"crc32c\":\"s-crc32c\",\"customTime\":\"s-customtime\",\"customerEncryption\":{\"encryptionAlgorithm\":\"s-encryptionalgorithm\",\"keySha256\":\"s-keysha256\"},\"etag\":\"s-etag\",\"eventBasedHold\":true,\"generation\":\"7\",\"hardDeleteTime\":\"s-harddeletetime\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"kmsKeyName\":\"s-kmskeyname\",\"md5Hash\":\"s-md5hash\",\"mediaLink\":\"s-medialink\",\"metadata\":{\"k1\":\"s-metadata\"},\"metageneration\":\"7\",\"name\":\"s-name\",\"owner\":{\"entity\":\"s-entity\",\"entityId\":\"s-entityid\"},\"restoreToken\":\"s-restoretoken\",\"retention\":{\"mode\":\"s-mode\",\"retainUntilTime\":\"s-retainuntiltime\"},\"retentionExpirationTime\":\"s-retentionexpirationtime\",\"selfLink\":\"s-selflink\",\"size\":\"7\",\"softDeleteTime\":\"s-softdeletetime\",\"storageClass\":\"s-storageclass\",\"temporaryHold\":true,\"timeCreated\":\"s-timecreated\",\"timeDeleted\":\"s-timedeleted\",\"timeFinalized\":\"s-timefinalized\",\"timeStorageClassUpdated\":\"s-timestorageclassupdated\",\"updated\":\"s-updated\"}",
@@ -1246,14 +1399,14 @@ test "Go's storage.objects.compose" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_57)
+  gv_compare(gv_log_of(f), GO_61)
 }
 
-const GO_58: List[Str] = [
+const GO_62: List[Str] = [
   "CALL storage.objects.copy",
   "REQ POST https://storage.googleapis.com/storage/v1/b/id1%2F%20x/o/id2%2F%20x/copyTo/b/id3%2F%20x/o/id4%2F%20x?alt=json&destinationKmsKeyName=s-destinationkmskeyname&destinationPredefinedAcl=s-destinationpredefinedacl&fields=kind%2Cid&ifGenerationMatch=7&ifGenerationNotMatch=7&ifMetagenerationMatch=7&ifMetagenerationNotMatch=7&ifSourceGenerationMatch=7&ifSourceGenerationNotMatch=7&ifSourceMetagenerationMatch=7&ifSourceMetagenerationNotMatch=7&prettyPrint=false&projection=s-projection&sourceGeneration=7&userProject=s-userproject",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"acl\":[{\"bucket\":\"s-bucket\",\"domain\":\"s-domain\",\"email\":\"s-email\",\"entity\":\"s-entity\",\"entityId\":\"s-entityid\",\"etag\":\"s-etag\",\"generation\":\"7\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"object\":\"s-object\",\"projectTeam\":{\"projectNumber\":\"s-projectnumber\",\"team\":\"s-team\"},\"role\":\"s-role\",\"selfLink\":\"s-selflink\"}],\"bucket\":\"s-bucket\",\"cacheControl\":\"s-cachecontrol\",\"componentCount\":7,\"contentDisposition\":\"s-contentdisposition\",\"contentEncoding\":\"s-contentencoding\",\"contentLanguage\":\"s-contentlanguage\",\"contentType\":\"s-contenttype\",\"contexts\":{\"custom\":{\"k1\":{\"createTime\":\"s-createtime\",\"extendedDataTypeUrl\":\"s-extendeddatatypeurl\",\"updateTime\":\"s-updatetime\",\"value\":\"s-value\"}}},\"crc32c\":\"s-crc32c\",\"customTime\":\"s-customtime\",\"customerEncryption\":{\"encryptionAlgorithm\":\"s-encryptionalgorithm\",\"keySha256\":\"s-keysha256\"},\"etag\":\"s-etag\",\"eventBasedHold\":true,\"generation\":\"7\",\"hardDeleteTime\":\"s-harddeletetime\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"kmsKeyName\":\"s-kmskeyname\",\"md5Hash\":\"s-md5hash\",\"mediaLink\":\"s-medialink\",\"metadata\":{\"k1\":\"s-metadata\"},\"metageneration\":\"7\",\"name\":\"s-name\",\"owner\":{\"entity\":\"s-entity\",\"entityId\":\"s-entityid\"},\"restoreToken\":\"s-restoretoken\",\"retention\":{\"mode\":\"s-mode\",\"retainUntilTime\":\"s-retainuntiltime\"},\"retentionExpirationTime\":\"s-retentionexpirationtime\",\"selfLink\":\"s-selflink\",\"size\":\"7\",\"softDeleteTime\":\"s-softdeletetime\",\"storageClass\":\"s-storageclass\",\"temporaryHold\":true,\"timeCreated\":\"s-timecreated\",\"timeDeleted\":\"s-timedeleted\",\"timeFinalized\":\"s-timefinalized\",\"timeStorageClassUpdated\":\"s-timestorageclassupdated\",\"updated\":\"s-updated\"}",
+  "  B <1581 bytes> {\"acl\":[{\"bucket\":\"s-bucket\",\"do...updated\",\"updated\":\"s-updated\"}",
   "",
   "  SERVED 200 {\"acl\":[{\"bucket\":\"s-bucket\",\"domain\":\"s-domain\",\"email\":\"s-email\",\"entity\":\"s-entity\",\"entityId\":\"s-entityid\",\"etag\":\"s-etag\",\"generation\":\"7\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"object\":\"s-object\",\"projectTeam\":{\"projectNumber\":\"s-projectnumber\",\"team\":\"s-team\"},\"role\":\"s-role\",\"selfLink\":\"s-selflink\"}],\"bucket\":\"s-bucket\",\"cacheControl\":\"s-cachecontrol\",\"componentCount\":7,\"contentDisposition\":\"s-contentdisposition\",\"contentEncoding\":\"s-contentencoding\",\"contentLanguage\":\"s-contentlanguage\",\"contentType\":\"s-contenttype\",\"contexts\":{\"custom\":{\"k1\":{\"createTime\":\"s-createtime\",\"extendedDataTypeUrl\":\"s-extendeddatatypeurl\",\"updateTime\":\"s-updatetime\",\"value\":\"s-value\"}}},\"crc32c\":\"s-crc32c\",\"customTime\":\"s-customtime\",\"customerEncryption\":{\"encryptionAlgorithm\":\"s-encryptionalgorithm\",\"keySha256\":\"s-keysha256\"},\"etag\":\"s-etag\",\"eventBasedHold\":true,\"generation\":\"7\",\"hardDeleteTime\":\"s-harddeletetime\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"kmsKeyName\":\"s-kmskeyname\",\"md5Hash\":\"s-md5hash\",\"mediaLink\":\"s-medialink\",\"metadata\":{\"k1\":\"s-metadata\"},\"metageneration\":\"7\",\"name\":\"s-name\",\"owner\":{\"entity\":\"s-entity\",\"entityId\":\"s-entityid\"},\"restoreToken\":\"s-restoretoken\",\"retention\":{\"mode\":\"s-mode\",\"retainUntilTime\":\"s-retainuntiltime\"},\"retentionExpirationTime\":\"s-retentionexpirationtime\",\"selfLink\":\"s-selflink\",\"size\":\"7\",\"softDeleteTime\":\"s-softdeletetime\",\"storageClass\":\"s-storageclass\",\"temporaryHold\":true,\"timeCreated\":\"s-timecreated\",\"timeDeleted\":\"s-timedeleted\",\"timeFinalized\":\"s-timefinalized\",\"timeStorageClassUpdated\":\"s-timestorageclassupdated\",\"updated\":\"s-updated\"}",
   "OUT: {\"acl\":[{\"bucket\":\"s-bucket\",\"domain\":\"s-domain\",\"email\":\"s-email\",\"entity\":\"s-entity\",\"entityId\":\"s-entityid\",\"etag\":\"s-etag\",\"generation\":\"7\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"object\":\"s-object\",\"projectTeam\":{\"projectNumber\":\"s-projectnumber\",\"team\":\"s-team\"},\"role\":\"s-role\",\"selfLink\":\"s-selflink\"}],\"bucket\":\"s-bucket\",\"cacheControl\":\"s-cachecontrol\",\"componentCount\":7,\"contentDisposition\":\"s-contentdisposition\",\"contentEncoding\":\"s-contentencoding\",\"contentLanguage\":\"s-contentlanguage\",\"contentType\":\"s-contenttype\",\"contexts\":{\"custom\":{\"k1\":{\"createTime\":\"s-createtime\",\"extendedDataTypeUrl\":\"s-extendeddatatypeurl\",\"updateTime\":\"s-updatetime\",\"value\":\"s-value\"}}},\"crc32c\":\"s-crc32c\",\"customTime\":\"s-customtime\",\"customerEncryption\":{\"encryptionAlgorithm\":\"s-encryptionalgorithm\",\"keySha256\":\"s-keysha256\"},\"etag\":\"s-etag\",\"eventBasedHold\":true,\"generation\":\"7\",\"hardDeleteTime\":\"s-harddeletetime\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"kmsKeyName\":\"s-kmskeyname\",\"md5Hash\":\"s-md5hash\",\"mediaLink\":\"s-medialink\",\"metadata\":{\"k1\":\"s-metadata\"},\"metageneration\":\"7\",\"name\":\"s-name\",\"owner\":{\"entity\":\"s-entity\",\"entityId\":\"s-entityid\"},\"restoreToken\":\"s-restoretoken\",\"retention\":{\"mode\":\"s-mode\",\"retainUntilTime\":\"s-retainuntiltime\"},\"retentionExpirationTime\":\"s-retentionexpirationtime\",\"selfLink\":\"s-selflink\",\"size\":\"7\",\"softDeleteTime\":\"s-softdeletetime\",\"storageClass\":\"s-storageclass\",\"temporaryHold\":true,\"timeCreated\":\"s-timecreated\",\"timeDeleted\":\"s-timedeleted\",\"timeFinalized\":\"s-timefinalized\",\"timeStorageClassUpdated\":\"s-timestorageclassupdated\",\"updated\":\"s-updated\"}",
@@ -1268,10 +1421,10 @@ test "Go's storage.objects.copy" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_58)
+  gv_compare(gv_log_of(f), GO_62)
 }
 
-const GO_59: List[Str] = [
+const GO_63: List[Str] = [
   "CALL storage.objects.delete",
   "REQ DELETE https://storage.googleapis.com/storage/v1/b/id1%2F%20x/o/id2%2F%20x?alt=json&fields=kind%2Cid&generation=7&ifGenerationMatch=7&ifGenerationNotMatch=7&ifMetagenerationMatch=7&ifMetagenerationNotMatch=7&prettyPrint=false&userProject=s-userproject",
   "  H x-extra=v1",
@@ -1289,10 +1442,10 @@ test "Go's storage.objects.delete" {
     Ok(_) => gv_note(f, "OUT: ok")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_59)
+  gv_compare(gv_log_of(f), GO_63)
 }
 
-const GO_60: List[Str] = [
+const GO_64: List[Str] = [
   "CALL storage.objects.get",
   "REQ GET https://storage.googleapis.com/storage/v1/b/id1%2F%20x/o/id2%2F%20x?alt=json&fields=kind%2Cid&generation=7&ifGenerationMatch=7&ifGenerationNotMatch=7&ifMetagenerationMatch=7&ifMetagenerationNotMatch=7&prettyPrint=false&projection=s-projection&restoreToken=s-restoretoken&softDeleted=true&userProject=s-userproject",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1310,10 +1463,31 @@ test "Go's storage.objects.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_60)
+  gv_compare(gv_log_of(f), GO_64)
 }
 
-const GO_61: List[Str] = [
+const GO_65: List[Str] = [
+  "CALL storage.objects.get download",
+  "REQ GET https://storage.googleapis.com/storage/v1/b/id1%2F%20x/o/id2%2F%20x?alt=media&fields=kind%2Cid&generation=7&ifGenerationMatch=7&ifGenerationNotMatch=7&ifMetagenerationMatch=7&ifMetagenerationNotMatch=7&prettyPrint=false&projection=s-projection&restoreToken=s-restoretoken&softDeleted=true&userProject=s-userproject",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 media-bytes \u{0001}ÿ",
+  "OUT: media 200 media-bytes \u{0001}ÿ",
+]
+
+test "Go's storage.objects.get download" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "media-bytes \u{0001}ÿ")
+  gv_note(f, "CALL storage.objects.get download")
+  match svc.objects.get_download("id1/ x", "id2/ x", options: ObjectsGetOptions{generation: Some("7"), if_generation_match: Some("7"), if_generation_not_match: Some("7"), if_metageneration_match: Some("7"), if_metageneration_not_match: Some("7"), projection: Some("s-projection"), restore_token: Some("s-restoretoken"), soft_deleted: Some(true), user_project: Some("s-userproject"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]}) {
+    Ok(r) => gv_note(f, "OUT: media ${r.status} ${r.body.to_str_lossy()}")
+    Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+  }
+  gv_compare(gv_log_of(f), GO_65)
+}
+
+const GO_66: List[Str] = [
   "CALL storage.objects.getIamPolicy",
   "REQ GET https://storage.googleapis.com/storage/v1/b/id1%2F%20x/o/id2%2F%20x/iam?alt=json&fields=kind%2Cid&generation=7&prettyPrint=false&userProject=s-userproject",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1331,14 +1505,14 @@ test "Go's storage.objects.getIamPolicy" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_61)
+  gv_compare(gv_log_of(f), GO_66)
 }
 
-const GO_62: List[Str] = [
+const GO_67: List[Str] = [
   "CALL storage.objects.insert",
   "REQ POST https://storage.googleapis.com/storage/v1/b/id1%2F%20x/o?alt=json&contentEncoding=s-contentencoding&fields=kind%2Cid&ifGenerationMatch=7&ifGenerationNotMatch=7&ifMetagenerationMatch=7&ifMetagenerationNotMatch=7&kmsKeyName=s-kmskeyname&name=s-name&predefinedAcl=s-predefinedacl&prettyPrint=false&projection=s-projection&userProject=s-userproject",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"acl\":[{\"bucket\":\"s-bucket\",\"domain\":\"s-domain\",\"email\":\"s-email\",\"entity\":\"s-entity\",\"entityId\":\"s-entityid\",\"etag\":\"s-etag\",\"generation\":\"7\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"object\":\"s-object\",\"projectTeam\":{\"projectNumber\":\"s-projectnumber\",\"team\":\"s-team\"},\"role\":\"s-role\",\"selfLink\":\"s-selflink\"}],\"bucket\":\"s-bucket\",\"cacheControl\":\"s-cachecontrol\",\"componentCount\":7,\"contentDisposition\":\"s-contentdisposition\",\"contentEncoding\":\"s-contentencoding\",\"contentLanguage\":\"s-contentlanguage\",\"contentType\":\"s-contenttype\",\"contexts\":{\"custom\":{\"k1\":{\"createTime\":\"s-createtime\",\"extendedDataTypeUrl\":\"s-extendeddatatypeurl\",\"updateTime\":\"s-updatetime\",\"value\":\"s-value\"}}},\"crc32c\":\"s-crc32c\",\"customTime\":\"s-customtime\",\"customerEncryption\":{\"encryptionAlgorithm\":\"s-encryptionalgorithm\",\"keySha256\":\"s-keysha256\"},\"etag\":\"s-etag\",\"eventBasedHold\":true,\"generation\":\"7\",\"hardDeleteTime\":\"s-harddeletetime\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"kmsKeyName\":\"s-kmskeyname\",\"md5Hash\":\"s-md5hash\",\"mediaLink\":\"s-medialink\",\"metadata\":{\"k1\":\"s-metadata\"},\"metageneration\":\"7\",\"name\":\"s-name\",\"owner\":{\"entity\":\"s-entity\",\"entityId\":\"s-entityid\"},\"restoreToken\":\"s-restoretoken\",\"retention\":{\"mode\":\"s-mode\",\"retainUntilTime\":\"s-retainuntiltime\"},\"retentionExpirationTime\":\"s-retentionexpirationtime\",\"selfLink\":\"s-selflink\",\"size\":\"7\",\"softDeleteTime\":\"s-softdeletetime\",\"storageClass\":\"s-storageclass\",\"temporaryHold\":true,\"timeCreated\":\"s-timecreated\",\"timeDeleted\":\"s-timedeleted\",\"timeFinalized\":\"s-timefinalized\",\"timeStorageClassUpdated\":\"s-timestorageclassupdated\",\"updated\":\"s-updated\"}",
+  "  B <1581 bytes> {\"acl\":[{\"bucket\":\"s-bucket\",\"do...updated\",\"updated\":\"s-updated\"}",
   "",
   "  SERVED 200 {\"acl\":[{\"bucket\":\"s-bucket\",\"domain\":\"s-domain\",\"email\":\"s-email\",\"entity\":\"s-entity\",\"entityId\":\"s-entityid\",\"etag\":\"s-etag\",\"generation\":\"7\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"object\":\"s-object\",\"projectTeam\":{\"projectNumber\":\"s-projectnumber\",\"team\":\"s-team\"},\"role\":\"s-role\",\"selfLink\":\"s-selflink\"}],\"bucket\":\"s-bucket\",\"cacheControl\":\"s-cachecontrol\",\"componentCount\":7,\"contentDisposition\":\"s-contentdisposition\",\"contentEncoding\":\"s-contentencoding\",\"contentLanguage\":\"s-contentlanguage\",\"contentType\":\"s-contenttype\",\"contexts\":{\"custom\":{\"k1\":{\"createTime\":\"s-createtime\",\"extendedDataTypeUrl\":\"s-extendeddatatypeurl\",\"updateTime\":\"s-updatetime\",\"value\":\"s-value\"}}},\"crc32c\":\"s-crc32c\",\"customTime\":\"s-customtime\",\"customerEncryption\":{\"encryptionAlgorithm\":\"s-encryptionalgorithm\",\"keySha256\":\"s-keysha256\"},\"etag\":\"s-etag\",\"eventBasedHold\":true,\"generation\":\"7\",\"hardDeleteTime\":\"s-harddeletetime\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"kmsKeyName\":\"s-kmskeyname\",\"md5Hash\":\"s-md5hash\",\"mediaLink\":\"s-medialink\",\"metadata\":{\"k1\":\"s-metadata\"},\"metageneration\":\"7\",\"name\":\"s-name\",\"owner\":{\"entity\":\"s-entity\",\"entityId\":\"s-entityid\"},\"restoreToken\":\"s-restoretoken\",\"retention\":{\"mode\":\"s-mode\",\"retainUntilTime\":\"s-retainuntiltime\"},\"retentionExpirationTime\":\"s-retentionexpirationtime\",\"selfLink\":\"s-selflink\",\"size\":\"7\",\"softDeleteTime\":\"s-softdeletetime\",\"storageClass\":\"s-storageclass\",\"temporaryHold\":true,\"timeCreated\":\"s-timecreated\",\"timeDeleted\":\"s-timedeleted\",\"timeFinalized\":\"s-timefinalized\",\"timeStorageClassUpdated\":\"s-timestorageclassupdated\",\"updated\":\"s-updated\"}",
   "OUT: {\"acl\":[{\"bucket\":\"s-bucket\",\"domain\":\"s-domain\",\"email\":\"s-email\",\"entity\":\"s-entity\",\"entityId\":\"s-entityid\",\"etag\":\"s-etag\",\"generation\":\"7\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"object\":\"s-object\",\"projectTeam\":{\"projectNumber\":\"s-projectnumber\",\"team\":\"s-team\"},\"role\":\"s-role\",\"selfLink\":\"s-selflink\"}],\"bucket\":\"s-bucket\",\"cacheControl\":\"s-cachecontrol\",\"componentCount\":7,\"contentDisposition\":\"s-contentdisposition\",\"contentEncoding\":\"s-contentencoding\",\"contentLanguage\":\"s-contentlanguage\",\"contentType\":\"s-contenttype\",\"contexts\":{\"custom\":{\"k1\":{\"createTime\":\"s-createtime\",\"extendedDataTypeUrl\":\"s-extendeddatatypeurl\",\"updateTime\":\"s-updatetime\",\"value\":\"s-value\"}}},\"crc32c\":\"s-crc32c\",\"customTime\":\"s-customtime\",\"customerEncryption\":{\"encryptionAlgorithm\":\"s-encryptionalgorithm\",\"keySha256\":\"s-keysha256\"},\"etag\":\"s-etag\",\"eventBasedHold\":true,\"generation\":\"7\",\"hardDeleteTime\":\"s-harddeletetime\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"kmsKeyName\":\"s-kmskeyname\",\"md5Hash\":\"s-md5hash\",\"mediaLink\":\"s-medialink\",\"metadata\":{\"k1\":\"s-metadata\"},\"metageneration\":\"7\",\"name\":\"s-name\",\"owner\":{\"entity\":\"s-entity\",\"entityId\":\"s-entityid\"},\"restoreToken\":\"s-restoretoken\",\"retention\":{\"mode\":\"s-mode\",\"retainUntilTime\":\"s-retainuntiltime\"},\"retentionExpirationTime\":\"s-retentionexpirationtime\",\"selfLink\":\"s-selflink\",\"size\":\"7\",\"softDeleteTime\":\"s-softdeletetime\",\"storageClass\":\"s-storageclass\",\"temporaryHold\":true,\"timeCreated\":\"s-timecreated\",\"timeDeleted\":\"s-timedeleted\",\"timeFinalized\":\"s-timefinalized\",\"timeStorageClassUpdated\":\"s-timestorageclassupdated\",\"updated\":\"s-updated\"}",
@@ -1353,10 +1527,68 @@ test "Go's storage.objects.insert" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_62)
+  gv_compare(gv_log_of(f), GO_67)
 }
 
-const GO_63: List[Str] = [
+const GO_68: List[Str] = [
+  "CALL storage.objects.insert media",
+  "REQ POST https://storage.googleapis.com/upload/storage/v1/b/id1%2F%20x/o?alt=json&contentEncoding=s-contentencoding&fields=kind%2Cid&ifGenerationMatch=7&ifGenerationNotMatch=7&ifMetagenerationMatch=7&ifMetagenerationNotMatch=7&kmsKeyName=s-kmskeyname&name=s-name&predefinedAcl=s-predefinedacl&prettyPrint=false&projection=s-projection&uploadType=multipart&userProject=s-userproject",
+  "  H content-type=multipart/related; boundary=BOUNDARY | x-extra=v1",
+  "  B <1696 bytes> --BOUNDARY\u{000d}",
+  "Content-Type: applic...n\u{000d}",
+  "\u{000d}",
+  "hello media\u{000d}",
+  "--BOUNDARY--\u{000d}",
+  "",
+  "  SERVED 200 {\"acl\":[{\"bucket\":\"s-bucket\",\"domain\":\"s-domain\",\"email\":\"s-email\",\"entity\":\"s-entity\",\"entityId\":\"s-entityid\",\"etag\":\"s-etag\",\"generation\":\"7\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"object\":\"s-object\",\"projectTeam\":{\"projectNumber\":\"s-projectnumber\",\"team\":\"s-team\"},\"role\":\"s-role\",\"selfLink\":\"s-selflink\"}],\"bucket\":\"s-bucket\",\"cacheControl\":\"s-cachecontrol\",\"componentCount\":7,\"contentDisposition\":\"s-contentdisposition\",\"contentEncoding\":\"s-contentencoding\",\"contentLanguage\":\"s-contentlanguage\",\"contentType\":\"s-contenttype\",\"contexts\":{\"custom\":{\"k1\":{\"createTime\":\"s-createtime\",\"extendedDataTypeUrl\":\"s-extendeddatatypeurl\",\"updateTime\":\"s-updatetime\",\"value\":\"s-value\"}}},\"crc32c\":\"s-crc32c\",\"customTime\":\"s-customtime\",\"customerEncryption\":{\"encryptionAlgorithm\":\"s-encryptionalgorithm\",\"keySha256\":\"s-keysha256\"},\"etag\":\"s-etag\",\"eventBasedHold\":true,\"generation\":\"7\",\"hardDeleteTime\":\"s-harddeletetime\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"kmsKeyName\":\"s-kmskeyname\",\"md5Hash\":\"s-md5hash\",\"mediaLink\":\"s-medialink\",\"metadata\":{\"k1\":\"s-metadata\"},\"metageneration\":\"7\",\"name\":\"s-name\",\"owner\":{\"entity\":\"s-entity\",\"entityId\":\"s-entityid\"},\"restoreToken\":\"s-restoretoken\",\"retention\":{\"mode\":\"s-mode\",\"retainUntilTime\":\"s-retainuntiltime\"},\"retentionExpirationTime\":\"s-retentionexpirationtime\",\"selfLink\":\"s-selflink\",\"size\":\"7\",\"softDeleteTime\":\"s-softdeletetime\",\"storageClass\":\"s-storageclass\",\"temporaryHold\":true,\"timeCreated\":\"s-timecreated\",\"timeDeleted\":\"s-timedeleted\",\"timeFinalized\":\"s-timefinalized\",\"timeStorageClassUpdated\":\"s-timestorageclassupdated\",\"updated\":\"s-updated\"}",
+  "OUT: {\"acl\":[{\"bucket\":\"s-bucket\",\"domain\":\"s-domain\",\"email\":\"s-email\",\"entity\":\"s-entity\",\"entityId\":\"s-entityid\",\"etag\":\"s-etag\",\"generation\":\"7\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"object\":\"s-object\",\"projectTeam\":{\"projectNumber\":\"s-projectnumber\",\"team\":\"s-team\"},\"role\":\"s-role\",\"selfLink\":\"s-selflink\"}],\"bucket\":\"s-bucket\",\"cacheControl\":\"s-cachecontrol\",\"componentCount\":7,\"contentDisposition\":\"s-contentdisposition\",\"contentEncoding\":\"s-contentencoding\",\"contentLanguage\":\"s-contentlanguage\",\"contentType\":\"s-contenttype\",\"contexts\":{\"custom\":{\"k1\":{\"createTime\":\"s-createtime\",\"extendedDataTypeUrl\":\"s-extendeddatatypeurl\",\"updateTime\":\"s-updatetime\",\"value\":\"s-value\"}}},\"crc32c\":\"s-crc32c\",\"customTime\":\"s-customtime\",\"customerEncryption\":{\"encryptionAlgorithm\":\"s-encryptionalgorithm\",\"keySha256\":\"s-keysha256\"},\"etag\":\"s-etag\",\"eventBasedHold\":true,\"generation\":\"7\",\"hardDeleteTime\":\"s-harddeletetime\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"kmsKeyName\":\"s-kmskeyname\",\"md5Hash\":\"s-md5hash\",\"mediaLink\":\"s-medialink\",\"metadata\":{\"k1\":\"s-metadata\"},\"metageneration\":\"7\",\"name\":\"s-name\",\"owner\":{\"entity\":\"s-entity\",\"entityId\":\"s-entityid\"},\"restoreToken\":\"s-restoretoken\",\"retention\":{\"mode\":\"s-mode\",\"retainUntilTime\":\"s-retainuntiltime\"},\"retentionExpirationTime\":\"s-retentionexpirationtime\",\"selfLink\":\"s-selflink\",\"size\":\"7\",\"softDeleteTime\":\"s-softdeletetime\",\"storageClass\":\"s-storageclass\",\"temporaryHold\":true,\"timeCreated\":\"s-timecreated\",\"timeDeleted\":\"s-timedeleted\",\"timeFinalized\":\"s-timefinalized\",\"timeStorageClassUpdated\":\"s-timestorageclassupdated\",\"updated\":\"s-updated\"}",
+]
+
+test "Go's storage.objects.insert media" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"acl\":[{\"bucket\":\"s-bucket\",\"domain\":\"s-domain\",\"email\":\"s-email\",\"entity\":\"s-entity\",\"entityId\":\"s-entityid\",\"etag\":\"s-etag\",\"generation\":\"7\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"object\":\"s-object\",\"projectTeam\":{\"projectNumber\":\"s-projectnumber\",\"team\":\"s-team\"},\"role\":\"s-role\",\"selfLink\":\"s-selflink\"}],\"bucket\":\"s-bucket\",\"cacheControl\":\"s-cachecontrol\",\"componentCount\":7,\"contentDisposition\":\"s-contentdisposition\",\"contentEncoding\":\"s-contentencoding\",\"contentLanguage\":\"s-contentlanguage\",\"contentType\":\"s-contenttype\",\"contexts\":{\"custom\":{\"k1\":{\"createTime\":\"s-createtime\",\"extendedDataTypeUrl\":\"s-extendeddatatypeurl\",\"updateTime\":\"s-updatetime\",\"value\":\"s-value\"}}},\"crc32c\":\"s-crc32c\",\"customTime\":\"s-customtime\",\"customerEncryption\":{\"encryptionAlgorithm\":\"s-encryptionalgorithm\",\"keySha256\":\"s-keysha256\"},\"etag\":\"s-etag\",\"eventBasedHold\":true,\"generation\":\"7\",\"hardDeleteTime\":\"s-harddeletetime\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"kmsKeyName\":\"s-kmskeyname\",\"md5Hash\":\"s-md5hash\",\"mediaLink\":\"s-medialink\",\"metadata\":{\"k1\":\"s-metadata\"},\"metageneration\":\"7\",\"name\":\"s-name\",\"owner\":{\"entity\":\"s-entity\",\"entityId\":\"s-entityid\"},\"restoreToken\":\"s-restoretoken\",\"retention\":{\"mode\":\"s-mode\",\"retainUntilTime\":\"s-retainuntiltime\"},\"retentionExpirationTime\":\"s-retentionexpirationtime\",\"selfLink\":\"s-selflink\",\"size\":\"7\",\"softDeleteTime\":\"s-softdeletetime\",\"storageClass\":\"s-storageclass\",\"temporaryHold\":true,\"timeCreated\":\"s-timecreated\",\"timeDeleted\":\"s-timedeleted\",\"timeFinalized\":\"s-timefinalized\",\"timeStorageClassUpdated\":\"s-timestorageclassupdated\",\"updated\":\"s-updated\"}")
+  gv_note(f, "CALL storage.objects.insert media")
+  match svc.objects.insert_media(os.clock, os.rand, "id1/ x", json.decode_str[Object]("{\"acl\":[{\"bucket\":\"s-bucket\",\"domain\":\"s-domain\",\"email\":\"s-email\",\"entity\":\"s-entity\",\"entityId\":\"s-entityid\",\"etag\":\"s-etag\",\"generation\":\"7\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"object\":\"s-object\",\"projectTeam\":{\"projectNumber\":\"s-projectnumber\",\"team\":\"s-team\"},\"role\":\"s-role\",\"selfLink\":\"s-selflink\"}],\"bucket\":\"s-bucket\",\"cacheControl\":\"s-cachecontrol\",\"componentCount\":7,\"contentDisposition\":\"s-contentdisposition\",\"contentEncoding\":\"s-contentencoding\",\"contentLanguage\":\"s-contentlanguage\",\"contentType\":\"s-contenttype\",\"contexts\":{\"custom\":{\"k1\":{\"createTime\":\"s-createtime\",\"extendedDataTypeUrl\":\"s-extendeddatatypeurl\",\"updateTime\":\"s-updatetime\",\"value\":\"s-value\"}}},\"crc32c\":\"s-crc32c\",\"customTime\":\"s-customtime\",\"customerEncryption\":{\"encryptionAlgorithm\":\"s-encryptionalgorithm\",\"keySha256\":\"s-keysha256\"},\"etag\":\"s-etag\",\"eventBasedHold\":true,\"generation\":\"7\",\"hardDeleteTime\":\"s-harddeletetime\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"kmsKeyName\":\"s-kmskeyname\",\"md5Hash\":\"s-md5hash\",\"mediaLink\":\"s-medialink\",\"metadata\":{\"k1\":\"s-metadata\"},\"metageneration\":\"7\",\"name\":\"s-name\",\"owner\":{\"entity\":\"s-entity\",\"entityId\":\"s-entityid\"},\"restoreToken\":\"s-restoretoken\",\"retention\":{\"mode\":\"s-mode\",\"retainUntilTime\":\"s-retainuntiltime\"},\"retentionExpirationTime\":\"s-retentionexpirationtime\",\"selfLink\":\"s-selflink\",\"size\":\"7\",\"softDeleteTime\":\"s-softdeletetime\",\"storageClass\":\"s-storageclass\",\"temporaryHold\":true,\"timeCreated\":\"s-timecreated\",\"timeDeleted\":\"s-timedeleted\",\"timeFinalized\":\"s-timefinalized\",\"timeStorageClassUpdated\":\"s-timestorageclassupdated\",\"updated\":\"s-updated\"}") ?? e => fault(e.display()), media: gensupport.Media{data: "hello media".bytes(), content_type: "text/plain"}, options: ObjectsInsertOptions{content_encoding: Some("s-contentencoding"), if_generation_match: Some("7"), if_generation_not_match: Some("7"), if_metageneration_match: Some("7"), if_metageneration_not_match: Some("7"), kms_key_name: Some("s-kmskeyname"), name: Some("s-name"), predefined_acl: Some("s-predefinedacl"), projection: Some("s-projection"), user_project: Some("s-userproject"), fields: ["kind", "id"], headers: [("X-Extra", "v1")]}) {
+    Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+    Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+  }
+  gv_compare(gv_log_of(f), GO_68)
+}
+
+const GO_69: List[Str] = [
+  "CALL storage.objects.insert resumable",
+  "REQ POST https://storage.googleapis.com/upload/storage/v1/b/id1%2F%20x/o?alt=json&contentEncoding=s-contentencoding&fields=kind%2Cid&ifGenerationMatch=7&ifGenerationNotMatch=7&ifMetagenerationMatch=7&ifMetagenerationNotMatch=7&kmsKeyName=s-kmskeyname&name=s-name&predefinedAcl=s-predefinedacl&prettyPrint=false&projection=s-projection&uploadType=resumable&userProject=s-userproject",
+  "  H content-type=application/json | x-extra=v1 | x-upload-content-type=text/plain",
+  "  B <1581 bytes> {\"acl\":[{\"bucket\":\"s-bucket\",\"do...updated\",\"updated\":\"s-updated\"}",
+  "",
+  "  SERVED 200 @H Location=https://storage.googleapis.com/upload/session-1 @B ",
+  "REQ POST https://storage.googleapis.com/upload/session-1",
+  "  H content-range=bytes 0-262143/* | content-type=text/plain | x-goog-gcs-idempotency-token=UUID | x-guploader-no-308=yes",
+  "  B <262144 bytes> 0123456789abcdef0123456789abcdef...0123456789abcdef0123456789abcdef",
+  "  SERVED 200 @H X-Http-Status-Code-Override=308 @B ",
+  "REQ POST https://storage.googleapis.com/upload/session-1",
+  "  H content-range=bytes 262144-262153/262154 | content-type=text/plain | x-goog-gcs-idempotency-token=UUID | x-guploader-no-308=yes",
+  "  B 0123456789",
+  "  SERVED 200 {\"acl\":[{\"bucket\":\"s-bucket\",\"domain\":\"s-domain\",\"email\":\"s-email\",\"entity\":\"s-entity\",\"entityId\":\"s-entityid\",\"etag\":\"s-etag\",\"generation\":\"7\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"object\":\"s-object\",\"projectTeam\":{\"projectNumber\":\"s-projectnumber\",\"team\":\"s-team\"},\"role\":\"s-role\",\"selfLink\":\"s-selflink\"}],\"bucket\":\"s-bucket\",\"cacheControl\":\"s-cachecontrol\",\"componentCount\":7,\"contentDisposition\":\"s-contentdisposition\",\"contentEncoding\":\"s-contentencoding\",\"contentLanguage\":\"s-contentlanguage\",\"contentType\":\"s-contenttype\",\"contexts\":{\"custom\":{\"k1\":{\"createTime\":\"s-createtime\",\"extendedDataTypeUrl\":\"s-extendeddatatypeurl\",\"updateTime\":\"s-updatetime\",\"value\":\"s-value\"}}},\"crc32c\":\"s-crc32c\",\"customTime\":\"s-customtime\",\"customerEncryption\":{\"encryptionAlgorithm\":\"s-encryptionalgorithm\",\"keySha256\":\"s-keysha256\"},\"etag\":\"s-etag\",\"eventBasedHold\":true,\"generation\":\"7\",\"hardDeleteTime\":\"s-harddeletetime\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"kmsKeyName\":\"s-kmskeyname\",\"md5Hash\":\"s-md5hash\",\"mediaLink\":\"s-medialink\",\"metadata\":{\"k1\":\"s-metadata\"},\"metageneration\":\"7\",\"name\":\"s-name\",\"owner\":{\"entity\":\"s-entity\",\"entityId\":\"s-entityid\"},\"restoreToken\":\"s-restoretoken\",\"retention\":{\"mode\":\"s-mode\",\"retainUntilTime\":\"s-retainuntiltime\"},\"retentionExpirationTime\":\"s-retentionexpirationtime\",\"selfLink\":\"s-selflink\",\"size\":\"7\",\"softDeleteTime\":\"s-softdeletetime\",\"storageClass\":\"s-storageclass\",\"temporaryHold\":true,\"timeCreated\":\"s-timecreated\",\"timeDeleted\":\"s-timedeleted\",\"timeFinalized\":\"s-timefinalized\",\"timeStorageClassUpdated\":\"s-timestorageclassupdated\",\"updated\":\"s-updated\"}",
+  "OUT: {\"acl\":[{\"bucket\":\"s-bucket\",\"domain\":\"s-domain\",\"email\":\"s-email\",\"entity\":\"s-entity\",\"entityId\":\"s-entityid\",\"etag\":\"s-etag\",\"generation\":\"7\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"object\":\"s-object\",\"projectTeam\":{\"projectNumber\":\"s-projectnumber\",\"team\":\"s-team\"},\"role\":\"s-role\",\"selfLink\":\"s-selflink\"}],\"bucket\":\"s-bucket\",\"cacheControl\":\"s-cachecontrol\",\"componentCount\":7,\"contentDisposition\":\"s-contentdisposition\",\"contentEncoding\":\"s-contentencoding\",\"contentLanguage\":\"s-contentlanguage\",\"contentType\":\"s-contenttype\",\"contexts\":{\"custom\":{\"k1\":{\"createTime\":\"s-createtime\",\"extendedDataTypeUrl\":\"s-extendeddatatypeurl\",\"updateTime\":\"s-updatetime\",\"value\":\"s-value\"}}},\"crc32c\":\"s-crc32c\",\"customTime\":\"s-customtime\",\"customerEncryption\":{\"encryptionAlgorithm\":\"s-encryptionalgorithm\",\"keySha256\":\"s-keysha256\"},\"etag\":\"s-etag\",\"eventBasedHold\":true,\"generation\":\"7\",\"hardDeleteTime\":\"s-harddeletetime\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"kmsKeyName\":\"s-kmskeyname\",\"md5Hash\":\"s-md5hash\",\"mediaLink\":\"s-medialink\",\"metadata\":{\"k1\":\"s-metadata\"},\"metageneration\":\"7\",\"name\":\"s-name\",\"owner\":{\"entity\":\"s-entity\",\"entityId\":\"s-entityid\"},\"restoreToken\":\"s-restoretoken\",\"retention\":{\"mode\":\"s-mode\",\"retainUntilTime\":\"s-retainuntiltime\"},\"retentionExpirationTime\":\"s-retentionexpirationtime\",\"selfLink\":\"s-selflink\",\"size\":\"7\",\"softDeleteTime\":\"s-softdeletetime\",\"storageClass\":\"s-storageclass\",\"temporaryHold\":true,\"timeCreated\":\"s-timecreated\",\"timeDeleted\":\"s-timedeleted\",\"timeFinalized\":\"s-timefinalized\",\"timeStorageClassUpdated\":\"s-timestorageclassupdated\",\"updated\":\"s-updated\"}",
+]
+
+test "Go's storage.objects.insert resumable" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "@H Location=https://storage.googleapis.com/upload/session-1 @B ")
+  gv_queue(f, "@H X-Http-Status-Code-Override=308 @B ")
+  gv_queue(f, "{\"acl\":[{\"bucket\":\"s-bucket\",\"domain\":\"s-domain\",\"email\":\"s-email\",\"entity\":\"s-entity\",\"entityId\":\"s-entityid\",\"etag\":\"s-etag\",\"generation\":\"7\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"object\":\"s-object\",\"projectTeam\":{\"projectNumber\":\"s-projectnumber\",\"team\":\"s-team\"},\"role\":\"s-role\",\"selfLink\":\"s-selflink\"}],\"bucket\":\"s-bucket\",\"cacheControl\":\"s-cachecontrol\",\"componentCount\":7,\"contentDisposition\":\"s-contentdisposition\",\"contentEncoding\":\"s-contentencoding\",\"contentLanguage\":\"s-contentlanguage\",\"contentType\":\"s-contenttype\",\"contexts\":{\"custom\":{\"k1\":{\"createTime\":\"s-createtime\",\"extendedDataTypeUrl\":\"s-extendeddatatypeurl\",\"updateTime\":\"s-updatetime\",\"value\":\"s-value\"}}},\"crc32c\":\"s-crc32c\",\"customTime\":\"s-customtime\",\"customerEncryption\":{\"encryptionAlgorithm\":\"s-encryptionalgorithm\",\"keySha256\":\"s-keysha256\"},\"etag\":\"s-etag\",\"eventBasedHold\":true,\"generation\":\"7\",\"hardDeleteTime\":\"s-harddeletetime\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"kmsKeyName\":\"s-kmskeyname\",\"md5Hash\":\"s-md5hash\",\"mediaLink\":\"s-medialink\",\"metadata\":{\"k1\":\"s-metadata\"},\"metageneration\":\"7\",\"name\":\"s-name\",\"owner\":{\"entity\":\"s-entity\",\"entityId\":\"s-entityid\"},\"restoreToken\":\"s-restoretoken\",\"retention\":{\"mode\":\"s-mode\",\"retainUntilTime\":\"s-retainuntiltime\"},\"retentionExpirationTime\":\"s-retentionexpirationtime\",\"selfLink\":\"s-selflink\",\"size\":\"7\",\"softDeleteTime\":\"s-softdeletetime\",\"storageClass\":\"s-storageclass\",\"temporaryHold\":true,\"timeCreated\":\"s-timecreated\",\"timeDeleted\":\"s-timedeleted\",\"timeFinalized\":\"s-timefinalized\",\"timeStorageClassUpdated\":\"s-timestorageclassupdated\",\"updated\":\"s-updated\"}")
+  gv_note(f, "CALL storage.objects.insert resumable")
+  match svc.objects.insert_media(os.clock, os.rand, "id1/ x", json.decode_str[Object]("{\"acl\":[{\"bucket\":\"s-bucket\",\"domain\":\"s-domain\",\"email\":\"s-email\",\"entity\":\"s-entity\",\"entityId\":\"s-entityid\",\"etag\":\"s-etag\",\"generation\":\"7\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"object\":\"s-object\",\"projectTeam\":{\"projectNumber\":\"s-projectnumber\",\"team\":\"s-team\"},\"role\":\"s-role\",\"selfLink\":\"s-selflink\"}],\"bucket\":\"s-bucket\",\"cacheControl\":\"s-cachecontrol\",\"componentCount\":7,\"contentDisposition\":\"s-contentdisposition\",\"contentEncoding\":\"s-contentencoding\",\"contentLanguage\":\"s-contentlanguage\",\"contentType\":\"s-contenttype\",\"contexts\":{\"custom\":{\"k1\":{\"createTime\":\"s-createtime\",\"extendedDataTypeUrl\":\"s-extendeddatatypeurl\",\"updateTime\":\"s-updatetime\",\"value\":\"s-value\"}}},\"crc32c\":\"s-crc32c\",\"customTime\":\"s-customtime\",\"customerEncryption\":{\"encryptionAlgorithm\":\"s-encryptionalgorithm\",\"keySha256\":\"s-keysha256\"},\"etag\":\"s-etag\",\"eventBasedHold\":true,\"generation\":\"7\",\"hardDeleteTime\":\"s-harddeletetime\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"kmsKeyName\":\"s-kmskeyname\",\"md5Hash\":\"s-md5hash\",\"mediaLink\":\"s-medialink\",\"metadata\":{\"k1\":\"s-metadata\"},\"metageneration\":\"7\",\"name\":\"s-name\",\"owner\":{\"entity\":\"s-entity\",\"entityId\":\"s-entityid\"},\"restoreToken\":\"s-restoretoken\",\"retention\":{\"mode\":\"s-mode\",\"retainUntilTime\":\"s-retainuntiltime\"},\"retentionExpirationTime\":\"s-retentionexpirationtime\",\"selfLink\":\"s-selflink\",\"size\":\"7\",\"softDeleteTime\":\"s-softdeletetime\",\"storageClass\":\"s-storageclass\",\"temporaryHold\":true,\"timeCreated\":\"s-timecreated\",\"timeDeleted\":\"s-timedeleted\",\"timeFinalized\":\"s-timefinalized\",\"timeStorageClassUpdated\":\"s-timestorageclassupdated\",\"updated\":\"s-updated\"}") ?? e => fault(e.display()), media: gensupport.Media{data: gv_big(), content_type: "text/plain", chunk_size: 262144}, options: ObjectsInsertOptions{content_encoding: Some("s-contentencoding"), if_generation_match: Some("7"), if_generation_not_match: Some("7"), if_metageneration_match: Some("7"), if_metageneration_not_match: Some("7"), kms_key_name: Some("s-kmskeyname"), name: Some("s-name"), predefined_acl: Some("s-predefinedacl"), projection: Some("s-projection"), user_project: Some("s-userproject"), fields: ["kind", "id"], headers: [("X-Extra", "v1")]}) {
+    Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+    Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+  }
+  gv_compare(gv_log_of(f), GO_69)
+}
+
+const GO_70: List[Str] = [
   "CALL storage.objects.list",
   "REQ GET https://storage.googleapis.com/storage/v1/b/id1%2F%20x/o?alt=json&delimiter=s-delimiter&endOffset=s-endoffset&fields=kind%2Cid&filter=s-filter&includeFoldersAsPrefixes=true&includeTrailingDelimiter=true&matchGlob=s-matchglob&maxResults=7&pageToken=s-pagetoken&prefix=s-prefix&prettyPrint=false&projection=s-projection&softDeleted=true&startOffset=s-startoffset&userProject=s-userproject&versions=true",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1374,10 +1606,48 @@ test "Go's storage.objects.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_63)
+  gv_compare(gv_log_of(f), GO_70)
 }
 
-const GO_64: List[Str] = [
+const GO_71: List[Str] = [
+  "CALL storage.objects.list pages",
+  "REQ GET https://storage.googleapis.com/storage/v1/b/id1%2F%20x/o?alt=json&delimiter=s-delimiter&endOffset=s-endoffset&fields=kind%2Cid&filter=s-filter&includeFoldersAsPrefixes=true&includeTrailingDelimiter=true&matchGlob=s-matchglob&maxResults=7&pageToken=s-pagetoken&prefix=s-prefix&prettyPrint=false&projection=s-projection&softDeleted=true&startOffset=s-startoffset&userProject=s-userproject&versions=true",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"items\":[{\"bucket\":\"s-bucket\",\"cacheControl\":\"s-cachecontrol\",\"componentCount\":7,\"contentDisposition\":\"s-contentdisposition\",\"contentEncoding\":\"s-contentencoding\",\"contentLanguage\":\"s-contentlanguage\",\"contentType\":\"s-contenttype\",\"contexts\":{},\"crc32c\":\"s-crc32c\",\"customTime\":\"s-customtime\",\"customerEncryption\":{\"encryptionAlgorithm\":\"s-encryptionalgorithm\",\"keySha256\":\"s-keysha256\"},\"etag\":\"s-etag\",\"eventBasedHold\":true,\"generation\":\"7\",\"hardDeleteTime\":\"s-harddeletetime\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"kmsKeyName\":\"s-kmskeyname\",\"md5Hash\":\"s-md5hash\",\"mediaLink\":\"s-medialink\",\"metadata\":{\"k1\":\"s-metadata\"},\"metageneration\":\"7\",\"name\":\"s-name\",\"owner\":{\"entity\":\"s-entity\",\"entityId\":\"s-entityid\"},\"restoreToken\":\"s-restoretoken\",\"retention\":{\"mode\":\"s-mode\",\"retainUntilTime\":\"s-retainuntiltime\"},\"retentionExpirationTime\":\"s-retentionexpirationtime\",\"selfLink\":\"s-selflink\",\"size\":\"7\",\"softDeleteTime\":\"s-softdeletetime\",\"storageClass\":\"s-storageclass\",\"temporaryHold\":true,\"timeCreated\":\"s-timecreated\",\"timeDeleted\":\"s-timedeleted\",\"timeFinalized\":\"s-timefinalized\",\"timeStorageClassUpdated\":\"s-timestorageclassupdated\",\"updated\":\"s-updated\"}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\",\"prefixes\":[\"s-prefixes\"]}",
+  "OUT: {\"items\":[{\"bucket\":\"s-bucket\",\"cacheControl\":\"s-cachecontrol\",\"componentCount\":7,\"contentDisposition\":\"s-contentdisposition\",\"contentEncoding\":\"s-contentencoding\",\"contentLanguage\":\"s-contentlanguage\",\"contentType\":\"s-contenttype\",\"contexts\":{},\"crc32c\":\"s-crc32c\",\"customTime\":\"s-customtime\",\"customerEncryption\":{\"encryptionAlgorithm\":\"s-encryptionalgorithm\",\"keySha256\":\"s-keysha256\"},\"etag\":\"s-etag\",\"eventBasedHold\":true,\"generation\":\"7\",\"hardDeleteTime\":\"s-harddeletetime\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"kmsKeyName\":\"s-kmskeyname\",\"md5Hash\":\"s-md5hash\",\"mediaLink\":\"s-medialink\",\"metadata\":{\"k1\":\"s-metadata\"},\"metageneration\":\"7\",\"name\":\"s-name\",\"owner\":{\"entity\":\"s-entity\",\"entityId\":\"s-entityid\"},\"restoreToken\":\"s-restoretoken\",\"retention\":{\"mode\":\"s-mode\",\"retainUntilTime\":\"s-retainuntiltime\"},\"retentionExpirationTime\":\"s-retentionexpirationtime\",\"selfLink\":\"s-selflink\",\"size\":\"7\",\"softDeleteTime\":\"s-softdeletetime\",\"storageClass\":\"s-storageclass\",\"temporaryHold\":true,\"timeCreated\":\"s-timecreated\",\"timeDeleted\":\"s-timedeleted\",\"timeFinalized\":\"s-timefinalized\",\"timeStorageClassUpdated\":\"s-timestorageclassupdated\",\"updated\":\"s-updated\"}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\",\"prefixes\":[\"s-prefixes\"]}",
+  "REQ GET https://storage.googleapis.com/storage/v1/b/id1%2F%20x/o?alt=json&delimiter=s-delimiter&endOffset=s-endoffset&fields=kind%2Cid&filter=s-filter&includeFoldersAsPrefixes=true&includeTrailingDelimiter=true&matchGlob=s-matchglob&maxResults=7&pageToken=s-nextpagetoken&prefix=s-prefix&prettyPrint=false&projection=s-projection&softDeleted=true&startOffset=s-startoffset&userProject=s-userproject&versions=true",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"items\":[{\"bucket\":\"s-bucket\",\"cacheControl\":\"s-cachecontrol\",\"componentCount\":7,\"contentDisposition\":\"s-contentdisposition\",\"contentEncoding\":\"s-contentencoding\",\"contentLanguage\":\"s-contentlanguage\",\"contentType\":\"s-contenttype\",\"contexts\":{},\"crc32c\":\"s-crc32c\",\"customTime\":\"s-customtime\",\"customerEncryption\":{\"encryptionAlgorithm\":\"s-encryptionalgorithm\",\"keySha256\":\"s-keysha256\"},\"etag\":\"s-etag\",\"eventBasedHold\":true,\"generation\":\"7\",\"hardDeleteTime\":\"s-harddeletetime\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"kmsKeyName\":\"s-kmskeyname\",\"md5Hash\":\"s-md5hash\",\"mediaLink\":\"s-medialink\",\"metadata\":{\"k1\":\"s-metadata\"},\"metageneration\":\"7\",\"name\":\"s-name\",\"owner\":{\"entity\":\"s-entity\",\"entityId\":\"s-entityid\"},\"restoreToken\":\"s-restoretoken\",\"retention\":{\"mode\":\"s-mode\",\"retainUntilTime\":\"s-retainuntiltime\"},\"retentionExpirationTime\":\"s-retentionexpirationtime\",\"selfLink\":\"s-selflink\",\"size\":\"7\",\"softDeleteTime\":\"s-softdeletetime\",\"storageClass\":\"s-storageclass\",\"temporaryHold\":true,\"timeCreated\":\"s-timecreated\",\"timeDeleted\":\"s-timedeleted\",\"timeFinalized\":\"s-timefinalized\",\"timeStorageClassUpdated\":\"s-timestorageclassupdated\",\"updated\":\"s-updated\"}],\"kind\":\"s-kind\",\"prefixes\":[\"s-prefixes\"]}",
+  "OUT: {\"items\":[{\"bucket\":\"s-bucket\",\"cacheControl\":\"s-cachecontrol\",\"componentCount\":7,\"contentDisposition\":\"s-contentdisposition\",\"contentEncoding\":\"s-contentencoding\",\"contentLanguage\":\"s-contentlanguage\",\"contentType\":\"s-contenttype\",\"contexts\":{},\"crc32c\":\"s-crc32c\",\"customTime\":\"s-customtime\",\"customerEncryption\":{\"encryptionAlgorithm\":\"s-encryptionalgorithm\",\"keySha256\":\"s-keysha256\"},\"etag\":\"s-etag\",\"eventBasedHold\":true,\"generation\":\"7\",\"hardDeleteTime\":\"s-harddeletetime\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"kmsKeyName\":\"s-kmskeyname\",\"md5Hash\":\"s-md5hash\",\"mediaLink\":\"s-medialink\",\"metadata\":{\"k1\":\"s-metadata\"},\"metageneration\":\"7\",\"name\":\"s-name\",\"owner\":{\"entity\":\"s-entity\",\"entityId\":\"s-entityid\"},\"restoreToken\":\"s-restoretoken\",\"retention\":{\"mode\":\"s-mode\",\"retainUntilTime\":\"s-retainuntiltime\"},\"retentionExpirationTime\":\"s-retentionexpirationtime\",\"selfLink\":\"s-selflink\",\"size\":\"7\",\"softDeleteTime\":\"s-softdeletetime\",\"storageClass\":\"s-storageclass\",\"temporaryHold\":true,\"timeCreated\":\"s-timecreated\",\"timeDeleted\":\"s-timedeleted\",\"timeFinalized\":\"s-timefinalized\",\"timeStorageClassUpdated\":\"s-timestorageclassupdated\",\"updated\":\"s-updated\"}],\"kind\":\"s-kind\",\"prefixes\":[\"s-prefixes\"]}",
+  "OUT: ok",
+]
+
+test "Go's storage.objects.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"items\":[{\"bucket\":\"s-bucket\",\"cacheControl\":\"s-cachecontrol\",\"componentCount\":7,\"contentDisposition\":\"s-contentdisposition\",\"contentEncoding\":\"s-contentencoding\",\"contentLanguage\":\"s-contentlanguage\",\"contentType\":\"s-contenttype\",\"contexts\":{},\"crc32c\":\"s-crc32c\",\"customTime\":\"s-customtime\",\"customerEncryption\":{\"encryptionAlgorithm\":\"s-encryptionalgorithm\",\"keySha256\":\"s-keysha256\"},\"etag\":\"s-etag\",\"eventBasedHold\":true,\"generation\":\"7\",\"hardDeleteTime\":\"s-harddeletetime\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"kmsKeyName\":\"s-kmskeyname\",\"md5Hash\":\"s-md5hash\",\"mediaLink\":\"s-medialink\",\"metadata\":{\"k1\":\"s-metadata\"},\"metageneration\":\"7\",\"name\":\"s-name\",\"owner\":{\"entity\":\"s-entity\",\"entityId\":\"s-entityid\"},\"restoreToken\":\"s-restoretoken\",\"retention\":{\"mode\":\"s-mode\",\"retainUntilTime\":\"s-retainuntiltime\"},\"retentionExpirationTime\":\"s-retentionexpirationtime\",\"selfLink\":\"s-selflink\",\"size\":\"7\",\"softDeleteTime\":\"s-softdeletetime\",\"storageClass\":\"s-storageclass\",\"temporaryHold\":true,\"timeCreated\":\"s-timecreated\",\"timeDeleted\":\"s-timedeleted\",\"timeFinalized\":\"s-timefinalized\",\"timeStorageClassUpdated\":\"s-timestorageclassupdated\",\"updated\":\"s-updated\"}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\",\"prefixes\":[\"s-prefixes\"]}")
+  gv_queue(f, "{\"items\":[{\"bucket\":\"s-bucket\",\"cacheControl\":\"s-cachecontrol\",\"componentCount\":7,\"contentDisposition\":\"s-contentdisposition\",\"contentEncoding\":\"s-contentencoding\",\"contentLanguage\":\"s-contentlanguage\",\"contentType\":\"s-contenttype\",\"contexts\":{},\"crc32c\":\"s-crc32c\",\"customTime\":\"s-customtime\",\"customerEncryption\":{\"encryptionAlgorithm\":\"s-encryptionalgorithm\",\"keySha256\":\"s-keysha256\"},\"etag\":\"s-etag\",\"eventBasedHold\":true,\"generation\":\"7\",\"hardDeleteTime\":\"s-harddeletetime\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"kmsKeyName\":\"s-kmskeyname\",\"md5Hash\":\"s-md5hash\",\"mediaLink\":\"s-medialink\",\"metadata\":{\"k1\":\"s-metadata\"},\"metageneration\":\"7\",\"name\":\"s-name\",\"owner\":{\"entity\":\"s-entity\",\"entityId\":\"s-entityid\"},\"restoreToken\":\"s-restoretoken\",\"retention\":{\"mode\":\"s-mode\",\"retainUntilTime\":\"s-retainuntiltime\"},\"retentionExpirationTime\":\"s-retentionexpirationtime\",\"selfLink\":\"s-selflink\",\"size\":\"7\",\"softDeleteTime\":\"s-softdeletetime\",\"storageClass\":\"s-storageclass\",\"temporaryHold\":true,\"timeCreated\":\"s-timecreated\",\"timeDeleted\":\"s-timedeleted\",\"timeFinalized\":\"s-timefinalized\",\"timeStorageClassUpdated\":\"s-timestorageclassupdated\",\"updated\":\"s-updated\"}],\"kind\":\"s-kind\",\"prefixes\":[\"s-prefixes\"]}")
+  gv_note(f, "CALL storage.objects.list pages")
+  var p = svc.objects.list_pages("id1/ x", options: ObjectsListOptions{delimiter: Some("s-delimiter"), end_offset: Some("s-endoffset"), filter: Some("s-filter"), include_folders_as_prefixes: Some(true), include_trailing_delimiter: Some(true), match_glob: Some("s-matchglob"), max_results: Some(7), page_token: Some("s-pagetoken"), prefix: Some("s-prefix"), projection: Some("s-projection"), soft_deleted: Some(true), start_offset: Some("s-startoffset"), user_project: Some("s-userproject"), versions: Some(true), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_71)
+}
+
+const GO_72: List[Str] = [
   "CALL storage.objects.move",
   "REQ POST https://storage.googleapis.com/storage/v1/b/id1%2F%20x/o/id2%2F%20x/moveTo/o/id3%2F%20x?alt=json&fields=kind%2Cid&ifGenerationMatch=7&ifGenerationNotMatch=7&ifMetagenerationMatch=7&ifMetagenerationNotMatch=7&ifSourceGenerationMatch=7&ifSourceGenerationNotMatch=7&ifSourceMetagenerationMatch=7&ifSourceMetagenerationNotMatch=7&prettyPrint=false&projection=s-projection&userProject=s-userproject",
   "  H x-extra=v1",
@@ -1395,14 +1665,14 @@ test "Go's storage.objects.move" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_64)
+  gv_compare(gv_log_of(f), GO_72)
 }
 
-const GO_65: List[Str] = [
+const GO_73: List[Str] = [
   "CALL storage.objects.patch",
   "REQ PATCH https://storage.googleapis.com/storage/v1/b/id1%2F%20x/o/id2%2F%20x?alt=json&fields=kind%2Cid&generation=7&ifGenerationMatch=7&ifGenerationNotMatch=7&ifMetagenerationMatch=7&ifMetagenerationNotMatch=7&overrideUnlockedRetention=true&predefinedAcl=s-predefinedacl&prettyPrint=false&projection=s-projection&userProject=s-userproject",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"acl\":[{\"bucket\":\"s-bucket\",\"domain\":\"s-domain\",\"email\":\"s-email\",\"entity\":\"s-entity\",\"entityId\":\"s-entityid\",\"etag\":\"s-etag\",\"generation\":\"7\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"object\":\"s-object\",\"projectTeam\":{\"projectNumber\":\"s-projectnumber\",\"team\":\"s-team\"},\"role\":\"s-role\",\"selfLink\":\"s-selflink\"}],\"bucket\":\"s-bucket\",\"cacheControl\":\"s-cachecontrol\",\"componentCount\":7,\"contentDisposition\":\"s-contentdisposition\",\"contentEncoding\":\"s-contentencoding\",\"contentLanguage\":\"s-contentlanguage\",\"contentType\":\"s-contenttype\",\"contexts\":{\"custom\":{\"k1\":{\"createTime\":\"s-createtime\",\"extendedDataTypeUrl\":\"s-extendeddatatypeurl\",\"updateTime\":\"s-updatetime\",\"value\":\"s-value\"}}},\"crc32c\":\"s-crc32c\",\"customTime\":\"s-customtime\",\"customerEncryption\":{\"encryptionAlgorithm\":\"s-encryptionalgorithm\",\"keySha256\":\"s-keysha256\"},\"etag\":\"s-etag\",\"eventBasedHold\":true,\"generation\":\"7\",\"hardDeleteTime\":\"s-harddeletetime\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"kmsKeyName\":\"s-kmskeyname\",\"md5Hash\":\"s-md5hash\",\"mediaLink\":\"s-medialink\",\"metadata\":{\"k1\":\"s-metadata\"},\"metageneration\":\"7\",\"name\":\"s-name\",\"owner\":{\"entity\":\"s-entity\",\"entityId\":\"s-entityid\"},\"restoreToken\":\"s-restoretoken\",\"retention\":{\"mode\":\"s-mode\",\"retainUntilTime\":\"s-retainuntiltime\"},\"retentionExpirationTime\":\"s-retentionexpirationtime\",\"selfLink\":\"s-selflink\",\"size\":\"7\",\"softDeleteTime\":\"s-softdeletetime\",\"storageClass\":\"s-storageclass\",\"temporaryHold\":true,\"timeCreated\":\"s-timecreated\",\"timeDeleted\":\"s-timedeleted\",\"timeFinalized\":\"s-timefinalized\",\"timeStorageClassUpdated\":\"s-timestorageclassupdated\",\"updated\":\"s-updated\"}",
+  "  B <1581 bytes> {\"acl\":[{\"bucket\":\"s-bucket\",\"do...updated\",\"updated\":\"s-updated\"}",
   "",
   "  SERVED 200 {\"acl\":[{\"bucket\":\"s-bucket\",\"domain\":\"s-domain\",\"email\":\"s-email\",\"entity\":\"s-entity\",\"entityId\":\"s-entityid\",\"etag\":\"s-etag\",\"generation\":\"7\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"object\":\"s-object\",\"projectTeam\":{\"projectNumber\":\"s-projectnumber\",\"team\":\"s-team\"},\"role\":\"s-role\",\"selfLink\":\"s-selflink\"}],\"bucket\":\"s-bucket\",\"cacheControl\":\"s-cachecontrol\",\"componentCount\":7,\"contentDisposition\":\"s-contentdisposition\",\"contentEncoding\":\"s-contentencoding\",\"contentLanguage\":\"s-contentlanguage\",\"contentType\":\"s-contenttype\",\"contexts\":{\"custom\":{\"k1\":{\"createTime\":\"s-createtime\",\"extendedDataTypeUrl\":\"s-extendeddatatypeurl\",\"updateTime\":\"s-updatetime\",\"value\":\"s-value\"}}},\"crc32c\":\"s-crc32c\",\"customTime\":\"s-customtime\",\"customerEncryption\":{\"encryptionAlgorithm\":\"s-encryptionalgorithm\",\"keySha256\":\"s-keysha256\"},\"etag\":\"s-etag\",\"eventBasedHold\":true,\"generation\":\"7\",\"hardDeleteTime\":\"s-harddeletetime\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"kmsKeyName\":\"s-kmskeyname\",\"md5Hash\":\"s-md5hash\",\"mediaLink\":\"s-medialink\",\"metadata\":{\"k1\":\"s-metadata\"},\"metageneration\":\"7\",\"name\":\"s-name\",\"owner\":{\"entity\":\"s-entity\",\"entityId\":\"s-entityid\"},\"restoreToken\":\"s-restoretoken\",\"retention\":{\"mode\":\"s-mode\",\"retainUntilTime\":\"s-retainuntiltime\"},\"retentionExpirationTime\":\"s-retentionexpirationtime\",\"selfLink\":\"s-selflink\",\"size\":\"7\",\"softDeleteTime\":\"s-softdeletetime\",\"storageClass\":\"s-storageclass\",\"temporaryHold\":true,\"timeCreated\":\"s-timecreated\",\"timeDeleted\":\"s-timedeleted\",\"timeFinalized\":\"s-timefinalized\",\"timeStorageClassUpdated\":\"s-timestorageclassupdated\",\"updated\":\"s-updated\"}",
   "OUT: {\"acl\":[{\"bucket\":\"s-bucket\",\"domain\":\"s-domain\",\"email\":\"s-email\",\"entity\":\"s-entity\",\"entityId\":\"s-entityid\",\"etag\":\"s-etag\",\"generation\":\"7\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"object\":\"s-object\",\"projectTeam\":{\"projectNumber\":\"s-projectnumber\",\"team\":\"s-team\"},\"role\":\"s-role\",\"selfLink\":\"s-selflink\"}],\"bucket\":\"s-bucket\",\"cacheControl\":\"s-cachecontrol\",\"componentCount\":7,\"contentDisposition\":\"s-contentdisposition\",\"contentEncoding\":\"s-contentencoding\",\"contentLanguage\":\"s-contentlanguage\",\"contentType\":\"s-contenttype\",\"contexts\":{\"custom\":{\"k1\":{\"createTime\":\"s-createtime\",\"extendedDataTypeUrl\":\"s-extendeddatatypeurl\",\"updateTime\":\"s-updatetime\",\"value\":\"s-value\"}}},\"crc32c\":\"s-crc32c\",\"customTime\":\"s-customtime\",\"customerEncryption\":{\"encryptionAlgorithm\":\"s-encryptionalgorithm\",\"keySha256\":\"s-keysha256\"},\"etag\":\"s-etag\",\"eventBasedHold\":true,\"generation\":\"7\",\"hardDeleteTime\":\"s-harddeletetime\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"kmsKeyName\":\"s-kmskeyname\",\"md5Hash\":\"s-md5hash\",\"mediaLink\":\"s-medialink\",\"metadata\":{\"k1\":\"s-metadata\"},\"metageneration\":\"7\",\"name\":\"s-name\",\"owner\":{\"entity\":\"s-entity\",\"entityId\":\"s-entityid\"},\"restoreToken\":\"s-restoretoken\",\"retention\":{\"mode\":\"s-mode\",\"retainUntilTime\":\"s-retainuntiltime\"},\"retentionExpirationTime\":\"s-retentionexpirationtime\",\"selfLink\":\"s-selflink\",\"size\":\"7\",\"softDeleteTime\":\"s-softdeletetime\",\"storageClass\":\"s-storageclass\",\"temporaryHold\":true,\"timeCreated\":\"s-timecreated\",\"timeDeleted\":\"s-timedeleted\",\"timeFinalized\":\"s-timefinalized\",\"timeStorageClassUpdated\":\"s-timestorageclassupdated\",\"updated\":\"s-updated\"}",
@@ -1417,10 +1687,10 @@ test "Go's storage.objects.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_65)
+  gv_compare(gv_log_of(f), GO_73)
 }
 
-const GO_66: List[Str] = [
+const GO_74: List[Str] = [
   "CALL storage.objects.restore",
   "REQ POST https://storage.googleapis.com/storage/v1/b/id1%2F%20x/o/id2%2F%20x/restore?alt=json&copySourceAcl=true&fields=kind%2Cid&generation=7&ifGenerationMatch=7&ifGenerationNotMatch=7&ifMetagenerationMatch=7&ifMetagenerationNotMatch=7&prettyPrint=false&projection=s-projection&restoreToken=s-restoretoken&userProject=s-userproject",
   "  H x-extra=v1",
@@ -1438,14 +1708,14 @@ test "Go's storage.objects.restore" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_66)
+  gv_compare(gv_log_of(f), GO_74)
 }
 
-const GO_67: List[Str] = [
+const GO_75: List[Str] = [
   "CALL storage.objects.rewrite",
   "REQ POST https://storage.googleapis.com/storage/v1/b/id1%2F%20x/o/id2%2F%20x/rewriteTo/b/id3%2F%20x/o/id4%2F%20x?alt=json&destinationKmsKeyName=s-destinationkmskeyname&destinationPredefinedAcl=s-destinationpredefinedacl&dropContextGroups=s-dropcontextgroups&fields=kind%2Cid&ifGenerationMatch=7&ifGenerationNotMatch=7&ifMetagenerationMatch=7&ifMetagenerationNotMatch=7&ifSourceGenerationMatch=7&ifSourceGenerationNotMatch=7&ifSourceMetagenerationMatch=7&ifSourceMetagenerationNotMatch=7&maxBytesRewrittenPerCall=7&prettyPrint=false&projection=s-projection&rewriteToken=s-rewritetoken&sourceGeneration=7&userProject=s-userproject",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"acl\":[{\"bucket\":\"s-bucket\",\"domain\":\"s-domain\",\"email\":\"s-email\",\"entity\":\"s-entity\",\"entityId\":\"s-entityid\",\"etag\":\"s-etag\",\"generation\":\"7\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"object\":\"s-object\",\"projectTeam\":{\"projectNumber\":\"s-projectnumber\",\"team\":\"s-team\"},\"role\":\"s-role\",\"selfLink\":\"s-selflink\"}],\"bucket\":\"s-bucket\",\"cacheControl\":\"s-cachecontrol\",\"componentCount\":7,\"contentDisposition\":\"s-contentdisposition\",\"contentEncoding\":\"s-contentencoding\",\"contentLanguage\":\"s-contentlanguage\",\"contentType\":\"s-contenttype\",\"contexts\":{\"custom\":{\"k1\":{\"createTime\":\"s-createtime\",\"extendedDataTypeUrl\":\"s-extendeddatatypeurl\",\"updateTime\":\"s-updatetime\",\"value\":\"s-value\"}}},\"crc32c\":\"s-crc32c\",\"customTime\":\"s-customtime\",\"customerEncryption\":{\"encryptionAlgorithm\":\"s-encryptionalgorithm\",\"keySha256\":\"s-keysha256\"},\"etag\":\"s-etag\",\"eventBasedHold\":true,\"generation\":\"7\",\"hardDeleteTime\":\"s-harddeletetime\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"kmsKeyName\":\"s-kmskeyname\",\"md5Hash\":\"s-md5hash\",\"mediaLink\":\"s-medialink\",\"metadata\":{\"k1\":\"s-metadata\"},\"metageneration\":\"7\",\"name\":\"s-name\",\"owner\":{\"entity\":\"s-entity\",\"entityId\":\"s-entityid\"},\"restoreToken\":\"s-restoretoken\",\"retention\":{\"mode\":\"s-mode\",\"retainUntilTime\":\"s-retainuntiltime\"},\"retentionExpirationTime\":\"s-retentionexpirationtime\",\"selfLink\":\"s-selflink\",\"size\":\"7\",\"softDeleteTime\":\"s-softdeletetime\",\"storageClass\":\"s-storageclass\",\"temporaryHold\":true,\"timeCreated\":\"s-timecreated\",\"timeDeleted\":\"s-timedeleted\",\"timeFinalized\":\"s-timefinalized\",\"timeStorageClassUpdated\":\"s-timestorageclassupdated\",\"updated\":\"s-updated\"}",
+  "  B <1581 bytes> {\"acl\":[{\"bucket\":\"s-bucket\",\"do...updated\",\"updated\":\"s-updated\"}",
   "",
   "  SERVED 200 {\"done\":true,\"kind\":\"s-kind\",\"objectSize\":\"7\",\"resource\":{\"acl\":[{\"bucket\":\"s-bucket\",\"domain\":\"s-domain\",\"email\":\"s-email\",\"entity\":\"s-entity\",\"entityId\":\"s-entityid\",\"etag\":\"s-etag\",\"generation\":\"7\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"object\":\"s-object\",\"role\":\"s-role\",\"selfLink\":\"s-selflink\"}],\"bucket\":\"s-bucket\",\"cacheControl\":\"s-cachecontrol\",\"componentCount\":7,\"contentDisposition\":\"s-contentdisposition\",\"contentEncoding\":\"s-contentencoding\",\"contentLanguage\":\"s-contentlanguage\",\"contentType\":\"s-contenttype\",\"contexts\":{},\"crc32c\":\"s-crc32c\",\"customTime\":\"s-customtime\",\"customerEncryption\":{\"encryptionAlgorithm\":\"s-encryptionalgorithm\",\"keySha256\":\"s-keysha256\"},\"etag\":\"s-etag\",\"eventBasedHold\":true,\"generation\":\"7\",\"hardDeleteTime\":\"s-harddeletetime\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"kmsKeyName\":\"s-kmskeyname\",\"md5Hash\":\"s-md5hash\",\"mediaLink\":\"s-medialink\",\"metadata\":{\"k1\":\"s-metadata\"},\"metageneration\":\"7\",\"name\":\"s-name\",\"owner\":{\"entity\":\"s-entity\",\"entityId\":\"s-entityid\"},\"restoreToken\":\"s-restoretoken\",\"retention\":{\"mode\":\"s-mode\",\"retainUntilTime\":\"s-retainuntiltime\"},\"retentionExpirationTime\":\"s-retentionexpirationtime\",\"selfLink\":\"s-selflink\",\"size\":\"7\",\"softDeleteTime\":\"s-softdeletetime\",\"storageClass\":\"s-storageclass\",\"temporaryHold\":true,\"timeCreated\":\"s-timecreated\",\"timeDeleted\":\"s-timedeleted\",\"timeFinalized\":\"s-timefinalized\",\"timeStorageClassUpdated\":\"s-timestorageclassupdated\",\"updated\":\"s-updated\"},\"rewriteToken\":\"s-rewritetoken\",\"totalBytesRewritten\":\"7\"}",
   "OUT: {\"done\":true,\"kind\":\"s-kind\",\"objectSize\":\"7\",\"resource\":{\"acl\":[{\"bucket\":\"s-bucket\",\"domain\":\"s-domain\",\"email\":\"s-email\",\"entity\":\"s-entity\",\"entityId\":\"s-entityid\",\"etag\":\"s-etag\",\"generation\":\"7\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"object\":\"s-object\",\"role\":\"s-role\",\"selfLink\":\"s-selflink\"}],\"bucket\":\"s-bucket\",\"cacheControl\":\"s-cachecontrol\",\"componentCount\":7,\"contentDisposition\":\"s-contentdisposition\",\"contentEncoding\":\"s-contentencoding\",\"contentLanguage\":\"s-contentlanguage\",\"contentType\":\"s-contenttype\",\"contexts\":{},\"crc32c\":\"s-crc32c\",\"customTime\":\"s-customtime\",\"customerEncryption\":{\"encryptionAlgorithm\":\"s-encryptionalgorithm\",\"keySha256\":\"s-keysha256\"},\"etag\":\"s-etag\",\"eventBasedHold\":true,\"generation\":\"7\",\"hardDeleteTime\":\"s-harddeletetime\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"kmsKeyName\":\"s-kmskeyname\",\"md5Hash\":\"s-md5hash\",\"mediaLink\":\"s-medialink\",\"metadata\":{\"k1\":\"s-metadata\"},\"metageneration\":\"7\",\"name\":\"s-name\",\"owner\":{\"entity\":\"s-entity\",\"entityId\":\"s-entityid\"},\"restoreToken\":\"s-restoretoken\",\"retention\":{\"mode\":\"s-mode\",\"retainUntilTime\":\"s-retainuntiltime\"},\"retentionExpirationTime\":\"s-retentionexpirationtime\",\"selfLink\":\"s-selflink\",\"size\":\"7\",\"softDeleteTime\":\"s-softdeletetime\",\"storageClass\":\"s-storageclass\",\"temporaryHold\":true,\"timeCreated\":\"s-timecreated\",\"timeDeleted\":\"s-timedeleted\",\"timeFinalized\":\"s-timefinalized\",\"timeStorageClassUpdated\":\"s-timestorageclassupdated\",\"updated\":\"s-updated\"},\"rewriteToken\":\"s-rewritetoken\",\"totalBytesRewritten\":\"7\"}",
@@ -1460,10 +1730,10 @@ test "Go's storage.objects.rewrite" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_67)
+  gv_compare(gv_log_of(f), GO_75)
 }
 
-const GO_68: List[Str] = [
+const GO_76: List[Str] = [
   "CALL storage.objects.setIamPolicy",
   "REQ PUT https://storage.googleapis.com/storage/v1/b/id1%2F%20x/o/id2%2F%20x/iam?alt=json&fields=kind%2Cid&generation=7&prettyPrint=false&userProject=s-userproject",
   "  H content-type=application/json | x-extra=v1",
@@ -1482,10 +1752,10 @@ test "Go's storage.objects.setIamPolicy" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_68)
+  gv_compare(gv_log_of(f), GO_76)
 }
 
-const GO_69: List[Str] = [
+const GO_77: List[Str] = [
   "CALL storage.objects.testIamPermissions",
   "REQ GET https://storage.googleapis.com/storage/v1/b/id1%2F%20x/o/id2%2F%20x/iam/testPermissions?alt=json&fields=kind%2Cid&generation=7&permissions=s-permissions&prettyPrint=false&userProject=s-userproject",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1503,14 +1773,14 @@ test "Go's storage.objects.testIamPermissions" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_69)
+  gv_compare(gv_log_of(f), GO_77)
 }
 
-const GO_70: List[Str] = [
+const GO_78: List[Str] = [
   "CALL storage.objects.update",
   "REQ PUT https://storage.googleapis.com/storage/v1/b/id1%2F%20x/o/id2%2F%20x?alt=json&fields=kind%2Cid&generation=7&ifGenerationMatch=7&ifGenerationNotMatch=7&ifMetagenerationMatch=7&ifMetagenerationNotMatch=7&overrideUnlockedRetention=true&predefinedAcl=s-predefinedacl&prettyPrint=false&projection=s-projection&userProject=s-userproject",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"acl\":[{\"bucket\":\"s-bucket\",\"domain\":\"s-domain\",\"email\":\"s-email\",\"entity\":\"s-entity\",\"entityId\":\"s-entityid\",\"etag\":\"s-etag\",\"generation\":\"7\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"object\":\"s-object\",\"projectTeam\":{\"projectNumber\":\"s-projectnumber\",\"team\":\"s-team\"},\"role\":\"s-role\",\"selfLink\":\"s-selflink\"}],\"bucket\":\"s-bucket\",\"cacheControl\":\"s-cachecontrol\",\"componentCount\":7,\"contentDisposition\":\"s-contentdisposition\",\"contentEncoding\":\"s-contentencoding\",\"contentLanguage\":\"s-contentlanguage\",\"contentType\":\"s-contenttype\",\"contexts\":{\"custom\":{\"k1\":{\"createTime\":\"s-createtime\",\"extendedDataTypeUrl\":\"s-extendeddatatypeurl\",\"updateTime\":\"s-updatetime\",\"value\":\"s-value\"}}},\"crc32c\":\"s-crc32c\",\"customTime\":\"s-customtime\",\"customerEncryption\":{\"encryptionAlgorithm\":\"s-encryptionalgorithm\",\"keySha256\":\"s-keysha256\"},\"etag\":\"s-etag\",\"eventBasedHold\":true,\"generation\":\"7\",\"hardDeleteTime\":\"s-harddeletetime\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"kmsKeyName\":\"s-kmskeyname\",\"md5Hash\":\"s-md5hash\",\"mediaLink\":\"s-medialink\",\"metadata\":{\"k1\":\"s-metadata\"},\"metageneration\":\"7\",\"name\":\"s-name\",\"owner\":{\"entity\":\"s-entity\",\"entityId\":\"s-entityid\"},\"restoreToken\":\"s-restoretoken\",\"retention\":{\"mode\":\"s-mode\",\"retainUntilTime\":\"s-retainuntiltime\"},\"retentionExpirationTime\":\"s-retentionexpirationtime\",\"selfLink\":\"s-selflink\",\"size\":\"7\",\"softDeleteTime\":\"s-softdeletetime\",\"storageClass\":\"s-storageclass\",\"temporaryHold\":true,\"timeCreated\":\"s-timecreated\",\"timeDeleted\":\"s-timedeleted\",\"timeFinalized\":\"s-timefinalized\",\"timeStorageClassUpdated\":\"s-timestorageclassupdated\",\"updated\":\"s-updated\"}",
+  "  B <1581 bytes> {\"acl\":[{\"bucket\":\"s-bucket\",\"do...updated\",\"updated\":\"s-updated\"}",
   "",
   "  SERVED 200 {\"acl\":[{\"bucket\":\"s-bucket\",\"domain\":\"s-domain\",\"email\":\"s-email\",\"entity\":\"s-entity\",\"entityId\":\"s-entityid\",\"etag\":\"s-etag\",\"generation\":\"7\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"object\":\"s-object\",\"projectTeam\":{\"projectNumber\":\"s-projectnumber\",\"team\":\"s-team\"},\"role\":\"s-role\",\"selfLink\":\"s-selflink\"}],\"bucket\":\"s-bucket\",\"cacheControl\":\"s-cachecontrol\",\"componentCount\":7,\"contentDisposition\":\"s-contentdisposition\",\"contentEncoding\":\"s-contentencoding\",\"contentLanguage\":\"s-contentlanguage\",\"contentType\":\"s-contenttype\",\"contexts\":{\"custom\":{\"k1\":{\"createTime\":\"s-createtime\",\"extendedDataTypeUrl\":\"s-extendeddatatypeurl\",\"updateTime\":\"s-updatetime\",\"value\":\"s-value\"}}},\"crc32c\":\"s-crc32c\",\"customTime\":\"s-customtime\",\"customerEncryption\":{\"encryptionAlgorithm\":\"s-encryptionalgorithm\",\"keySha256\":\"s-keysha256\"},\"etag\":\"s-etag\",\"eventBasedHold\":true,\"generation\":\"7\",\"hardDeleteTime\":\"s-harddeletetime\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"kmsKeyName\":\"s-kmskeyname\",\"md5Hash\":\"s-md5hash\",\"mediaLink\":\"s-medialink\",\"metadata\":{\"k1\":\"s-metadata\"},\"metageneration\":\"7\",\"name\":\"s-name\",\"owner\":{\"entity\":\"s-entity\",\"entityId\":\"s-entityid\"},\"restoreToken\":\"s-restoretoken\",\"retention\":{\"mode\":\"s-mode\",\"retainUntilTime\":\"s-retainuntiltime\"},\"retentionExpirationTime\":\"s-retentionexpirationtime\",\"selfLink\":\"s-selflink\",\"size\":\"7\",\"softDeleteTime\":\"s-softdeletetime\",\"storageClass\":\"s-storageclass\",\"temporaryHold\":true,\"timeCreated\":\"s-timecreated\",\"timeDeleted\":\"s-timedeleted\",\"timeFinalized\":\"s-timefinalized\",\"timeStorageClassUpdated\":\"s-timestorageclassupdated\",\"updated\":\"s-updated\"}",
   "OUT: {\"acl\":[{\"bucket\":\"s-bucket\",\"domain\":\"s-domain\",\"email\":\"s-email\",\"entity\":\"s-entity\",\"entityId\":\"s-entityid\",\"etag\":\"s-etag\",\"generation\":\"7\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"object\":\"s-object\",\"projectTeam\":{\"projectNumber\":\"s-projectnumber\",\"team\":\"s-team\"},\"role\":\"s-role\",\"selfLink\":\"s-selflink\"}],\"bucket\":\"s-bucket\",\"cacheControl\":\"s-cachecontrol\",\"componentCount\":7,\"contentDisposition\":\"s-contentdisposition\",\"contentEncoding\":\"s-contentencoding\",\"contentLanguage\":\"s-contentlanguage\",\"contentType\":\"s-contenttype\",\"contexts\":{\"custom\":{\"k1\":{\"createTime\":\"s-createtime\",\"extendedDataTypeUrl\":\"s-extendeddatatypeurl\",\"updateTime\":\"s-updatetime\",\"value\":\"s-value\"}}},\"crc32c\":\"s-crc32c\",\"customTime\":\"s-customtime\",\"customerEncryption\":{\"encryptionAlgorithm\":\"s-encryptionalgorithm\",\"keySha256\":\"s-keysha256\"},\"etag\":\"s-etag\",\"eventBasedHold\":true,\"generation\":\"7\",\"hardDeleteTime\":\"s-harddeletetime\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"kmsKeyName\":\"s-kmskeyname\",\"md5Hash\":\"s-md5hash\",\"mediaLink\":\"s-medialink\",\"metadata\":{\"k1\":\"s-metadata\"},\"metageneration\":\"7\",\"name\":\"s-name\",\"owner\":{\"entity\":\"s-entity\",\"entityId\":\"s-entityid\"},\"restoreToken\":\"s-restoretoken\",\"retention\":{\"mode\":\"s-mode\",\"retainUntilTime\":\"s-retainuntiltime\"},\"retentionExpirationTime\":\"s-retentionexpirationtime\",\"selfLink\":\"s-selflink\",\"size\":\"7\",\"softDeleteTime\":\"s-softdeletetime\",\"storageClass\":\"s-storageclass\",\"temporaryHold\":true,\"timeCreated\":\"s-timecreated\",\"timeDeleted\":\"s-timedeleted\",\"timeFinalized\":\"s-timefinalized\",\"timeStorageClassUpdated\":\"s-timestorageclassupdated\",\"updated\":\"s-updated\"}",
@@ -1525,10 +1795,10 @@ test "Go's storage.objects.update" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_70)
+  gv_compare(gv_log_of(f), GO_78)
 }
 
-const GO_71: List[Str] = [
+const GO_79: List[Str] = [
   "CALL storage.objects.viewFullContext",
   "REQ GET https://storage.googleapis.com/storage/v1/b/id1%2F%20x/o/id2%2F%20x/viewFullContext?alt=json&fields=kind%2Cid&generation=7&prettyPrint=false&userProject=s-userproject",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1546,10 +1816,10 @@ test "Go's storage.objects.viewFullContext" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_71)
+  gv_compare(gv_log_of(f), GO_79)
 }
 
-const GO_72: List[Str] = [
+const GO_80: List[Str] = [
   "CALL storage.buckets.operations.advanceRelocateBucket",
   "REQ POST https://storage.googleapis.com/storage/v1/b/id1%2F%20x/operations/id2%2F%20x/advanceRelocateBucket?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1568,10 +1838,10 @@ test "Go's storage.buckets.operations.advanceRelocateBucket" {
     Ok(_) => gv_note(f, "OUT: ok")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_72)
+  gv_compare(gv_log_of(f), GO_80)
 }
 
-const GO_73: List[Str] = [
+const GO_81: List[Str] = [
   "CALL storage.buckets.operations.cancel",
   "REQ POST https://storage.googleapis.com/storage/v1/b/id1%2F%20x/operations/id2%2F%20x/cancel?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -1589,10 +1859,10 @@ test "Go's storage.buckets.operations.cancel" {
     Ok(_) => gv_note(f, "OUT: ok")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_73)
+  gv_compare(gv_log_of(f), GO_81)
 }
 
-const GO_74: List[Str] = [
+const GO_82: List[Str] = [
   "CALL storage.buckets.operations.get",
   "REQ GET https://storage.googleapis.com/storage/v1/b/id1%2F%20x/operations/id2%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1610,10 +1880,10 @@ test "Go's storage.buckets.operations.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_74)
+  gv_compare(gv_log_of(f), GO_82)
 }
 
-const GO_75: List[Str] = [
+const GO_83: List[Str] = [
   "CALL storage.buckets.operations.list",
   "REQ GET https://storage.googleapis.com/storage/v1/b/id1%2F%20x/operations?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1631,10 +1901,48 @@ test "Go's storage.buckets.operations.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_75)
+  gv_compare(gv_log_of(f), GO_83)
 }
 
-const GO_76: List[Str] = [
+const GO_84: List[Str] = [
+  "CALL storage.buckets.operations.list pages",
+  "REQ GET https://storage.googleapis.com/storage/v1/b/id1%2F%20x/operations?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\",\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"kind\":\"s-kind\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"},\"selfLink\":\"s-selflink\"}]}",
+  "OUT: {\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\",\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"kind\":\"s-kind\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"},\"selfLink\":\"s-selflink\"}]}",
+  "REQ GET https://storage.googleapis.com/storage/v1/b/id1%2F%20x/operations?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"kind\":\"s-kind\",\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"kind\":\"s-kind\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"},\"selfLink\":\"s-selflink\"}]}",
+  "OUT: {\"kind\":\"s-kind\",\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"kind\":\"s-kind\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"},\"selfLink\":\"s-selflink\"}]}",
+  "OUT: ok",
+]
+
+test "Go's storage.buckets.operations.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\",\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"kind\":\"s-kind\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"},\"selfLink\":\"s-selflink\"}]}")
+  gv_queue(f, "{\"kind\":\"s-kind\",\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"kind\":\"s-kind\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"},\"selfLink\":\"s-selflink\"}]}")
+  gv_note(f, "CALL storage.buckets.operations.list pages")
+  var p = svc.operations.list_pages("id1/ x", options: OperationsListOptions{filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_84)
+}
+
+const GO_85: List[Str] = [
   "CALL storage.projects.hmacKeys.create",
   "REQ POST https://storage.googleapis.com/storage/v1/projects/id1%2F%20x/hmacKeys?alt=json&fields=kind%2Cid&prettyPrint=false&serviceAccountEmail=s-serviceaccountemail&userProject=s-userproject",
   "  H x-extra=v1",
@@ -1652,10 +1960,10 @@ test "Go's storage.projects.hmacKeys.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_76)
+  gv_compare(gv_log_of(f), GO_85)
 }
 
-const GO_77: List[Str] = [
+const GO_86: List[Str] = [
   "CALL storage.projects.hmacKeys.delete",
   "REQ DELETE https://storage.googleapis.com/storage/v1/projects/id1%2F%20x/hmacKeys/id2%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false&userProject=s-userproject",
   "  H x-extra=v1",
@@ -1673,10 +1981,10 @@ test "Go's storage.projects.hmacKeys.delete" {
     Ok(_) => gv_note(f, "OUT: ok")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_77)
+  gv_compare(gv_log_of(f), GO_86)
 }
 
-const GO_78: List[Str] = [
+const GO_87: List[Str] = [
   "CALL storage.projects.hmacKeys.get",
   "REQ GET https://storage.googleapis.com/storage/v1/projects/id1%2F%20x/hmacKeys/id2%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false&userProject=s-userproject",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1694,10 +2002,10 @@ test "Go's storage.projects.hmacKeys.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_78)
+  gv_compare(gv_log_of(f), GO_87)
 }
 
-const GO_79: List[Str] = [
+const GO_88: List[Str] = [
   "CALL storage.projects.hmacKeys.list",
   "REQ GET https://storage.googleapis.com/storage/v1/projects/id1%2F%20x/hmacKeys?alt=json&fields=kind%2Cid&maxResults=7&pageToken=s-pagetoken&prettyPrint=false&serviceAccountEmail=s-serviceaccountemail&showDeletedKeys=true&userProject=s-userproject",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1715,10 +2023,48 @@ test "Go's storage.projects.hmacKeys.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_79)
+  gv_compare(gv_log_of(f), GO_88)
 }
 
-const GO_80: List[Str] = [
+const GO_89: List[Str] = [
+  "CALL storage.projects.hmacKeys.list pages",
+  "REQ GET https://storage.googleapis.com/storage/v1/projects/id1%2F%20x/hmacKeys?alt=json&fields=kind%2Cid&maxResults=7&pageToken=s-pagetoken&prettyPrint=false&serviceAccountEmail=s-serviceaccountemail&showDeletedKeys=true&userProject=s-userproject",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"items\":[{\"accessId\":\"s-accessid\",\"etag\":\"s-etag\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"projectId\":\"s-projectid\",\"selfLink\":\"s-selflink\",\"serviceAccountEmail\":\"s-serviceaccountemail\",\"state\":\"s-state\",\"timeCreated\":\"s-timecreated\",\"updated\":\"s-updated\"}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"items\":[{\"accessId\":\"s-accessid\",\"etag\":\"s-etag\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"projectId\":\"s-projectid\",\"selfLink\":\"s-selflink\",\"serviceAccountEmail\":\"s-serviceaccountemail\",\"state\":\"s-state\",\"timeCreated\":\"s-timecreated\",\"updated\":\"s-updated\"}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://storage.googleapis.com/storage/v1/projects/id1%2F%20x/hmacKeys?alt=json&fields=kind%2Cid&maxResults=7&pageToken=s-nextpagetoken&prettyPrint=false&serviceAccountEmail=s-serviceaccountemail&showDeletedKeys=true&userProject=s-userproject",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"items\":[{\"accessId\":\"s-accessid\",\"etag\":\"s-etag\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"projectId\":\"s-projectid\",\"selfLink\":\"s-selflink\",\"serviceAccountEmail\":\"s-serviceaccountemail\",\"state\":\"s-state\",\"timeCreated\":\"s-timecreated\",\"updated\":\"s-updated\"}],\"kind\":\"s-kind\"}",
+  "OUT: {\"items\":[{\"accessId\":\"s-accessid\",\"etag\":\"s-etag\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"projectId\":\"s-projectid\",\"selfLink\":\"s-selflink\",\"serviceAccountEmail\":\"s-serviceaccountemail\",\"state\":\"s-state\",\"timeCreated\":\"s-timecreated\",\"updated\":\"s-updated\"}],\"kind\":\"s-kind\"}",
+  "OUT: ok",
+]
+
+test "Go's storage.projects.hmacKeys.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"items\":[{\"accessId\":\"s-accessid\",\"etag\":\"s-etag\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"projectId\":\"s-projectid\",\"selfLink\":\"s-selflink\",\"serviceAccountEmail\":\"s-serviceaccountemail\",\"state\":\"s-state\",\"timeCreated\":\"s-timecreated\",\"updated\":\"s-updated\"}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"items\":[{\"accessId\":\"s-accessid\",\"etag\":\"s-etag\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"projectId\":\"s-projectid\",\"selfLink\":\"s-selflink\",\"serviceAccountEmail\":\"s-serviceaccountemail\",\"state\":\"s-state\",\"timeCreated\":\"s-timecreated\",\"updated\":\"s-updated\"}],\"kind\":\"s-kind\"}")
+  gv_note(f, "CALL storage.projects.hmacKeys.list pages")
+  var p = svc.projects.hmac_keys.list_pages("id1/ x", options: ProjectsHmacKeysListOptions{max_results: Some(7), page_token: Some("s-pagetoken"), service_account_email: Some("s-serviceaccountemail"), show_deleted_keys: Some(true), user_project: Some("s-userproject"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_89)
+}
+
+const GO_90: List[Str] = [
   "CALL storage.projects.hmacKeys.update",
   "REQ PUT https://storage.googleapis.com/storage/v1/projects/id1%2F%20x/hmacKeys/id2%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false&userProject=s-userproject",
   "  H content-type=application/json | x-extra=v1",
@@ -1737,10 +2083,10 @@ test "Go's storage.projects.hmacKeys.update" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_80)
+  gv_compare(gv_log_of(f), GO_90)
 }
 
-const GO_81: List[Str] = [
+const GO_91: List[Str] = [
   "CALL storage.projects.serviceAccount.get",
   "REQ GET https://storage.googleapis.com/storage/v1/projects/id1%2F%20x/serviceAccount?alt=json&fields=kind%2Cid&prettyPrint=false&userProject=s-userproject",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1758,10 +2104,10 @@ test "Go's storage.projects.serviceAccount.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_81)
+  gv_compare(gv_log_of(f), GO_91)
 }
 
-const GO_82: List[Str] = [
+const GO_92: List[Str] = [
   "CALL storage.rapidCaches.disable",
   "REQ POST https://storage.googleapis.com/storage/v1/b/id1%2F%20x/rapidCaches/id2%2F%20x/disable?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -1779,10 +2125,10 @@ test "Go's storage.rapidCaches.disable" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_82)
+  gv_compare(gv_log_of(f), GO_92)
 }
 
-const GO_83: List[Str] = [
+const GO_93: List[Str] = [
   "CALL storage.rapidCaches.get",
   "REQ GET https://storage.googleapis.com/storage/v1/b/id1%2F%20x/rapidCaches/id2%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1800,10 +2146,10 @@ test "Go's storage.rapidCaches.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_83)
+  gv_compare(gv_log_of(f), GO_93)
 }
 
-const GO_84: List[Str] = [
+const GO_94: List[Str] = [
   "CALL storage.rapidCaches.insert",
   "REQ POST https://storage.googleapis.com/storage/v1/b/id1%2F%20x/rapidCaches?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1822,10 +2168,10 @@ test "Go's storage.rapidCaches.insert" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_84)
+  gv_compare(gv_log_of(f), GO_94)
 }
 
-const GO_85: List[Str] = [
+const GO_95: List[Str] = [
   "CALL storage.rapidCaches.list",
   "REQ GET https://storage.googleapis.com/storage/v1/b/id1%2F%20x/rapidCaches?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1843,10 +2189,48 @@ test "Go's storage.rapidCaches.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_85)
+  gv_compare(gv_log_of(f), GO_95)
 }
 
-const GO_86: List[Str] = [
+const GO_96: List[Str] = [
+  "CALL storage.rapidCaches.list pages",
+  "REQ GET https://storage.googleapis.com/storage/v1/b/id1%2F%20x/rapidCaches?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"items\":[{\"admissionPolicy\":\"s-admissionpolicy\",\"bucket\":\"s-bucket\",\"cacheType\":\"s-cachetype\",\"createTime\":\"s-createtime\",\"id\":\"s-id\",\"ingestOnWrite\":true,\"kind\":\"s-kind\",\"pendingUpdate\":true,\"rapidCacheId\":\"s-rapidcacheid\",\"selfLink\":\"s-selflink\",\"state\":\"s-state\",\"ttl\":\"s-ttl\",\"updateTime\":\"s-updatetime\",\"zone\":\"s-zone\"}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"items\":[{\"admissionPolicy\":\"s-admissionpolicy\",\"bucket\":\"s-bucket\",\"cacheType\":\"s-cachetype\",\"createTime\":\"s-createtime\",\"id\":\"s-id\",\"ingestOnWrite\":true,\"kind\":\"s-kind\",\"pendingUpdate\":true,\"rapidCacheId\":\"s-rapidcacheid\",\"selfLink\":\"s-selflink\",\"state\":\"s-state\",\"ttl\":\"s-ttl\",\"updateTime\":\"s-updatetime\",\"zone\":\"s-zone\"}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://storage.googleapis.com/storage/v1/b/id1%2F%20x/rapidCaches?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"items\":[{\"admissionPolicy\":\"s-admissionpolicy\",\"bucket\":\"s-bucket\",\"cacheType\":\"s-cachetype\",\"createTime\":\"s-createtime\",\"id\":\"s-id\",\"ingestOnWrite\":true,\"kind\":\"s-kind\",\"pendingUpdate\":true,\"rapidCacheId\":\"s-rapidcacheid\",\"selfLink\":\"s-selflink\",\"state\":\"s-state\",\"ttl\":\"s-ttl\",\"updateTime\":\"s-updatetime\",\"zone\":\"s-zone\"}],\"kind\":\"s-kind\"}",
+  "OUT: {\"items\":[{\"admissionPolicy\":\"s-admissionpolicy\",\"bucket\":\"s-bucket\",\"cacheType\":\"s-cachetype\",\"createTime\":\"s-createtime\",\"id\":\"s-id\",\"ingestOnWrite\":true,\"kind\":\"s-kind\",\"pendingUpdate\":true,\"rapidCacheId\":\"s-rapidcacheid\",\"selfLink\":\"s-selflink\",\"state\":\"s-state\",\"ttl\":\"s-ttl\",\"updateTime\":\"s-updatetime\",\"zone\":\"s-zone\"}],\"kind\":\"s-kind\"}",
+  "OUT: ok",
+]
+
+test "Go's storage.rapidCaches.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"items\":[{\"admissionPolicy\":\"s-admissionpolicy\",\"bucket\":\"s-bucket\",\"cacheType\":\"s-cachetype\",\"createTime\":\"s-createtime\",\"id\":\"s-id\",\"ingestOnWrite\":true,\"kind\":\"s-kind\",\"pendingUpdate\":true,\"rapidCacheId\":\"s-rapidcacheid\",\"selfLink\":\"s-selflink\",\"state\":\"s-state\",\"ttl\":\"s-ttl\",\"updateTime\":\"s-updatetime\",\"zone\":\"s-zone\"}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"items\":[{\"admissionPolicy\":\"s-admissionpolicy\",\"bucket\":\"s-bucket\",\"cacheType\":\"s-cachetype\",\"createTime\":\"s-createtime\",\"id\":\"s-id\",\"ingestOnWrite\":true,\"kind\":\"s-kind\",\"pendingUpdate\":true,\"rapidCacheId\":\"s-rapidcacheid\",\"selfLink\":\"s-selflink\",\"state\":\"s-state\",\"ttl\":\"s-ttl\",\"updateTime\":\"s-updatetime\",\"zone\":\"s-zone\"}],\"kind\":\"s-kind\"}")
+  gv_note(f, "CALL storage.rapidCaches.list pages")
+  var p = svc.rapid_caches.list_pages("id1/ x", options: RapidCachesListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_96)
+}
+
+const GO_97: List[Str] = [
   "CALL storage.rapidCaches.update",
   "REQ PATCH https://storage.googleapis.com/storage/v1/b/id1%2F%20x/rapidCaches/id2%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1865,5 +2249,5 @@ test "Go's storage.rapidCaches.update" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_86)
+  gv_compare(gv_log_of(f), GO_97)
 }

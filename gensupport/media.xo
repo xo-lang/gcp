@@ -1,0 +1,184 @@
+// Media upload, as google.golang.org/api's internal/gensupport media.go,
+// buffer.go, resumable.go and retry.go (BSD-3-Clause, Copyright (c) 2011
+// Google Inc.; NOTICE.md): a body that fits in one chunk goes in one
+// multipart/related request, a larger one in a resumable session of
+// chunks, each chunk retried as Go retries it.
+
+use std/http
+use std/mime
+use std/url
+use std/uuid
+
+/// Go's googleapi.DefaultUploadChunkSize.
+pub const DEFAULT_CHUNK_SIZE: Int = 16777216
+/// Go's googleapi.MinUploadChunkSize: chunk sizes round up to a multiple.
+pub const MIN_CHUNK_SIZE: Int = 262144
+
+/// The media of an upload (Go's Media(r, options...)).
+pub struct Media {
+  pub data: Bytes
+  /// The media's type; "" sniffs it from the first 512 bytes (Go's
+  /// gax.DetermineContentType, googleapi.ContentType).
+  pub content_type: Str = ""
+  /// No media type at all (googleapi.ContentType("")'s
+  /// ForceEmptyContentType).
+  pub force_empty_content_type: Bool = false
+  /// The chunk size, rounded up to a multiple of MIN_CHUNK_SIZE
+  /// (googleapi.ChunkSize); media smaller than it goes in one request,
+  /// and 0 sends any media in one request.
+  pub chunk_size: Int = DEFAULT_CHUNK_SIZE
+}
+
+fn (m: Media) media_type() -> Str {
+  if m.force_empty_content_type {
+    return ""
+  }
+  if m.content_type != "" {
+    return m.content_type
+  }
+  let n = if m.data.len() > 512 { 512 } else { m.data.len() }
+  mime.detect_content_type(m.data[0..n])
+}
+
+fn (m: Media) rounded_chunk_size() -> Int {
+  let s = m.chunk_size
+  if s % MIN_CHUNK_SIZE != 0 { s + MIN_CHUNK_SIZE - s % MIN_CHUNK_SIZE } else { s }
+}
+
+/// One part of a multipart/related body (Go's multipart.Writer.CreatePart
+/// with a Content-Type header when the type is not "").
+fn part(boundary: Str, first: Bool, ctype: Str, data: Bytes) -> Bytes {
+  let head = if first { "--${boundary}\r\n" } else { "\r\n--${boundary}\r\n" }
+  let h = if ctype == "" { "\r\n" } else { "Content-Type: ${ctype}\r\n\r\n" }
+  (head + h).bytes() + data
+}
+
+/// The request's headers with Content-Type set to `ctype`.
+fn with_content_type(hs: List[(Str, Str)], ctype: Str) -> List[(Str, Str)] {
+  var out: List[(Str, Str)] = []
+  var set = false
+  for (k, v) in hs {
+    if k.to_lower() == "content-type" {
+      if !set {
+        out.push(("Content-Type", ctype))
+        set = true
+      }
+    } else {
+      out.push((k, v))
+    }
+  }
+  if !set {
+    out.push(("Content-Type", ctype))
+  }
+  out
+}
+
+/// Sends a media upload: `req` is the call's request (its body the
+/// metadata JSON, or empty) and `media_url` its upload path, already
+/// expanded. Media smaller than the chunk size goes as
+/// uploadType=multipart; larger media opens a resumable session
+/// (uploadType=resumable) and sends its chunks to the session's
+/// Location. Answers the last response, which the caller checks and
+/// decodes (Go's doRequest, then Do's ResumableUpload).
+pub fn (c: Client[fx]) upload(clock: Clock, rand: Rand, req: Request, media_url: Str, media: Media) -> http.Response ! CallErr uses (net.dial, clock, rand, fx) {
+  let mtype = media.media_type()
+  let cs = media.rounded_chunk_size()
+  let single = cs == 0 || media.data.len() < cs
+  var q = req.query
+  q.set("uploadType", if single { "multipart" } else { "resumable" })
+  if single {
+    // Go's multipart.Writer boundary: 30 random bytes in hex
+    let boundary = rand.bytes(30).to_hex()
+    let body = part(boundary, true, "application/json", req.body) + part(boundary, false, mtype, media.data) + "\r\n--${boundary}--\r\n".bytes()
+    let hs = with_content_type(req.headers, "multipart/related; boundary=${boundary}")
+    return c.send(req with {url: media_url, query: q, headers: hs, body: body})
+  }
+  var hs = req.headers
+  if mtype != "" {
+    hs.push(("X-Upload-Content-Type", mtype))
+  }
+  let first = c.send(req with {url: media_url, query: q, headers: hs})?
+  if first.status == 304 {
+    return Ok(first)
+  }
+  check(first)?
+  let loc = first.header("Location") ?? ""
+  c.resumable(clock, rand, loc, mtype, media.data, cs)
+}
+
+/// Go's ResumableUpload.Upload: each chunk (the last one shorter than
+/// `cs`, possibly empty) until the server stops answering
+/// `X-Http-Status-Code-Override: 308`.
+fn (c: Client[fx]) resumable(clock: Clock, rand: Rand, loc: Str, mtype: Str, data: Bytes, cs: Int) -> http.Response ! CallErr uses (net.dial, clock, rand, fx) {
+  var off = 0
+  var end = if cs < data.len() { cs } else { data.len() }
+  var resp = c.chunk_with_retries(clock, rand, loc, mtype, data[0..end], 0, end < cs)?
+  while (resp.header("X-Http-Status-Code-Override") ?? "") == "308" {
+    off = end
+    end = if off + cs < data.len() { off + cs } else { data.len() }
+    resp = c.chunk_with_retries(clock, rand, loc, mtype, data[off..end], off, end - off < cs)?
+  }
+  Ok(resp)
+}
+
+/// Go's statuses and errors a chunk retries on (retry.go shouldRetry).
+fn should_retry(status: Int, err: CallErr?) -> Bool {
+  if status >= 500 && status <= 599 || status == 429 || status == 408 {
+    return true
+  }
+  match err {
+    Some(CallErr.Http(e)) => {
+      let t = e.display()
+      t.contains("unexpected EOF") || t.contains("use of closed network connection") || t.contains("connection refused") || t.contains("connection reset") || t.contains("broken pipe")
+    }
+    _ => false
+  }
+}
+
+/// Go's uploadChunkWithRetries: the chunk, again after a backoff pause
+/// (gax.Backoff from 100ms, doubling to 30s, a random pause up to it)
+/// while it should be retried, for at most 32 seconds.
+fn (c: Client[fx]) chunk_with_retries(clock: Clock, rand: Rand, loc: Str, mtype: Str, chunk: Bytes, off: Int, done: Bool) -> http.Response ! CallErr uses (net.dial, clock, rand, fx) {
+  let n = chunk.len()
+  let range = if done {
+    if n == 0 { "bytes */${off}" } else { "bytes ${off}-${off + n - 1}/${off + n}" }
+  } else {
+    "bytes ${off}-${off + n - 1}/*"
+  }
+  let invocation = uuid.v4(rand).display()
+  let start = clock.now()
+  let deadline = Duration.from_secs_int(32)
+  var cur = Duration.from_millis(100)
+  var attempts = 1
+  var pause = Duration.from_nanos(0)
+  var last: Result[http.Response, CallErr] = Err(CallErr.Upload("upload request to ${loc} not sent, choose larger value for ChunkRetryDeadline"))
+  while true {
+    if pause.nanos() > 0 {
+      if (clock.now() - start) + pause >= deadline {
+        break
+      }
+      clock.sleep(pause)
+    }
+    let hs: List[(Str, Str)] = [("Content-Range", range), ("Content-Type", mtype), ("x-goog-api-client", "gl-xo/preview gdcl/${VERSION} gccl-invocation-id/${invocation} gccl-attempt-count/${attempts}"), ("X-Goog-Gcs-Idempotency-Token", invocation), ("X-GUploader-No-308", "yes")]
+    last = c.send(Request{method: "POST", url: loc, query: url.values(), headers: hs, body: chunk})
+    let status = match last {
+      Ok(r) => r.status
+      Err(_) => 0
+    }
+    if status == 308 {
+      return Err(CallErr.Upload("unexpected 308 response status code"))
+    }
+    if !should_retry(status, last.err()) {
+      break
+    }
+    attempts = attempts + 1
+    // gax.Backoff.Pause: 1 + a random duration below cur, then cur
+    // doubles up to 30s
+    pause = Duration.from_nanos(1 + rand.int(0, cur.nanos()))
+    cur = if cur.nanos() * 2 > 30000000000 { Duration.from_secs_int(30) } else { Duration.from_nanos(cur.nanos() * 2) }
+  }
+  match last {
+    Ok(r) => Ok(r)
+    Err(e) => if attempts > 1 { Err(CallErr.Upload("chunk upload failed after ${attempts} attempts, final error: ${e.display()}")) } else { Err(e) }
+  }
+}

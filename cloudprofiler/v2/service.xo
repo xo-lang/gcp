@@ -138,6 +138,35 @@ pub fn (r: ProjectsProfilesService[fx]) list(parent: Str, options: ProjectsProfi
   gensupport.decode[ListProfilesResponse](resp)
 }
 
+/// ProjectsProfilesListPages: the pages of ProjectsProfilesService.list (Go's Pages).
+/// Call next_page while more() is true.
+pub struct ProjectsProfilesListPages[fx: Effects] {
+  r: ProjectsProfilesService[fx]
+  parent: Str
+  options: ProjectsProfilesListOptions
+  next_token: Str = ""
+  started: Bool = false
+}
+
+/// list_pages: ProjectsProfilesService.list's pages, from the first.
+pub fn (r: ProjectsProfilesService[fx]) list_pages(parent: Str, options: ProjectsProfilesListOptions = ProjectsProfilesListOptions{}) -> ProjectsProfilesListPages[fx] {
+  ProjectsProfilesListPages{r: r, parent: parent, options: options}
+}
+
+/// Whether there is a page left to fetch.
+pub fn (p: ProjectsProfilesListPages[fx]) more() -> Bool {
+  !p.started || p.next_token != ""
+}
+
+/// The next page.
+pub fn (var p: ProjectsProfilesListPages[fx]) next_page() -> ListProfilesResponse ! gensupport.CallErr uses (net.dial, clock, rand, fx) {
+  let o = if p.started { p.options with {page_token: Some(p.next_token)} } else { p.options }
+  let v = p.r.list(p.parent, o)?
+  p.started = true
+  p.next_token = v.next_page_token
+  Ok(v)
+}
+
 /// ProjectsProfilesPatchOptions: the optional parameters of ProjectsProfilesService.patch.
 pub struct ProjectsProfilesPatchOptions {
   /// Field mask used to specify the fields to be overwritten. Currently only profile_bytes and labels fields are supported by UpdateProfile, so only those fields can be specified in the mask. When no mask is provided, all fields are overwritten.

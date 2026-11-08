@@ -98,6 +98,35 @@ pub fn (r: UserActivityService[fx]) search(searchuseractivityrequest: SearchUser
   gensupport.decode[SearchUserActivityResponse](resp)
 }
 
+/// UserActivitySearchPages: the pages of UserActivityService.search (Go's Pages).
+/// Call next_page while more() is true.
+pub struct UserActivitySearchPages[fx: Effects] {
+  r: UserActivityService[fx]
+  searchuseractivityrequest: SearchUserActivityRequest
+  options: UserActivitySearchOptions
+  next_token: Str = ""
+  started: Bool = false
+}
+
+/// search_pages: UserActivityService.search's pages, from the first.
+pub fn (r: UserActivityService[fx]) search_pages(searchuseractivityrequest: SearchUserActivityRequest, options: UserActivitySearchOptions = UserActivitySearchOptions{}) -> UserActivitySearchPages[fx] {
+  UserActivitySearchPages{r: r, searchuseractivityrequest: searchuseractivityrequest, options: options}
+}
+
+/// Whether there is a page left to fetch.
+pub fn (p: UserActivitySearchPages[fx]) more() -> Bool {
+  !p.started || p.next_token != ""
+}
+
+/// The next page.
+pub fn (var p: UserActivitySearchPages[fx]) next_page() -> SearchUserActivityResponse ! gensupport.CallErr uses (net.dial, clock, rand, fx) {
+  let b = if p.started { p.searchuseractivityrequest with {page_token: p.next_token} } else { p.searchuseractivityrequest }
+  let v = p.r.search(b, p.options)?
+  p.started = true
+  p.next_token = v.next_page_token
+  Ok(v)
+}
+
 /// A service sending through `net`, with `opts`.
 pub fn new_service[fx: Effects](net: Net, opts: option.ClientOptions[fx] = option.ClientOptions{}) -> Service[fx] {
   new_service_from(gensupport.new_core(net, opts, BASE_PATH))

@@ -1,6 +1,44 @@
 // served: the body the fake answers the next request with
 var served = ""
 
+// queue: the bodies served after it, one per request (a pager's pages)
+var queue []string
+
+var _ = googleapi.ContentType
+
+// big: the media of a resumable upload vector (two chunks of 256 KiB)
+func big() string {
+	return strings.Repeat("0123456789abcdef", 16385)[:262154]
+}
+
+// answer: a served text's headers and body ("@H k=v|k=v @B body" sets
+// headers)
+func answer(s string) (http.Header, string) {
+	h := http.Header{}
+	h.Set("Content-Type", "application/json")
+	if strings.HasPrefix(s, "@H ") {
+		i := strings.Index(s, " @B ")
+		for _, kv := range strings.Split(s[3:i], "|") {
+			k, v, _ := strings.Cut(kv, "=")
+			h.Set(k, v)
+		}
+		s = s[i+4:]
+	}
+	return h, s
+}
+
+// shown: a request body as the vectors print it: a multipart boundary
+// as BOUNDARY, a long body by its size and ends
+func shown(b string, boundary string) string {
+	if boundary != "" {
+		b = strings.ReplaceAll(b, boundary, "BOUNDARY")
+	}
+	if len(b) > 1024 {
+		return fmt.Sprintf("<%d bytes> %s...%s", len(b), b[:32], b[len(b)-32:])
+	}
+	return b
+}
+
 type fake struct{}
 
 func (fake) RoundTrip(r *http.Request) (*http.Response, error) {
@@ -8,19 +46,33 @@ func (fake) RoundTrip(r *http.Request) (*http.Response, error) {
 	if r.Body != nil {
 		b, _ = io.ReadAll(r.Body)
 	}
+	boundary := ""
+	if _, bd, ok := strings.Cut(r.Header.Get("Content-Type"), "boundary="); ok {
+		boundary = bd
+	}
 	var hs []string
 	for k, v := range r.Header {
 		lk := strings.ToLower(k)
 		if lk == "user-agent" || lk == "x-goog-api-client" || lk == "content-length" || lk == "accept-encoding" {
 			continue
 		}
-		hs = append(hs, lk+"="+strings.Join(v, ","))
+		hv := strings.Join(v, ",")
+		if lk == "x-goog-gcs-idempotency-token" {
+			hv = "UUID"
+		}
+		if boundary != "" {
+			hv = strings.ReplaceAll(hv, boundary, "BOUNDARY")
+		}
+		hs = append(hs, lk+"="+hv)
 	}
 	sort.Strings(hs)
-	fmt.Printf("REQ %s %s\n  H %s\n  B %s\n  SERVED 200 %s\n", r.Method, r.URL.String(), strings.Join(hs, " | "), b, served)
-	h := http.Header{}
-	h.Set("Content-Type", "application/json")
-	return &http.Response{StatusCode: 200, Status: "200 OK", Header: h, Body: io.NopCloser(strings.NewReader(served)), Request: r}, nil
+	cur := served
+	if len(queue) > 0 {
+		served, queue = queue[0], queue[1:]
+	}
+	fmt.Printf("REQ %s %s\n  H %s\n  B %s\n  SERVED 200 %s\n", r.Method, r.URL.String(), strings.Join(hs, " | "), shown(string(b), boundary), cur)
+	h, rb := answer(cur)
+	return &http.Response{StatusCode: 200, Status: "200 OK", Header: h, Body: io.NopCloser(strings.NewReader(rb)), Request: r}, nil
 }
 
 func body[T any](s string) *T {
@@ -54,4 +106,14 @@ func outErr(err error) {
 		return
 	}
 	fmt.Println("OUT: ok")
+}
+
+func outMedia(res *http.Response, err error) {
+	if err != nil {
+		errLine(err)
+		return
+	}
+	b, _ := io.ReadAll(res.Body)
+	res.Body.Close()
+	fmt.Printf("OUT: media %d %s\n", res.StatusCode, b)
 }

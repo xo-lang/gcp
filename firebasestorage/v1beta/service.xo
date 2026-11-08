@@ -198,6 +198,35 @@ pub fn (r: ProjectsBucketsService[fx]) list(parent: Str, options: ProjectsBucket
   gensupport.decode[ListBucketsResponse](resp)
 }
 
+/// ProjectsBucketsListPages: the pages of ProjectsBucketsService.list (Go's Pages).
+/// Call next_page while more() is true.
+pub struct ProjectsBucketsListPages[fx: Effects] {
+  r: ProjectsBucketsService[fx]
+  parent: Str
+  options: ProjectsBucketsListOptions
+  next_token: Str = ""
+  started: Bool = false
+}
+
+/// list_pages: ProjectsBucketsService.list's pages, from the first.
+pub fn (r: ProjectsBucketsService[fx]) list_pages(parent: Str, options: ProjectsBucketsListOptions = ProjectsBucketsListOptions{}) -> ProjectsBucketsListPages[fx] {
+  ProjectsBucketsListPages{r: r, parent: parent, options: options}
+}
+
+/// Whether there is a page left to fetch.
+pub fn (p: ProjectsBucketsListPages[fx]) more() -> Bool {
+  !p.started || p.next_token != ""
+}
+
+/// The next page.
+pub fn (var p: ProjectsBucketsListPages[fx]) next_page() -> ListBucketsResponse ! gensupport.CallErr uses (net.dial, clock, rand, fx) {
+  let o = if p.started { p.options with {page_token: Some(p.next_token)} } else { p.options }
+  let v = p.r.list(p.parent, o)?
+  p.started = true
+  p.next_token = v.next_page_token
+  Ok(v)
+}
+
 /// ProjectsBucketsRemoveFirebaseOptions: the optional parameters of ProjectsBucketsService.remove_firebase.
 pub struct ProjectsBucketsRemoveFirebaseOptions {
   /// The fields of the result to return (Go's Fields), joined with commas.

@@ -62,6 +62,35 @@ pub fn (r: ActivityService[fx]) query(querydriveactivityrequest: QueryDriveActiv
   gensupport.decode[QueryDriveActivityResponse](resp)
 }
 
+/// ActivityQueryPages: the pages of ActivityService.query (Go's Pages).
+/// Call next_page while more() is true.
+pub struct ActivityQueryPages[fx: Effects] {
+  r: ActivityService[fx]
+  querydriveactivityrequest: QueryDriveActivityRequest
+  options: ActivityQueryOptions
+  next_token: Str = ""
+  started: Bool = false
+}
+
+/// query_pages: ActivityService.query's pages, from the first.
+pub fn (r: ActivityService[fx]) query_pages(querydriveactivityrequest: QueryDriveActivityRequest, options: ActivityQueryOptions = ActivityQueryOptions{}) -> ActivityQueryPages[fx] {
+  ActivityQueryPages{r: r, querydriveactivityrequest: querydriveactivityrequest, options: options}
+}
+
+/// Whether there is a page left to fetch.
+pub fn (p: ActivityQueryPages[fx]) more() -> Bool {
+  !p.started || p.next_token != ""
+}
+
+/// The next page.
+pub fn (var p: ActivityQueryPages[fx]) next_page() -> QueryDriveActivityResponse ! gensupport.CallErr uses (net.dial, clock, rand, fx) {
+  let b = if p.started { p.querydriveactivityrequest with {page_token: p.next_token} } else { p.querydriveactivityrequest }
+  let v = p.r.query(b, p.options)?
+  p.started = true
+  p.next_token = v.next_page_token
+  Ok(v)
+}
+
 /// A service sending through `net`, with `opts`.
 pub fn new_service[fx: Effects](net: Net, opts: option.ClientOptions[fx] = option.ClientOptions{}) -> Service[fx] {
   new_service_from(gensupport.new_core(net, opts, BASE_PATH))

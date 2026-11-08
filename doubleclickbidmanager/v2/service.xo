@@ -163,6 +163,34 @@ pub fn (r: QueriesService[fx]) list(options: QueriesListOptions = QueriesListOpt
   gensupport.decode[ListQueriesResponse](resp)
 }
 
+/// QueriesListPages: the pages of QueriesService.list (Go's Pages).
+/// Call next_page while more() is true.
+pub struct QueriesListPages[fx: Effects] {
+  r: QueriesService[fx]
+  options: QueriesListOptions
+  next_token: Str = ""
+  started: Bool = false
+}
+
+/// list_pages: QueriesService.list's pages, from the first.
+pub fn (r: QueriesService[fx]) list_pages(options: QueriesListOptions = QueriesListOptions{}) -> QueriesListPages[fx] {
+  QueriesListPages{r: r, options: options}
+}
+
+/// Whether there is a page left to fetch.
+pub fn (p: QueriesListPages[fx]) more() -> Bool {
+  !p.started || p.next_token != ""
+}
+
+/// The next page.
+pub fn (var p: QueriesListPages[fx]) next_page() -> ListQueriesResponse ! gensupport.CallErr uses (net.dial, clock, rand, fx) {
+  let o = if p.started { p.options with {page_token: Some(p.next_token)} } else { p.options }
+  let v = p.r.list(o)?
+  p.started = true
+  p.next_token = v.next_page_token
+  Ok(v)
+}
+
 /// QueriesRunOptions: the optional parameters of QueriesService.run.
 pub struct QueriesRunOptions {
   /// Whether the query should be run synchronously. When `true`, the request won't return until the resulting report has finished running. This parameter is `false` by default. Setting this parameter to `true` is **not recommended**.
@@ -276,6 +304,35 @@ pub fn (r: QueriesReportsService[fx]) list(query_id: Str, options: QueriesReport
   let resp = r.core.client.send(gensupport.Request{method: "GET", url: u, query: q, headers: hs, body: b""})?
   gensupport.check(resp)?
   gensupport.decode[ListReportsResponse](resp)
+}
+
+/// QueriesReportsListPages: the pages of QueriesReportsService.list (Go's Pages).
+/// Call next_page while more() is true.
+pub struct QueriesReportsListPages[fx: Effects] {
+  r: QueriesReportsService[fx]
+  query_id: Str
+  options: QueriesReportsListOptions
+  next_token: Str = ""
+  started: Bool = false
+}
+
+/// list_pages: QueriesReportsService.list's pages, from the first.
+pub fn (r: QueriesReportsService[fx]) list_pages(query_id: Str, options: QueriesReportsListOptions = QueriesReportsListOptions{}) -> QueriesReportsListPages[fx] {
+  QueriesReportsListPages{r: r, query_id: query_id, options: options}
+}
+
+/// Whether there is a page left to fetch.
+pub fn (p: QueriesReportsListPages[fx]) more() -> Bool {
+  !p.started || p.next_token != ""
+}
+
+/// The next page.
+pub fn (var p: QueriesReportsListPages[fx]) next_page() -> ListReportsResponse ! gensupport.CallErr uses (net.dial, clock, rand, fx) {
+  let o = if p.started { p.options with {page_token: Some(p.next_token)} } else { p.options }
+  let v = p.r.list(p.query_id, o)?
+  p.started = true
+  p.next_token = v.next_page_token
+  Ok(v)
 }
 
 /// A service sending through `net`, with `opts`.

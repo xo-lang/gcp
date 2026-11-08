@@ -199,6 +199,34 @@ pub fn (r: FoldersService[fx]) list(options: FoldersListOptions = FoldersListOpt
   gensupport.decode[ListFoldersResponse](resp)
 }
 
+/// FoldersListPages: the pages of FoldersService.list (Go's Pages).
+/// Call next_page while more() is true.
+pub struct FoldersListPages[fx: Effects] {
+  r: FoldersService[fx]
+  options: FoldersListOptions
+  next_token: Str = ""
+  started: Bool = false
+}
+
+/// list_pages: FoldersService.list's pages, from the first.
+pub fn (r: FoldersService[fx]) list_pages(options: FoldersListOptions = FoldersListOptions{}) -> FoldersListPages[fx] {
+  FoldersListPages{r: r, options: options}
+}
+
+/// Whether there is a page left to fetch.
+pub fn (p: FoldersListPages[fx]) more() -> Bool {
+  !p.started || p.next_token != ""
+}
+
+/// The next page.
+pub fn (var p: FoldersListPages[fx]) next_page() -> ListFoldersResponse ! gensupport.CallErr uses (net.dial, clock, rand, fx) {
+  let o = if p.started { p.options with {page_token: Some(p.next_token)} } else { p.options }
+  let v = p.r.list(o)?
+  p.started = true
+  p.next_token = v.next_page_token
+  Ok(v)
+}
+
 /// FoldersMoveOptions: the optional parameters of FoldersService.move.
 pub struct FoldersMoveOptions {
   /// The fields of the result to return (Go's Fields), joined with commas.
@@ -280,6 +308,35 @@ pub fn (r: FoldersService[fx]) search(searchfoldersrequest: SearchFoldersRequest
   let resp = r.core.client.send(gensupport.Request{method: "POST", url: u, query: q, headers: hs, body: gensupport.json_body(searchfoldersrequest, data_wrapper: false)})?
   gensupport.check(resp)?
   gensupport.decode[SearchFoldersResponse](resp)
+}
+
+/// FoldersSearchPages: the pages of FoldersService.search (Go's Pages).
+/// Call next_page while more() is true.
+pub struct FoldersSearchPages[fx: Effects] {
+  r: FoldersService[fx]
+  searchfoldersrequest: SearchFoldersRequest
+  options: FoldersSearchOptions
+  next_token: Str = ""
+  started: Bool = false
+}
+
+/// search_pages: FoldersService.search's pages, from the first.
+pub fn (r: FoldersService[fx]) search_pages(searchfoldersrequest: SearchFoldersRequest, options: FoldersSearchOptions = FoldersSearchOptions{}) -> FoldersSearchPages[fx] {
+  FoldersSearchPages{r: r, searchfoldersrequest: searchfoldersrequest, options: options}
+}
+
+/// Whether there is a page left to fetch.
+pub fn (p: FoldersSearchPages[fx]) more() -> Bool {
+  !p.started || p.next_token != ""
+}
+
+/// The next page.
+pub fn (var p: FoldersSearchPages[fx]) next_page() -> SearchFoldersResponse ! gensupport.CallErr uses (net.dial, clock, rand, fx) {
+  let b = if p.started { p.searchfoldersrequest with {page_token: p.next_token} } else { p.searchfoldersrequest }
+  let v = p.r.search(b, p.options)?
+  p.started = true
+  p.next_token = v.next_page_token
+  Ok(v)
 }
 
 /// FoldersSetIamPolicyOptions: the optional parameters of FoldersService.set_iam_policy.

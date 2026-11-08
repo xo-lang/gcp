@@ -194,6 +194,35 @@ pub fn (r: DatasetsService[fx]) list(project_id: Str, options: DatasetsListOptio
   gensupport.decode[DatasetList](resp)
 }
 
+/// DatasetsListPages: the pages of DatasetsService.list (Go's Pages).
+/// Call next_page while more() is true.
+pub struct DatasetsListPages[fx: Effects] {
+  r: DatasetsService[fx]
+  project_id: Str
+  options: DatasetsListOptions
+  next_token: Str = ""
+  started: Bool = false
+}
+
+/// list_pages: DatasetsService.list's pages, from the first.
+pub fn (r: DatasetsService[fx]) list_pages(project_id: Str, options: DatasetsListOptions = DatasetsListOptions{}) -> DatasetsListPages[fx] {
+  DatasetsListPages{r: r, project_id: project_id, options: options}
+}
+
+/// Whether there is a page left to fetch.
+pub fn (p: DatasetsListPages[fx]) more() -> Bool {
+  !p.started || p.next_token != ""
+}
+
+/// The next page.
+pub fn (var p: DatasetsListPages[fx]) next_page() -> DatasetList ! gensupport.CallErr uses (net.dial, clock, rand, fx) {
+  let o = if p.started { p.options with {page_token: Some(p.next_token)} } else { p.options }
+  let v = p.r.list(p.project_id, o)?
+  p.started = true
+  p.next_token = v.next_page_token
+  Ok(v)
+}
+
 /// DatasetsPatchOptions: the optional parameters of DatasetsService.patch.
 pub struct DatasetsPatchOptions {
   /// Optional. The version of the provided access policy schema. Valid values are 0, 1, and 3. Requests specifying an invalid value will be rejected. This version refers to the schema version of the access policy and not the version of access policy. This field's value can be equal or more than the access policy schema provided in the request. For example, * Operations updating conditional access policy binding in datasets must specify version 3. Some of the operations are : - Adding a new access policy entry with condition. - Removing an access policy entry with condition. - Updating an access policy entry with condition. * But dataset with no conditional role bindings in access policy may specify any valid value or leave the field unset. If unset or if 0 or 1 value is used for dataset with conditional bindings, request will be rejected. This field will be mapped to IAM Policy version (https://cloud.google.com/iam/docs/policies#versions) and will be used to set policy in IAM.
@@ -461,6 +490,36 @@ pub fn (r: JobsService[fx]) get_query_results(project_id: Str, job_id: Str, opti
   gensupport.decode[GetQueryResultsResponse](resp)
 }
 
+/// JobsGetQueryResultsPages: the pages of JobsService.get_query_results (Go's Pages).
+/// Call next_page while more() is true.
+pub struct JobsGetQueryResultsPages[fx: Effects] {
+  r: JobsService[fx]
+  project_id: Str
+  job_id: Str
+  options: JobsGetQueryResultsOptions
+  next_token: Str = ""
+  started: Bool = false
+}
+
+/// get_query_results_pages: JobsService.get_query_results's pages, from the first.
+pub fn (r: JobsService[fx]) get_query_results_pages(project_id: Str, job_id: Str, options: JobsGetQueryResultsOptions = JobsGetQueryResultsOptions{}) -> JobsGetQueryResultsPages[fx] {
+  JobsGetQueryResultsPages{r: r, project_id: project_id, job_id: job_id, options: options}
+}
+
+/// Whether there is a page left to fetch.
+pub fn (p: JobsGetQueryResultsPages[fx]) more() -> Bool {
+  !p.started || p.next_token != ""
+}
+
+/// The next page.
+pub fn (var p: JobsGetQueryResultsPages[fx]) next_page() -> GetQueryResultsResponse ! gensupport.CallErr uses (net.dial, clock, rand, fx) {
+  let o = if p.started { p.options with {page_token: Some(p.next_token)} } else { p.options }
+  let v = p.r.get_query_results(p.project_id, p.job_id, o)?
+  p.started = true
+  p.next_token = v.page_token
+  Ok(v)
+}
+
 /// JobsInsertOptions: the optional parameters of JobsService.insert.
 pub struct JobsInsertOptions {
   /// The fields of the result to return (Go's Fields), joined with commas.
@@ -483,6 +542,26 @@ pub fn (r: JobsService[fx]) insert(project_id: Str, job: Job, options: JobsInser
   hs = hs + options.headers
   let u = googleapi.expand(googleapi.resolve_relative(r.core.base_path, "projects/{+projectId}/jobs"), {"projectId": project_id})
   let resp = r.core.client.send(gensupport.Request{method: "POST", url: u, query: q, headers: hs, body: gensupport.json_body(job, data_wrapper: false)})?
+  gensupport.check(resp)?
+  gensupport.decode[Job](resp)
+}
+
+/// insert_media: JobsService.insert with media (Go's Media): in one
+/// multipart request below the media's chunk size, else a resumable
+/// upload of chunks.
+pub fn (r: JobsService[fx]) insert_media(clock: Clock, rand: Rand, project_id: Str, job: Job, media: gensupport.Media, options: JobsInsertOptions = JobsInsertOptions{}) -> Job ! gensupport.CallErr uses (net.dial, clock, rand, fx) {
+  var q = url.values()
+  if !options.fields.is_empty() {
+    q.set("fields", options.fields.join(","))
+  }
+  q.set("alt", "json")
+  q.set("prettyPrint", "false")
+  var hs: List[(Str, Str)] = []
+  hs.push(("Content-Type", "application/json"))
+  hs = hs + options.headers
+  let u = googleapi.expand(googleapi.resolve_relative(r.core.base_path, "projects/{+projectId}/jobs"), {"projectId": project_id})
+  let mu = googleapi.expand(googleapi.resolve_relative(r.core.base_path, "/upload/bigquery/v2/projects/{+projectId}/jobs"), {"projectId": project_id})
+  let resp = r.core.client.upload(clock, rand, gensupport.Request{method: "POST", url: u, query: q, headers: hs, body: gensupport.json_body(job, data_wrapper: false)}, mu, media)?
   gensupport.check(resp)?
   gensupport.decode[Job](resp)
 }
@@ -555,6 +634,35 @@ pub fn (r: JobsService[fx]) list(project_id: Str, options: JobsListOptions = Job
   let resp = r.core.client.send(gensupport.Request{method: "GET", url: u, query: q, headers: hs, body: b""})?
   gensupport.check(resp)?
   gensupport.decode[JobList](resp)
+}
+
+/// JobsListPages: the pages of JobsService.list (Go's Pages).
+/// Call next_page while more() is true.
+pub struct JobsListPages[fx: Effects] {
+  r: JobsService[fx]
+  project_id: Str
+  options: JobsListOptions
+  next_token: Str = ""
+  started: Bool = false
+}
+
+/// list_pages: JobsService.list's pages, from the first.
+pub fn (r: JobsService[fx]) list_pages(project_id: Str, options: JobsListOptions = JobsListOptions{}) -> JobsListPages[fx] {
+  JobsListPages{r: r, project_id: project_id, options: options}
+}
+
+/// Whether there is a page left to fetch.
+pub fn (p: JobsListPages[fx]) more() -> Bool {
+  !p.started || p.next_token != ""
+}
+
+/// The next page.
+pub fn (var p: JobsListPages[fx]) next_page() -> JobList ! gensupport.CallErr uses (net.dial, clock, rand, fx) {
+  let o = if p.started { p.options with {page_token: Some(p.next_token)} } else { p.options }
+  let v = p.r.list(p.project_id, o)?
+  p.started = true
+  p.next_token = v.next_page_token
+  Ok(v)
 }
 
 /// JobsQueryOptions: the optional parameters of JobsService.query.
@@ -687,6 +795,36 @@ pub fn (r: ModelsService[fx]) list(project_id: Str, dataset_id: Str, options: Mo
   gensupport.decode[ListModelsResponse](resp)
 }
 
+/// ModelsListPages: the pages of ModelsService.list (Go's Pages).
+/// Call next_page while more() is true.
+pub struct ModelsListPages[fx: Effects] {
+  r: ModelsService[fx]
+  project_id: Str
+  dataset_id: Str
+  options: ModelsListOptions
+  next_token: Str = ""
+  started: Bool = false
+}
+
+/// list_pages: ModelsService.list's pages, from the first.
+pub fn (r: ModelsService[fx]) list_pages(project_id: Str, dataset_id: Str, options: ModelsListOptions = ModelsListOptions{}) -> ModelsListPages[fx] {
+  ModelsListPages{r: r, project_id: project_id, dataset_id: dataset_id, options: options}
+}
+
+/// Whether there is a page left to fetch.
+pub fn (p: ModelsListPages[fx]) more() -> Bool {
+  !p.started || p.next_token != ""
+}
+
+/// The next page.
+pub fn (var p: ModelsListPages[fx]) next_page() -> ListModelsResponse ! gensupport.CallErr uses (net.dial, clock, rand, fx) {
+  let o = if p.started { p.options with {page_token: Some(p.next_token)} } else { p.options }
+  let v = p.r.list(p.project_id, p.dataset_id, o)?
+  p.started = true
+  p.next_token = v.next_page_token
+  Ok(v)
+}
+
 /// ModelsPatchOptions: the optional parameters of ModelsService.patch.
 pub struct ModelsPatchOptions {
   /// The fields of the result to return (Go's Fields), joined with commas.
@@ -790,6 +928,34 @@ pub fn (r: ProjectsService[fx]) list(options: ProjectsListOptions = ProjectsList
   let resp = r.core.client.send(gensupport.Request{method: "GET", url: u, query: q, headers: hs, body: b""})?
   gensupport.check(resp)?
   gensupport.decode[ProjectList](resp)
+}
+
+/// ProjectsListPages: the pages of ProjectsService.list (Go's Pages).
+/// Call next_page while more() is true.
+pub struct ProjectsListPages[fx: Effects] {
+  r: ProjectsService[fx]
+  options: ProjectsListOptions
+  next_token: Str = ""
+  started: Bool = false
+}
+
+/// list_pages: ProjectsService.list's pages, from the first.
+pub fn (r: ProjectsService[fx]) list_pages(options: ProjectsListOptions = ProjectsListOptions{}) -> ProjectsListPages[fx] {
+  ProjectsListPages{r: r, options: options}
+}
+
+/// Whether there is a page left to fetch.
+pub fn (p: ProjectsListPages[fx]) more() -> Bool {
+  !p.started || p.next_token != ""
+}
+
+/// The next page.
+pub fn (var p: ProjectsListPages[fx]) next_page() -> ProjectList ! gensupport.CallErr uses (net.dial, clock, rand, fx) {
+  let o = if p.started { p.options with {page_token: Some(p.next_token)} } else { p.options }
+  let v = p.r.list(o)?
+  p.started = true
+  p.next_token = v.next_page_token
+  Ok(v)
 }
 
 /// RoutinesService: the `routines` resource.
@@ -961,6 +1127,36 @@ pub fn (r: RoutinesService[fx]) list(project_id: Str, dataset_id: Str, options: 
   let resp = r.core.client.send(gensupport.Request{method: "GET", url: u, query: q, headers: hs, body: b""})?
   gensupport.check(resp)?
   gensupport.decode[ListRoutinesResponse](resp)
+}
+
+/// RoutinesListPages: the pages of RoutinesService.list (Go's Pages).
+/// Call next_page while more() is true.
+pub struct RoutinesListPages[fx: Effects] {
+  r: RoutinesService[fx]
+  project_id: Str
+  dataset_id: Str
+  options: RoutinesListOptions
+  next_token: Str = ""
+  started: Bool = false
+}
+
+/// list_pages: RoutinesService.list's pages, from the first.
+pub fn (r: RoutinesService[fx]) list_pages(project_id: Str, dataset_id: Str, options: RoutinesListOptions = RoutinesListOptions{}) -> RoutinesListPages[fx] {
+  RoutinesListPages{r: r, project_id: project_id, dataset_id: dataset_id, options: options}
+}
+
+/// Whether there is a page left to fetch.
+pub fn (p: RoutinesListPages[fx]) more() -> Bool {
+  !p.started || p.next_token != ""
+}
+
+/// The next page.
+pub fn (var p: RoutinesListPages[fx]) next_page() -> ListRoutinesResponse ! gensupport.CallErr uses (net.dial, clock, rand, fx) {
+  let o = if p.started { p.options with {page_token: Some(p.next_token)} } else { p.options }
+  let v = p.r.list(p.project_id, p.dataset_id, o)?
+  p.started = true
+  p.next_token = v.next_page_token
+  Ok(v)
 }
 
 /// RoutinesSetIamPolicyOptions: the optional parameters of RoutinesService.set_iam_policy.
@@ -1228,6 +1424,37 @@ pub fn (r: RowAccessPoliciesService[fx]) list(project_id: Str, dataset_id: Str, 
   gensupport.decode[ListRowAccessPoliciesResponse](resp)
 }
 
+/// RowAccessPoliciesListPages: the pages of RowAccessPoliciesService.list (Go's Pages).
+/// Call next_page while more() is true.
+pub struct RowAccessPoliciesListPages[fx: Effects] {
+  r: RowAccessPoliciesService[fx]
+  project_id: Str
+  dataset_id: Str
+  table_id: Str
+  options: RowAccessPoliciesListOptions
+  next_token: Str = ""
+  started: Bool = false
+}
+
+/// list_pages: RowAccessPoliciesService.list's pages, from the first.
+pub fn (r: RowAccessPoliciesService[fx]) list_pages(project_id: Str, dataset_id: Str, table_id: Str, options: RowAccessPoliciesListOptions = RowAccessPoliciesListOptions{}) -> RowAccessPoliciesListPages[fx] {
+  RowAccessPoliciesListPages{r: r, project_id: project_id, dataset_id: dataset_id, table_id: table_id, options: options}
+}
+
+/// Whether there is a page left to fetch.
+pub fn (p: RowAccessPoliciesListPages[fx]) more() -> Bool {
+  !p.started || p.next_token != ""
+}
+
+/// The next page.
+pub fn (var p: RowAccessPoliciesListPages[fx]) next_page() -> ListRowAccessPoliciesResponse ! gensupport.CallErr uses (net.dial, clock, rand, fx) {
+  let o = if p.started { p.options with {page_token: Some(p.next_token)} } else { p.options }
+  let v = p.r.list(p.project_id, p.dataset_id, p.table_id, o)?
+  p.started = true
+  p.next_token = v.next_page_token
+  Ok(v)
+}
+
 /// RowAccessPoliciesTestIamPermissionsOptions: the optional parameters of RowAccessPoliciesService.test_iam_permissions.
 pub struct RowAccessPoliciesTestIamPermissionsOptions {
   /// The fields of the result to return (Go's Fields), joined with commas.
@@ -1373,6 +1600,37 @@ pub fn (r: TabledataService[fx]) list(project_id: Str, dataset_id: Str, table_id
   let resp = r.core.client.send(gensupport.Request{method: "GET", url: u, query: q, headers: hs, body: b""})?
   gensupport.check(resp)?
   gensupport.decode[TableDataList](resp)
+}
+
+/// TabledataListPages: the pages of TabledataService.list (Go's Pages).
+/// Call next_page while more() is true.
+pub struct TabledataListPages[fx: Effects] {
+  r: TabledataService[fx]
+  project_id: Str
+  dataset_id: Str
+  table_id: Str
+  options: TabledataListOptions
+  next_token: Str = ""
+  started: Bool = false
+}
+
+/// list_pages: TabledataService.list's pages, from the first.
+pub fn (r: TabledataService[fx]) list_pages(project_id: Str, dataset_id: Str, table_id: Str, options: TabledataListOptions = TabledataListOptions{}) -> TabledataListPages[fx] {
+  TabledataListPages{r: r, project_id: project_id, dataset_id: dataset_id, table_id: table_id, options: options}
+}
+
+/// Whether there is a page left to fetch.
+pub fn (p: TabledataListPages[fx]) more() -> Bool {
+  !p.started || p.next_token != ""
+}
+
+/// The next page.
+pub fn (var p: TabledataListPages[fx]) next_page() -> TableDataList ! gensupport.CallErr uses (net.dial, clock, rand, fx) {
+  let o = if p.started { p.options with {page_token: Some(p.next_token)} } else { p.options }
+  let v = p.r.list(p.project_id, p.dataset_id, p.table_id, o)?
+  p.started = true
+  p.next_token = v.page_token
+  Ok(v)
 }
 
 /// TablesService: the `tables` resource.
@@ -1539,6 +1797,36 @@ pub fn (r: TablesService[fx]) list(project_id: Str, dataset_id: Str, options: Ta
   let resp = r.core.client.send(gensupport.Request{method: "GET", url: u, query: q, headers: hs, body: b""})?
   gensupport.check(resp)?
   gensupport.decode[TableList](resp)
+}
+
+/// TablesListPages: the pages of TablesService.list (Go's Pages).
+/// Call next_page while more() is true.
+pub struct TablesListPages[fx: Effects] {
+  r: TablesService[fx]
+  project_id: Str
+  dataset_id: Str
+  options: TablesListOptions
+  next_token: Str = ""
+  started: Bool = false
+}
+
+/// list_pages: TablesService.list's pages, from the first.
+pub fn (r: TablesService[fx]) list_pages(project_id: Str, dataset_id: Str, options: TablesListOptions = TablesListOptions{}) -> TablesListPages[fx] {
+  TablesListPages{r: r, project_id: project_id, dataset_id: dataset_id, options: options}
+}
+
+/// Whether there is a page left to fetch.
+pub fn (p: TablesListPages[fx]) more() -> Bool {
+  !p.started || p.next_token != ""
+}
+
+/// The next page.
+pub fn (var p: TablesListPages[fx]) next_page() -> TableList ! gensupport.CallErr uses (net.dial, clock, rand, fx) {
+  let o = if p.started { p.options with {page_token: Some(p.next_token)} } else { p.options }
+  let v = p.r.list(p.project_id, p.dataset_id, o)?
+  p.started = true
+  p.next_token = v.next_page_token
+  Ok(v)
 }
 
 /// TablesPatchOptions: the optional parameters of TablesService.patch.

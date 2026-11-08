@@ -369,6 +369,35 @@ pub fn (r: ProjectsDashboardsService[fx]) list(parent: Str, options: ProjectsDas
   gensupport.decode[ListDashboardsResponse](resp)
 }
 
+/// ProjectsDashboardsListPages: the pages of ProjectsDashboardsService.list (Go's Pages).
+/// Call next_page while more() is true.
+pub struct ProjectsDashboardsListPages[fx: Effects] {
+  r: ProjectsDashboardsService[fx]
+  parent: Str
+  options: ProjectsDashboardsListOptions
+  next_token: Str = ""
+  started: Bool = false
+}
+
+/// list_pages: ProjectsDashboardsService.list's pages, from the first.
+pub fn (r: ProjectsDashboardsService[fx]) list_pages(parent: Str, options: ProjectsDashboardsListOptions = ProjectsDashboardsListOptions{}) -> ProjectsDashboardsListPages[fx] {
+  ProjectsDashboardsListPages{r: r, parent: parent, options: options}
+}
+
+/// Whether there is a page left to fetch.
+pub fn (p: ProjectsDashboardsListPages[fx]) more() -> Bool {
+  !p.started || p.next_token != ""
+}
+
+/// The next page.
+pub fn (var p: ProjectsDashboardsListPages[fx]) next_page() -> ListDashboardsResponse ! gensupport.CallErr uses (net.dial, clock, rand, fx) {
+  let o = if p.started { p.options with {page_token: Some(p.next_token)} } else { p.options }
+  let v = p.r.list(p.parent, o)?
+  p.started = true
+  p.next_token = v.next_page_token
+  Ok(v)
+}
+
 /// ProjectsDashboardsPatchOptions: the optional parameters of ProjectsDashboardsService.patch.
 pub struct ProjectsDashboardsPatchOptions {
   /// If set, validate the request and preview the review, but do not actually save it.

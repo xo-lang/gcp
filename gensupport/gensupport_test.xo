@@ -1,3 +1,8 @@
+use std/http
+use std/testing
+use std/url
+use github.com/xo-lang/gcp/option
+
 struct Small {
   name as "name,omitempty": Str = ""
   size as "size,omitempty": Str = ""
@@ -7,4 +12,66 @@ test "a JSON body ends with a newline, as json.Encoder writes" {
   expect(json_body(Small{name: "a"}).to_str_lossy()) == "{\"name\":\"a\"}\n"
   expect(json_body(Small{name: "a", size: "12"}, data_wrapper: true).to_str_lossy()) == "{\"data\": {\"name\":\"a\",\"size\":\"12\"}\n}"
   expect(json_body(Small{}).to_str_lossy()) == "{}\n"
+}
+
+fn upload_client(net: testing.FakeNet) -> Client[()] {
+  new_client(net, option.ClientOptions{without_authentication: true})
+}
+
+test "a resumable chunk is sent again after a 503, then the next chunk" {
+  let seen: Mutex[List[Str]] = Mutex[List[Str]].new([])
+  let fails = Mutex[Int].new(1)
+  os.net.handle("POST https://up.test/{rest...}", fn(req: http.Request) -> http.Response {
+    let path = req.escaped_path()
+    if path == "/start" {
+      return http.Response{status: 200, headers: {"Location": "https://up.test/session"}, body: b""}
+    }
+    let range = req.headers.get("Content-Range") ?? "?"
+    seen.with(fn(var l: List[Str]) { l.push(range) })
+    let fail = fails.with(fn(var n: Int) -> Bool {
+      let f = n > 0
+      n = n - 1
+      f
+    })
+    if fail {
+      return http.Response{status: 503, headers: {}, body: b"busy"}
+    }
+    if range.ends_with("/*") {
+      return http.Response{status: 200, headers: {"X-Http-Status-Code-Override": "308"}, body: b""}
+    }
+    http.Response{status: 200, headers: {}, body: b"{\"name\":\"done\"}"}
+  })
+  let c = upload_client(os.net)
+  let data = "x".repeat(MIN_CHUNK_SIZE + 5).bytes()
+  let resp = c.upload(os.clock, os.rand, Request{method: "POST", url: "https://up.test/plain", query: url.values()}, "https://up.test/start", Media{data: data, content_type: "text/plain", chunk_size: MIN_CHUNK_SIZE}) ?? e => fault(e.display())
+  expect(resp.body.to_str_lossy()) == "{\"name\":\"done\"}"
+  expect(seen.with(fn(var l: List[Str]) -> List[Str] { l })) == ["bytes 0-262143/*", "bytes 0-262143/*", "bytes 262144-262148/262149"]
+}
+
+test "a 4xx chunk is not retried, and a 308 status is an error" {
+  let n = Mutex[Int].new(0)
+  os.net.handle("POST https://up.test/{rest...}", fn(req: http.Request) -> http.Response {
+    if req.escaped_path() == "/start" {
+      return http.Response{status: 200, headers: {"Location": "https://up.test/session"}, body: b""}
+    }
+    n.with(fn(var k: Int) { k = k + 1 })
+    http.Response{status: 400, headers: {}, body: b"bad"}
+  })
+  let c = upload_client(os.net)
+  let m = Media{data: "x".repeat(MIN_CHUNK_SIZE).bytes(), content_type: "text/plain", chunk_size: MIN_CHUNK_SIZE}
+  let resp = c.upload(os.clock, os.rand, Request{method: "POST", url: "https://up.test/plain", query: url.values()}, "https://up.test/start", m) ?? e => fault(e.display())
+  expect(resp.status) == 400
+  expect(n.with(fn(var k: Int) -> Int { k })) == 1
+}
+
+test "media below the chunk size goes as one multipart request" {
+  let body: Mutex[Str] = Mutex[Str].new("")
+  os.net.handle("POST https://up.test/{rest...}", fn(req: http.Request) -> http.Response {
+    body.with(fn(var b: Str) { b = "${req.raw_query()} ${req.headers.get("Content-Type") ?? ""}" })
+    http.Response{status: 200, headers: {}, body: b"{}"}
+  })
+  let c = upload_client(os.net)
+  let _ = c.upload(os.clock, os.rand, Request{method: "POST", url: "https://up.test/plain", query: url.values()}, "https://up.test/start", Media{data: "hi".bytes(), content_type: "text/plain"}) ?? e => fault(e.display())
+  let got = body.with(fn(var b: Str) -> Str { b })
+  expect(got.starts_with("uploadType=multipart multipart/related; boundary=")) == true
 }

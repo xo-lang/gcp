@@ -185,6 +185,36 @@ pub fn (r: CommentsService[fx]) list(blog_id: Str, post_id: Str, options: Commen
   gensupport.decode[CommentList](resp)
 }
 
+/// CommentsListPages: the pages of CommentsService.list (Go's Pages).
+/// Call next_page while more() is true.
+pub struct CommentsListPages[fx: Effects] {
+  r: CommentsService[fx]
+  blog_id: Str
+  post_id: Str
+  options: CommentsListOptions
+  next_token: Str = ""
+  started: Bool = false
+}
+
+/// list_pages: CommentsService.list's pages, from the first.
+pub fn (r: CommentsService[fx]) list_pages(blog_id: Str, post_id: Str, options: CommentsListOptions = CommentsListOptions{}) -> CommentsListPages[fx] {
+  CommentsListPages{r: r, blog_id: blog_id, post_id: post_id, options: options}
+}
+
+/// Whether there is a page left to fetch.
+pub fn (p: CommentsListPages[fx]) more() -> Bool {
+  !p.started || p.next_token != ""
+}
+
+/// The next page.
+pub fn (var p: CommentsListPages[fx]) next_page() -> CommentList ! gensupport.CallErr uses (net.dial, clock, rand, fx) {
+  let o = if p.started { p.options with {page_token: Some(p.next_token)} } else { p.options }
+  let v = p.r.list(p.blog_id, p.post_id, o)?
+  p.started = true
+  p.next_token = v.next_page_token
+  Ok(v)
+}
+
 /// PagesService: the `pages` resource.
 pub struct PagesService[fx: Effects] {
   core: gensupport.Core[fx]
@@ -341,6 +371,35 @@ pub fn (r: PostsService[fx]) list(blog_id: Str, options: PostsListOptions = Post
   let resp = r.core.client.send(gensupport.Request{method: "GET", url: u, query: q, headers: hs, body: b""})?
   gensupport.check(resp)?
   gensupport.decode[PostList](resp)
+}
+
+/// PostsListPages: the pages of PostsService.list (Go's Pages).
+/// Call next_page while more() is true.
+pub struct PostsListPages[fx: Effects] {
+  r: PostsService[fx]
+  blog_id: Str
+  options: PostsListOptions
+  next_token: Str = ""
+  started: Bool = false
+}
+
+/// list_pages: PostsService.list's pages, from the first.
+pub fn (r: PostsService[fx]) list_pages(blog_id: Str, options: PostsListOptions = PostsListOptions{}) -> PostsListPages[fx] {
+  PostsListPages{r: r, blog_id: blog_id, options: options}
+}
+
+/// Whether there is a page left to fetch.
+pub fn (p: PostsListPages[fx]) more() -> Bool {
+  !p.started || p.next_token != ""
+}
+
+/// The next page.
+pub fn (var p: PostsListPages[fx]) next_page() -> PostList ! gensupport.CallErr uses (net.dial, clock, rand, fx) {
+  let o = if p.started { p.options with {page_token: Some(p.next_token)} } else { p.options }
+  let v = p.r.list(p.blog_id, o)?
+  p.started = true
+  p.next_token = v.next_page_token
+  Ok(v)
 }
 
 /// UsersService: the `users` resource.

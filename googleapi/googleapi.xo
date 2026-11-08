@@ -89,6 +89,17 @@ pub fn check_response(resp: http.Response) -> ApiErr? {
   Some(ApiErr{code: resp.status, body: body, header: resp.headers})
 }
 
+/// None for a 2xx response, else its Error with the status, the first
+/// MiB of the body and the headers (Go's CheckMediaResponse, which does
+/// not parse the body).
+pub fn check_media_response(resp: http.Response) -> ApiErr? {
+  if resp.status >= 200 && resp.status <= 299 {
+    return None
+  }
+  let n = if resp.body.len() > 1048576 { 1048576 } else { resp.body.len() }
+  Some(ApiErr{code: resp.status, body: resp.body[0..n].to_str_lossy(), header: resp.headers})
+}
+
 /// `rel` resolved against `base` (Go's ResolveRelative): the text after
 /// a colon in `rel` (a custom method, `:cancel`) is kept as it is, and
 /// `{`, `}` and `*` stay unescaped.

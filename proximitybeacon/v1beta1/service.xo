@@ -416,6 +416,34 @@ pub fn (r: BeaconsService[fx]) list(options: BeaconsListOptions = BeaconsListOpt
   gensupport.decode[ListBeaconsResponse](resp)
 }
 
+/// BeaconsListPages: the pages of BeaconsService.list (Go's Pages).
+/// Call next_page while more() is true.
+pub struct BeaconsListPages[fx: Effects] {
+  r: BeaconsService[fx]
+  options: BeaconsListOptions
+  next_token: Str = ""
+  started: Bool = false
+}
+
+/// list_pages: BeaconsService.list's pages, from the first.
+pub fn (r: BeaconsService[fx]) list_pages(options: BeaconsListOptions = BeaconsListOptions{}) -> BeaconsListPages[fx] {
+  BeaconsListPages{r: r, options: options}
+}
+
+/// Whether there is a page left to fetch.
+pub fn (p: BeaconsListPages[fx]) more() -> Bool {
+  !p.started || p.next_token != ""
+}
+
+/// The next page.
+pub fn (var p: BeaconsListPages[fx]) next_page() -> ListBeaconsResponse ! gensupport.CallErr uses (net.dial, clock, rand, fx) {
+  let o = if p.started { p.options with {page_token: Some(p.next_token)} } else { p.options }
+  let v = p.r.list(o)?
+  p.started = true
+  p.next_token = v.next_page_token
+  Ok(v)
+}
+
 /// BeaconsRegisterOptions: the optional parameters of BeaconsService.register.
 pub struct BeaconsRegisterOptions {
   /// The project id of the project the beacon will be registered to. If
@@ -782,6 +810,35 @@ pub fn (r: BeaconsDiagnosticsService[fx]) list(beacon_name: Str, options: Beacon
   let resp = r.core.client.send(gensupport.Request{method: "GET", url: u, query: q, headers: hs, body: b""})?
   gensupport.check(resp)?
   gensupport.decode[ListDiagnosticsResponse](resp)
+}
+
+/// BeaconsDiagnosticsListPages: the pages of BeaconsDiagnosticsService.list (Go's Pages).
+/// Call next_page while more() is true.
+pub struct BeaconsDiagnosticsListPages[fx: Effects] {
+  r: BeaconsDiagnosticsService[fx]
+  beacon_name: Str
+  options: BeaconsDiagnosticsListOptions
+  next_token: Str = ""
+  started: Bool = false
+}
+
+/// list_pages: BeaconsDiagnosticsService.list's pages, from the first.
+pub fn (r: BeaconsDiagnosticsService[fx]) list_pages(beacon_name: Str, options: BeaconsDiagnosticsListOptions = BeaconsDiagnosticsListOptions{}) -> BeaconsDiagnosticsListPages[fx] {
+  BeaconsDiagnosticsListPages{r: r, beacon_name: beacon_name, options: options}
+}
+
+/// Whether there is a page left to fetch.
+pub fn (p: BeaconsDiagnosticsListPages[fx]) more() -> Bool {
+  !p.started || p.next_token != ""
+}
+
+/// The next page.
+pub fn (var p: BeaconsDiagnosticsListPages[fx]) next_page() -> ListDiagnosticsResponse ! gensupport.CallErr uses (net.dial, clock, rand, fx) {
+  let o = if p.started { p.options with {page_token: Some(p.next_token)} } else { p.options }
+  let v = p.r.list(p.beacon_name, o)?
+  p.started = true
+  p.next_token = v.next_page_token
+  Ok(v)
 }
 
 /// NamespacesService: the `namespaces` resource.

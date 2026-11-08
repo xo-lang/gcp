@@ -167,6 +167,35 @@ pub fn (r: ProjectsTracesService[fx]) list(project_id: Str, options: ProjectsTra
   gensupport.decode[ListTracesResponse](resp)
 }
 
+/// ProjectsTracesListPages: the pages of ProjectsTracesService.list (Go's Pages).
+/// Call next_page while more() is true.
+pub struct ProjectsTracesListPages[fx: Effects] {
+  r: ProjectsTracesService[fx]
+  project_id: Str
+  options: ProjectsTracesListOptions
+  next_token: Str = ""
+  started: Bool = false
+}
+
+/// list_pages: ProjectsTracesService.list's pages, from the first.
+pub fn (r: ProjectsTracesService[fx]) list_pages(project_id: Str, options: ProjectsTracesListOptions = ProjectsTracesListOptions{}) -> ProjectsTracesListPages[fx] {
+  ProjectsTracesListPages{r: r, project_id: project_id, options: options}
+}
+
+/// Whether there is a page left to fetch.
+pub fn (p: ProjectsTracesListPages[fx]) more() -> Bool {
+  !p.started || p.next_token != ""
+}
+
+/// The next page.
+pub fn (var p: ProjectsTracesListPages[fx]) next_page() -> ListTracesResponse ! gensupport.CallErr uses (net.dial, clock, rand, fx) {
+  let o = if p.started { p.options with {page_token: Some(p.next_token)} } else { p.options }
+  let v = p.r.list(p.project_id, o)?
+  p.started = true
+  p.next_token = v.next_page_token
+  Ok(v)
+}
+
 /// A service sending through `net`, with `opts`.
 pub fn new_service[fx: Effects](net: Net, opts: option.ClientOptions[fx] = option.ClientOptions{}) -> Service[fx] {
   new_service_from(gensupport.new_core(net, opts, BASE_PATH))

@@ -72,6 +72,36 @@ pub fn (r: AccountsReportsService[fx]) search(parent: Str, searchrequest: Search
   gensupport.decode[SearchResponse](resp)
 }
 
+/// AccountsReportsSearchPages: the pages of AccountsReportsService.search (Go's Pages).
+/// Call next_page while more() is true.
+pub struct AccountsReportsSearchPages[fx: Effects] {
+  r: AccountsReportsService[fx]
+  parent: Str
+  searchrequest: SearchRequest
+  options: AccountsReportsSearchOptions
+  next_token: Str = ""
+  started: Bool = false
+}
+
+/// search_pages: AccountsReportsService.search's pages, from the first.
+pub fn (r: AccountsReportsService[fx]) search_pages(parent: Str, searchrequest: SearchRequest, options: AccountsReportsSearchOptions = AccountsReportsSearchOptions{}) -> AccountsReportsSearchPages[fx] {
+  AccountsReportsSearchPages{r: r, parent: parent, searchrequest: searchrequest, options: options}
+}
+
+/// Whether there is a page left to fetch.
+pub fn (p: AccountsReportsSearchPages[fx]) more() -> Bool {
+  !p.started || p.next_token != ""
+}
+
+/// The next page.
+pub fn (var p: AccountsReportsSearchPages[fx]) next_page() -> SearchResponse ! gensupport.CallErr uses (net.dial, clock, rand, fx) {
+  let b = if p.started { p.searchrequest with {page_token: p.next_token} } else { p.searchrequest }
+  let v = p.r.search(p.parent, b, p.options)?
+  p.started = true
+  p.next_token = v.next_page_token
+  Ok(v)
+}
+
 /// A service sending through `net`, with `opts`.
 pub fn new_service[fx: Effects](net: Net, opts: option.ClientOptions[fx] = option.ClientOptions{}) -> Service[fx] {
   new_service_from(gensupport.new_core(net, opts, BASE_PATH))

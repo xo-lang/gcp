@@ -100,6 +100,34 @@ pub fn (r: ActivitiesService[fx]) list(options: ActivitiesListOptions = Activiti
   gensupport.decode[ListActivitiesResponse](resp)
 }
 
+/// ActivitiesListPages: the pages of ActivitiesService.list (Go's Pages).
+/// Call next_page while more() is true.
+pub struct ActivitiesListPages[fx: Effects] {
+  r: ActivitiesService[fx]
+  options: ActivitiesListOptions
+  next_token: Str = ""
+  started: Bool = false
+}
+
+/// list_pages: ActivitiesService.list's pages, from the first.
+pub fn (r: ActivitiesService[fx]) list_pages(options: ActivitiesListOptions = ActivitiesListOptions{}) -> ActivitiesListPages[fx] {
+  ActivitiesListPages{r: r, options: options}
+}
+
+/// Whether there is a page left to fetch.
+pub fn (p: ActivitiesListPages[fx]) more() -> Bool {
+  !p.started || p.next_token != ""
+}
+
+/// The next page.
+pub fn (var p: ActivitiesListPages[fx]) next_page() -> ListActivitiesResponse ! gensupport.CallErr uses (net.dial, clock, rand, fx) {
+  let o = if p.started { p.options with {page_token: Some(p.next_token)} } else { p.options }
+  let v = p.r.list(o)?
+  p.started = true
+  p.next_token = v.next_page_token
+  Ok(v)
+}
+
 /// A service sending through `net`, with `opts`.
 pub fn new_service[fx: Effects](net: Net, opts: option.ClientOptions[fx] = option.ClientOptions{}) -> Service[fx] {
   new_service_from(gensupport.new_core(net, opts, BASE_PATH))

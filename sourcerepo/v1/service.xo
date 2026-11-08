@@ -258,6 +258,35 @@ pub fn (r: ProjectsReposService[fx]) list(name: Str, options: ProjectsReposListO
   gensupport.decode[ListReposResponse](resp)
 }
 
+/// ProjectsReposListPages: the pages of ProjectsReposService.list (Go's Pages).
+/// Call next_page while more() is true.
+pub struct ProjectsReposListPages[fx: Effects] {
+  r: ProjectsReposService[fx]
+  name: Str
+  options: ProjectsReposListOptions
+  next_token: Str = ""
+  started: Bool = false
+}
+
+/// list_pages: ProjectsReposService.list's pages, from the first.
+pub fn (r: ProjectsReposService[fx]) list_pages(name: Str, options: ProjectsReposListOptions = ProjectsReposListOptions{}) -> ProjectsReposListPages[fx] {
+  ProjectsReposListPages{r: r, name: name, options: options}
+}
+
+/// Whether there is a page left to fetch.
+pub fn (p: ProjectsReposListPages[fx]) more() -> Bool {
+  !p.started || p.next_token != ""
+}
+
+/// The next page.
+pub fn (var p: ProjectsReposListPages[fx]) next_page() -> ListReposResponse ! gensupport.CallErr uses (net.dial, clock, rand, fx) {
+  let o = if p.started { p.options with {page_token: Some(p.next_token)} } else { p.options }
+  let v = p.r.list(p.name, o)?
+  p.started = true
+  p.next_token = v.next_page_token
+  Ok(v)
+}
+
 /// ProjectsReposPatchOptions: the optional parameters of ProjectsReposService.patch.
 pub struct ProjectsReposPatchOptions {
   /// The fields of the result to return (Go's Fields), joined with commas.
