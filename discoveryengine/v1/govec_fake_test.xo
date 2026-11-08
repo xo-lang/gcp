@@ -1,0 +1,127 @@
+// The fake Google API the Go calls of govectors_test.xo are made again
+// against: each test's body, answered with 200, and every request noted
+// in the Go program's form (codegen/gen/vectors.xo). Copied into each
+// module by scripts/refresh.sh; do not edit.
+
+use std/http
+use std/testing
+use github.com/xo-lang/gcp/option
+
+struct GvFake {
+  log: Mutex[List[Str]]
+  body: Mutex[Str]
+  /// The bodies served after it, one per request (a pager's pages).
+  queue: Mutex[List[Str]]
+}
+
+fn gv_note(f: GvFake, s: Str) {
+  f.log.with(fn(var l: List[Str]) { l.push(s) })
+}
+
+fn gv_note_lines(f: GvFake, s: Str) {
+  for line in s.split("\n") {
+    gv_note(f, line)
+  }
+}
+
+fn gv_set(f: GvFake, body: Str) {
+  f.body.with(fn(var b: Str) { b = body })
+}
+
+fn gv_queue(f: GvFake, body: Str) {
+  f.queue.with(fn(var q: List[Str]) { q.push(body) })
+}
+
+/// The media of a resumable upload vector (two chunks of 256 KiB).
+fn gv_big() -> Bytes {
+  "0123456789abcdef".repeat(16385)[0..262154].bytes()
+}
+
+/// A request body as the vectors print it: a multipart boundary as
+/// BOUNDARY, a long body by its size and ends.
+fn gv_shown(b: Str, boundary: Str) -> Str {
+  let t = if boundary == "" { b } else { b.replace(boundary, "BOUNDARY") }
+  if t.len() > 1024 {
+    return "<${t.len()} bytes> ${t[0..32]}...${t[t.len() - 32..t.len()]}"
+  }
+  t
+}
+
+fn gv_answer(f: GvFake, req: http.Request) -> http.Response {
+  let body = f.body.with(fn(var b: Str) -> Str { b })
+  let next = f.queue.with(fn(var q: List[Str]) -> Str? {
+    let x = q.get(0)?
+    q = q[1..q.len()]
+    Some(x)
+  })
+  if let Some(n) = next {
+    gv_set(f, n)
+  }
+  var boundary = ""
+  for (k, v) in req.headers {
+    if k.to_lower() == "content-type" {
+      if let Some(i) = v.find("boundary=") {
+        boundary = v[i + 9..v.len()]
+      }
+    }
+  }
+  var hs: List[Str] = []
+  for (k, v) in req.headers {
+    let lk = k.to_lower()
+    if lk != "user-agent" && lk != "x-goog-api-client" && lk != "accept-encoding" && lk != "content-length" {
+      var hv = if lk == "x-goog-gcs-idempotency-token" { "UUID" } else { v }
+      if boundary != "" {
+        hv = hv.replace(boundary, "BOUNDARY")
+      }
+      hs.push("${lk}=${hv}")
+    }
+  }
+  let q = req.raw_query()
+  gv_note(f, "REQ ${req.method} ${req.url.scheme}://${req.url.host}${req.escaped_path()}${if q == "" { "" } else { "?${q}" }}")
+  gv_note(f, "  H ${hs.sort().join(" | ")}")
+  gv_note_lines(f, "  B ${gv_shown(req.body.to_str_lossy(), boundary)}")
+  gv_note(f, "  SERVED 200 ${body}")
+  // "@H k=v|k=v @B body" sets headers
+  var rh: Map[Str, Str] = {"Content-Type": "application/json"}
+  var rb = body
+  if body.starts_with("@H ") {
+    let i = body.find(" @B ") ?? body.len()
+    for kv in body[3..i].split("|") {
+      if let Some(j) = kv.find("=") {
+        rh[kv[0..j]] = kv[j + 1..kv.len()]
+      }
+    }
+    rb = if i + 4 <= body.len() { body[i + 4..body.len()] } else { "" }
+  }
+  http.Response{status: 200, headers: rh, body: rb.bytes()}
+}
+
+fn gv_new_fake(net: testing.FakeNet, host: Str) -> GvFake {
+  let f = GvFake{log: Mutex[List[Str]].new([]), body: Mutex[Str].new(""), queue: Mutex[List[Str]].new([])}
+  let h = fn(req: http.Request) -> http.Response { gv_answer(f, req) }
+  for m in ["GET", "PUT", "POST", "DELETE", "HEAD", "PATCH"] {
+    net.handle("${m} ${host}/{rest...}", h)
+  }
+  f
+}
+
+fn gv_opts() -> option.ClientOptions {
+  option.ClientOptions{without_authentication: true}
+}
+
+fn gv_log_of(f: GvFake) -> List[Str] {
+  f.log.with(fn(var l: List[Str]) -> List[Str] { l })
+}
+
+/// Compares the lines one by one.
+fn gv_compare(got: List[Str], want: List[Str]) {
+  var k = 0
+  while k < want.len() || k < got.len() {
+    let a = want.get(k) ?? "<end>"
+    let b = got.get(k) ?? "<end>"
+    if a != b {
+      fault("line ${k}:\n  go:   ${a}\n  ours: ${b}")
+    }
+    k += 1
+  }
+}

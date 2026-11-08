@@ -15,6 +15,13 @@ if [ ! -d "$api" ]; then
   echo "check-generated: google.golang.org/api@$ver is not in the module cache: go mod download google.golang.org/api@$ver" >&2
   exit 2
 fi
+# the older releases some rows take their document from (doc_version)
+for v in $(awk -F'"' '/^doc_version *=/ { print $2 }' codegen/services.toml | sort -u); do
+  if [ ! -d "${api%@*}@$v" ]; then
+    echo "check-generated: google.golang.org/api@$v is not in the module cache: go mod download google.golang.org/api@$v" >&2
+    exit 2
+  fi
+done
 dirs=$(awk -F'"' '/^dir *=/ { print $2 }' codegen/services.toml)
 if [ -n "$(git status --porcelain -- $dirs)" ]; then
   echo "check-generated: generated modules have uncommitted changes: commit or stash them first" >&2

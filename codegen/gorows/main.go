@@ -4,27 +4,38 @@
 // path, package name and version and the document's path. Nothing in a
 // row is written by hand.
 //
-//	go run ./codegen/gorows GOMODCACHE VERSION > codegen/services.toml
+// A package whose document lists calls its Go code lacks was not
+// regenerated from that document (google-api-go-generator failed on it,
+// and the old code stayed). Its row then names the newest OLDER release
+// whose Go code is byte for byte the same and whose document lists
+// exactly the calls that code has (`doc_version`), so the module and Go
+// share their input. Without such a release the row stays as it is.
+//
+//	go run ./codegen/gorows GOMODCACHE VERSION [OLDER...] > codegen/services.toml
 package main
 
 import (
 	"bufio"
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 )
 
 func main() {
-	if len(os.Args) != 3 {
-		fmt.Fprintln(os.Stderr, "usage: gorows GOMODCACHE VERSION")
+	if len(os.Args) < 3 {
+		fmt.Fprintln(os.Stderr, "usage: gorows GOMODCACHE VERSION [OLDER...]")
 		os.Exit(2)
 	}
 	version := os.Args[2]
+	older := os.Args[3:]
 	root := filepath.Join(os.Args[1], "google.golang.org", "api@"+version)
-	type row struct{ dir, pkg, doc string }
+	type row struct{ dir, pkg, doc, docVersion string }
 	var rows []row
 	err := filepath.WalkDir(root, func(p string, d fs.DirEntry, err error) error {
 		if err != nil {
@@ -50,7 +61,11 @@ func main() {
 		if err != nil {
 			return err
 		}
-		rows = append(rows, row{filepath.ToSlash(rel), pkg, d.Name()})
+		docVersion, err := matchingDoc(os.Args[1], older, rel, p, gens)
+		if err != nil {
+			return err
+		}
+		rows = append(rows, row{filepath.ToSlash(rel), pkg, d.Name(), docVersion})
 		return nil
 	})
 	if err != nil {
@@ -67,7 +82,113 @@ func main() {
 		fmt.Printf("dir = %q\n", r.dir)
 		fmt.Printf("package = %q\n", r.pkg)
 		fmt.Printf("doc = %q\n", r.doc)
+		if r.docVersion != "" {
+			fmt.Printf("doc_version = %q\n", r.docVersion)
+		}
 	}
+}
+
+var doExecutes = regexp.MustCompile(`// Do executes the "([^"]+)" call\.`)
+
+// matchingDoc answers "" when doc's calls are all in the Go code of gens;
+// otherwise the newest of older whose Go code for rel is the same bytes
+// and whose document lists exactly the code's calls, or "" if none is.
+func matchingDoc(cache string, older []string, rel, doc string, gens []string) (string, error) {
+	src, err := concat(gens)
+	if err != nil {
+		return "", err
+	}
+	have := map[string]bool{}
+	for _, m := range doExecutes.FindAllStringSubmatch(string(src), -1) {
+		have[m[1]] = true
+	}
+	ids, err := docIDs(doc)
+	if err != nil {
+		return "", err
+	}
+	stale := false
+	for _, id := range ids {
+		if !have[id] {
+			stale = true
+		}
+	}
+	if !stale {
+		return "", nil
+	}
+	for _, v := range older {
+		dir := filepath.Join(cache, "google.golang.org", "api@"+v, rel)
+		ogens, _ := filepath.Glob(filepath.Join(dir, "*-gen.go"))
+		sort.Strings(ogens)
+		if len(ogens) != len(gens) {
+			continue
+		}
+		osrc, err := concat(ogens)
+		if err != nil || !bytes.Equal(osrc, src) {
+			continue
+		}
+		oids, err := docIDs(filepath.Join(dir, filepath.Base(doc)))
+		if err != nil || len(oids) != len(have) {
+			continue
+		}
+		all := true
+		for _, id := range oids {
+			all = all && have[id]
+		}
+		if all {
+			return v, nil
+		}
+	}
+	return "", nil
+}
+
+func concat(files []string) ([]byte, error) {
+	var b []byte
+	for _, f := range files {
+		x, err := os.ReadFile(f)
+		if err != nil {
+			return nil, err
+		}
+		b = append(b, x...)
+	}
+	return b, nil
+}
+
+// docIDs answers the method IDs of a Discovery document, each once.
+func docIDs(path string) ([]string, error) {
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	type res struct {
+		Methods   map[string]struct{ ID string } `json:"methods"`
+		Resources map[string]json.RawMessage    `json:"resources"`
+	}
+	seen := map[string]bool{}
+	var walk func([]byte) error
+	walk = func(raw []byte) error {
+		var r res
+		if err := json.Unmarshal(raw, &r); err != nil {
+			return err
+		}
+		for _, m := range r.Methods {
+			seen[m.ID] = true
+		}
+		for _, s := range r.Resources {
+			if err := walk(s); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	if err := walk(b); err != nil {
+		return nil, fmt.Errorf("%s: %v", path, err)
+	}
+	ids := make([]string, 0, len(seen))
+	for id := range seen {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+	return ids, nil
 }
 
 func packageName(file string) (string, error) {

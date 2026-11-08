@@ -7,16 +7,17 @@ documents Go itself ships and checked against Go byte for byte.
 Status (google.golang.org/api v0.311.0, 667 modules; the full table is
 [docs/reports/gcp-go-coverage.md](docs/reports/gcp-go-coverage.md)):
 
-- **Go-verified: 663.** Every method is called in Go and here with the
+- **Go-verified: 665.** Every method is called in Go and here with the
   same arguments against the same fake service, and the requests, the
-  responses served and the decoded results are compared (31,656 vector
+  responses served and the decoded results are compared (32,390 vector
   tests, pagers, media upload and download among them).
-- **Go-verified on Go's backend only: 2** (aiplatform/v1 and
-  compute/v0.alpha): their test binaries hit an Xo bug on native arm64,
-  being fixed in Xo.
-- **Compiled: 2** (discoveryengine/v1 and v1alpha): Go's package for
-  them was generated from an older document than the one it ships;
-  they are being moved to that document.
+  discoveryengine/v1 and v1alpha are generated from the older document
+  Go's package for them was built from (google.golang.org/api v0.293.0;
+  see [not-generated.md](docs/reports/not-generated.md)).
+- **Go-verified on some targets only: 2** (aiplatform/v1 and
+  compute/v0.alpha): they pass on linux/arm64 native and on Go's
+  backend; on darwin/arm64 the default separate link of their large
+  test binaries hits an Xo bug, being fixed in Xo.
 
 No real Google Cloud endpoint is called anywhere: every test runs
 against local fakes. The records in

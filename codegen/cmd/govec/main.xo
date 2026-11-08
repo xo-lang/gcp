@@ -13,6 +13,9 @@ struct Service {
   pub dir: Str
   pub package: Str
   pub doc: Str
+  /// An older release whose document Go's code was generated from
+  /// (codegen/gorows), or "" for go_version's.
+  pub doc_version: Str = ""
   pub blocked: Str = ""
 } derive Json
 
@@ -20,6 +23,13 @@ struct Services {
   pub go_version: Str
   pub service: List[Service]
 } derive Json
+
+/// The row's document: in `api_dir` (google.golang.org/api@<go_version>),
+/// or in the same cache's directory of its doc_version.
+fn doc_path(api_dir: Str, go_version: Str, svc: Service) -> Str {
+  let dir = if svc.doc_version == "" { api_dir } else { api_dir.replace("@${go_version}", "@${svc.doc_version}") }
+  "${dir}/${svc.dir}/${svc.doc}"
+}
 
 fn main(os: Os) -> () ! Error {
   let args = os.env.args()
@@ -29,7 +39,7 @@ fn main(os: Os) -> () ! Error {
   let services = toml.decode[Services](os.fs.read_text("codegen/services.toml")?)?
   let dir = args[2]
   let svc = services.service.filter(fn(s: Service) -> Bool { s.dir == dir }).get(0) ?? return Err("no row for ${dir} in codegen/services.toml")
-  let doc = json.parse_value(os.fs.read_text("${args[1]}/${svc.dir}/${svc.doc}")?) ?? e => return Err(e.display())
+  let doc = json.parse_value(os.fs.read_text(doc_path(args[1], services.go_version, svc))?) ?? e => return Err(e.display())
   let m = gen.generate(doc, "")
   let calls = gen.vector_calls(m)
   // Go's generated source, for the methods and options it has
