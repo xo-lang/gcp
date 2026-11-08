@@ -6,9 +6,9 @@ Go-verified (its Go vectors pass: every method called in Go and here
 with the same arguments, comparing the request, the response served and
 the result), compiled (generated and type-checked), not generated.
 
-- Go-verified: 660
-- Go-verified on the go backend only (an xo bug blocks native arm64): 4
-- compiled: 3
+- Go-verified: 663
+- Go-verified on the go backend only (an xo bug blocks native arm64): 2
+- compiled: 2
 - not generated: 0
 
 | Module | Status | Methods |
@@ -49,8 +49,8 @@ the result), compiled (generated and type-checked), not generated.
 | agentidentitycredentials/v1beta | Go-verified | 2 |
 | agentregistry/v1 | Go-verified | 74 |
 | agentregistry/v1alpha | Go-verified | 74 |
-| aiplatform/v1 | Go-verified on the go backend; native arm64 blocked by the closure capture word limit (xo.frameargs of a large options struct, arm64 backend) | 1342 |
-| aiplatform/v1beta1 | Go-verified on the go backend; native arm64 blocked by the closure capture word limit (xo.frameargs of a large options struct, arm64 backend) | 959 |
+| aiplatform/v1 | Go-verified on the go backend; native arm64 blocked by a run-time SIGSEGV on arm64 native in a test binary over 128 MB of text (reported to Lang 4) | 1342 |
+| aiplatform/v1beta1 | Go-verified | 959 |
 | airquality/v1 | Go-verified | 6 |
 | alertcenter/v1beta1 | Go-verified | 12 |
 | alloydb/v1 | Go-verified | 47 |
@@ -77,7 +77,7 @@ the result), compiled (generated and type-checked), not generated.
 | apigateway/v1alpha1 | Go-verified | 17 |
 | apigateway/v1alpha2 | Go-verified | 17 |
 | apigateway/v1beta | Go-verified | 35 |
-| apigee/v1 | Go-verified on the go backend; native arm64 blocked by the closure capture word limit (xo.frameargs of a large options struct, arm64 backend) | 410 |
+| apigee/v1 | Go-verified | 410 |
 | apigeeregistry/v1 | Go-verified | 114 |
 | apihub/v1 | Go-verified | 117 |
 | apikeys/v2 | Go-verified | 10 |
@@ -202,7 +202,7 @@ the result), compiled (generated and type-checked), not generated.
 | commentanalyzer/v1alpha1 | Go-verified | 2 |
 | composer/v1 | Go-verified | 35 |
 | composer/v1beta1 | Go-verified | 37 |
-| compute/v0.alpha | compiled | 1447 |
+| compute/v0.alpha | Go-verified on the go backend; native arm64 blocked by a run-time SIGSEGV on arm64 native in a test binary over 128 MB of text (reported to Lang 4) | 1447 |
 | compute/v0.beta | Go-verified | 1340 |
 | compute/v1 | Go-verified | 1224 |
 | compute/v1.preview | Go-verified | 1315 |
@@ -566,7 +566,7 @@ the result), compiled (generated and type-checked), not generated.
 | sasportal/v1alpha1 | Go-verified | 97 |
 | script/v1 | Go-verified | 20 |
 | searchads360/v0 | Go-verified | 8 |
-| searchads360/v23 | Go-verified on the go backend; native arm64 blocked by the closure capture word limit (xo.frameargs of a large options struct, arm64 backend) | 167 |
+| searchads360/v23 | Go-verified | 167 |
 | searchconsole/v1 | Go-verified | 11 |
 | secretmanager/v1 | Go-verified | 41 |
 | secretmanager/v1beta1 | Go-verified | 20 |
