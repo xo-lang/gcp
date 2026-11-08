@@ -94,6 +94,44 @@ test "Go's calendar.acl.list" {
 }
 
 const GO_4: List[Str] = [
+  "CALL calendar.acl.list pages",
+  "REQ GET https://www.googleapis.com/calendar/v3/calendars/id1%2F%20x/acl?alt=json&fields=kind%2Cid&maxResults=7&pageToken=s-pagetoken&prettyPrint=false&showDeleted=true&syncToken=s-synctoken",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"etag\":\"s-etag\",\"items\":[{\"etag\":\"s-etag\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"role\":\"s-role\",\"scope\":{\"type\":\"s-type\",\"value\":\"s-value\"}}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\",\"nextSyncToken\":\"s-nextsynctoken\"}",
+  "OUT: {\"etag\":\"s-etag\",\"items\":[{\"etag\":\"s-etag\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"role\":\"s-role\",\"scope\":{\"type\":\"s-type\",\"value\":\"s-value\"}}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\",\"nextSyncToken\":\"s-nextsynctoken\"}",
+  "REQ GET https://www.googleapis.com/calendar/v3/calendars/id1%2F%20x/acl?alt=json&fields=kind%2Cid&maxResults=7&pageToken=s-nextpagetoken&prettyPrint=false&showDeleted=true&syncToken=s-synctoken",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"etag\":\"s-etag\",\"items\":[{\"etag\":\"s-etag\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"role\":\"s-role\",\"scope\":{\"type\":\"s-type\",\"value\":\"s-value\"}}],\"kind\":\"s-kind\",\"nextSyncToken\":\"s-nextsynctoken\"}",
+  "OUT: {\"etag\":\"s-etag\",\"items\":[{\"etag\":\"s-etag\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"role\":\"s-role\",\"scope\":{\"type\":\"s-type\",\"value\":\"s-value\"}}],\"kind\":\"s-kind\",\"nextSyncToken\":\"s-nextsynctoken\"}",
+  "OUT: ok",
+]
+
+test "Go's calendar.acl.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"etag\":\"s-etag\",\"items\":[{\"etag\":\"s-etag\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"role\":\"s-role\",\"scope\":{\"type\":\"s-type\",\"value\":\"s-value\"}}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\",\"nextSyncToken\":\"s-nextsynctoken\"}")
+  gv_queue(f, "{\"etag\":\"s-etag\",\"items\":[{\"etag\":\"s-etag\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"role\":\"s-role\",\"scope\":{\"type\":\"s-type\",\"value\":\"s-value\"}}],\"kind\":\"s-kind\",\"nextSyncToken\":\"s-nextsynctoken\"}")
+  gv_note(f, "CALL calendar.acl.list pages")
+  var p = svc.acl.list_pages("id1/ x", options: AclListOptions{max_results: Some(7), page_token: Some("s-pagetoken"), show_deleted: Some(true), sync_token: Some("s-synctoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_4)
+}
+
+const GO_5: List[Str] = [
   "CALL calendar.acl.patch",
   "REQ PATCH https://www.googleapis.com/calendar/v3/calendars/id1%2F%20x/acl/id2%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false&sendNotifications=true",
   "  H content-type=application/json | x-extra=v1",
@@ -112,10 +150,10 @@ test "Go's calendar.acl.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_4)
+  gv_compare(gv_log_of(f), GO_5)
 }
 
-const GO_5: List[Str] = [
+const GO_6: List[Str] = [
   "CALL calendar.acl.update",
   "REQ PUT https://www.googleapis.com/calendar/v3/calendars/id1%2F%20x/acl/id2%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false&sendNotifications=true",
   "  H content-type=application/json | x-extra=v1",
@@ -134,10 +172,10 @@ test "Go's calendar.acl.update" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_5)
+  gv_compare(gv_log_of(f), GO_6)
 }
 
-const GO_6: List[Str] = [
+const GO_7: List[Str] = [
   "CALL calendar.acl.watch",
   "REQ POST https://www.googleapis.com/calendar/v3/calendars/id1%2F%20x/acl/watch?alt=json&fields=kind%2Cid&maxResults=7&pageToken=s-pagetoken&prettyPrint=false&showDeleted=true&syncToken=s-synctoken",
   "  H content-type=application/json | x-extra=v1",
@@ -156,10 +194,10 @@ test "Go's calendar.acl.watch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_6)
+  gv_compare(gv_log_of(f), GO_7)
 }
 
-const GO_7: List[Str] = [
+const GO_8: List[Str] = [
   "CALL calendar.calendarList.delete",
   "REQ DELETE https://www.googleapis.com/calendar/v3/users/me/calendarList/id1%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -177,10 +215,10 @@ test "Go's calendar.calendarList.delete" {
     Ok(_) => gv_note(f, "OUT: ok")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_7)
+  gv_compare(gv_log_of(f), GO_8)
 }
 
-const GO_8: List[Str] = [
+const GO_9: List[Str] = [
   "CALL calendar.calendarList.get",
   "REQ GET https://www.googleapis.com/calendar/v3/users/me/calendarList/id1%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -198,10 +236,10 @@ test "Go's calendar.calendarList.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_8)
+  gv_compare(gv_log_of(f), GO_9)
 }
 
-const GO_9: List[Str] = [
+const GO_10: List[Str] = [
   "CALL calendar.calendarList.insert",
   "REQ POST https://www.googleapis.com/calendar/v3/users/me/calendarList?alt=json&colorRgbFormat=true&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -220,10 +258,10 @@ test "Go's calendar.calendarList.insert" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_9)
+  gv_compare(gv_log_of(f), GO_10)
 }
 
-const GO_10: List[Str] = [
+const GO_11: List[Str] = [
   "CALL calendar.calendarList.list",
   "REQ GET https://www.googleapis.com/calendar/v3/users/me/calendarList?alt=json&fields=kind%2Cid&maxResults=7&minAccessRole=s-minaccessrole&pageToken=s-pagetoken&prettyPrint=false&showDeleted=true&showHidden=true&showOwnOrganizationOnly=true&syncToken=s-synctoken",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -241,10 +279,48 @@ test "Go's calendar.calendarList.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_10)
+  gv_compare(gv_log_of(f), GO_11)
 }
 
-const GO_11: List[Str] = [
+const GO_12: List[Str] = [
+  "CALL calendar.calendarList.list pages",
+  "REQ GET https://www.googleapis.com/calendar/v3/users/me/calendarList?alt=json&fields=kind%2Cid&maxResults=7&minAccessRole=s-minaccessrole&pageToken=s-pagetoken&prettyPrint=false&showDeleted=true&showHidden=true&showOwnOrganizationOnly=true&syncToken=s-synctoken",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"etag\":\"s-etag\",\"items\":[{\"accessRole\":\"s-accessrole\",\"autoAcceptInvitations\":true,\"backgroundColor\":\"s-backgroundcolor\",\"colorId\":\"s-colorid\",\"conferenceProperties\":{},\"dataOwner\":\"s-dataowner\",\"deleted\":true,\"description\":\"s-description\",\"etag\":\"s-etag\",\"foregroundColor\":\"s-foregroundcolor\",\"hidden\":true,\"id\":\"s-id\",\"kind\":\"s-kind\",\"location\":\"s-location\",\"notificationSettings\":{},\"primary\":true,\"selected\":true,\"summary\":\"s-summary\",\"summaryOverride\":\"s-summaryoverride\",\"timeZone\":\"s-timezone\"}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\",\"nextSyncToken\":\"s-nextsynctoken\"}",
+  "OUT: {\"etag\":\"s-etag\",\"items\":[{\"accessRole\":\"s-accessrole\",\"autoAcceptInvitations\":true,\"backgroundColor\":\"s-backgroundcolor\",\"colorId\":\"s-colorid\",\"conferenceProperties\":{},\"dataOwner\":\"s-dataowner\",\"deleted\":true,\"description\":\"s-description\",\"etag\":\"s-etag\",\"foregroundColor\":\"s-foregroundcolor\",\"hidden\":true,\"id\":\"s-id\",\"kind\":\"s-kind\",\"location\":\"s-location\",\"notificationSettings\":{},\"primary\":true,\"selected\":true,\"summary\":\"s-summary\",\"summaryOverride\":\"s-summaryoverride\",\"timeZone\":\"s-timezone\"}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\",\"nextSyncToken\":\"s-nextsynctoken\"}",
+  "REQ GET https://www.googleapis.com/calendar/v3/users/me/calendarList?alt=json&fields=kind%2Cid&maxResults=7&minAccessRole=s-minaccessrole&pageToken=s-nextpagetoken&prettyPrint=false&showDeleted=true&showHidden=true&showOwnOrganizationOnly=true&syncToken=s-synctoken",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"etag\":\"s-etag\",\"items\":[{\"accessRole\":\"s-accessrole\",\"autoAcceptInvitations\":true,\"backgroundColor\":\"s-backgroundcolor\",\"colorId\":\"s-colorid\",\"conferenceProperties\":{},\"dataOwner\":\"s-dataowner\",\"deleted\":true,\"description\":\"s-description\",\"etag\":\"s-etag\",\"foregroundColor\":\"s-foregroundcolor\",\"hidden\":true,\"id\":\"s-id\",\"kind\":\"s-kind\",\"location\":\"s-location\",\"notificationSettings\":{},\"primary\":true,\"selected\":true,\"summary\":\"s-summary\",\"summaryOverride\":\"s-summaryoverride\",\"timeZone\":\"s-timezone\"}],\"kind\":\"s-kind\",\"nextSyncToken\":\"s-nextsynctoken\"}",
+  "OUT: {\"etag\":\"s-etag\",\"items\":[{\"accessRole\":\"s-accessrole\",\"autoAcceptInvitations\":true,\"backgroundColor\":\"s-backgroundcolor\",\"colorId\":\"s-colorid\",\"conferenceProperties\":{},\"dataOwner\":\"s-dataowner\",\"deleted\":true,\"description\":\"s-description\",\"etag\":\"s-etag\",\"foregroundColor\":\"s-foregroundcolor\",\"hidden\":true,\"id\":\"s-id\",\"kind\":\"s-kind\",\"location\":\"s-location\",\"notificationSettings\":{},\"primary\":true,\"selected\":true,\"summary\":\"s-summary\",\"summaryOverride\":\"s-summaryoverride\",\"timeZone\":\"s-timezone\"}],\"kind\":\"s-kind\",\"nextSyncToken\":\"s-nextsynctoken\"}",
+  "OUT: ok",
+]
+
+test "Go's calendar.calendarList.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"etag\":\"s-etag\",\"items\":[{\"accessRole\":\"s-accessrole\",\"autoAcceptInvitations\":true,\"backgroundColor\":\"s-backgroundcolor\",\"colorId\":\"s-colorid\",\"conferenceProperties\":{},\"dataOwner\":\"s-dataowner\",\"deleted\":true,\"description\":\"s-description\",\"etag\":\"s-etag\",\"foregroundColor\":\"s-foregroundcolor\",\"hidden\":true,\"id\":\"s-id\",\"kind\":\"s-kind\",\"location\":\"s-location\",\"notificationSettings\":{},\"primary\":true,\"selected\":true,\"summary\":\"s-summary\",\"summaryOverride\":\"s-summaryoverride\",\"timeZone\":\"s-timezone\"}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\",\"nextSyncToken\":\"s-nextsynctoken\"}")
+  gv_queue(f, "{\"etag\":\"s-etag\",\"items\":[{\"accessRole\":\"s-accessrole\",\"autoAcceptInvitations\":true,\"backgroundColor\":\"s-backgroundcolor\",\"colorId\":\"s-colorid\",\"conferenceProperties\":{},\"dataOwner\":\"s-dataowner\",\"deleted\":true,\"description\":\"s-description\",\"etag\":\"s-etag\",\"foregroundColor\":\"s-foregroundcolor\",\"hidden\":true,\"id\":\"s-id\",\"kind\":\"s-kind\",\"location\":\"s-location\",\"notificationSettings\":{},\"primary\":true,\"selected\":true,\"summary\":\"s-summary\",\"summaryOverride\":\"s-summaryoverride\",\"timeZone\":\"s-timezone\"}],\"kind\":\"s-kind\",\"nextSyncToken\":\"s-nextsynctoken\"}")
+  gv_note(f, "CALL calendar.calendarList.list pages")
+  var p = svc.calendar_list.list_pages(options: CalendarListListOptions{max_results: Some(7), min_access_role: Some("s-minaccessrole"), page_token: Some("s-pagetoken"), show_deleted: Some(true), show_hidden: Some(true), show_own_organization_only: Some(true), sync_token: Some("s-synctoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_12)
+}
+
+const GO_13: List[Str] = [
   "CALL calendar.calendarList.patch",
   "REQ PATCH https://www.googleapis.com/calendar/v3/users/me/calendarList/id1%2F%20x?alt=json&colorRgbFormat=true&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -263,10 +339,10 @@ test "Go's calendar.calendarList.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_11)
+  gv_compare(gv_log_of(f), GO_13)
 }
 
-const GO_12: List[Str] = [
+const GO_14: List[Str] = [
   "CALL calendar.calendarList.update",
   "REQ PUT https://www.googleapis.com/calendar/v3/users/me/calendarList/id1%2F%20x?alt=json&colorRgbFormat=true&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -285,10 +361,10 @@ test "Go's calendar.calendarList.update" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_12)
+  gv_compare(gv_log_of(f), GO_14)
 }
 
-const GO_13: List[Str] = [
+const GO_15: List[Str] = [
   "CALL calendar.calendarList.watch",
   "REQ POST https://www.googleapis.com/calendar/v3/users/me/calendarList/watch?alt=json&fields=kind%2Cid&maxResults=7&minAccessRole=s-minaccessrole&pageToken=s-pagetoken&prettyPrint=false&showDeleted=true&showHidden=true&showOwnOrganizationOnly=true&syncToken=s-synctoken",
   "  H content-type=application/json | x-extra=v1",
@@ -307,10 +383,10 @@ test "Go's calendar.calendarList.watch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_13)
+  gv_compare(gv_log_of(f), GO_15)
 }
 
-const GO_14: List[Str] = [
+const GO_16: List[Str] = [
   "CALL calendar.calendars.clear",
   "REQ POST https://www.googleapis.com/calendar/v3/calendars/id1%2F%20x/clear?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -328,10 +404,10 @@ test "Go's calendar.calendars.clear" {
     Ok(_) => gv_note(f, "OUT: ok")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_14)
+  gv_compare(gv_log_of(f), GO_16)
 }
 
-const GO_15: List[Str] = [
+const GO_17: List[Str] = [
   "CALL calendar.calendars.delete",
   "REQ DELETE https://www.googleapis.com/calendar/v3/calendars/id1%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -349,10 +425,10 @@ test "Go's calendar.calendars.delete" {
     Ok(_) => gv_note(f, "OUT: ok")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_15)
+  gv_compare(gv_log_of(f), GO_17)
 }
 
-const GO_16: List[Str] = [
+const GO_18: List[Str] = [
   "CALL calendar.calendars.get",
   "REQ GET https://www.googleapis.com/calendar/v3/calendars/id1%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -370,10 +446,10 @@ test "Go's calendar.calendars.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_16)
+  gv_compare(gv_log_of(f), GO_18)
 }
 
-const GO_17: List[Str] = [
+const GO_19: List[Str] = [
   "CALL calendar.calendars.insert",
   "REQ POST https://www.googleapis.com/calendar/v3/calendars?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -392,10 +468,10 @@ test "Go's calendar.calendars.insert" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_17)
+  gv_compare(gv_log_of(f), GO_19)
 }
 
-const GO_18: List[Str] = [
+const GO_20: List[Str] = [
   "CALL calendar.calendars.patch",
   "REQ PATCH https://www.googleapis.com/calendar/v3/calendars/id1%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -414,10 +490,10 @@ test "Go's calendar.calendars.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_18)
+  gv_compare(gv_log_of(f), GO_20)
 }
 
-const GO_19: List[Str] = [
+const GO_21: List[Str] = [
   "CALL calendar.calendars.transferOwnership",
   "REQ POST https://www.googleapis.com/calendar/v3/calendars/id1%2F%20x/transferOwnership?alt=json&fields=kind%2Cid&newDataOwner=s-newdataowner&prettyPrint=false&useAdminAccess=true",
   "  H x-extra=v1",
@@ -435,10 +511,10 @@ test "Go's calendar.calendars.transferOwnership" {
     Ok(_) => gv_note(f, "OUT: ok")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_19)
+  gv_compare(gv_log_of(f), GO_21)
 }
 
-const GO_20: List[Str] = [
+const GO_22: List[Str] = [
   "CALL calendar.calendars.update",
   "REQ PUT https://www.googleapis.com/calendar/v3/calendars/id1%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -457,10 +533,10 @@ test "Go's calendar.calendars.update" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_20)
+  gv_compare(gv_log_of(f), GO_22)
 }
 
-const GO_21: List[Str] = [
+const GO_23: List[Str] = [
   "CALL calendar.channels.stop",
   "REQ POST https://www.googleapis.com/calendar/v3/channels/stop?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -479,10 +555,10 @@ test "Go's calendar.channels.stop" {
     Ok(_) => gv_note(f, "OUT: ok")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_21)
+  gv_compare(gv_log_of(f), GO_23)
 }
 
-const GO_22: List[Str] = [
+const GO_24: List[Str] = [
   "CALL calendar.colors.get",
   "REQ GET https://www.googleapis.com/calendar/v3/colors?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -500,10 +576,10 @@ test "Go's calendar.colors.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_22)
+  gv_compare(gv_log_of(f), GO_24)
 }
 
-const GO_23: List[Str] = [
+const GO_25: List[Str] = [
   "CALL calendar.events.delete",
   "REQ DELETE https://www.googleapis.com/calendar/v3/calendars/id1%2F%20x/events/id2%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false&sendNotifications=true&sendUpdates=s-sendupdates",
   "  H x-extra=v1",
@@ -521,10 +597,10 @@ test "Go's calendar.events.delete" {
     Ok(_) => gv_note(f, "OUT: ok")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_23)
+  gv_compare(gv_log_of(f), GO_25)
 }
 
-const GO_24: List[Str] = [
+const GO_26: List[Str] = [
   "CALL calendar.events.get",
   "REQ GET https://www.googleapis.com/calendar/v3/calendars/id1%2F%20x/events/id2%2F%20x?alt=json&alwaysIncludeEmail=true&fields=kind%2Cid&maxAttendees=7&prettyPrint=false&timeZone=s-timezone",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -542,14 +618,14 @@ test "Go's calendar.events.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_24)
+  gv_compare(gv_log_of(f), GO_26)
 }
 
-const GO_25: List[Str] = [
+const GO_27: List[Str] = [
   "CALL calendar.events.import",
   "REQ POST https://www.googleapis.com/calendar/v3/calendars/id1%2F%20x/events/import?alt=json&conferenceDataVersion=7&eventLabelVersion=7&fields=kind%2Cid&prettyPrint=false&supportsAttachments=true",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"anyoneCanAddSelf\":true,\"attachments\":[{\"fileId\":\"s-fileid\",\"fileUrl\":\"s-fileurl\",\"iconLink\":\"s-iconlink\",\"mimeType\":\"s-mimetype\",\"title\":\"s-title\"}],\"attendees\":[{\"additionalGuests\":7,\"asyncOperation\":\"s-asyncoperation\",\"comment\":\"s-comment\",\"displayName\":\"s-displayname\",\"email\":\"s-email\",\"id\":\"s-id\",\"optional\":true,\"organizer\":true,\"resource\":true,\"responseStatus\":\"s-responsestatus\",\"self\":true}],\"attendeesOmitted\":true,\"birthdayProperties\":{\"contact\":\"s-contact\",\"customTypeName\":\"s-customtypename\",\"type\":\"s-type\"},\"colorId\":\"s-colorid\",\"conferenceData\":{\"conferenceId\":\"s-conferenceid\",\"conferenceSolution\":{\"iconUri\":\"s-iconuri\",\"name\":\"s-name\"},\"createRequest\":{\"requestId\":\"s-requestid\"},\"entryPoints\":[{\"accessCode\":\"s-accesscode\",\"entryPointType\":\"s-entrypointtype\",\"label\":\"s-label\",\"meetingCode\":\"s-meetingcode\",\"passcode\":\"s-passcode\",\"password\":\"s-password\",\"pin\":\"s-pin\",\"regionCode\":\"s-regioncode\",\"uri\":\"s-uri\"}],\"notes\":\"s-notes\",\"parameters\":{},\"signature\":\"s-signature\"},\"created\":\"s-created\",\"creator\":{\"displayName\":\"s-displayname\",\"email\":\"s-email\",\"id\":\"s-id\",\"self\":true},\"description\":\"s-description\",\"end\":{\"date\":\"s-date\",\"dateTime\":\"s-datetime\",\"timeZone\":\"s-timezone\"},\"endTimeUnspecified\":true,\"etag\":\"s-etag\",\"eventLabelId\":\"s-eventlabelid\",\"eventType\":\"s-eventtype\",\"extendedProperties\":{\"private\":{\"k1\":\"s-private\"},\"shared\":{\"k1\":\"s-shared\"}},\"focusTimeProperties\":{\"autoDeclineMode\":\"s-autodeclinemode\",\"chatStatus\":\"s-chatstatus\",\"declineMessage\":\"s-declinemessage\"},\"gadget\":{\"display\":\"s-display\",\"height\":7,\"iconLink\":\"s-iconlink\",\"link\":\"s-link\",\"preferences\":{\"k1\":\"s-preferences\"},\"title\":\"s-title\",\"type\":\"s-type\",\"width\":7},\"guestsCanInviteOthers\":true,\"guestsCanModify\":true,\"guestsCanSeeOtherGuests\":true,\"hangoutLink\":\"s-hangoutlink\",\"htmlLink\":\"s-htmllink\",\"iCalUID\":\"s-icaluid\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"location\":\"s-location\",\"locked\":true,\"organizer\":{\"displayName\":\"s-displayname\",\"email\":\"s-email\",\"id\":\"s-id\",\"self\":true},\"originalStartTime\":{\"date\":\"s-date\",\"dateTime\":\"s-datetime\",\"timeZone\":\"s-timezone\"},\"outOfOfficeProperties\":{\"autoDeclineMode\":\"s-autodeclinemode\",\"declineMessage\":\"s-declinemessage\"},\"privateCopy\":true,\"recurrence\":[\"s-recurrence\"],\"recurringEventId\":\"s-recurringeventid\",\"reminders\":{\"overrides\":[{\"method\":\"s-method\",\"minutes\":7}],\"useDefault\":true},\"sequence\":7,\"source\":{\"title\":\"s-title\",\"url\":\"s-url\"},\"start\":{\"date\":\"s-date\",\"dateTime\":\"s-datetime\",\"timeZone\":\"s-timezone\"},\"status\":\"s-status\",\"summary\":\"s-summary\",\"transparency\":\"s-transparency\",\"updated\":\"s-updated\",\"visibility\":\"s-visibility\",\"workingLocationProperties\":{\"customLocation\":{\"label\":\"s-label\"},\"homeOffice\":{\"k\":\"v\"},\"officeLocation\":{\"buildingId\":\"s-buildingid\",\"deskId\":\"s-deskid\",\"floorId\":\"s-floorid\",\"floorSectionId\":\"s-floorsectionid\",\"label\":\"s-label\"},\"type\":\"s-type\"}}",
+  "  B <2844 bytes> {\"anyoneCanAddSelf\":true,\"attach...l\":\"s-label\"},\"type\":\"s-type\"}}",
   "",
   "  SERVED 200 {\"anyoneCanAddSelf\":true,\"attachments\":[{\"fileId\":\"s-fileid\",\"fileUrl\":\"s-fileurl\",\"iconLink\":\"s-iconlink\",\"mimeType\":\"s-mimetype\",\"title\":\"s-title\"}],\"attendees\":[{\"additionalGuests\":7,\"asyncOperation\":\"s-asyncoperation\",\"comment\":\"s-comment\",\"displayName\":\"s-displayname\",\"email\":\"s-email\",\"id\":\"s-id\",\"optional\":true,\"organizer\":true,\"resource\":true,\"responseStatus\":\"s-responsestatus\",\"self\":true}],\"attendeesOmitted\":true,\"birthdayProperties\":{\"contact\":\"s-contact\",\"customTypeName\":\"s-customtypename\",\"type\":\"s-type\"},\"colorId\":\"s-colorid\",\"conferenceData\":{\"conferenceId\":\"s-conferenceid\",\"conferenceSolution\":{\"iconUri\":\"s-iconuri\",\"name\":\"s-name\"},\"createRequest\":{\"requestId\":\"s-requestid\"},\"entryPoints\":[{\"accessCode\":\"s-accesscode\",\"entryPointType\":\"s-entrypointtype\",\"label\":\"s-label\",\"meetingCode\":\"s-meetingcode\",\"passcode\":\"s-passcode\",\"password\":\"s-password\",\"pin\":\"s-pin\",\"regionCode\":\"s-regioncode\",\"uri\":\"s-uri\"}],\"notes\":\"s-notes\",\"parameters\":{},\"signature\":\"s-signature\"},\"created\":\"s-created\",\"creator\":{\"displayName\":\"s-displayname\",\"email\":\"s-email\",\"id\":\"s-id\",\"self\":true},\"description\":\"s-description\",\"end\":{\"date\":\"s-date\",\"dateTime\":\"s-datetime\",\"timeZone\":\"s-timezone\"},\"endTimeUnspecified\":true,\"etag\":\"s-etag\",\"eventLabelId\":\"s-eventlabelid\",\"eventType\":\"s-eventtype\",\"extendedProperties\":{\"private\":{\"k1\":\"s-private\"},\"shared\":{\"k1\":\"s-shared\"}},\"focusTimeProperties\":{\"autoDeclineMode\":\"s-autodeclinemode\",\"chatStatus\":\"s-chatstatus\",\"declineMessage\":\"s-declinemessage\"},\"gadget\":{\"display\":\"s-display\",\"height\":7,\"iconLink\":\"s-iconlink\",\"link\":\"s-link\",\"preferences\":{\"k1\":\"s-preferences\"},\"title\":\"s-title\",\"type\":\"s-type\",\"width\":7},\"guestsCanInviteOthers\":true,\"guestsCanModify\":true,\"guestsCanSeeOtherGuests\":true,\"hangoutLink\":\"s-hangoutlink\",\"htmlLink\":\"s-htmllink\",\"iCalUID\":\"s-icaluid\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"location\":\"s-location\",\"locked\":true,\"organizer\":{\"displayName\":\"s-displayname\",\"email\":\"s-email\",\"id\":\"s-id\",\"self\":true},\"originalStartTime\":{\"date\":\"s-date\",\"dateTime\":\"s-datetime\",\"timeZone\":\"s-timezone\"},\"outOfOfficeProperties\":{\"autoDeclineMode\":\"s-autodeclinemode\",\"declineMessage\":\"s-declinemessage\"},\"privateCopy\":true,\"recurrence\":[\"s-recurrence\"],\"recurringEventId\":\"s-recurringeventid\",\"reminders\":{\"overrides\":[{\"method\":\"s-method\",\"minutes\":7}],\"useDefault\":true},\"sequence\":7,\"source\":{\"title\":\"s-title\",\"url\":\"s-url\"},\"start\":{\"date\":\"s-date\",\"dateTime\":\"s-datetime\",\"timeZone\":\"s-timezone\"},\"status\":\"s-status\",\"summary\":\"s-summary\",\"transparency\":\"s-transparency\",\"updated\":\"s-updated\",\"visibility\":\"s-visibility\",\"workingLocationProperties\":{\"customLocation\":{\"label\":\"s-label\"},\"homeOffice\":{\"k\":\"v\"},\"officeLocation\":{\"buildingId\":\"s-buildingid\",\"deskId\":\"s-deskid\",\"floorId\":\"s-floorid\",\"floorSectionId\":\"s-floorsectionid\",\"label\":\"s-label\"},\"type\":\"s-type\"}}",
   "OUT: {\"anyoneCanAddSelf\":true,\"attachments\":[{\"fileId\":\"s-fileid\",\"fileUrl\":\"s-fileurl\",\"iconLink\":\"s-iconlink\",\"mimeType\":\"s-mimetype\",\"title\":\"s-title\"}],\"attendees\":[{\"additionalGuests\":7,\"asyncOperation\":\"s-asyncoperation\",\"comment\":\"s-comment\",\"displayName\":\"s-displayname\",\"email\":\"s-email\",\"id\":\"s-id\",\"optional\":true,\"organizer\":true,\"resource\":true,\"responseStatus\":\"s-responsestatus\",\"self\":true}],\"attendeesOmitted\":true,\"birthdayProperties\":{\"contact\":\"s-contact\",\"customTypeName\":\"s-customtypename\",\"type\":\"s-type\"},\"colorId\":\"s-colorid\",\"conferenceData\":{\"conferenceId\":\"s-conferenceid\",\"conferenceSolution\":{\"iconUri\":\"s-iconuri\",\"name\":\"s-name\"},\"createRequest\":{\"requestId\":\"s-requestid\"},\"entryPoints\":[{\"accessCode\":\"s-accesscode\",\"entryPointType\":\"s-entrypointtype\",\"label\":\"s-label\",\"meetingCode\":\"s-meetingcode\",\"passcode\":\"s-passcode\",\"password\":\"s-password\",\"pin\":\"s-pin\",\"regionCode\":\"s-regioncode\",\"uri\":\"s-uri\"}],\"notes\":\"s-notes\",\"parameters\":{},\"signature\":\"s-signature\"},\"created\":\"s-created\",\"creator\":{\"displayName\":\"s-displayname\",\"email\":\"s-email\",\"id\":\"s-id\",\"self\":true},\"description\":\"s-description\",\"end\":{\"date\":\"s-date\",\"dateTime\":\"s-datetime\",\"timeZone\":\"s-timezone\"},\"endTimeUnspecified\":true,\"etag\":\"s-etag\",\"eventLabelId\":\"s-eventlabelid\",\"eventType\":\"s-eventtype\",\"extendedProperties\":{\"private\":{\"k1\":\"s-private\"},\"shared\":{\"k1\":\"s-shared\"}},\"focusTimeProperties\":{\"autoDeclineMode\":\"s-autodeclinemode\",\"chatStatus\":\"s-chatstatus\",\"declineMessage\":\"s-declinemessage\"},\"gadget\":{\"display\":\"s-display\",\"height\":7,\"iconLink\":\"s-iconlink\",\"link\":\"s-link\",\"preferences\":{\"k1\":\"s-preferences\"},\"title\":\"s-title\",\"type\":\"s-type\",\"width\":7},\"guestsCanInviteOthers\":true,\"guestsCanModify\":true,\"guestsCanSeeOtherGuests\":true,\"hangoutLink\":\"s-hangoutlink\",\"htmlLink\":\"s-htmllink\",\"iCalUID\":\"s-icaluid\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"location\":\"s-location\",\"locked\":true,\"organizer\":{\"displayName\":\"s-displayname\",\"email\":\"s-email\",\"id\":\"s-id\",\"self\":true},\"originalStartTime\":{\"date\":\"s-date\",\"dateTime\":\"s-datetime\",\"timeZone\":\"s-timezone\"},\"outOfOfficeProperties\":{\"autoDeclineMode\":\"s-autodeclinemode\",\"declineMessage\":\"s-declinemessage\"},\"privateCopy\":true,\"recurrence\":[\"s-recurrence\"],\"recurringEventId\":\"s-recurringeventid\",\"reminders\":{\"overrides\":[{\"method\":\"s-method\",\"minutes\":7}],\"useDefault\":true},\"sequence\":7,\"source\":{\"title\":\"s-title\",\"url\":\"s-url\"},\"start\":{\"date\":\"s-date\",\"dateTime\":\"s-datetime\",\"timeZone\":\"s-timezone\"},\"status\":\"s-status\",\"summary\":\"s-summary\",\"transparency\":\"s-transparency\",\"updated\":\"s-updated\",\"visibility\":\"s-visibility\",\"workingLocationProperties\":{\"customLocation\":{\"label\":\"s-label\"},\"homeOffice\":{\"k\":\"v\"},\"officeLocation\":{\"buildingId\":\"s-buildingid\",\"deskId\":\"s-deskid\",\"floorId\":\"s-floorid\",\"floorSectionId\":\"s-floorsectionid\",\"label\":\"s-label\"},\"type\":\"s-type\"}}",
@@ -564,14 +640,14 @@ test "Go's calendar.events.import" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_25)
+  gv_compare(gv_log_of(f), GO_27)
 }
 
-const GO_26: List[Str] = [
+const GO_28: List[Str] = [
   "CALL calendar.events.insert",
   "REQ POST https://www.googleapis.com/calendar/v3/calendars/id1%2F%20x/events?alt=json&conferenceDataVersion=7&eventLabelVersion=7&fields=kind%2Cid&maxAttendees=7&prettyPrint=false&sendNotifications=true&sendUpdates=s-sendupdates&supportsAttachments=true",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"anyoneCanAddSelf\":true,\"attachments\":[{\"fileId\":\"s-fileid\",\"fileUrl\":\"s-fileurl\",\"iconLink\":\"s-iconlink\",\"mimeType\":\"s-mimetype\",\"title\":\"s-title\"}],\"attendees\":[{\"additionalGuests\":7,\"asyncOperation\":\"s-asyncoperation\",\"comment\":\"s-comment\",\"displayName\":\"s-displayname\",\"email\":\"s-email\",\"id\":\"s-id\",\"optional\":true,\"organizer\":true,\"resource\":true,\"responseStatus\":\"s-responsestatus\",\"self\":true}],\"attendeesOmitted\":true,\"birthdayProperties\":{\"contact\":\"s-contact\",\"customTypeName\":\"s-customtypename\",\"type\":\"s-type\"},\"colorId\":\"s-colorid\",\"conferenceData\":{\"conferenceId\":\"s-conferenceid\",\"conferenceSolution\":{\"iconUri\":\"s-iconuri\",\"name\":\"s-name\"},\"createRequest\":{\"requestId\":\"s-requestid\"},\"entryPoints\":[{\"accessCode\":\"s-accesscode\",\"entryPointType\":\"s-entrypointtype\",\"label\":\"s-label\",\"meetingCode\":\"s-meetingcode\",\"passcode\":\"s-passcode\",\"password\":\"s-password\",\"pin\":\"s-pin\",\"regionCode\":\"s-regioncode\",\"uri\":\"s-uri\"}],\"notes\":\"s-notes\",\"parameters\":{},\"signature\":\"s-signature\"},\"created\":\"s-created\",\"creator\":{\"displayName\":\"s-displayname\",\"email\":\"s-email\",\"id\":\"s-id\",\"self\":true},\"description\":\"s-description\",\"end\":{\"date\":\"s-date\",\"dateTime\":\"s-datetime\",\"timeZone\":\"s-timezone\"},\"endTimeUnspecified\":true,\"etag\":\"s-etag\",\"eventLabelId\":\"s-eventlabelid\",\"eventType\":\"s-eventtype\",\"extendedProperties\":{\"private\":{\"k1\":\"s-private\"},\"shared\":{\"k1\":\"s-shared\"}},\"focusTimeProperties\":{\"autoDeclineMode\":\"s-autodeclinemode\",\"chatStatus\":\"s-chatstatus\",\"declineMessage\":\"s-declinemessage\"},\"gadget\":{\"display\":\"s-display\",\"height\":7,\"iconLink\":\"s-iconlink\",\"link\":\"s-link\",\"preferences\":{\"k1\":\"s-preferences\"},\"title\":\"s-title\",\"type\":\"s-type\",\"width\":7},\"guestsCanInviteOthers\":true,\"guestsCanModify\":true,\"guestsCanSeeOtherGuests\":true,\"hangoutLink\":\"s-hangoutlink\",\"htmlLink\":\"s-htmllink\",\"iCalUID\":\"s-icaluid\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"location\":\"s-location\",\"locked\":true,\"organizer\":{\"displayName\":\"s-displayname\",\"email\":\"s-email\",\"id\":\"s-id\",\"self\":true},\"originalStartTime\":{\"date\":\"s-date\",\"dateTime\":\"s-datetime\",\"timeZone\":\"s-timezone\"},\"outOfOfficeProperties\":{\"autoDeclineMode\":\"s-autodeclinemode\",\"declineMessage\":\"s-declinemessage\"},\"privateCopy\":true,\"recurrence\":[\"s-recurrence\"],\"recurringEventId\":\"s-recurringeventid\",\"reminders\":{\"overrides\":[{\"method\":\"s-method\",\"minutes\":7}],\"useDefault\":true},\"sequence\":7,\"source\":{\"title\":\"s-title\",\"url\":\"s-url\"},\"start\":{\"date\":\"s-date\",\"dateTime\":\"s-datetime\",\"timeZone\":\"s-timezone\"},\"status\":\"s-status\",\"summary\":\"s-summary\",\"transparency\":\"s-transparency\",\"updated\":\"s-updated\",\"visibility\":\"s-visibility\",\"workingLocationProperties\":{\"customLocation\":{\"label\":\"s-label\"},\"homeOffice\":{\"k\":\"v\"},\"officeLocation\":{\"buildingId\":\"s-buildingid\",\"deskId\":\"s-deskid\",\"floorId\":\"s-floorid\",\"floorSectionId\":\"s-floorsectionid\",\"label\":\"s-label\"},\"type\":\"s-type\"}}",
+  "  B <2844 bytes> {\"anyoneCanAddSelf\":true,\"attach...l\":\"s-label\"},\"type\":\"s-type\"}}",
   "",
   "  SERVED 200 {\"anyoneCanAddSelf\":true,\"attachments\":[{\"fileId\":\"s-fileid\",\"fileUrl\":\"s-fileurl\",\"iconLink\":\"s-iconlink\",\"mimeType\":\"s-mimetype\",\"title\":\"s-title\"}],\"attendees\":[{\"additionalGuests\":7,\"asyncOperation\":\"s-asyncoperation\",\"comment\":\"s-comment\",\"displayName\":\"s-displayname\",\"email\":\"s-email\",\"id\":\"s-id\",\"optional\":true,\"organizer\":true,\"resource\":true,\"responseStatus\":\"s-responsestatus\",\"self\":true}],\"attendeesOmitted\":true,\"birthdayProperties\":{\"contact\":\"s-contact\",\"customTypeName\":\"s-customtypename\",\"type\":\"s-type\"},\"colorId\":\"s-colorid\",\"conferenceData\":{\"conferenceId\":\"s-conferenceid\",\"conferenceSolution\":{\"iconUri\":\"s-iconuri\",\"name\":\"s-name\"},\"createRequest\":{\"requestId\":\"s-requestid\"},\"entryPoints\":[{\"accessCode\":\"s-accesscode\",\"entryPointType\":\"s-entrypointtype\",\"label\":\"s-label\",\"meetingCode\":\"s-meetingcode\",\"passcode\":\"s-passcode\",\"password\":\"s-password\",\"pin\":\"s-pin\",\"regionCode\":\"s-regioncode\",\"uri\":\"s-uri\"}],\"notes\":\"s-notes\",\"parameters\":{},\"signature\":\"s-signature\"},\"created\":\"s-created\",\"creator\":{\"displayName\":\"s-displayname\",\"email\":\"s-email\",\"id\":\"s-id\",\"self\":true},\"description\":\"s-description\",\"end\":{\"date\":\"s-date\",\"dateTime\":\"s-datetime\",\"timeZone\":\"s-timezone\"},\"endTimeUnspecified\":true,\"etag\":\"s-etag\",\"eventLabelId\":\"s-eventlabelid\",\"eventType\":\"s-eventtype\",\"extendedProperties\":{\"private\":{\"k1\":\"s-private\"},\"shared\":{\"k1\":\"s-shared\"}},\"focusTimeProperties\":{\"autoDeclineMode\":\"s-autodeclinemode\",\"chatStatus\":\"s-chatstatus\",\"declineMessage\":\"s-declinemessage\"},\"gadget\":{\"display\":\"s-display\",\"height\":7,\"iconLink\":\"s-iconlink\",\"link\":\"s-link\",\"preferences\":{\"k1\":\"s-preferences\"},\"title\":\"s-title\",\"type\":\"s-type\",\"width\":7},\"guestsCanInviteOthers\":true,\"guestsCanModify\":true,\"guestsCanSeeOtherGuests\":true,\"hangoutLink\":\"s-hangoutlink\",\"htmlLink\":\"s-htmllink\",\"iCalUID\":\"s-icaluid\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"location\":\"s-location\",\"locked\":true,\"organizer\":{\"displayName\":\"s-displayname\",\"email\":\"s-email\",\"id\":\"s-id\",\"self\":true},\"originalStartTime\":{\"date\":\"s-date\",\"dateTime\":\"s-datetime\",\"timeZone\":\"s-timezone\"},\"outOfOfficeProperties\":{\"autoDeclineMode\":\"s-autodeclinemode\",\"declineMessage\":\"s-declinemessage\"},\"privateCopy\":true,\"recurrence\":[\"s-recurrence\"],\"recurringEventId\":\"s-recurringeventid\",\"reminders\":{\"overrides\":[{\"method\":\"s-method\",\"minutes\":7}],\"useDefault\":true},\"sequence\":7,\"source\":{\"title\":\"s-title\",\"url\":\"s-url\"},\"start\":{\"date\":\"s-date\",\"dateTime\":\"s-datetime\",\"timeZone\":\"s-timezone\"},\"status\":\"s-status\",\"summary\":\"s-summary\",\"transparency\":\"s-transparency\",\"updated\":\"s-updated\",\"visibility\":\"s-visibility\",\"workingLocationProperties\":{\"customLocation\":{\"label\":\"s-label\"},\"homeOffice\":{\"k\":\"v\"},\"officeLocation\":{\"buildingId\":\"s-buildingid\",\"deskId\":\"s-deskid\",\"floorId\":\"s-floorid\",\"floorSectionId\":\"s-floorsectionid\",\"label\":\"s-label\"},\"type\":\"s-type\"}}",
   "OUT: {\"anyoneCanAddSelf\":true,\"attachments\":[{\"fileId\":\"s-fileid\",\"fileUrl\":\"s-fileurl\",\"iconLink\":\"s-iconlink\",\"mimeType\":\"s-mimetype\",\"title\":\"s-title\"}],\"attendees\":[{\"additionalGuests\":7,\"asyncOperation\":\"s-asyncoperation\",\"comment\":\"s-comment\",\"displayName\":\"s-displayname\",\"email\":\"s-email\",\"id\":\"s-id\",\"optional\":true,\"organizer\":true,\"resource\":true,\"responseStatus\":\"s-responsestatus\",\"self\":true}],\"attendeesOmitted\":true,\"birthdayProperties\":{\"contact\":\"s-contact\",\"customTypeName\":\"s-customtypename\",\"type\":\"s-type\"},\"colorId\":\"s-colorid\",\"conferenceData\":{\"conferenceId\":\"s-conferenceid\",\"conferenceSolution\":{\"iconUri\":\"s-iconuri\",\"name\":\"s-name\"},\"createRequest\":{\"requestId\":\"s-requestid\"},\"entryPoints\":[{\"accessCode\":\"s-accesscode\",\"entryPointType\":\"s-entrypointtype\",\"label\":\"s-label\",\"meetingCode\":\"s-meetingcode\",\"passcode\":\"s-passcode\",\"password\":\"s-password\",\"pin\":\"s-pin\",\"regionCode\":\"s-regioncode\",\"uri\":\"s-uri\"}],\"notes\":\"s-notes\",\"parameters\":{},\"signature\":\"s-signature\"},\"created\":\"s-created\",\"creator\":{\"displayName\":\"s-displayname\",\"email\":\"s-email\",\"id\":\"s-id\",\"self\":true},\"description\":\"s-description\",\"end\":{\"date\":\"s-date\",\"dateTime\":\"s-datetime\",\"timeZone\":\"s-timezone\"},\"endTimeUnspecified\":true,\"etag\":\"s-etag\",\"eventLabelId\":\"s-eventlabelid\",\"eventType\":\"s-eventtype\",\"extendedProperties\":{\"private\":{\"k1\":\"s-private\"},\"shared\":{\"k1\":\"s-shared\"}},\"focusTimeProperties\":{\"autoDeclineMode\":\"s-autodeclinemode\",\"chatStatus\":\"s-chatstatus\",\"declineMessage\":\"s-declinemessage\"},\"gadget\":{\"display\":\"s-display\",\"height\":7,\"iconLink\":\"s-iconlink\",\"link\":\"s-link\",\"preferences\":{\"k1\":\"s-preferences\"},\"title\":\"s-title\",\"type\":\"s-type\",\"width\":7},\"guestsCanInviteOthers\":true,\"guestsCanModify\":true,\"guestsCanSeeOtherGuests\":true,\"hangoutLink\":\"s-hangoutlink\",\"htmlLink\":\"s-htmllink\",\"iCalUID\":\"s-icaluid\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"location\":\"s-location\",\"locked\":true,\"organizer\":{\"displayName\":\"s-displayname\",\"email\":\"s-email\",\"id\":\"s-id\",\"self\":true},\"originalStartTime\":{\"date\":\"s-date\",\"dateTime\":\"s-datetime\",\"timeZone\":\"s-timezone\"},\"outOfOfficeProperties\":{\"autoDeclineMode\":\"s-autodeclinemode\",\"declineMessage\":\"s-declinemessage\"},\"privateCopy\":true,\"recurrence\":[\"s-recurrence\"],\"recurringEventId\":\"s-recurringeventid\",\"reminders\":{\"overrides\":[{\"method\":\"s-method\",\"minutes\":7}],\"useDefault\":true},\"sequence\":7,\"source\":{\"title\":\"s-title\",\"url\":\"s-url\"},\"start\":{\"date\":\"s-date\",\"dateTime\":\"s-datetime\",\"timeZone\":\"s-timezone\"},\"status\":\"s-status\",\"summary\":\"s-summary\",\"transparency\":\"s-transparency\",\"updated\":\"s-updated\",\"visibility\":\"s-visibility\",\"workingLocationProperties\":{\"customLocation\":{\"label\":\"s-label\"},\"homeOffice\":{\"k\":\"v\"},\"officeLocation\":{\"buildingId\":\"s-buildingid\",\"deskId\":\"s-deskid\",\"floorId\":\"s-floorid\",\"floorSectionId\":\"s-floorsectionid\",\"label\":\"s-label\"},\"type\":\"s-type\"}}",
@@ -586,10 +662,10 @@ test "Go's calendar.events.insert" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_26)
+  gv_compare(gv_log_of(f), GO_28)
 }
 
-const GO_27: List[Str] = [
+const GO_29: List[Str] = [
   "CALL calendar.events.instances",
   "REQ GET https://www.googleapis.com/calendar/v3/calendars/id1%2F%20x/events/id2%2F%20x/instances?alt=json&alwaysIncludeEmail=true&fields=kind%2Cid&maxAttendees=7&maxResults=7&originalStart=s-originalstart&pageToken=s-pagetoken&prettyPrint=false&showDeleted=true&timeMax=s-timemax&timeMin=s-timemin&timeZone=s-timezone",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -607,10 +683,48 @@ test "Go's calendar.events.instances" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_27)
+  gv_compare(gv_log_of(f), GO_29)
 }
 
-const GO_28: List[Str] = [
+const GO_30: List[Str] = [
+  "CALL calendar.events.instances pages",
+  "REQ GET https://www.googleapis.com/calendar/v3/calendars/id1%2F%20x/events/id2%2F%20x/instances?alt=json&alwaysIncludeEmail=true&fields=kind%2Cid&maxAttendees=7&maxResults=7&originalStart=s-originalstart&pageToken=s-pagetoken&prettyPrint=false&showDeleted=true&timeMax=s-timemax&timeMin=s-timemin&timeZone=s-timezone",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"accessRole\":\"s-accessrole\",\"defaultReminders\":[{\"method\":\"s-method\",\"minutes\":7}],\"description\":\"s-description\",\"etag\":\"s-etag\",\"items\":[{\"anyoneCanAddSelf\":true,\"attendeesOmitted\":true,\"birthdayProperties\":{\"contact\":\"s-contact\",\"customTypeName\":\"s-customtypename\",\"type\":\"s-type\"},\"colorId\":\"s-colorid\",\"conferenceData\":{\"conferenceId\":\"s-conferenceid\",\"notes\":\"s-notes\",\"signature\":\"s-signature\"},\"created\":\"s-created\",\"creator\":{\"displayName\":\"s-displayname\",\"email\":\"s-email\",\"id\":\"s-id\",\"self\":true},\"description\":\"s-description\",\"end\":{\"date\":\"s-date\",\"dateTime\":\"s-datetime\",\"timeZone\":\"s-timezone\"},\"endTimeUnspecified\":true,\"etag\":\"s-etag\",\"eventLabelId\":\"s-eventlabelid\",\"eventType\":\"s-eventtype\",\"extendedProperties\":{\"private\":{\"k1\":\"s-private\"},\"shared\":{\"k1\":\"s-shared\"}},\"focusTimeProperties\":{\"autoDeclineMode\":\"s-autodeclinemode\",\"chatStatus\":\"s-chatstatus\",\"declineMessage\":\"s-declinemessage\"},\"gadget\":{\"display\":\"s-display\",\"height\":7,\"iconLink\":\"s-iconlink\",\"link\":\"s-link\",\"preferences\":{\"k1\":\"s-preferences\"},\"title\":\"s-title\",\"type\":\"s-type\",\"width\":7},\"guestsCanInviteOthers\":true,\"guestsCanModify\":true,\"guestsCanSeeOtherGuests\":true,\"hangoutLink\":\"s-hangoutlink\",\"htmlLink\":\"s-htmllink\",\"iCalUID\":\"s-icaluid\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"location\":\"s-location\",\"locked\":true,\"organizer\":{\"displayName\":\"s-displayname\",\"email\":\"s-email\",\"id\":\"s-id\",\"self\":true},\"originalStartTime\":{\"date\":\"s-date\",\"dateTime\":\"s-datetime\",\"timeZone\":\"s-timezone\"},\"outOfOfficeProperties\":{\"autoDeclineMode\":\"s-autodeclinemode\",\"declineMessage\":\"s-declinemessage\"},\"privateCopy\":true,\"recurrence\":[\"s-recurrence\"],\"recurringEventId\":\"s-recurringeventid\",\"reminders\":{\"useDefault\":true},\"sequence\":7,\"source\":{\"title\":\"s-title\",\"url\":\"s-url\"},\"start\":{\"date\":\"s-date\",\"dateTime\":\"s-datetime\",\"timeZone\":\"s-timezone\"},\"status\":\"s-status\",\"summary\":\"s-summary\",\"transparency\":\"s-transparency\",\"updated\":\"s-updated\",\"visibility\":\"s-visibility\",\"workingLocationProperties\":{\"homeOffice\":{\"k\":\"v\"},\"type\":\"s-type\"}}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\",\"nextSyncToken\":\"s-nextsynctoken\",\"summary\":\"s-summary\",\"timeZone\":\"s-timezone\",\"updated\":\"s-updated\"}",
+  "OUT: {\"accessRole\":\"s-accessrole\",\"defaultReminders\":[{\"method\":\"s-method\",\"minutes\":7}],\"description\":\"s-description\",\"etag\":\"s-etag\",\"items\":[{\"anyoneCanAddSelf\":true,\"attendeesOmitted\":true,\"birthdayProperties\":{\"contact\":\"s-contact\",\"customTypeName\":\"s-customtypename\",\"type\":\"s-type\"},\"colorId\":\"s-colorid\",\"conferenceData\":{\"conferenceId\":\"s-conferenceid\",\"notes\":\"s-notes\",\"signature\":\"s-signature\"},\"created\":\"s-created\",\"creator\":{\"displayName\":\"s-displayname\",\"email\":\"s-email\",\"id\":\"s-id\",\"self\":true},\"description\":\"s-description\",\"end\":{\"date\":\"s-date\",\"dateTime\":\"s-datetime\",\"timeZone\":\"s-timezone\"},\"endTimeUnspecified\":true,\"etag\":\"s-etag\",\"eventLabelId\":\"s-eventlabelid\",\"eventType\":\"s-eventtype\",\"extendedProperties\":{\"private\":{\"k1\":\"s-private\"},\"shared\":{\"k1\":\"s-shared\"}},\"focusTimeProperties\":{\"autoDeclineMode\":\"s-autodeclinemode\",\"chatStatus\":\"s-chatstatus\",\"declineMessage\":\"s-declinemessage\"},\"gadget\":{\"display\":\"s-display\",\"height\":7,\"iconLink\":\"s-iconlink\",\"link\":\"s-link\",\"preferences\":{\"k1\":\"s-preferences\"},\"title\":\"s-title\",\"type\":\"s-type\",\"width\":7},\"guestsCanInviteOthers\":true,\"guestsCanModify\":true,\"guestsCanSeeOtherGuests\":true,\"hangoutLink\":\"s-hangoutlink\",\"htmlLink\":\"s-htmllink\",\"iCalUID\":\"s-icaluid\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"location\":\"s-location\",\"locked\":true,\"organizer\":{\"displayName\":\"s-displayname\",\"email\":\"s-email\",\"id\":\"s-id\",\"self\":true},\"originalStartTime\":{\"date\":\"s-date\",\"dateTime\":\"s-datetime\",\"timeZone\":\"s-timezone\"},\"outOfOfficeProperties\":{\"autoDeclineMode\":\"s-autodeclinemode\",\"declineMessage\":\"s-declinemessage\"},\"privateCopy\":true,\"recurrence\":[\"s-recurrence\"],\"recurringEventId\":\"s-recurringeventid\",\"reminders\":{\"useDefault\":true},\"sequence\":7,\"source\":{\"title\":\"s-title\",\"url\":\"s-url\"},\"start\":{\"date\":\"s-date\",\"dateTime\":\"s-datetime\",\"timeZone\":\"s-timezone\"},\"status\":\"s-status\",\"summary\":\"s-summary\",\"transparency\":\"s-transparency\",\"updated\":\"s-updated\",\"visibility\":\"s-visibility\",\"workingLocationProperties\":{\"homeOffice\":{\"k\":\"v\"},\"type\":\"s-type\"}}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\",\"nextSyncToken\":\"s-nextsynctoken\",\"summary\":\"s-summary\",\"timeZone\":\"s-timezone\",\"updated\":\"s-updated\"}",
+  "REQ GET https://www.googleapis.com/calendar/v3/calendars/id1%2F%20x/events/id2%2F%20x/instances?alt=json&alwaysIncludeEmail=true&fields=kind%2Cid&maxAttendees=7&maxResults=7&originalStart=s-originalstart&pageToken=s-nextpagetoken&prettyPrint=false&showDeleted=true&timeMax=s-timemax&timeMin=s-timemin&timeZone=s-timezone",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"accessRole\":\"s-accessrole\",\"defaultReminders\":[{\"method\":\"s-method\",\"minutes\":7}],\"description\":\"s-description\",\"etag\":\"s-etag\",\"items\":[{\"anyoneCanAddSelf\":true,\"attendeesOmitted\":true,\"birthdayProperties\":{\"contact\":\"s-contact\",\"customTypeName\":\"s-customtypename\",\"type\":\"s-type\"},\"colorId\":\"s-colorid\",\"conferenceData\":{\"conferenceId\":\"s-conferenceid\",\"notes\":\"s-notes\",\"signature\":\"s-signature\"},\"created\":\"s-created\",\"creator\":{\"displayName\":\"s-displayname\",\"email\":\"s-email\",\"id\":\"s-id\",\"self\":true},\"description\":\"s-description\",\"end\":{\"date\":\"s-date\",\"dateTime\":\"s-datetime\",\"timeZone\":\"s-timezone\"},\"endTimeUnspecified\":true,\"etag\":\"s-etag\",\"eventLabelId\":\"s-eventlabelid\",\"eventType\":\"s-eventtype\",\"extendedProperties\":{\"private\":{\"k1\":\"s-private\"},\"shared\":{\"k1\":\"s-shared\"}},\"focusTimeProperties\":{\"autoDeclineMode\":\"s-autodeclinemode\",\"chatStatus\":\"s-chatstatus\",\"declineMessage\":\"s-declinemessage\"},\"gadget\":{\"display\":\"s-display\",\"height\":7,\"iconLink\":\"s-iconlink\",\"link\":\"s-link\",\"preferences\":{\"k1\":\"s-preferences\"},\"title\":\"s-title\",\"type\":\"s-type\",\"width\":7},\"guestsCanInviteOthers\":true,\"guestsCanModify\":true,\"guestsCanSeeOtherGuests\":true,\"hangoutLink\":\"s-hangoutlink\",\"htmlLink\":\"s-htmllink\",\"iCalUID\":\"s-icaluid\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"location\":\"s-location\",\"locked\":true,\"organizer\":{\"displayName\":\"s-displayname\",\"email\":\"s-email\",\"id\":\"s-id\",\"self\":true},\"originalStartTime\":{\"date\":\"s-date\",\"dateTime\":\"s-datetime\",\"timeZone\":\"s-timezone\"},\"outOfOfficeProperties\":{\"autoDeclineMode\":\"s-autodeclinemode\",\"declineMessage\":\"s-declinemessage\"},\"privateCopy\":true,\"recurrence\":[\"s-recurrence\"],\"recurringEventId\":\"s-recurringeventid\",\"reminders\":{\"useDefault\":true},\"sequence\":7,\"source\":{\"title\":\"s-title\",\"url\":\"s-url\"},\"start\":{\"date\":\"s-date\",\"dateTime\":\"s-datetime\",\"timeZone\":\"s-timezone\"},\"status\":\"s-status\",\"summary\":\"s-summary\",\"transparency\":\"s-transparency\",\"updated\":\"s-updated\",\"visibility\":\"s-visibility\",\"workingLocationProperties\":{\"homeOffice\":{\"k\":\"v\"},\"type\":\"s-type\"}}],\"kind\":\"s-kind\",\"nextSyncToken\":\"s-nextsynctoken\",\"summary\":\"s-summary\",\"timeZone\":\"s-timezone\",\"updated\":\"s-updated\"}",
+  "OUT: {\"accessRole\":\"s-accessrole\",\"defaultReminders\":[{\"method\":\"s-method\",\"minutes\":7}],\"description\":\"s-description\",\"etag\":\"s-etag\",\"items\":[{\"anyoneCanAddSelf\":true,\"attendeesOmitted\":true,\"birthdayProperties\":{\"contact\":\"s-contact\",\"customTypeName\":\"s-customtypename\",\"type\":\"s-type\"},\"colorId\":\"s-colorid\",\"conferenceData\":{\"conferenceId\":\"s-conferenceid\",\"notes\":\"s-notes\",\"signature\":\"s-signature\"},\"created\":\"s-created\",\"creator\":{\"displayName\":\"s-displayname\",\"email\":\"s-email\",\"id\":\"s-id\",\"self\":true},\"description\":\"s-description\",\"end\":{\"date\":\"s-date\",\"dateTime\":\"s-datetime\",\"timeZone\":\"s-timezone\"},\"endTimeUnspecified\":true,\"etag\":\"s-etag\",\"eventLabelId\":\"s-eventlabelid\",\"eventType\":\"s-eventtype\",\"extendedProperties\":{\"private\":{\"k1\":\"s-private\"},\"shared\":{\"k1\":\"s-shared\"}},\"focusTimeProperties\":{\"autoDeclineMode\":\"s-autodeclinemode\",\"chatStatus\":\"s-chatstatus\",\"declineMessage\":\"s-declinemessage\"},\"gadget\":{\"display\":\"s-display\",\"height\":7,\"iconLink\":\"s-iconlink\",\"link\":\"s-link\",\"preferences\":{\"k1\":\"s-preferences\"},\"title\":\"s-title\",\"type\":\"s-type\",\"width\":7},\"guestsCanInviteOthers\":true,\"guestsCanModify\":true,\"guestsCanSeeOtherGuests\":true,\"hangoutLink\":\"s-hangoutlink\",\"htmlLink\":\"s-htmllink\",\"iCalUID\":\"s-icaluid\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"location\":\"s-location\",\"locked\":true,\"organizer\":{\"displayName\":\"s-displayname\",\"email\":\"s-email\",\"id\":\"s-id\",\"self\":true},\"originalStartTime\":{\"date\":\"s-date\",\"dateTime\":\"s-datetime\",\"timeZone\":\"s-timezone\"},\"outOfOfficeProperties\":{\"autoDeclineMode\":\"s-autodeclinemode\",\"declineMessage\":\"s-declinemessage\"},\"privateCopy\":true,\"recurrence\":[\"s-recurrence\"],\"recurringEventId\":\"s-recurringeventid\",\"reminders\":{\"useDefault\":true},\"sequence\":7,\"source\":{\"title\":\"s-title\",\"url\":\"s-url\"},\"start\":{\"date\":\"s-date\",\"dateTime\":\"s-datetime\",\"timeZone\":\"s-timezone\"},\"status\":\"s-status\",\"summary\":\"s-summary\",\"transparency\":\"s-transparency\",\"updated\":\"s-updated\",\"visibility\":\"s-visibility\",\"workingLocationProperties\":{\"homeOffice\":{\"k\":\"v\"},\"type\":\"s-type\"}}],\"kind\":\"s-kind\",\"nextSyncToken\":\"s-nextsynctoken\",\"summary\":\"s-summary\",\"timeZone\":\"s-timezone\",\"updated\":\"s-updated\"}",
+  "OUT: ok",
+]
+
+test "Go's calendar.events.instances pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"accessRole\":\"s-accessrole\",\"defaultReminders\":[{\"method\":\"s-method\",\"minutes\":7}],\"description\":\"s-description\",\"etag\":\"s-etag\",\"items\":[{\"anyoneCanAddSelf\":true,\"attendeesOmitted\":true,\"birthdayProperties\":{\"contact\":\"s-contact\",\"customTypeName\":\"s-customtypename\",\"type\":\"s-type\"},\"colorId\":\"s-colorid\",\"conferenceData\":{\"conferenceId\":\"s-conferenceid\",\"notes\":\"s-notes\",\"signature\":\"s-signature\"},\"created\":\"s-created\",\"creator\":{\"displayName\":\"s-displayname\",\"email\":\"s-email\",\"id\":\"s-id\",\"self\":true},\"description\":\"s-description\",\"end\":{\"date\":\"s-date\",\"dateTime\":\"s-datetime\",\"timeZone\":\"s-timezone\"},\"endTimeUnspecified\":true,\"etag\":\"s-etag\",\"eventLabelId\":\"s-eventlabelid\",\"eventType\":\"s-eventtype\",\"extendedProperties\":{\"private\":{\"k1\":\"s-private\"},\"shared\":{\"k1\":\"s-shared\"}},\"focusTimeProperties\":{\"autoDeclineMode\":\"s-autodeclinemode\",\"chatStatus\":\"s-chatstatus\",\"declineMessage\":\"s-declinemessage\"},\"gadget\":{\"display\":\"s-display\",\"height\":7,\"iconLink\":\"s-iconlink\",\"link\":\"s-link\",\"preferences\":{\"k1\":\"s-preferences\"},\"title\":\"s-title\",\"type\":\"s-type\",\"width\":7},\"guestsCanInviteOthers\":true,\"guestsCanModify\":true,\"guestsCanSeeOtherGuests\":true,\"hangoutLink\":\"s-hangoutlink\",\"htmlLink\":\"s-htmllink\",\"iCalUID\":\"s-icaluid\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"location\":\"s-location\",\"locked\":true,\"organizer\":{\"displayName\":\"s-displayname\",\"email\":\"s-email\",\"id\":\"s-id\",\"self\":true},\"originalStartTime\":{\"date\":\"s-date\",\"dateTime\":\"s-datetime\",\"timeZone\":\"s-timezone\"},\"outOfOfficeProperties\":{\"autoDeclineMode\":\"s-autodeclinemode\",\"declineMessage\":\"s-declinemessage\"},\"privateCopy\":true,\"recurrence\":[\"s-recurrence\"],\"recurringEventId\":\"s-recurringeventid\",\"reminders\":{\"useDefault\":true},\"sequence\":7,\"source\":{\"title\":\"s-title\",\"url\":\"s-url\"},\"start\":{\"date\":\"s-date\",\"dateTime\":\"s-datetime\",\"timeZone\":\"s-timezone\"},\"status\":\"s-status\",\"summary\":\"s-summary\",\"transparency\":\"s-transparency\",\"updated\":\"s-updated\",\"visibility\":\"s-visibility\",\"workingLocationProperties\":{\"homeOffice\":{\"k\":\"v\"},\"type\":\"s-type\"}}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\",\"nextSyncToken\":\"s-nextsynctoken\",\"summary\":\"s-summary\",\"timeZone\":\"s-timezone\",\"updated\":\"s-updated\"}")
+  gv_queue(f, "{\"accessRole\":\"s-accessrole\",\"defaultReminders\":[{\"method\":\"s-method\",\"minutes\":7}],\"description\":\"s-description\",\"etag\":\"s-etag\",\"items\":[{\"anyoneCanAddSelf\":true,\"attendeesOmitted\":true,\"birthdayProperties\":{\"contact\":\"s-contact\",\"customTypeName\":\"s-customtypename\",\"type\":\"s-type\"},\"colorId\":\"s-colorid\",\"conferenceData\":{\"conferenceId\":\"s-conferenceid\",\"notes\":\"s-notes\",\"signature\":\"s-signature\"},\"created\":\"s-created\",\"creator\":{\"displayName\":\"s-displayname\",\"email\":\"s-email\",\"id\":\"s-id\",\"self\":true},\"description\":\"s-description\",\"end\":{\"date\":\"s-date\",\"dateTime\":\"s-datetime\",\"timeZone\":\"s-timezone\"},\"endTimeUnspecified\":true,\"etag\":\"s-etag\",\"eventLabelId\":\"s-eventlabelid\",\"eventType\":\"s-eventtype\",\"extendedProperties\":{\"private\":{\"k1\":\"s-private\"},\"shared\":{\"k1\":\"s-shared\"}},\"focusTimeProperties\":{\"autoDeclineMode\":\"s-autodeclinemode\",\"chatStatus\":\"s-chatstatus\",\"declineMessage\":\"s-declinemessage\"},\"gadget\":{\"display\":\"s-display\",\"height\":7,\"iconLink\":\"s-iconlink\",\"link\":\"s-link\",\"preferences\":{\"k1\":\"s-preferences\"},\"title\":\"s-title\",\"type\":\"s-type\",\"width\":7},\"guestsCanInviteOthers\":true,\"guestsCanModify\":true,\"guestsCanSeeOtherGuests\":true,\"hangoutLink\":\"s-hangoutlink\",\"htmlLink\":\"s-htmllink\",\"iCalUID\":\"s-icaluid\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"location\":\"s-location\",\"locked\":true,\"organizer\":{\"displayName\":\"s-displayname\",\"email\":\"s-email\",\"id\":\"s-id\",\"self\":true},\"originalStartTime\":{\"date\":\"s-date\",\"dateTime\":\"s-datetime\",\"timeZone\":\"s-timezone\"},\"outOfOfficeProperties\":{\"autoDeclineMode\":\"s-autodeclinemode\",\"declineMessage\":\"s-declinemessage\"},\"privateCopy\":true,\"recurrence\":[\"s-recurrence\"],\"recurringEventId\":\"s-recurringeventid\",\"reminders\":{\"useDefault\":true},\"sequence\":7,\"source\":{\"title\":\"s-title\",\"url\":\"s-url\"},\"start\":{\"date\":\"s-date\",\"dateTime\":\"s-datetime\",\"timeZone\":\"s-timezone\"},\"status\":\"s-status\",\"summary\":\"s-summary\",\"transparency\":\"s-transparency\",\"updated\":\"s-updated\",\"visibility\":\"s-visibility\",\"workingLocationProperties\":{\"homeOffice\":{\"k\":\"v\"},\"type\":\"s-type\"}}],\"kind\":\"s-kind\",\"nextSyncToken\":\"s-nextsynctoken\",\"summary\":\"s-summary\",\"timeZone\":\"s-timezone\",\"updated\":\"s-updated\"}")
+  gv_note(f, "CALL calendar.events.instances pages")
+  var p = svc.events.instances_pages("id1/ x", "id2/ x", options: EventsInstancesOptions{always_include_email: Some(true), max_attendees: Some(7), max_results: Some(7), original_start: Some("s-originalstart"), page_token: Some("s-pagetoken"), show_deleted: Some(true), time_max: Some("s-timemax"), time_min: Some("s-timemin"), time_zone: Some("s-timezone"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_30)
+}
+
+const GO_31: List[Str] = [
   "CALL calendar.events.list",
   "REQ GET https://www.googleapis.com/calendar/v3/calendars/id1%2F%20x/events?alt=json&alwaysIncludeEmail=true&eventTypes=s-eventtypes&fields=kind%2Cid&iCalUID=s-icaluid&maxAttendees=7&maxResults=7&orderBy=s-orderby&pageToken=s-pagetoken&prettyPrint=false&privateExtendedProperty=s-privateextendedproperty&q=s-q&sharedExtendedProperty=s-sharedextendedproperty&showDeleted=true&showHiddenInvitations=true&singleEvents=true&syncToken=s-synctoken&timeMax=s-timemax&timeMin=s-timemin&timeZone=s-timezone&updatedMin=s-updatedmin",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -628,10 +742,48 @@ test "Go's calendar.events.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_28)
+  gv_compare(gv_log_of(f), GO_31)
 }
 
-const GO_29: List[Str] = [
+const GO_32: List[Str] = [
+  "CALL calendar.events.list pages",
+  "REQ GET https://www.googleapis.com/calendar/v3/calendars/id1%2F%20x/events?alt=json&alwaysIncludeEmail=true&eventTypes=s-eventtypes&fields=kind%2Cid&iCalUID=s-icaluid&maxAttendees=7&maxResults=7&orderBy=s-orderby&pageToken=s-pagetoken&prettyPrint=false&privateExtendedProperty=s-privateextendedproperty&q=s-q&sharedExtendedProperty=s-sharedextendedproperty&showDeleted=true&showHiddenInvitations=true&singleEvents=true&syncToken=s-synctoken&timeMax=s-timemax&timeMin=s-timemin&timeZone=s-timezone&updatedMin=s-updatedmin",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"accessRole\":\"s-accessrole\",\"defaultReminders\":[{\"method\":\"s-method\",\"minutes\":7}],\"description\":\"s-description\",\"etag\":\"s-etag\",\"items\":[{\"anyoneCanAddSelf\":true,\"attendeesOmitted\":true,\"birthdayProperties\":{\"contact\":\"s-contact\",\"customTypeName\":\"s-customtypename\",\"type\":\"s-type\"},\"colorId\":\"s-colorid\",\"conferenceData\":{\"conferenceId\":\"s-conferenceid\",\"notes\":\"s-notes\",\"signature\":\"s-signature\"},\"created\":\"s-created\",\"creator\":{\"displayName\":\"s-displayname\",\"email\":\"s-email\",\"id\":\"s-id\",\"self\":true},\"description\":\"s-description\",\"end\":{\"date\":\"s-date\",\"dateTime\":\"s-datetime\",\"timeZone\":\"s-timezone\"},\"endTimeUnspecified\":true,\"etag\":\"s-etag\",\"eventLabelId\":\"s-eventlabelid\",\"eventType\":\"s-eventtype\",\"extendedProperties\":{\"private\":{\"k1\":\"s-private\"},\"shared\":{\"k1\":\"s-shared\"}},\"focusTimeProperties\":{\"autoDeclineMode\":\"s-autodeclinemode\",\"chatStatus\":\"s-chatstatus\",\"declineMessage\":\"s-declinemessage\"},\"gadget\":{\"display\":\"s-display\",\"height\":7,\"iconLink\":\"s-iconlink\",\"link\":\"s-link\",\"preferences\":{\"k1\":\"s-preferences\"},\"title\":\"s-title\",\"type\":\"s-type\",\"width\":7},\"guestsCanInviteOthers\":true,\"guestsCanModify\":true,\"guestsCanSeeOtherGuests\":true,\"hangoutLink\":\"s-hangoutlink\",\"htmlLink\":\"s-htmllink\",\"iCalUID\":\"s-icaluid\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"location\":\"s-location\",\"locked\":true,\"organizer\":{\"displayName\":\"s-displayname\",\"email\":\"s-email\",\"id\":\"s-id\",\"self\":true},\"originalStartTime\":{\"date\":\"s-date\",\"dateTime\":\"s-datetime\",\"timeZone\":\"s-timezone\"},\"outOfOfficeProperties\":{\"autoDeclineMode\":\"s-autodeclinemode\",\"declineMessage\":\"s-declinemessage\"},\"privateCopy\":true,\"recurrence\":[\"s-recurrence\"],\"recurringEventId\":\"s-recurringeventid\",\"reminders\":{\"useDefault\":true},\"sequence\":7,\"source\":{\"title\":\"s-title\",\"url\":\"s-url\"},\"start\":{\"date\":\"s-date\",\"dateTime\":\"s-datetime\",\"timeZone\":\"s-timezone\"},\"status\":\"s-status\",\"summary\":\"s-summary\",\"transparency\":\"s-transparency\",\"updated\":\"s-updated\",\"visibility\":\"s-visibility\",\"workingLocationProperties\":{\"homeOffice\":{\"k\":\"v\"},\"type\":\"s-type\"}}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\",\"nextSyncToken\":\"s-nextsynctoken\",\"summary\":\"s-summary\",\"timeZone\":\"s-timezone\",\"updated\":\"s-updated\"}",
+  "OUT: {\"accessRole\":\"s-accessrole\",\"defaultReminders\":[{\"method\":\"s-method\",\"minutes\":7}],\"description\":\"s-description\",\"etag\":\"s-etag\",\"items\":[{\"anyoneCanAddSelf\":true,\"attendeesOmitted\":true,\"birthdayProperties\":{\"contact\":\"s-contact\",\"customTypeName\":\"s-customtypename\",\"type\":\"s-type\"},\"colorId\":\"s-colorid\",\"conferenceData\":{\"conferenceId\":\"s-conferenceid\",\"notes\":\"s-notes\",\"signature\":\"s-signature\"},\"created\":\"s-created\",\"creator\":{\"displayName\":\"s-displayname\",\"email\":\"s-email\",\"id\":\"s-id\",\"self\":true},\"description\":\"s-description\",\"end\":{\"date\":\"s-date\",\"dateTime\":\"s-datetime\",\"timeZone\":\"s-timezone\"},\"endTimeUnspecified\":true,\"etag\":\"s-etag\",\"eventLabelId\":\"s-eventlabelid\",\"eventType\":\"s-eventtype\",\"extendedProperties\":{\"private\":{\"k1\":\"s-private\"},\"shared\":{\"k1\":\"s-shared\"}},\"focusTimeProperties\":{\"autoDeclineMode\":\"s-autodeclinemode\",\"chatStatus\":\"s-chatstatus\",\"declineMessage\":\"s-declinemessage\"},\"gadget\":{\"display\":\"s-display\",\"height\":7,\"iconLink\":\"s-iconlink\",\"link\":\"s-link\",\"preferences\":{\"k1\":\"s-preferences\"},\"title\":\"s-title\",\"type\":\"s-type\",\"width\":7},\"guestsCanInviteOthers\":true,\"guestsCanModify\":true,\"guestsCanSeeOtherGuests\":true,\"hangoutLink\":\"s-hangoutlink\",\"htmlLink\":\"s-htmllink\",\"iCalUID\":\"s-icaluid\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"location\":\"s-location\",\"locked\":true,\"organizer\":{\"displayName\":\"s-displayname\",\"email\":\"s-email\",\"id\":\"s-id\",\"self\":true},\"originalStartTime\":{\"date\":\"s-date\",\"dateTime\":\"s-datetime\",\"timeZone\":\"s-timezone\"},\"outOfOfficeProperties\":{\"autoDeclineMode\":\"s-autodeclinemode\",\"declineMessage\":\"s-declinemessage\"},\"privateCopy\":true,\"recurrence\":[\"s-recurrence\"],\"recurringEventId\":\"s-recurringeventid\",\"reminders\":{\"useDefault\":true},\"sequence\":7,\"source\":{\"title\":\"s-title\",\"url\":\"s-url\"},\"start\":{\"date\":\"s-date\",\"dateTime\":\"s-datetime\",\"timeZone\":\"s-timezone\"},\"status\":\"s-status\",\"summary\":\"s-summary\",\"transparency\":\"s-transparency\",\"updated\":\"s-updated\",\"visibility\":\"s-visibility\",\"workingLocationProperties\":{\"homeOffice\":{\"k\":\"v\"},\"type\":\"s-type\"}}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\",\"nextSyncToken\":\"s-nextsynctoken\",\"summary\":\"s-summary\",\"timeZone\":\"s-timezone\",\"updated\":\"s-updated\"}",
+  "REQ GET https://www.googleapis.com/calendar/v3/calendars/id1%2F%20x/events?alt=json&alwaysIncludeEmail=true&eventTypes=s-eventtypes&fields=kind%2Cid&iCalUID=s-icaluid&maxAttendees=7&maxResults=7&orderBy=s-orderby&pageToken=s-nextpagetoken&prettyPrint=false&privateExtendedProperty=s-privateextendedproperty&q=s-q&sharedExtendedProperty=s-sharedextendedproperty&showDeleted=true&showHiddenInvitations=true&singleEvents=true&syncToken=s-synctoken&timeMax=s-timemax&timeMin=s-timemin&timeZone=s-timezone&updatedMin=s-updatedmin",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"accessRole\":\"s-accessrole\",\"defaultReminders\":[{\"method\":\"s-method\",\"minutes\":7}],\"description\":\"s-description\",\"etag\":\"s-etag\",\"items\":[{\"anyoneCanAddSelf\":true,\"attendeesOmitted\":true,\"birthdayProperties\":{\"contact\":\"s-contact\",\"customTypeName\":\"s-customtypename\",\"type\":\"s-type\"},\"colorId\":\"s-colorid\",\"conferenceData\":{\"conferenceId\":\"s-conferenceid\",\"notes\":\"s-notes\",\"signature\":\"s-signature\"},\"created\":\"s-created\",\"creator\":{\"displayName\":\"s-displayname\",\"email\":\"s-email\",\"id\":\"s-id\",\"self\":true},\"description\":\"s-description\",\"end\":{\"date\":\"s-date\",\"dateTime\":\"s-datetime\",\"timeZone\":\"s-timezone\"},\"endTimeUnspecified\":true,\"etag\":\"s-etag\",\"eventLabelId\":\"s-eventlabelid\",\"eventType\":\"s-eventtype\",\"extendedProperties\":{\"private\":{\"k1\":\"s-private\"},\"shared\":{\"k1\":\"s-shared\"}},\"focusTimeProperties\":{\"autoDeclineMode\":\"s-autodeclinemode\",\"chatStatus\":\"s-chatstatus\",\"declineMessage\":\"s-declinemessage\"},\"gadget\":{\"display\":\"s-display\",\"height\":7,\"iconLink\":\"s-iconlink\",\"link\":\"s-link\",\"preferences\":{\"k1\":\"s-preferences\"},\"title\":\"s-title\",\"type\":\"s-type\",\"width\":7},\"guestsCanInviteOthers\":true,\"guestsCanModify\":true,\"guestsCanSeeOtherGuests\":true,\"hangoutLink\":\"s-hangoutlink\",\"htmlLink\":\"s-htmllink\",\"iCalUID\":\"s-icaluid\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"location\":\"s-location\",\"locked\":true,\"organizer\":{\"displayName\":\"s-displayname\",\"email\":\"s-email\",\"id\":\"s-id\",\"self\":true},\"originalStartTime\":{\"date\":\"s-date\",\"dateTime\":\"s-datetime\",\"timeZone\":\"s-timezone\"},\"outOfOfficeProperties\":{\"autoDeclineMode\":\"s-autodeclinemode\",\"declineMessage\":\"s-declinemessage\"},\"privateCopy\":true,\"recurrence\":[\"s-recurrence\"],\"recurringEventId\":\"s-recurringeventid\",\"reminders\":{\"useDefault\":true},\"sequence\":7,\"source\":{\"title\":\"s-title\",\"url\":\"s-url\"},\"start\":{\"date\":\"s-date\",\"dateTime\":\"s-datetime\",\"timeZone\":\"s-timezone\"},\"status\":\"s-status\",\"summary\":\"s-summary\",\"transparency\":\"s-transparency\",\"updated\":\"s-updated\",\"visibility\":\"s-visibility\",\"workingLocationProperties\":{\"homeOffice\":{\"k\":\"v\"},\"type\":\"s-type\"}}],\"kind\":\"s-kind\",\"nextSyncToken\":\"s-nextsynctoken\",\"summary\":\"s-summary\",\"timeZone\":\"s-timezone\",\"updated\":\"s-updated\"}",
+  "OUT: {\"accessRole\":\"s-accessrole\",\"defaultReminders\":[{\"method\":\"s-method\",\"minutes\":7}],\"description\":\"s-description\",\"etag\":\"s-etag\",\"items\":[{\"anyoneCanAddSelf\":true,\"attendeesOmitted\":true,\"birthdayProperties\":{\"contact\":\"s-contact\",\"customTypeName\":\"s-customtypename\",\"type\":\"s-type\"},\"colorId\":\"s-colorid\",\"conferenceData\":{\"conferenceId\":\"s-conferenceid\",\"notes\":\"s-notes\",\"signature\":\"s-signature\"},\"created\":\"s-created\",\"creator\":{\"displayName\":\"s-displayname\",\"email\":\"s-email\",\"id\":\"s-id\",\"self\":true},\"description\":\"s-description\",\"end\":{\"date\":\"s-date\",\"dateTime\":\"s-datetime\",\"timeZone\":\"s-timezone\"},\"endTimeUnspecified\":true,\"etag\":\"s-etag\",\"eventLabelId\":\"s-eventlabelid\",\"eventType\":\"s-eventtype\",\"extendedProperties\":{\"private\":{\"k1\":\"s-private\"},\"shared\":{\"k1\":\"s-shared\"}},\"focusTimeProperties\":{\"autoDeclineMode\":\"s-autodeclinemode\",\"chatStatus\":\"s-chatstatus\",\"declineMessage\":\"s-declinemessage\"},\"gadget\":{\"display\":\"s-display\",\"height\":7,\"iconLink\":\"s-iconlink\",\"link\":\"s-link\",\"preferences\":{\"k1\":\"s-preferences\"},\"title\":\"s-title\",\"type\":\"s-type\",\"width\":7},\"guestsCanInviteOthers\":true,\"guestsCanModify\":true,\"guestsCanSeeOtherGuests\":true,\"hangoutLink\":\"s-hangoutlink\",\"htmlLink\":\"s-htmllink\",\"iCalUID\":\"s-icaluid\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"location\":\"s-location\",\"locked\":true,\"organizer\":{\"displayName\":\"s-displayname\",\"email\":\"s-email\",\"id\":\"s-id\",\"self\":true},\"originalStartTime\":{\"date\":\"s-date\",\"dateTime\":\"s-datetime\",\"timeZone\":\"s-timezone\"},\"outOfOfficeProperties\":{\"autoDeclineMode\":\"s-autodeclinemode\",\"declineMessage\":\"s-declinemessage\"},\"privateCopy\":true,\"recurrence\":[\"s-recurrence\"],\"recurringEventId\":\"s-recurringeventid\",\"reminders\":{\"useDefault\":true},\"sequence\":7,\"source\":{\"title\":\"s-title\",\"url\":\"s-url\"},\"start\":{\"date\":\"s-date\",\"dateTime\":\"s-datetime\",\"timeZone\":\"s-timezone\"},\"status\":\"s-status\",\"summary\":\"s-summary\",\"transparency\":\"s-transparency\",\"updated\":\"s-updated\",\"visibility\":\"s-visibility\",\"workingLocationProperties\":{\"homeOffice\":{\"k\":\"v\"},\"type\":\"s-type\"}}],\"kind\":\"s-kind\",\"nextSyncToken\":\"s-nextsynctoken\",\"summary\":\"s-summary\",\"timeZone\":\"s-timezone\",\"updated\":\"s-updated\"}",
+  "OUT: ok",
+]
+
+test "Go's calendar.events.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"accessRole\":\"s-accessrole\",\"defaultReminders\":[{\"method\":\"s-method\",\"minutes\":7}],\"description\":\"s-description\",\"etag\":\"s-etag\",\"items\":[{\"anyoneCanAddSelf\":true,\"attendeesOmitted\":true,\"birthdayProperties\":{\"contact\":\"s-contact\",\"customTypeName\":\"s-customtypename\",\"type\":\"s-type\"},\"colorId\":\"s-colorid\",\"conferenceData\":{\"conferenceId\":\"s-conferenceid\",\"notes\":\"s-notes\",\"signature\":\"s-signature\"},\"created\":\"s-created\",\"creator\":{\"displayName\":\"s-displayname\",\"email\":\"s-email\",\"id\":\"s-id\",\"self\":true},\"description\":\"s-description\",\"end\":{\"date\":\"s-date\",\"dateTime\":\"s-datetime\",\"timeZone\":\"s-timezone\"},\"endTimeUnspecified\":true,\"etag\":\"s-etag\",\"eventLabelId\":\"s-eventlabelid\",\"eventType\":\"s-eventtype\",\"extendedProperties\":{\"private\":{\"k1\":\"s-private\"},\"shared\":{\"k1\":\"s-shared\"}},\"focusTimeProperties\":{\"autoDeclineMode\":\"s-autodeclinemode\",\"chatStatus\":\"s-chatstatus\",\"declineMessage\":\"s-declinemessage\"},\"gadget\":{\"display\":\"s-display\",\"height\":7,\"iconLink\":\"s-iconlink\",\"link\":\"s-link\",\"preferences\":{\"k1\":\"s-preferences\"},\"title\":\"s-title\",\"type\":\"s-type\",\"width\":7},\"guestsCanInviteOthers\":true,\"guestsCanModify\":true,\"guestsCanSeeOtherGuests\":true,\"hangoutLink\":\"s-hangoutlink\",\"htmlLink\":\"s-htmllink\",\"iCalUID\":\"s-icaluid\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"location\":\"s-location\",\"locked\":true,\"organizer\":{\"displayName\":\"s-displayname\",\"email\":\"s-email\",\"id\":\"s-id\",\"self\":true},\"originalStartTime\":{\"date\":\"s-date\",\"dateTime\":\"s-datetime\",\"timeZone\":\"s-timezone\"},\"outOfOfficeProperties\":{\"autoDeclineMode\":\"s-autodeclinemode\",\"declineMessage\":\"s-declinemessage\"},\"privateCopy\":true,\"recurrence\":[\"s-recurrence\"],\"recurringEventId\":\"s-recurringeventid\",\"reminders\":{\"useDefault\":true},\"sequence\":7,\"source\":{\"title\":\"s-title\",\"url\":\"s-url\"},\"start\":{\"date\":\"s-date\",\"dateTime\":\"s-datetime\",\"timeZone\":\"s-timezone\"},\"status\":\"s-status\",\"summary\":\"s-summary\",\"transparency\":\"s-transparency\",\"updated\":\"s-updated\",\"visibility\":\"s-visibility\",\"workingLocationProperties\":{\"homeOffice\":{\"k\":\"v\"},\"type\":\"s-type\"}}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\",\"nextSyncToken\":\"s-nextsynctoken\",\"summary\":\"s-summary\",\"timeZone\":\"s-timezone\",\"updated\":\"s-updated\"}")
+  gv_queue(f, "{\"accessRole\":\"s-accessrole\",\"defaultReminders\":[{\"method\":\"s-method\",\"minutes\":7}],\"description\":\"s-description\",\"etag\":\"s-etag\",\"items\":[{\"anyoneCanAddSelf\":true,\"attendeesOmitted\":true,\"birthdayProperties\":{\"contact\":\"s-contact\",\"customTypeName\":\"s-customtypename\",\"type\":\"s-type\"},\"colorId\":\"s-colorid\",\"conferenceData\":{\"conferenceId\":\"s-conferenceid\",\"notes\":\"s-notes\",\"signature\":\"s-signature\"},\"created\":\"s-created\",\"creator\":{\"displayName\":\"s-displayname\",\"email\":\"s-email\",\"id\":\"s-id\",\"self\":true},\"description\":\"s-description\",\"end\":{\"date\":\"s-date\",\"dateTime\":\"s-datetime\",\"timeZone\":\"s-timezone\"},\"endTimeUnspecified\":true,\"etag\":\"s-etag\",\"eventLabelId\":\"s-eventlabelid\",\"eventType\":\"s-eventtype\",\"extendedProperties\":{\"private\":{\"k1\":\"s-private\"},\"shared\":{\"k1\":\"s-shared\"}},\"focusTimeProperties\":{\"autoDeclineMode\":\"s-autodeclinemode\",\"chatStatus\":\"s-chatstatus\",\"declineMessage\":\"s-declinemessage\"},\"gadget\":{\"display\":\"s-display\",\"height\":7,\"iconLink\":\"s-iconlink\",\"link\":\"s-link\",\"preferences\":{\"k1\":\"s-preferences\"},\"title\":\"s-title\",\"type\":\"s-type\",\"width\":7},\"guestsCanInviteOthers\":true,\"guestsCanModify\":true,\"guestsCanSeeOtherGuests\":true,\"hangoutLink\":\"s-hangoutlink\",\"htmlLink\":\"s-htmllink\",\"iCalUID\":\"s-icaluid\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"location\":\"s-location\",\"locked\":true,\"organizer\":{\"displayName\":\"s-displayname\",\"email\":\"s-email\",\"id\":\"s-id\",\"self\":true},\"originalStartTime\":{\"date\":\"s-date\",\"dateTime\":\"s-datetime\",\"timeZone\":\"s-timezone\"},\"outOfOfficeProperties\":{\"autoDeclineMode\":\"s-autodeclinemode\",\"declineMessage\":\"s-declinemessage\"},\"privateCopy\":true,\"recurrence\":[\"s-recurrence\"],\"recurringEventId\":\"s-recurringeventid\",\"reminders\":{\"useDefault\":true},\"sequence\":7,\"source\":{\"title\":\"s-title\",\"url\":\"s-url\"},\"start\":{\"date\":\"s-date\",\"dateTime\":\"s-datetime\",\"timeZone\":\"s-timezone\"},\"status\":\"s-status\",\"summary\":\"s-summary\",\"transparency\":\"s-transparency\",\"updated\":\"s-updated\",\"visibility\":\"s-visibility\",\"workingLocationProperties\":{\"homeOffice\":{\"k\":\"v\"},\"type\":\"s-type\"}}],\"kind\":\"s-kind\",\"nextSyncToken\":\"s-nextsynctoken\",\"summary\":\"s-summary\",\"timeZone\":\"s-timezone\",\"updated\":\"s-updated\"}")
+  gv_note(f, "CALL calendar.events.list pages")
+  var p = svc.events.list_pages("id1/ x", options: EventsListOptions{always_include_email: Some(true), event_types: ["s-eventtypes"], i_cal_uid: Some("s-icaluid"), max_attendees: Some(7), max_results: Some(7), order_by: Some("s-orderby"), page_token: Some("s-pagetoken"), private_extended_property: ["s-privateextendedproperty"], q: Some("s-q"), shared_extended_property: ["s-sharedextendedproperty"], show_deleted: Some(true), show_hidden_invitations: Some(true), single_events: Some(true), sync_token: Some("s-synctoken"), time_max: Some("s-timemax"), time_min: Some("s-timemin"), time_zone: Some("s-timezone"), updated_min: Some("s-updatedmin"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_32)
+}
+
+const GO_33: List[Str] = [
   "CALL calendar.events.move",
   "REQ POST https://www.googleapis.com/calendar/v3/calendars/id1%2F%20x/events/id2%2F%20x/move?alt=json&destination=s-destination&fields=kind%2Cid&prettyPrint=false&sendNotifications=true&sendUpdates=s-sendupdates",
   "  H x-extra=v1",
@@ -649,14 +801,14 @@ test "Go's calendar.events.move" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_29)
+  gv_compare(gv_log_of(f), GO_33)
 }
 
-const GO_30: List[Str] = [
+const GO_34: List[Str] = [
   "CALL calendar.events.patch",
   "REQ PATCH https://www.googleapis.com/calendar/v3/calendars/id1%2F%20x/events/id2%2F%20x?alt=json&alwaysIncludeEmail=true&conferenceDataVersion=7&eventLabelVersion=7&fields=kind%2Cid&maxAttendees=7&prettyPrint=false&sendNotifications=true&sendUpdates=s-sendupdates&supportsAttachments=true",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"anyoneCanAddSelf\":true,\"attachments\":[{\"fileId\":\"s-fileid\",\"fileUrl\":\"s-fileurl\",\"iconLink\":\"s-iconlink\",\"mimeType\":\"s-mimetype\",\"title\":\"s-title\"}],\"attendees\":[{\"additionalGuests\":7,\"asyncOperation\":\"s-asyncoperation\",\"comment\":\"s-comment\",\"displayName\":\"s-displayname\",\"email\":\"s-email\",\"id\":\"s-id\",\"optional\":true,\"organizer\":true,\"resource\":true,\"responseStatus\":\"s-responsestatus\",\"self\":true}],\"attendeesOmitted\":true,\"birthdayProperties\":{\"contact\":\"s-contact\",\"customTypeName\":\"s-customtypename\",\"type\":\"s-type\"},\"colorId\":\"s-colorid\",\"conferenceData\":{\"conferenceId\":\"s-conferenceid\",\"conferenceSolution\":{\"iconUri\":\"s-iconuri\",\"name\":\"s-name\"},\"createRequest\":{\"requestId\":\"s-requestid\"},\"entryPoints\":[{\"accessCode\":\"s-accesscode\",\"entryPointType\":\"s-entrypointtype\",\"label\":\"s-label\",\"meetingCode\":\"s-meetingcode\",\"passcode\":\"s-passcode\",\"password\":\"s-password\",\"pin\":\"s-pin\",\"regionCode\":\"s-regioncode\",\"uri\":\"s-uri\"}],\"notes\":\"s-notes\",\"parameters\":{},\"signature\":\"s-signature\"},\"created\":\"s-created\",\"creator\":{\"displayName\":\"s-displayname\",\"email\":\"s-email\",\"id\":\"s-id\",\"self\":true},\"description\":\"s-description\",\"end\":{\"date\":\"s-date\",\"dateTime\":\"s-datetime\",\"timeZone\":\"s-timezone\"},\"endTimeUnspecified\":true,\"etag\":\"s-etag\",\"eventLabelId\":\"s-eventlabelid\",\"eventType\":\"s-eventtype\",\"extendedProperties\":{\"private\":{\"k1\":\"s-private\"},\"shared\":{\"k1\":\"s-shared\"}},\"focusTimeProperties\":{\"autoDeclineMode\":\"s-autodeclinemode\",\"chatStatus\":\"s-chatstatus\",\"declineMessage\":\"s-declinemessage\"},\"gadget\":{\"display\":\"s-display\",\"height\":7,\"iconLink\":\"s-iconlink\",\"link\":\"s-link\",\"preferences\":{\"k1\":\"s-preferences\"},\"title\":\"s-title\",\"type\":\"s-type\",\"width\":7},\"guestsCanInviteOthers\":true,\"guestsCanModify\":true,\"guestsCanSeeOtherGuests\":true,\"hangoutLink\":\"s-hangoutlink\",\"htmlLink\":\"s-htmllink\",\"iCalUID\":\"s-icaluid\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"location\":\"s-location\",\"locked\":true,\"organizer\":{\"displayName\":\"s-displayname\",\"email\":\"s-email\",\"id\":\"s-id\",\"self\":true},\"originalStartTime\":{\"date\":\"s-date\",\"dateTime\":\"s-datetime\",\"timeZone\":\"s-timezone\"},\"outOfOfficeProperties\":{\"autoDeclineMode\":\"s-autodeclinemode\",\"declineMessage\":\"s-declinemessage\"},\"privateCopy\":true,\"recurrence\":[\"s-recurrence\"],\"recurringEventId\":\"s-recurringeventid\",\"reminders\":{\"overrides\":[{\"method\":\"s-method\",\"minutes\":7}],\"useDefault\":true},\"sequence\":7,\"source\":{\"title\":\"s-title\",\"url\":\"s-url\"},\"start\":{\"date\":\"s-date\",\"dateTime\":\"s-datetime\",\"timeZone\":\"s-timezone\"},\"status\":\"s-status\",\"summary\":\"s-summary\",\"transparency\":\"s-transparency\",\"updated\":\"s-updated\",\"visibility\":\"s-visibility\",\"workingLocationProperties\":{\"customLocation\":{\"label\":\"s-label\"},\"homeOffice\":{\"k\":\"v\"},\"officeLocation\":{\"buildingId\":\"s-buildingid\",\"deskId\":\"s-deskid\",\"floorId\":\"s-floorid\",\"floorSectionId\":\"s-floorsectionid\",\"label\":\"s-label\"},\"type\":\"s-type\"}}",
+  "  B <2844 bytes> {\"anyoneCanAddSelf\":true,\"attach...l\":\"s-label\"},\"type\":\"s-type\"}}",
   "",
   "  SERVED 200 {\"anyoneCanAddSelf\":true,\"attachments\":[{\"fileId\":\"s-fileid\",\"fileUrl\":\"s-fileurl\",\"iconLink\":\"s-iconlink\",\"mimeType\":\"s-mimetype\",\"title\":\"s-title\"}],\"attendees\":[{\"additionalGuests\":7,\"asyncOperation\":\"s-asyncoperation\",\"comment\":\"s-comment\",\"displayName\":\"s-displayname\",\"email\":\"s-email\",\"id\":\"s-id\",\"optional\":true,\"organizer\":true,\"resource\":true,\"responseStatus\":\"s-responsestatus\",\"self\":true}],\"attendeesOmitted\":true,\"birthdayProperties\":{\"contact\":\"s-contact\",\"customTypeName\":\"s-customtypename\",\"type\":\"s-type\"},\"colorId\":\"s-colorid\",\"conferenceData\":{\"conferenceId\":\"s-conferenceid\",\"conferenceSolution\":{\"iconUri\":\"s-iconuri\",\"name\":\"s-name\"},\"createRequest\":{\"requestId\":\"s-requestid\"},\"entryPoints\":[{\"accessCode\":\"s-accesscode\",\"entryPointType\":\"s-entrypointtype\",\"label\":\"s-label\",\"meetingCode\":\"s-meetingcode\",\"passcode\":\"s-passcode\",\"password\":\"s-password\",\"pin\":\"s-pin\",\"regionCode\":\"s-regioncode\",\"uri\":\"s-uri\"}],\"notes\":\"s-notes\",\"parameters\":{},\"signature\":\"s-signature\"},\"created\":\"s-created\",\"creator\":{\"displayName\":\"s-displayname\",\"email\":\"s-email\",\"id\":\"s-id\",\"self\":true},\"description\":\"s-description\",\"end\":{\"date\":\"s-date\",\"dateTime\":\"s-datetime\",\"timeZone\":\"s-timezone\"},\"endTimeUnspecified\":true,\"etag\":\"s-etag\",\"eventLabelId\":\"s-eventlabelid\",\"eventType\":\"s-eventtype\",\"extendedProperties\":{\"private\":{\"k1\":\"s-private\"},\"shared\":{\"k1\":\"s-shared\"}},\"focusTimeProperties\":{\"autoDeclineMode\":\"s-autodeclinemode\",\"chatStatus\":\"s-chatstatus\",\"declineMessage\":\"s-declinemessage\"},\"gadget\":{\"display\":\"s-display\",\"height\":7,\"iconLink\":\"s-iconlink\",\"link\":\"s-link\",\"preferences\":{\"k1\":\"s-preferences\"},\"title\":\"s-title\",\"type\":\"s-type\",\"width\":7},\"guestsCanInviteOthers\":true,\"guestsCanModify\":true,\"guestsCanSeeOtherGuests\":true,\"hangoutLink\":\"s-hangoutlink\",\"htmlLink\":\"s-htmllink\",\"iCalUID\":\"s-icaluid\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"location\":\"s-location\",\"locked\":true,\"organizer\":{\"displayName\":\"s-displayname\",\"email\":\"s-email\",\"id\":\"s-id\",\"self\":true},\"originalStartTime\":{\"date\":\"s-date\",\"dateTime\":\"s-datetime\",\"timeZone\":\"s-timezone\"},\"outOfOfficeProperties\":{\"autoDeclineMode\":\"s-autodeclinemode\",\"declineMessage\":\"s-declinemessage\"},\"privateCopy\":true,\"recurrence\":[\"s-recurrence\"],\"recurringEventId\":\"s-recurringeventid\",\"reminders\":{\"overrides\":[{\"method\":\"s-method\",\"minutes\":7}],\"useDefault\":true},\"sequence\":7,\"source\":{\"title\":\"s-title\",\"url\":\"s-url\"},\"start\":{\"date\":\"s-date\",\"dateTime\":\"s-datetime\",\"timeZone\":\"s-timezone\"},\"status\":\"s-status\",\"summary\":\"s-summary\",\"transparency\":\"s-transparency\",\"updated\":\"s-updated\",\"visibility\":\"s-visibility\",\"workingLocationProperties\":{\"customLocation\":{\"label\":\"s-label\"},\"homeOffice\":{\"k\":\"v\"},\"officeLocation\":{\"buildingId\":\"s-buildingid\",\"deskId\":\"s-deskid\",\"floorId\":\"s-floorid\",\"floorSectionId\":\"s-floorsectionid\",\"label\":\"s-label\"},\"type\":\"s-type\"}}",
   "OUT: {\"anyoneCanAddSelf\":true,\"attachments\":[{\"fileId\":\"s-fileid\",\"fileUrl\":\"s-fileurl\",\"iconLink\":\"s-iconlink\",\"mimeType\":\"s-mimetype\",\"title\":\"s-title\"}],\"attendees\":[{\"additionalGuests\":7,\"asyncOperation\":\"s-asyncoperation\",\"comment\":\"s-comment\",\"displayName\":\"s-displayname\",\"email\":\"s-email\",\"id\":\"s-id\",\"optional\":true,\"organizer\":true,\"resource\":true,\"responseStatus\":\"s-responsestatus\",\"self\":true}],\"attendeesOmitted\":true,\"birthdayProperties\":{\"contact\":\"s-contact\",\"customTypeName\":\"s-customtypename\",\"type\":\"s-type\"},\"colorId\":\"s-colorid\",\"conferenceData\":{\"conferenceId\":\"s-conferenceid\",\"conferenceSolution\":{\"iconUri\":\"s-iconuri\",\"name\":\"s-name\"},\"createRequest\":{\"requestId\":\"s-requestid\"},\"entryPoints\":[{\"accessCode\":\"s-accesscode\",\"entryPointType\":\"s-entrypointtype\",\"label\":\"s-label\",\"meetingCode\":\"s-meetingcode\",\"passcode\":\"s-passcode\",\"password\":\"s-password\",\"pin\":\"s-pin\",\"regionCode\":\"s-regioncode\",\"uri\":\"s-uri\"}],\"notes\":\"s-notes\",\"parameters\":{},\"signature\":\"s-signature\"},\"created\":\"s-created\",\"creator\":{\"displayName\":\"s-displayname\",\"email\":\"s-email\",\"id\":\"s-id\",\"self\":true},\"description\":\"s-description\",\"end\":{\"date\":\"s-date\",\"dateTime\":\"s-datetime\",\"timeZone\":\"s-timezone\"},\"endTimeUnspecified\":true,\"etag\":\"s-etag\",\"eventLabelId\":\"s-eventlabelid\",\"eventType\":\"s-eventtype\",\"extendedProperties\":{\"private\":{\"k1\":\"s-private\"},\"shared\":{\"k1\":\"s-shared\"}},\"focusTimeProperties\":{\"autoDeclineMode\":\"s-autodeclinemode\",\"chatStatus\":\"s-chatstatus\",\"declineMessage\":\"s-declinemessage\"},\"gadget\":{\"display\":\"s-display\",\"height\":7,\"iconLink\":\"s-iconlink\",\"link\":\"s-link\",\"preferences\":{\"k1\":\"s-preferences\"},\"title\":\"s-title\",\"type\":\"s-type\",\"width\":7},\"guestsCanInviteOthers\":true,\"guestsCanModify\":true,\"guestsCanSeeOtherGuests\":true,\"hangoutLink\":\"s-hangoutlink\",\"htmlLink\":\"s-htmllink\",\"iCalUID\":\"s-icaluid\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"location\":\"s-location\",\"locked\":true,\"organizer\":{\"displayName\":\"s-displayname\",\"email\":\"s-email\",\"id\":\"s-id\",\"self\":true},\"originalStartTime\":{\"date\":\"s-date\",\"dateTime\":\"s-datetime\",\"timeZone\":\"s-timezone\"},\"outOfOfficeProperties\":{\"autoDeclineMode\":\"s-autodeclinemode\",\"declineMessage\":\"s-declinemessage\"},\"privateCopy\":true,\"recurrence\":[\"s-recurrence\"],\"recurringEventId\":\"s-recurringeventid\",\"reminders\":{\"overrides\":[{\"method\":\"s-method\",\"minutes\":7}],\"useDefault\":true},\"sequence\":7,\"source\":{\"title\":\"s-title\",\"url\":\"s-url\"},\"start\":{\"date\":\"s-date\",\"dateTime\":\"s-datetime\",\"timeZone\":\"s-timezone\"},\"status\":\"s-status\",\"summary\":\"s-summary\",\"transparency\":\"s-transparency\",\"updated\":\"s-updated\",\"visibility\":\"s-visibility\",\"workingLocationProperties\":{\"customLocation\":{\"label\":\"s-label\"},\"homeOffice\":{\"k\":\"v\"},\"officeLocation\":{\"buildingId\":\"s-buildingid\",\"deskId\":\"s-deskid\",\"floorId\":\"s-floorid\",\"floorSectionId\":\"s-floorsectionid\",\"label\":\"s-label\"},\"type\":\"s-type\"}}",
@@ -671,10 +823,10 @@ test "Go's calendar.events.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_30)
+  gv_compare(gv_log_of(f), GO_34)
 }
 
-const GO_31: List[Str] = [
+const GO_35: List[Str] = [
   "CALL calendar.events.quickAdd",
   "REQ POST https://www.googleapis.com/calendar/v3/calendars/id1%2F%20x/events/quickAdd?alt=json&fields=kind%2Cid&prettyPrint=false&sendNotifications=true&sendUpdates=s-sendupdates&text=s-text",
   "  H x-extra=v1",
@@ -692,14 +844,14 @@ test "Go's calendar.events.quickAdd" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_31)
+  gv_compare(gv_log_of(f), GO_35)
 }
 
-const GO_32: List[Str] = [
+const GO_36: List[Str] = [
   "CALL calendar.events.update",
   "REQ PUT https://www.googleapis.com/calendar/v3/calendars/id1%2F%20x/events/id2%2F%20x?alt=json&alwaysIncludeEmail=true&conferenceDataVersion=7&eventLabelVersion=7&fields=kind%2Cid&maxAttendees=7&prettyPrint=false&sendNotifications=true&sendUpdates=s-sendupdates&supportsAttachments=true",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"anyoneCanAddSelf\":true,\"attachments\":[{\"fileId\":\"s-fileid\",\"fileUrl\":\"s-fileurl\",\"iconLink\":\"s-iconlink\",\"mimeType\":\"s-mimetype\",\"title\":\"s-title\"}],\"attendees\":[{\"additionalGuests\":7,\"asyncOperation\":\"s-asyncoperation\",\"comment\":\"s-comment\",\"displayName\":\"s-displayname\",\"email\":\"s-email\",\"id\":\"s-id\",\"optional\":true,\"organizer\":true,\"resource\":true,\"responseStatus\":\"s-responsestatus\",\"self\":true}],\"attendeesOmitted\":true,\"birthdayProperties\":{\"contact\":\"s-contact\",\"customTypeName\":\"s-customtypename\",\"type\":\"s-type\"},\"colorId\":\"s-colorid\",\"conferenceData\":{\"conferenceId\":\"s-conferenceid\",\"conferenceSolution\":{\"iconUri\":\"s-iconuri\",\"name\":\"s-name\"},\"createRequest\":{\"requestId\":\"s-requestid\"},\"entryPoints\":[{\"accessCode\":\"s-accesscode\",\"entryPointType\":\"s-entrypointtype\",\"label\":\"s-label\",\"meetingCode\":\"s-meetingcode\",\"passcode\":\"s-passcode\",\"password\":\"s-password\",\"pin\":\"s-pin\",\"regionCode\":\"s-regioncode\",\"uri\":\"s-uri\"}],\"notes\":\"s-notes\",\"parameters\":{},\"signature\":\"s-signature\"},\"created\":\"s-created\",\"creator\":{\"displayName\":\"s-displayname\",\"email\":\"s-email\",\"id\":\"s-id\",\"self\":true},\"description\":\"s-description\",\"end\":{\"date\":\"s-date\",\"dateTime\":\"s-datetime\",\"timeZone\":\"s-timezone\"},\"endTimeUnspecified\":true,\"etag\":\"s-etag\",\"eventLabelId\":\"s-eventlabelid\",\"eventType\":\"s-eventtype\",\"extendedProperties\":{\"private\":{\"k1\":\"s-private\"},\"shared\":{\"k1\":\"s-shared\"}},\"focusTimeProperties\":{\"autoDeclineMode\":\"s-autodeclinemode\",\"chatStatus\":\"s-chatstatus\",\"declineMessage\":\"s-declinemessage\"},\"gadget\":{\"display\":\"s-display\",\"height\":7,\"iconLink\":\"s-iconlink\",\"link\":\"s-link\",\"preferences\":{\"k1\":\"s-preferences\"},\"title\":\"s-title\",\"type\":\"s-type\",\"width\":7},\"guestsCanInviteOthers\":true,\"guestsCanModify\":true,\"guestsCanSeeOtherGuests\":true,\"hangoutLink\":\"s-hangoutlink\",\"htmlLink\":\"s-htmllink\",\"iCalUID\":\"s-icaluid\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"location\":\"s-location\",\"locked\":true,\"organizer\":{\"displayName\":\"s-displayname\",\"email\":\"s-email\",\"id\":\"s-id\",\"self\":true},\"originalStartTime\":{\"date\":\"s-date\",\"dateTime\":\"s-datetime\",\"timeZone\":\"s-timezone\"},\"outOfOfficeProperties\":{\"autoDeclineMode\":\"s-autodeclinemode\",\"declineMessage\":\"s-declinemessage\"},\"privateCopy\":true,\"recurrence\":[\"s-recurrence\"],\"recurringEventId\":\"s-recurringeventid\",\"reminders\":{\"overrides\":[{\"method\":\"s-method\",\"minutes\":7}],\"useDefault\":true},\"sequence\":7,\"source\":{\"title\":\"s-title\",\"url\":\"s-url\"},\"start\":{\"date\":\"s-date\",\"dateTime\":\"s-datetime\",\"timeZone\":\"s-timezone\"},\"status\":\"s-status\",\"summary\":\"s-summary\",\"transparency\":\"s-transparency\",\"updated\":\"s-updated\",\"visibility\":\"s-visibility\",\"workingLocationProperties\":{\"customLocation\":{\"label\":\"s-label\"},\"homeOffice\":{\"k\":\"v\"},\"officeLocation\":{\"buildingId\":\"s-buildingid\",\"deskId\":\"s-deskid\",\"floorId\":\"s-floorid\",\"floorSectionId\":\"s-floorsectionid\",\"label\":\"s-label\"},\"type\":\"s-type\"}}",
+  "  B <2844 bytes> {\"anyoneCanAddSelf\":true,\"attach...l\":\"s-label\"},\"type\":\"s-type\"}}",
   "",
   "  SERVED 200 {\"anyoneCanAddSelf\":true,\"attachments\":[{\"fileId\":\"s-fileid\",\"fileUrl\":\"s-fileurl\",\"iconLink\":\"s-iconlink\",\"mimeType\":\"s-mimetype\",\"title\":\"s-title\"}],\"attendees\":[{\"additionalGuests\":7,\"asyncOperation\":\"s-asyncoperation\",\"comment\":\"s-comment\",\"displayName\":\"s-displayname\",\"email\":\"s-email\",\"id\":\"s-id\",\"optional\":true,\"organizer\":true,\"resource\":true,\"responseStatus\":\"s-responsestatus\",\"self\":true}],\"attendeesOmitted\":true,\"birthdayProperties\":{\"contact\":\"s-contact\",\"customTypeName\":\"s-customtypename\",\"type\":\"s-type\"},\"colorId\":\"s-colorid\",\"conferenceData\":{\"conferenceId\":\"s-conferenceid\",\"conferenceSolution\":{\"iconUri\":\"s-iconuri\",\"name\":\"s-name\"},\"createRequest\":{\"requestId\":\"s-requestid\"},\"entryPoints\":[{\"accessCode\":\"s-accesscode\",\"entryPointType\":\"s-entrypointtype\",\"label\":\"s-label\",\"meetingCode\":\"s-meetingcode\",\"passcode\":\"s-passcode\",\"password\":\"s-password\",\"pin\":\"s-pin\",\"regionCode\":\"s-regioncode\",\"uri\":\"s-uri\"}],\"notes\":\"s-notes\",\"parameters\":{},\"signature\":\"s-signature\"},\"created\":\"s-created\",\"creator\":{\"displayName\":\"s-displayname\",\"email\":\"s-email\",\"id\":\"s-id\",\"self\":true},\"description\":\"s-description\",\"end\":{\"date\":\"s-date\",\"dateTime\":\"s-datetime\",\"timeZone\":\"s-timezone\"},\"endTimeUnspecified\":true,\"etag\":\"s-etag\",\"eventLabelId\":\"s-eventlabelid\",\"eventType\":\"s-eventtype\",\"extendedProperties\":{\"private\":{\"k1\":\"s-private\"},\"shared\":{\"k1\":\"s-shared\"}},\"focusTimeProperties\":{\"autoDeclineMode\":\"s-autodeclinemode\",\"chatStatus\":\"s-chatstatus\",\"declineMessage\":\"s-declinemessage\"},\"gadget\":{\"display\":\"s-display\",\"height\":7,\"iconLink\":\"s-iconlink\",\"link\":\"s-link\",\"preferences\":{\"k1\":\"s-preferences\"},\"title\":\"s-title\",\"type\":\"s-type\",\"width\":7},\"guestsCanInviteOthers\":true,\"guestsCanModify\":true,\"guestsCanSeeOtherGuests\":true,\"hangoutLink\":\"s-hangoutlink\",\"htmlLink\":\"s-htmllink\",\"iCalUID\":\"s-icaluid\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"location\":\"s-location\",\"locked\":true,\"organizer\":{\"displayName\":\"s-displayname\",\"email\":\"s-email\",\"id\":\"s-id\",\"self\":true},\"originalStartTime\":{\"date\":\"s-date\",\"dateTime\":\"s-datetime\",\"timeZone\":\"s-timezone\"},\"outOfOfficeProperties\":{\"autoDeclineMode\":\"s-autodeclinemode\",\"declineMessage\":\"s-declinemessage\"},\"privateCopy\":true,\"recurrence\":[\"s-recurrence\"],\"recurringEventId\":\"s-recurringeventid\",\"reminders\":{\"overrides\":[{\"method\":\"s-method\",\"minutes\":7}],\"useDefault\":true},\"sequence\":7,\"source\":{\"title\":\"s-title\",\"url\":\"s-url\"},\"start\":{\"date\":\"s-date\",\"dateTime\":\"s-datetime\",\"timeZone\":\"s-timezone\"},\"status\":\"s-status\",\"summary\":\"s-summary\",\"transparency\":\"s-transparency\",\"updated\":\"s-updated\",\"visibility\":\"s-visibility\",\"workingLocationProperties\":{\"customLocation\":{\"label\":\"s-label\"},\"homeOffice\":{\"k\":\"v\"},\"officeLocation\":{\"buildingId\":\"s-buildingid\",\"deskId\":\"s-deskid\",\"floorId\":\"s-floorid\",\"floorSectionId\":\"s-floorsectionid\",\"label\":\"s-label\"},\"type\":\"s-type\"}}",
   "OUT: {\"anyoneCanAddSelf\":true,\"attachments\":[{\"fileId\":\"s-fileid\",\"fileUrl\":\"s-fileurl\",\"iconLink\":\"s-iconlink\",\"mimeType\":\"s-mimetype\",\"title\":\"s-title\"}],\"attendees\":[{\"additionalGuests\":7,\"asyncOperation\":\"s-asyncoperation\",\"comment\":\"s-comment\",\"displayName\":\"s-displayname\",\"email\":\"s-email\",\"id\":\"s-id\",\"optional\":true,\"organizer\":true,\"resource\":true,\"responseStatus\":\"s-responsestatus\",\"self\":true}],\"attendeesOmitted\":true,\"birthdayProperties\":{\"contact\":\"s-contact\",\"customTypeName\":\"s-customtypename\",\"type\":\"s-type\"},\"colorId\":\"s-colorid\",\"conferenceData\":{\"conferenceId\":\"s-conferenceid\",\"conferenceSolution\":{\"iconUri\":\"s-iconuri\",\"name\":\"s-name\"},\"createRequest\":{\"requestId\":\"s-requestid\"},\"entryPoints\":[{\"accessCode\":\"s-accesscode\",\"entryPointType\":\"s-entrypointtype\",\"label\":\"s-label\",\"meetingCode\":\"s-meetingcode\",\"passcode\":\"s-passcode\",\"password\":\"s-password\",\"pin\":\"s-pin\",\"regionCode\":\"s-regioncode\",\"uri\":\"s-uri\"}],\"notes\":\"s-notes\",\"parameters\":{},\"signature\":\"s-signature\"},\"created\":\"s-created\",\"creator\":{\"displayName\":\"s-displayname\",\"email\":\"s-email\",\"id\":\"s-id\",\"self\":true},\"description\":\"s-description\",\"end\":{\"date\":\"s-date\",\"dateTime\":\"s-datetime\",\"timeZone\":\"s-timezone\"},\"endTimeUnspecified\":true,\"etag\":\"s-etag\",\"eventLabelId\":\"s-eventlabelid\",\"eventType\":\"s-eventtype\",\"extendedProperties\":{\"private\":{\"k1\":\"s-private\"},\"shared\":{\"k1\":\"s-shared\"}},\"focusTimeProperties\":{\"autoDeclineMode\":\"s-autodeclinemode\",\"chatStatus\":\"s-chatstatus\",\"declineMessage\":\"s-declinemessage\"},\"gadget\":{\"display\":\"s-display\",\"height\":7,\"iconLink\":\"s-iconlink\",\"link\":\"s-link\",\"preferences\":{\"k1\":\"s-preferences\"},\"title\":\"s-title\",\"type\":\"s-type\",\"width\":7},\"guestsCanInviteOthers\":true,\"guestsCanModify\":true,\"guestsCanSeeOtherGuests\":true,\"hangoutLink\":\"s-hangoutlink\",\"htmlLink\":\"s-htmllink\",\"iCalUID\":\"s-icaluid\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"location\":\"s-location\",\"locked\":true,\"organizer\":{\"displayName\":\"s-displayname\",\"email\":\"s-email\",\"id\":\"s-id\",\"self\":true},\"originalStartTime\":{\"date\":\"s-date\",\"dateTime\":\"s-datetime\",\"timeZone\":\"s-timezone\"},\"outOfOfficeProperties\":{\"autoDeclineMode\":\"s-autodeclinemode\",\"declineMessage\":\"s-declinemessage\"},\"privateCopy\":true,\"recurrence\":[\"s-recurrence\"],\"recurringEventId\":\"s-recurringeventid\",\"reminders\":{\"overrides\":[{\"method\":\"s-method\",\"minutes\":7}],\"useDefault\":true},\"sequence\":7,\"source\":{\"title\":\"s-title\",\"url\":\"s-url\"},\"start\":{\"date\":\"s-date\",\"dateTime\":\"s-datetime\",\"timeZone\":\"s-timezone\"},\"status\":\"s-status\",\"summary\":\"s-summary\",\"transparency\":\"s-transparency\",\"updated\":\"s-updated\",\"visibility\":\"s-visibility\",\"workingLocationProperties\":{\"customLocation\":{\"label\":\"s-label\"},\"homeOffice\":{\"k\":\"v\"},\"officeLocation\":{\"buildingId\":\"s-buildingid\",\"deskId\":\"s-deskid\",\"floorId\":\"s-floorid\",\"floorSectionId\":\"s-floorsectionid\",\"label\":\"s-label\"},\"type\":\"s-type\"}}",
@@ -714,10 +866,10 @@ test "Go's calendar.events.update" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_32)
+  gv_compare(gv_log_of(f), GO_36)
 }
 
-const GO_33: List[Str] = [
+const GO_37: List[Str] = [
   "CALL calendar.events.watch",
   "REQ POST https://www.googleapis.com/calendar/v3/calendars/id1%2F%20x/events/watch?alt=json&alwaysIncludeEmail=true&eventTypes=s-eventtypes&fields=kind%2Cid&iCalUID=s-icaluid&maxAttendees=7&maxResults=7&orderBy=s-orderby&pageToken=s-pagetoken&prettyPrint=false&privateExtendedProperty=s-privateextendedproperty&q=s-q&sharedExtendedProperty=s-sharedextendedproperty&showDeleted=true&showHiddenInvitations=true&singleEvents=true&syncToken=s-synctoken&timeMax=s-timemax&timeMin=s-timemin&timeZone=s-timezone&updatedMin=s-updatedmin",
   "  H content-type=application/json | x-extra=v1",
@@ -736,10 +888,10 @@ test "Go's calendar.events.watch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_33)
+  gv_compare(gv_log_of(f), GO_37)
 }
 
-const GO_34: List[Str] = [
+const GO_38: List[Str] = [
   "CALL calendar.freebusy.query",
   "REQ POST https://www.googleapis.com/calendar/v3/freeBusy?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -758,10 +910,10 @@ test "Go's calendar.freebusy.query" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_34)
+  gv_compare(gv_log_of(f), GO_38)
 }
 
-const GO_35: List[Str] = [
+const GO_39: List[Str] = [
   "CALL calendar.settings.get",
   "REQ GET https://www.googleapis.com/calendar/v3/users/me/settings/id1%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -779,10 +931,10 @@ test "Go's calendar.settings.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_35)
+  gv_compare(gv_log_of(f), GO_39)
 }
 
-const GO_36: List[Str] = [
+const GO_40: List[Str] = [
   "CALL calendar.settings.list",
   "REQ GET https://www.googleapis.com/calendar/v3/users/me/settings?alt=json&fields=kind%2Cid&maxResults=7&pageToken=s-pagetoken&prettyPrint=false&syncToken=s-synctoken",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -800,10 +952,48 @@ test "Go's calendar.settings.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_36)
+  gv_compare(gv_log_of(f), GO_40)
 }
 
-const GO_37: List[Str] = [
+const GO_41: List[Str] = [
+  "CALL calendar.settings.list pages",
+  "REQ GET https://www.googleapis.com/calendar/v3/users/me/settings?alt=json&fields=kind%2Cid&maxResults=7&pageToken=s-pagetoken&prettyPrint=false&syncToken=s-synctoken",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"etag\":\"s-etag\",\"items\":[{\"etag\":\"s-etag\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"value\":\"s-value\"}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\",\"nextSyncToken\":\"s-nextsynctoken\"}",
+  "OUT: {\"etag\":\"s-etag\",\"items\":[{\"etag\":\"s-etag\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"value\":\"s-value\"}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\",\"nextSyncToken\":\"s-nextsynctoken\"}",
+  "REQ GET https://www.googleapis.com/calendar/v3/users/me/settings?alt=json&fields=kind%2Cid&maxResults=7&pageToken=s-nextpagetoken&prettyPrint=false&syncToken=s-synctoken",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"etag\":\"s-etag\",\"items\":[{\"etag\":\"s-etag\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"value\":\"s-value\"}],\"kind\":\"s-kind\",\"nextSyncToken\":\"s-nextsynctoken\"}",
+  "OUT: {\"etag\":\"s-etag\",\"items\":[{\"etag\":\"s-etag\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"value\":\"s-value\"}],\"kind\":\"s-kind\",\"nextSyncToken\":\"s-nextsynctoken\"}",
+  "OUT: ok",
+]
+
+test "Go's calendar.settings.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"etag\":\"s-etag\",\"items\":[{\"etag\":\"s-etag\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"value\":\"s-value\"}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\",\"nextSyncToken\":\"s-nextsynctoken\"}")
+  gv_queue(f, "{\"etag\":\"s-etag\",\"items\":[{\"etag\":\"s-etag\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"value\":\"s-value\"}],\"kind\":\"s-kind\",\"nextSyncToken\":\"s-nextsynctoken\"}")
+  gv_note(f, "CALL calendar.settings.list pages")
+  var p = svc.settings.list_pages(options: SettingsListOptions{max_results: Some(7), page_token: Some("s-pagetoken"), sync_token: Some("s-synctoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_41)
+}
+
+const GO_42: List[Str] = [
   "CALL calendar.settings.watch",
   "REQ POST https://www.googleapis.com/calendar/v3/users/me/settings/watch?alt=json&fields=kind%2Cid&maxResults=7&pageToken=s-pagetoken&prettyPrint=false&syncToken=s-synctoken",
   "  H content-type=application/json | x-extra=v1",
@@ -822,5 +1012,5 @@ test "Go's calendar.settings.watch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_37)
+  gv_compare(gv_log_of(f), GO_42)
 }

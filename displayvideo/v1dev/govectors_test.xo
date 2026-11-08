@@ -30,6 +30,27 @@ test "Go's displayvideo.media.download" {
 }
 
 const GO_1: List[Str] = [
+  "CALL displayvideo.media.download download",
+  "REQ GET https://displayvideo.googleapis.com/download/id1/%20x?alt=media&fields=kind%2Cid&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 media-bytes \u{0001}ÿ",
+  "OUT: media 200 media-bytes \u{0001}ÿ",
+]
+
+test "Go's displayvideo.media.download download" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "media-bytes \u{0001}ÿ")
+  gv_note(f, "CALL displayvideo.media.download download")
+  match svc.media.download_download("id1/ x", options: MediaDownloadOptions{fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]}) {
+    Ok(r) => gv_note(f, "OUT: media ${r.status} ${r.body.to_str_lossy()}")
+    Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+  }
+  gv_compare(gv_log_of(f), GO_1)
+}
+
+const GO_2: List[Str] = [
   "CALL displayvideo.sdfdownloadtasks.operations.get",
   "REQ GET https://displayvideo.googleapis.com/v1dev/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -47,5 +68,5 @@ test "Go's displayvideo.sdfdownloadtasks.operations.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_1)
+  gv_compare(gv_log_of(f), GO_2)
 }

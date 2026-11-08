@@ -177,6 +177,44 @@ test "Go's blogger.comments.list" {
 }
 
 const GO_8: List[Str] = [
+  "CALL blogger.comments.list pages",
+  "REQ GET https://blogger.googleapis.com/v3/blogs/id1%2F%20x/posts/id2%2F%20x/comments?alt=json&endDate=s-enddate&fetchBodies=true&fields=kind%2Cid&maxResults=7&pageToken=s-pagetoken&prettyPrint=false&startDate=s-startdate&status=s-status&view=s-view",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"etag\":\"s-etag\",\"items\":[{\"author\":{\"displayName\":\"s-displayname\",\"id\":\"s-id\",\"image\":{\"url\":\"s-url\"},\"url\":\"s-url\"},\"blog\":{\"id\":\"s-id\"},\"content\":\"s-content\",\"id\":\"s-id\",\"inReplyTo\":{\"id\":\"s-id\"},\"kind\":\"s-kind\",\"post\":{\"id\":\"s-id\"},\"published\":\"s-published\",\"selfLink\":\"s-selflink\",\"status\":\"s-status\",\"updated\":\"s-updated\"}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\",\"prevPageToken\":\"s-prevpagetoken\"}",
+  "OUT: {\"etag\":\"s-etag\",\"items\":[{\"author\":{\"displayName\":\"s-displayname\",\"id\":\"s-id\",\"image\":{\"url\":\"s-url\"},\"url\":\"s-url\"},\"blog\":{\"id\":\"s-id\"},\"content\":\"s-content\",\"id\":\"s-id\",\"inReplyTo\":{\"id\":\"s-id\"},\"kind\":\"s-kind\",\"post\":{\"id\":\"s-id\"},\"published\":\"s-published\",\"selfLink\":\"s-selflink\",\"status\":\"s-status\",\"updated\":\"s-updated\"}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\",\"prevPageToken\":\"s-prevpagetoken\"}",
+  "REQ GET https://blogger.googleapis.com/v3/blogs/id1%2F%20x/posts/id2%2F%20x/comments?alt=json&endDate=s-enddate&fetchBodies=true&fields=kind%2Cid&maxResults=7&pageToken=s-nextpagetoken&prettyPrint=false&startDate=s-startdate&status=s-status&view=s-view",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"etag\":\"s-etag\",\"items\":[{\"author\":{\"displayName\":\"s-displayname\",\"id\":\"s-id\",\"image\":{\"url\":\"s-url\"},\"url\":\"s-url\"},\"blog\":{\"id\":\"s-id\"},\"content\":\"s-content\",\"id\":\"s-id\",\"inReplyTo\":{\"id\":\"s-id\"},\"kind\":\"s-kind\",\"post\":{\"id\":\"s-id\"},\"published\":\"s-published\",\"selfLink\":\"s-selflink\",\"status\":\"s-status\",\"updated\":\"s-updated\"}],\"kind\":\"s-kind\",\"prevPageToken\":\"s-prevpagetoken\"}",
+  "OUT: {\"etag\":\"s-etag\",\"items\":[{\"author\":{\"displayName\":\"s-displayname\",\"id\":\"s-id\",\"image\":{\"url\":\"s-url\"},\"url\":\"s-url\"},\"blog\":{\"id\":\"s-id\"},\"content\":\"s-content\",\"id\":\"s-id\",\"inReplyTo\":{\"id\":\"s-id\"},\"kind\":\"s-kind\",\"post\":{\"id\":\"s-id\"},\"published\":\"s-published\",\"selfLink\":\"s-selflink\",\"status\":\"s-status\",\"updated\":\"s-updated\"}],\"kind\":\"s-kind\",\"prevPageToken\":\"s-prevpagetoken\"}",
+  "OUT: ok",
+]
+
+test "Go's blogger.comments.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"etag\":\"s-etag\",\"items\":[{\"author\":{\"displayName\":\"s-displayname\",\"id\":\"s-id\",\"image\":{\"url\":\"s-url\"},\"url\":\"s-url\"},\"blog\":{\"id\":\"s-id\"},\"content\":\"s-content\",\"id\":\"s-id\",\"inReplyTo\":{\"id\":\"s-id\"},\"kind\":\"s-kind\",\"post\":{\"id\":\"s-id\"},\"published\":\"s-published\",\"selfLink\":\"s-selflink\",\"status\":\"s-status\",\"updated\":\"s-updated\"}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\",\"prevPageToken\":\"s-prevpagetoken\"}")
+  gv_queue(f, "{\"etag\":\"s-etag\",\"items\":[{\"author\":{\"displayName\":\"s-displayname\",\"id\":\"s-id\",\"image\":{\"url\":\"s-url\"},\"url\":\"s-url\"},\"blog\":{\"id\":\"s-id\"},\"content\":\"s-content\",\"id\":\"s-id\",\"inReplyTo\":{\"id\":\"s-id\"},\"kind\":\"s-kind\",\"post\":{\"id\":\"s-id\"},\"published\":\"s-published\",\"selfLink\":\"s-selflink\",\"status\":\"s-status\",\"updated\":\"s-updated\"}],\"kind\":\"s-kind\",\"prevPageToken\":\"s-prevpagetoken\"}")
+  gv_note(f, "CALL blogger.comments.list pages")
+  var p = svc.comments.list_pages("id1/ x", "id2/ x", options: CommentsListOptions{end_date: Some("s-enddate"), fetch_bodies: Some(true), max_results: Some(7), page_token: Some("s-pagetoken"), start_date: Some("s-startdate"), status: Some("s-status"), view: Some("s-view"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_8)
+}
+
+const GO_9: List[Str] = [
   "CALL blogger.comments.listByBlog",
   "REQ GET https://blogger.googleapis.com/v3/blogs/id1%2F%20x/comments?alt=json&endDate=s-enddate&fetchBodies=true&fields=kind%2Cid&maxResults=7&pageToken=s-pagetoken&prettyPrint=false&startDate=s-startdate&status=s-status",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -194,10 +232,48 @@ test "Go's blogger.comments.listByBlog" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_8)
+  gv_compare(gv_log_of(f), GO_9)
 }
 
-const GO_9: List[Str] = [
+const GO_10: List[Str] = [
+  "CALL blogger.comments.listByBlog pages",
+  "REQ GET https://blogger.googleapis.com/v3/blogs/id1%2F%20x/comments?alt=json&endDate=s-enddate&fetchBodies=true&fields=kind%2Cid&maxResults=7&pageToken=s-pagetoken&prettyPrint=false&startDate=s-startdate&status=s-status",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"etag\":\"s-etag\",\"items\":[{\"author\":{\"displayName\":\"s-displayname\",\"id\":\"s-id\",\"image\":{\"url\":\"s-url\"},\"url\":\"s-url\"},\"blog\":{\"id\":\"s-id\"},\"content\":\"s-content\",\"id\":\"s-id\",\"inReplyTo\":{\"id\":\"s-id\"},\"kind\":\"s-kind\",\"post\":{\"id\":\"s-id\"},\"published\":\"s-published\",\"selfLink\":\"s-selflink\",\"status\":\"s-status\",\"updated\":\"s-updated\"}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\",\"prevPageToken\":\"s-prevpagetoken\"}",
+  "OUT: {\"etag\":\"s-etag\",\"items\":[{\"author\":{\"displayName\":\"s-displayname\",\"id\":\"s-id\",\"image\":{\"url\":\"s-url\"},\"url\":\"s-url\"},\"blog\":{\"id\":\"s-id\"},\"content\":\"s-content\",\"id\":\"s-id\",\"inReplyTo\":{\"id\":\"s-id\"},\"kind\":\"s-kind\",\"post\":{\"id\":\"s-id\"},\"published\":\"s-published\",\"selfLink\":\"s-selflink\",\"status\":\"s-status\",\"updated\":\"s-updated\"}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\",\"prevPageToken\":\"s-prevpagetoken\"}",
+  "REQ GET https://blogger.googleapis.com/v3/blogs/id1%2F%20x/comments?alt=json&endDate=s-enddate&fetchBodies=true&fields=kind%2Cid&maxResults=7&pageToken=s-nextpagetoken&prettyPrint=false&startDate=s-startdate&status=s-status",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"etag\":\"s-etag\",\"items\":[{\"author\":{\"displayName\":\"s-displayname\",\"id\":\"s-id\",\"image\":{\"url\":\"s-url\"},\"url\":\"s-url\"},\"blog\":{\"id\":\"s-id\"},\"content\":\"s-content\",\"id\":\"s-id\",\"inReplyTo\":{\"id\":\"s-id\"},\"kind\":\"s-kind\",\"post\":{\"id\":\"s-id\"},\"published\":\"s-published\",\"selfLink\":\"s-selflink\",\"status\":\"s-status\",\"updated\":\"s-updated\"}],\"kind\":\"s-kind\",\"prevPageToken\":\"s-prevpagetoken\"}",
+  "OUT: {\"etag\":\"s-etag\",\"items\":[{\"author\":{\"displayName\":\"s-displayname\",\"id\":\"s-id\",\"image\":{\"url\":\"s-url\"},\"url\":\"s-url\"},\"blog\":{\"id\":\"s-id\"},\"content\":\"s-content\",\"id\":\"s-id\",\"inReplyTo\":{\"id\":\"s-id\"},\"kind\":\"s-kind\",\"post\":{\"id\":\"s-id\"},\"published\":\"s-published\",\"selfLink\":\"s-selflink\",\"status\":\"s-status\",\"updated\":\"s-updated\"}],\"kind\":\"s-kind\",\"prevPageToken\":\"s-prevpagetoken\"}",
+  "OUT: ok",
+]
+
+test "Go's blogger.comments.listByBlog pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"etag\":\"s-etag\",\"items\":[{\"author\":{\"displayName\":\"s-displayname\",\"id\":\"s-id\",\"image\":{\"url\":\"s-url\"},\"url\":\"s-url\"},\"blog\":{\"id\":\"s-id\"},\"content\":\"s-content\",\"id\":\"s-id\",\"inReplyTo\":{\"id\":\"s-id\"},\"kind\":\"s-kind\",\"post\":{\"id\":\"s-id\"},\"published\":\"s-published\",\"selfLink\":\"s-selflink\",\"status\":\"s-status\",\"updated\":\"s-updated\"}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\",\"prevPageToken\":\"s-prevpagetoken\"}")
+  gv_queue(f, "{\"etag\":\"s-etag\",\"items\":[{\"author\":{\"displayName\":\"s-displayname\",\"id\":\"s-id\",\"image\":{\"url\":\"s-url\"},\"url\":\"s-url\"},\"blog\":{\"id\":\"s-id\"},\"content\":\"s-content\",\"id\":\"s-id\",\"inReplyTo\":{\"id\":\"s-id\"},\"kind\":\"s-kind\",\"post\":{\"id\":\"s-id\"},\"published\":\"s-published\",\"selfLink\":\"s-selflink\",\"status\":\"s-status\",\"updated\":\"s-updated\"}],\"kind\":\"s-kind\",\"prevPageToken\":\"s-prevpagetoken\"}")
+  gv_note(f, "CALL blogger.comments.listByBlog pages")
+  var p = svc.comments.list_by_blog_pages("id1/ x", options: CommentsListByBlogOptions{end_date: Some("s-enddate"), fetch_bodies: Some(true), max_results: Some(7), page_token: Some("s-pagetoken"), start_date: Some("s-startdate"), status: ["s-status"], fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_10)
+}
+
+const GO_11: List[Str] = [
   "CALL blogger.comments.markAsSpam",
   "REQ POST https://blogger.googleapis.com/v3/blogs/id1%2F%20x/posts/id2%2F%20x/comments/id3%2F%20x/spam?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -215,10 +291,10 @@ test "Go's blogger.comments.markAsSpam" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_9)
+  gv_compare(gv_log_of(f), GO_11)
 }
 
-const GO_10: List[Str] = [
+const GO_12: List[Str] = [
   "CALL blogger.comments.removeContent",
   "REQ POST https://blogger.googleapis.com/v3/blogs/id1%2F%20x/posts/id2%2F%20x/comments/id3%2F%20x/removecontent?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -236,10 +312,10 @@ test "Go's blogger.comments.removeContent" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_10)
+  gv_compare(gv_log_of(f), GO_12)
 }
 
-const GO_11: List[Str] = [
+const GO_13: List[Str] = [
   "CALL blogger.pageViews.get",
   "REQ GET https://blogger.googleapis.com/v3/blogs/id1%2F%20x/pageviews?alt=json&fields=kind%2Cid&prettyPrint=false&range=s-range",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -257,10 +333,10 @@ test "Go's blogger.pageViews.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_11)
+  gv_compare(gv_log_of(f), GO_13)
 }
 
-const GO_12: List[Str] = [
+const GO_14: List[Str] = [
   "CALL blogger.pages.delete",
   "REQ DELETE https://blogger.googleapis.com/v3/blogs/id1%2F%20x/pages/id2%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false&useTrash=true",
   "  H x-extra=v1",
@@ -278,10 +354,10 @@ test "Go's blogger.pages.delete" {
     Ok(_) => gv_note(f, "OUT: ok")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_12)
+  gv_compare(gv_log_of(f), GO_14)
 }
 
-const GO_13: List[Str] = [
+const GO_15: List[Str] = [
   "CALL blogger.pages.get",
   "REQ GET https://blogger.googleapis.com/v3/blogs/id1%2F%20x/pages/id2%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false&view=s-view",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -299,10 +375,10 @@ test "Go's blogger.pages.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_13)
+  gv_compare(gv_log_of(f), GO_15)
 }
 
-const GO_14: List[Str] = [
+const GO_16: List[Str] = [
   "CALL blogger.pages.insert",
   "REQ POST https://blogger.googleapis.com/v3/blogs/id1%2F%20x/pages?alt=json&fields=kind%2Cid&isDraft=true&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -321,10 +397,10 @@ test "Go's blogger.pages.insert" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_14)
+  gv_compare(gv_log_of(f), GO_16)
 }
 
-const GO_15: List[Str] = [
+const GO_17: List[Str] = [
   "CALL blogger.pages.list",
   "REQ GET https://blogger.googleapis.com/v3/blogs/id1%2F%20x/pages?alt=json&fetchBodies=true&fields=kind%2Cid&maxResults=7&pageToken=s-pagetoken&prettyPrint=false&status=s-status&view=s-view",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -342,10 +418,48 @@ test "Go's blogger.pages.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_15)
+  gv_compare(gv_log_of(f), GO_17)
 }
 
-const GO_16: List[Str] = [
+const GO_18: List[Str] = [
+  "CALL blogger.pages.list pages",
+  "REQ GET https://blogger.googleapis.com/v3/blogs/id1%2F%20x/pages?alt=json&fetchBodies=true&fields=kind%2Cid&maxResults=7&pageToken=s-pagetoken&prettyPrint=false&status=s-status&view=s-view",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"etag\":\"s-etag\",\"items\":[{\"author\":{\"displayName\":\"s-displayname\",\"id\":\"s-id\",\"image\":{\"url\":\"s-url\"},\"url\":\"s-url\"},\"blog\":{\"id\":\"s-id\"},\"content\":\"s-content\",\"etag\":\"s-etag\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"published\":\"s-published\",\"selfLink\":\"s-selflink\",\"status\":\"s-status\",\"title\":\"s-title\",\"trashed\":\"s-trashed\",\"updated\":\"s-updated\",\"url\":\"s-url\"}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"etag\":\"s-etag\",\"items\":[{\"author\":{\"displayName\":\"s-displayname\",\"id\":\"s-id\",\"image\":{\"url\":\"s-url\"},\"url\":\"s-url\"},\"blog\":{\"id\":\"s-id\"},\"content\":\"s-content\",\"etag\":\"s-etag\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"published\":\"s-published\",\"selfLink\":\"s-selflink\",\"status\":\"s-status\",\"title\":\"s-title\",\"trashed\":\"s-trashed\",\"updated\":\"s-updated\",\"url\":\"s-url\"}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://blogger.googleapis.com/v3/blogs/id1%2F%20x/pages?alt=json&fetchBodies=true&fields=kind%2Cid&maxResults=7&pageToken=s-nextpagetoken&prettyPrint=false&status=s-status&view=s-view",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"etag\":\"s-etag\",\"items\":[{\"author\":{\"displayName\":\"s-displayname\",\"id\":\"s-id\",\"image\":{\"url\":\"s-url\"},\"url\":\"s-url\"},\"blog\":{\"id\":\"s-id\"},\"content\":\"s-content\",\"etag\":\"s-etag\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"published\":\"s-published\",\"selfLink\":\"s-selflink\",\"status\":\"s-status\",\"title\":\"s-title\",\"trashed\":\"s-trashed\",\"updated\":\"s-updated\",\"url\":\"s-url\"}],\"kind\":\"s-kind\"}",
+  "OUT: {\"etag\":\"s-etag\",\"items\":[{\"author\":{\"displayName\":\"s-displayname\",\"id\":\"s-id\",\"image\":{\"url\":\"s-url\"},\"url\":\"s-url\"},\"blog\":{\"id\":\"s-id\"},\"content\":\"s-content\",\"etag\":\"s-etag\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"published\":\"s-published\",\"selfLink\":\"s-selflink\",\"status\":\"s-status\",\"title\":\"s-title\",\"trashed\":\"s-trashed\",\"updated\":\"s-updated\",\"url\":\"s-url\"}],\"kind\":\"s-kind\"}",
+  "OUT: ok",
+]
+
+test "Go's blogger.pages.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"etag\":\"s-etag\",\"items\":[{\"author\":{\"displayName\":\"s-displayname\",\"id\":\"s-id\",\"image\":{\"url\":\"s-url\"},\"url\":\"s-url\"},\"blog\":{\"id\":\"s-id\"},\"content\":\"s-content\",\"etag\":\"s-etag\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"published\":\"s-published\",\"selfLink\":\"s-selflink\",\"status\":\"s-status\",\"title\":\"s-title\",\"trashed\":\"s-trashed\",\"updated\":\"s-updated\",\"url\":\"s-url\"}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"etag\":\"s-etag\",\"items\":[{\"author\":{\"displayName\":\"s-displayname\",\"id\":\"s-id\",\"image\":{\"url\":\"s-url\"},\"url\":\"s-url\"},\"blog\":{\"id\":\"s-id\"},\"content\":\"s-content\",\"etag\":\"s-etag\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"published\":\"s-published\",\"selfLink\":\"s-selflink\",\"status\":\"s-status\",\"title\":\"s-title\",\"trashed\":\"s-trashed\",\"updated\":\"s-updated\",\"url\":\"s-url\"}],\"kind\":\"s-kind\"}")
+  gv_note(f, "CALL blogger.pages.list pages")
+  var p = svc.pages.list_pages("id1/ x", options: PagesListOptions{fetch_bodies: Some(true), max_results: Some(7), page_token: Some("s-pagetoken"), status: ["s-status"], view: Some("s-view"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_18)
+}
+
+const GO_19: List[Str] = [
   "CALL blogger.pages.patch",
   "REQ PATCH https://blogger.googleapis.com/v3/blogs/id1%2F%20x/pages/id2%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false&publish=true&revert=true",
   "  H content-type=application/json | x-extra=v1",
@@ -364,10 +478,10 @@ test "Go's blogger.pages.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_16)
+  gv_compare(gv_log_of(f), GO_19)
 }
 
-const GO_17: List[Str] = [
+const GO_20: List[Str] = [
   "CALL blogger.pages.publish",
   "REQ POST https://blogger.googleapis.com/v3/blogs/id1%2F%20x/pages/id2%2F%20x/publish?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -385,10 +499,10 @@ test "Go's blogger.pages.publish" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_17)
+  gv_compare(gv_log_of(f), GO_20)
 }
 
-const GO_18: List[Str] = [
+const GO_21: List[Str] = [
   "CALL blogger.pages.revert",
   "REQ POST https://blogger.googleapis.com/v3/blogs/id1%2F%20x/pages/id2%2F%20x/revert?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -406,10 +520,10 @@ test "Go's blogger.pages.revert" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_18)
+  gv_compare(gv_log_of(f), GO_21)
 }
 
-const GO_19: List[Str] = [
+const GO_22: List[Str] = [
   "CALL blogger.pages.update",
   "REQ PUT https://blogger.googleapis.com/v3/blogs/id1%2F%20x/pages/id2%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false&publish=true&revert=true",
   "  H content-type=application/json | x-extra=v1",
@@ -428,10 +542,10 @@ test "Go's blogger.pages.update" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_19)
+  gv_compare(gv_log_of(f), GO_22)
 }
 
-const GO_20: List[Str] = [
+const GO_23: List[Str] = [
   "CALL blogger.postUserInfos.get",
   "REQ GET https://blogger.googleapis.com/v3/users/id1%2F%20x/blogs/id2%2F%20x/posts/id3%2F%20x?alt=json&fields=kind%2Cid&maxComments=7&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -449,10 +563,10 @@ test "Go's blogger.postUserInfos.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_20)
+  gv_compare(gv_log_of(f), GO_23)
 }
 
-const GO_21: List[Str] = [
+const GO_24: List[Str] = [
   "CALL blogger.postUserInfos.list",
   "REQ GET https://blogger.googleapis.com/v3/users/id1%2F%20x/blogs/id2%2F%20x/posts?alt=json&endDate=s-enddate&fetchBodies=true&fields=kind%2Cid&labels=s-labels&maxResults=7&orderBy=s-orderby&pageToken=s-pagetoken&prettyPrint=false&startDate=s-startdate&status=s-status&view=s-view",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -470,10 +584,48 @@ test "Go's blogger.postUserInfos.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_21)
+  gv_compare(gv_log_of(f), GO_24)
 }
 
-const GO_22: List[Str] = [
+const GO_25: List[Str] = [
+  "CALL blogger.postUserInfos.list pages",
+  "REQ GET https://blogger.googleapis.com/v3/users/id1%2F%20x/blogs/id2%2F%20x/posts?alt=json&endDate=s-enddate&fetchBodies=true&fields=kind%2Cid&labels=s-labels&maxResults=7&orderBy=s-orderby&pageToken=s-pagetoken&prettyPrint=false&startDate=s-startdate&status=s-status&view=s-view",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"items\":[{\"kind\":\"s-kind\",\"post\":{\"content\":\"s-content\",\"customMetaData\":\"s-custommetadata\",\"etag\":\"s-etag\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"published\":\"s-published\",\"readerComments\":\"s-readercomments\",\"selfLink\":\"s-selflink\",\"status\":\"s-status\",\"title\":\"s-title\",\"titleLink\":\"s-titlelink\",\"trashed\":\"s-trashed\",\"updated\":\"s-updated\",\"url\":\"s-url\"},\"post_user_info\":{\"blogId\":\"s-blogid\",\"hasEditAccess\":true,\"kind\":\"s-kind\",\"postId\":\"s-postid\",\"userId\":\"s-userid\"}}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"items\":[{\"kind\":\"s-kind\",\"post\":{\"content\":\"s-content\",\"customMetaData\":\"s-custommetadata\",\"etag\":\"s-etag\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"published\":\"s-published\",\"readerComments\":\"s-readercomments\",\"selfLink\":\"s-selflink\",\"status\":\"s-status\",\"title\":\"s-title\",\"titleLink\":\"s-titlelink\",\"trashed\":\"s-trashed\",\"updated\":\"s-updated\",\"url\":\"s-url\"},\"post_user_info\":{\"blogId\":\"s-blogid\",\"hasEditAccess\":true,\"kind\":\"s-kind\",\"postId\":\"s-postid\",\"userId\":\"s-userid\"}}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://blogger.googleapis.com/v3/users/id1%2F%20x/blogs/id2%2F%20x/posts?alt=json&endDate=s-enddate&fetchBodies=true&fields=kind%2Cid&labels=s-labels&maxResults=7&orderBy=s-orderby&pageToken=s-nextpagetoken&prettyPrint=false&startDate=s-startdate&status=s-status&view=s-view",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"items\":[{\"kind\":\"s-kind\",\"post\":{\"content\":\"s-content\",\"customMetaData\":\"s-custommetadata\",\"etag\":\"s-etag\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"published\":\"s-published\",\"readerComments\":\"s-readercomments\",\"selfLink\":\"s-selflink\",\"status\":\"s-status\",\"title\":\"s-title\",\"titleLink\":\"s-titlelink\",\"trashed\":\"s-trashed\",\"updated\":\"s-updated\",\"url\":\"s-url\"},\"post_user_info\":{\"blogId\":\"s-blogid\",\"hasEditAccess\":true,\"kind\":\"s-kind\",\"postId\":\"s-postid\",\"userId\":\"s-userid\"}}],\"kind\":\"s-kind\"}",
+  "OUT: {\"items\":[{\"kind\":\"s-kind\",\"post\":{\"content\":\"s-content\",\"customMetaData\":\"s-custommetadata\",\"etag\":\"s-etag\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"published\":\"s-published\",\"readerComments\":\"s-readercomments\",\"selfLink\":\"s-selflink\",\"status\":\"s-status\",\"title\":\"s-title\",\"titleLink\":\"s-titlelink\",\"trashed\":\"s-trashed\",\"updated\":\"s-updated\",\"url\":\"s-url\"},\"post_user_info\":{\"blogId\":\"s-blogid\",\"hasEditAccess\":true,\"kind\":\"s-kind\",\"postId\":\"s-postid\",\"userId\":\"s-userid\"}}],\"kind\":\"s-kind\"}",
+  "OUT: ok",
+]
+
+test "Go's blogger.postUserInfos.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"items\":[{\"kind\":\"s-kind\",\"post\":{\"content\":\"s-content\",\"customMetaData\":\"s-custommetadata\",\"etag\":\"s-etag\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"published\":\"s-published\",\"readerComments\":\"s-readercomments\",\"selfLink\":\"s-selflink\",\"status\":\"s-status\",\"title\":\"s-title\",\"titleLink\":\"s-titlelink\",\"trashed\":\"s-trashed\",\"updated\":\"s-updated\",\"url\":\"s-url\"},\"post_user_info\":{\"blogId\":\"s-blogid\",\"hasEditAccess\":true,\"kind\":\"s-kind\",\"postId\":\"s-postid\",\"userId\":\"s-userid\"}}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"items\":[{\"kind\":\"s-kind\",\"post\":{\"content\":\"s-content\",\"customMetaData\":\"s-custommetadata\",\"etag\":\"s-etag\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"published\":\"s-published\",\"readerComments\":\"s-readercomments\",\"selfLink\":\"s-selflink\",\"status\":\"s-status\",\"title\":\"s-title\",\"titleLink\":\"s-titlelink\",\"trashed\":\"s-trashed\",\"updated\":\"s-updated\",\"url\":\"s-url\"},\"post_user_info\":{\"blogId\":\"s-blogid\",\"hasEditAccess\":true,\"kind\":\"s-kind\",\"postId\":\"s-postid\",\"userId\":\"s-userid\"}}],\"kind\":\"s-kind\"}")
+  gv_note(f, "CALL blogger.postUserInfos.list pages")
+  var p = svc.post_user_infos.list_pages("id1/ x", "id2/ x", options: PostUserInfosListOptions{end_date: Some("s-enddate"), fetch_bodies: Some(true), labels: Some("s-labels"), max_results: Some(7), order_by: Some("s-orderby"), page_token: Some("s-pagetoken"), start_date: Some("s-startdate"), status: ["s-status"], view: Some("s-view"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_25)
+}
+
+const GO_26: List[Str] = [
   "CALL blogger.posts.delete",
   "REQ DELETE https://blogger.googleapis.com/v3/blogs/id1%2F%20x/posts/id2%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false&useTrash=true",
   "  H x-extra=v1",
@@ -491,10 +643,10 @@ test "Go's blogger.posts.delete" {
     Ok(_) => gv_note(f, "OUT: ok")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_22)
+  gv_compare(gv_log_of(f), GO_26)
 }
 
-const GO_23: List[Str] = [
+const GO_27: List[Str] = [
   "CALL blogger.posts.get",
   "REQ GET https://blogger.googleapis.com/v3/blogs/id1%2F%20x/posts/id2%2F%20x?alt=json&fetchBody=true&fetchImages=true&fields=kind%2Cid&maxComments=7&prettyPrint=false&view=s-view",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -512,10 +664,10 @@ test "Go's blogger.posts.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_23)
+  gv_compare(gv_log_of(f), GO_27)
 }
 
-const GO_24: List[Str] = [
+const GO_28: List[Str] = [
   "CALL blogger.posts.getByPath",
   "REQ GET https://blogger.googleapis.com/v3/blogs/id1%2F%20x/posts/bypath?alt=json&fields=kind%2Cid&maxComments=7&path=s-path&prettyPrint=false&view=s-view",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -533,10 +685,10 @@ test "Go's blogger.posts.getByPath" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_24)
+  gv_compare(gv_log_of(f), GO_28)
 }
 
-const GO_25: List[Str] = [
+const GO_29: List[Str] = [
   "CALL blogger.posts.insert",
   "REQ POST https://blogger.googleapis.com/v3/blogs/id1%2F%20x/posts?alt=json&fetchBody=true&fetchImages=true&fields=kind%2Cid&isDraft=true&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -555,10 +707,10 @@ test "Go's blogger.posts.insert" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_25)
+  gv_compare(gv_log_of(f), GO_29)
 }
 
-const GO_26: List[Str] = [
+const GO_30: List[Str] = [
   "CALL blogger.posts.list",
   "REQ GET https://blogger.googleapis.com/v3/blogs/id1%2F%20x/posts?alt=json&endDate=s-enddate&fetchBodies=true&fetchImages=true&fields=kind%2Cid&labels=s-labels&maxResults=7&orderBy=s-orderby&pageToken=s-pagetoken&prettyPrint=false&sortOption=s-sortoption&startDate=s-startdate&status=s-status&view=s-view",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -576,10 +728,48 @@ test "Go's blogger.posts.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_26)
+  gv_compare(gv_log_of(f), GO_30)
 }
 
-const GO_27: List[Str] = [
+const GO_31: List[Str] = [
+  "CALL blogger.posts.list pages",
+  "REQ GET https://blogger.googleapis.com/v3/blogs/id1%2F%20x/posts?alt=json&endDate=s-enddate&fetchBodies=true&fetchImages=true&fields=kind%2Cid&labels=s-labels&maxResults=7&orderBy=s-orderby&pageToken=s-pagetoken&prettyPrint=false&sortOption=s-sortoption&startDate=s-startdate&status=s-status&view=s-view",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"etag\":\"s-etag\",\"items\":[{\"author\":{\"displayName\":\"s-displayname\",\"id\":\"s-id\",\"image\":{\"url\":\"s-url\"},\"url\":\"s-url\"},\"blog\":{\"id\":\"s-id\"},\"content\":\"s-content\",\"customMetaData\":\"s-custommetadata\",\"etag\":\"s-etag\",\"id\":\"s-id\",\"images\":[{\"url\":\"s-url\"}],\"kind\":\"s-kind\",\"labels\":[\"s-labels\"],\"location\":{\"lat\":1.5,\"lng\":1.5,\"name\":\"s-name\",\"span\":\"s-span\"},\"published\":\"s-published\",\"readerComments\":\"s-readercomments\",\"replies\":{\"selfLink\":\"s-selflink\",\"totalItems\":\"7\"},\"selfLink\":\"s-selflink\",\"status\":\"s-status\",\"title\":\"s-title\",\"titleLink\":\"s-titlelink\",\"trashed\":\"s-trashed\",\"updated\":\"s-updated\",\"url\":\"s-url\"}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\",\"prevPageToken\":\"s-prevpagetoken\"}",
+  "OUT: {\"etag\":\"s-etag\",\"items\":[{\"author\":{\"displayName\":\"s-displayname\",\"id\":\"s-id\",\"image\":{\"url\":\"s-url\"},\"url\":\"s-url\"},\"blog\":{\"id\":\"s-id\"},\"content\":\"s-content\",\"customMetaData\":\"s-custommetadata\",\"etag\":\"s-etag\",\"id\":\"s-id\",\"images\":[{\"url\":\"s-url\"}],\"kind\":\"s-kind\",\"labels\":[\"s-labels\"],\"location\":{\"lat\":1.5,\"lng\":1.5,\"name\":\"s-name\",\"span\":\"s-span\"},\"published\":\"s-published\",\"readerComments\":\"s-readercomments\",\"replies\":{\"selfLink\":\"s-selflink\",\"totalItems\":\"7\"},\"selfLink\":\"s-selflink\",\"status\":\"s-status\",\"title\":\"s-title\",\"titleLink\":\"s-titlelink\",\"trashed\":\"s-trashed\",\"updated\":\"s-updated\",\"url\":\"s-url\"}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\",\"prevPageToken\":\"s-prevpagetoken\"}",
+  "REQ GET https://blogger.googleapis.com/v3/blogs/id1%2F%20x/posts?alt=json&endDate=s-enddate&fetchBodies=true&fetchImages=true&fields=kind%2Cid&labels=s-labels&maxResults=7&orderBy=s-orderby&pageToken=s-nextpagetoken&prettyPrint=false&sortOption=s-sortoption&startDate=s-startdate&status=s-status&view=s-view",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"etag\":\"s-etag\",\"items\":[{\"author\":{\"displayName\":\"s-displayname\",\"id\":\"s-id\",\"image\":{\"url\":\"s-url\"},\"url\":\"s-url\"},\"blog\":{\"id\":\"s-id\"},\"content\":\"s-content\",\"customMetaData\":\"s-custommetadata\",\"etag\":\"s-etag\",\"id\":\"s-id\",\"images\":[{\"url\":\"s-url\"}],\"kind\":\"s-kind\",\"labels\":[\"s-labels\"],\"location\":{\"lat\":1.5,\"lng\":1.5,\"name\":\"s-name\",\"span\":\"s-span\"},\"published\":\"s-published\",\"readerComments\":\"s-readercomments\",\"replies\":{\"selfLink\":\"s-selflink\",\"totalItems\":\"7\"},\"selfLink\":\"s-selflink\",\"status\":\"s-status\",\"title\":\"s-title\",\"titleLink\":\"s-titlelink\",\"trashed\":\"s-trashed\",\"updated\":\"s-updated\",\"url\":\"s-url\"}],\"kind\":\"s-kind\",\"prevPageToken\":\"s-prevpagetoken\"}",
+  "OUT: {\"etag\":\"s-etag\",\"items\":[{\"author\":{\"displayName\":\"s-displayname\",\"id\":\"s-id\",\"image\":{\"url\":\"s-url\"},\"url\":\"s-url\"},\"blog\":{\"id\":\"s-id\"},\"content\":\"s-content\",\"customMetaData\":\"s-custommetadata\",\"etag\":\"s-etag\",\"id\":\"s-id\",\"images\":[{\"url\":\"s-url\"}],\"kind\":\"s-kind\",\"labels\":[\"s-labels\"],\"location\":{\"lat\":1.5,\"lng\":1.5,\"name\":\"s-name\",\"span\":\"s-span\"},\"published\":\"s-published\",\"readerComments\":\"s-readercomments\",\"replies\":{\"selfLink\":\"s-selflink\",\"totalItems\":\"7\"},\"selfLink\":\"s-selflink\",\"status\":\"s-status\",\"title\":\"s-title\",\"titleLink\":\"s-titlelink\",\"trashed\":\"s-trashed\",\"updated\":\"s-updated\",\"url\":\"s-url\"}],\"kind\":\"s-kind\",\"prevPageToken\":\"s-prevpagetoken\"}",
+  "OUT: ok",
+]
+
+test "Go's blogger.posts.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"etag\":\"s-etag\",\"items\":[{\"author\":{\"displayName\":\"s-displayname\",\"id\":\"s-id\",\"image\":{\"url\":\"s-url\"},\"url\":\"s-url\"},\"blog\":{\"id\":\"s-id\"},\"content\":\"s-content\",\"customMetaData\":\"s-custommetadata\",\"etag\":\"s-etag\",\"id\":\"s-id\",\"images\":[{\"url\":\"s-url\"}],\"kind\":\"s-kind\",\"labels\":[\"s-labels\"],\"location\":{\"lat\":1.5,\"lng\":1.5,\"name\":\"s-name\",\"span\":\"s-span\"},\"published\":\"s-published\",\"readerComments\":\"s-readercomments\",\"replies\":{\"selfLink\":\"s-selflink\",\"totalItems\":\"7\"},\"selfLink\":\"s-selflink\",\"status\":\"s-status\",\"title\":\"s-title\",\"titleLink\":\"s-titlelink\",\"trashed\":\"s-trashed\",\"updated\":\"s-updated\",\"url\":\"s-url\"}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\",\"prevPageToken\":\"s-prevpagetoken\"}")
+  gv_queue(f, "{\"etag\":\"s-etag\",\"items\":[{\"author\":{\"displayName\":\"s-displayname\",\"id\":\"s-id\",\"image\":{\"url\":\"s-url\"},\"url\":\"s-url\"},\"blog\":{\"id\":\"s-id\"},\"content\":\"s-content\",\"customMetaData\":\"s-custommetadata\",\"etag\":\"s-etag\",\"id\":\"s-id\",\"images\":[{\"url\":\"s-url\"}],\"kind\":\"s-kind\",\"labels\":[\"s-labels\"],\"location\":{\"lat\":1.5,\"lng\":1.5,\"name\":\"s-name\",\"span\":\"s-span\"},\"published\":\"s-published\",\"readerComments\":\"s-readercomments\",\"replies\":{\"selfLink\":\"s-selflink\",\"totalItems\":\"7\"},\"selfLink\":\"s-selflink\",\"status\":\"s-status\",\"title\":\"s-title\",\"titleLink\":\"s-titlelink\",\"trashed\":\"s-trashed\",\"updated\":\"s-updated\",\"url\":\"s-url\"}],\"kind\":\"s-kind\",\"prevPageToken\":\"s-prevpagetoken\"}")
+  gv_note(f, "CALL blogger.posts.list pages")
+  var p = svc.posts.list_pages("id1/ x", options: PostsListOptions{end_date: Some("s-enddate"), fetch_bodies: Some(true), fetch_images: Some(true), labels: Some("s-labels"), max_results: Some(7), order_by: Some("s-orderby"), page_token: Some("s-pagetoken"), sort_option: Some("s-sortoption"), start_date: Some("s-startdate"), status: ["s-status"], view: Some("s-view"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_31)
+}
+
+const GO_32: List[Str] = [
   "CALL blogger.posts.patch",
   "REQ PATCH https://blogger.googleapis.com/v3/blogs/id1%2F%20x/posts/id2%2F%20x?alt=json&fetchBody=true&fetchImages=true&fields=kind%2Cid&maxComments=7&prettyPrint=false&publish=true&revert=true",
   "  H content-type=application/json | x-extra=v1",
@@ -598,10 +788,10 @@ test "Go's blogger.posts.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_27)
+  gv_compare(gv_log_of(f), GO_32)
 }
 
-const GO_28: List[Str] = [
+const GO_33: List[Str] = [
   "CALL blogger.posts.publish",
   "REQ POST https://blogger.googleapis.com/v3/blogs/id1%2F%20x/posts/id2%2F%20x/publish?alt=json&fields=kind%2Cid&prettyPrint=false&publishDate=s-publishdate",
   "  H x-extra=v1",
@@ -619,10 +809,10 @@ test "Go's blogger.posts.publish" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_28)
+  gv_compare(gv_log_of(f), GO_33)
 }
 
-const GO_29: List[Str] = [
+const GO_34: List[Str] = [
   "CALL blogger.posts.revert",
   "REQ POST https://blogger.googleapis.com/v3/blogs/id1%2F%20x/posts/id2%2F%20x/revert?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -640,10 +830,10 @@ test "Go's blogger.posts.revert" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_29)
+  gv_compare(gv_log_of(f), GO_34)
 }
 
-const GO_30: List[Str] = [
+const GO_35: List[Str] = [
   "CALL blogger.posts.search",
   "REQ GET https://blogger.googleapis.com/v3/blogs/id1%2F%20x/posts/search?alt=json&fetchBodies=true&fields=kind%2Cid&orderBy=s-orderby&prettyPrint=false&q=s-q",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -661,10 +851,10 @@ test "Go's blogger.posts.search" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_30)
+  gv_compare(gv_log_of(f), GO_35)
 }
 
-const GO_31: List[Str] = [
+const GO_36: List[Str] = [
   "CALL blogger.posts.update",
   "REQ PUT https://blogger.googleapis.com/v3/blogs/id1%2F%20x/posts/id2%2F%20x?alt=json&fetchBody=true&fetchImages=true&fields=kind%2Cid&maxComments=7&prettyPrint=false&publish=true&revert=true",
   "  H content-type=application/json | x-extra=v1",
@@ -683,10 +873,10 @@ test "Go's blogger.posts.update" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_31)
+  gv_compare(gv_log_of(f), GO_36)
 }
 
-const GO_32: List[Str] = [
+const GO_37: List[Str] = [
   "CALL blogger.users.get",
   "REQ GET https://blogger.googleapis.com/v3/users/id1%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -704,5 +894,5 @@ test "Go's blogger.users.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_32)
+  gv_compare(gv_log_of(f), GO_37)
 }

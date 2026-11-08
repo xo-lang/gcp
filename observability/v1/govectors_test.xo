@@ -72,6 +72,44 @@ test "Go's observability.folders.locations.list" {
 }
 
 const GO_3: List[Str] = [
+  "CALL observability.folders.locations.list pages",
+  "REQ GET https://observability.googleapis.com/v1/id1/%20x/locations?alt=json&extraLocationTypes=s-extralocationtypes&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://observability.googleapis.com/v1/id1/%20x/locations?alt=json&extraLocationTypes=s-extralocationtypes&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}]}",
+  "OUT: {\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}]}",
+  "OUT: ok",
+]
+
+test "Go's observability.folders.locations.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}]}")
+  gv_note(f, "CALL observability.folders.locations.list pages")
+  var p = svc.folders.locations.list_pages("id1/ x", options: FoldersLocationsListOptions{extra_location_types: ["s-extralocationtypes"], filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_3)
+}
+
+const GO_4: List[Str] = [
   "CALL observability.folders.locations.updateSettings",
   "REQ PATCH https://observability.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
@@ -90,10 +128,10 @@ test "Go's observability.folders.locations.updateSettings" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_3)
+  gv_compare(gv_log_of(f), GO_4)
 }
 
-const GO_4: List[Str] = [
+const GO_5: List[Str] = [
   "CALL observability.folders.locations.operations.cancel",
   "REQ POST https://observability.googleapis.com/v1/id1/%20x:cancel?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -112,10 +150,10 @@ test "Go's observability.folders.locations.operations.cancel" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_4)
+  gv_compare(gv_log_of(f), GO_5)
 }
 
-const GO_5: List[Str] = [
+const GO_6: List[Str] = [
   "CALL observability.folders.locations.operations.delete",
   "REQ DELETE https://observability.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -133,10 +171,10 @@ test "Go's observability.folders.locations.operations.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_5)
+  gv_compare(gv_log_of(f), GO_6)
 }
 
-const GO_6: List[Str] = [
+const GO_7: List[Str] = [
   "CALL observability.folders.locations.operations.get",
   "REQ GET https://observability.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -154,10 +192,10 @@ test "Go's observability.folders.locations.operations.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_6)
+  gv_compare(gv_log_of(f), GO_7)
 }
 
-const GO_7: List[Str] = [
+const GO_8: List[Str] = [
   "CALL observability.folders.locations.operations.list",
   "REQ GET https://observability.googleapis.com/v1/id1/%20x/operations?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&returnPartialSuccess=true",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -175,10 +213,48 @@ test "Go's observability.folders.locations.operations.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_7)
+  gv_compare(gv_log_of(f), GO_8)
 }
 
-const GO_8: List[Str] = [
+const GO_9: List[Str] = [
+  "CALL observability.folders.locations.operations.list pages",
+  "REQ GET https://observability.googleapis.com/v1/id1/%20x/operations?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&returnPartialSuccess=true",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "REQ GET https://observability.googleapis.com/v1/id1/%20x/operations?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false&returnPartialSuccess=true",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: ok",
+]
+
+test "Go's observability.folders.locations.operations.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_queue(f, "{\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_note(f, "CALL observability.folders.locations.operations.list pages")
+  var p = svc.folders.locations.operations.list_pages("id1/ x", options: FoldersLocationsOperationsListOptions{filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), return_partial_success: Some(true), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_9)
+}
+
+const GO_10: List[Str] = [
   "CALL observability.organizations.locations.get",
   "REQ GET https://observability.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -196,10 +272,10 @@ test "Go's observability.organizations.locations.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_8)
+  gv_compare(gv_log_of(f), GO_10)
 }
 
-const GO_9: List[Str] = [
+const GO_11: List[Str] = [
   "CALL observability.organizations.locations.getSettings",
   "REQ GET https://observability.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -217,10 +293,10 @@ test "Go's observability.organizations.locations.getSettings" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_9)
+  gv_compare(gv_log_of(f), GO_11)
 }
 
-const GO_10: List[Str] = [
+const GO_12: List[Str] = [
   "CALL observability.organizations.locations.list",
   "REQ GET https://observability.googleapis.com/v1/id1/%20x/locations?alt=json&extraLocationTypes=s-extralocationtypes&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -238,10 +314,48 @@ test "Go's observability.organizations.locations.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_10)
+  gv_compare(gv_log_of(f), GO_12)
 }
 
-const GO_11: List[Str] = [
+const GO_13: List[Str] = [
+  "CALL observability.organizations.locations.list pages",
+  "REQ GET https://observability.googleapis.com/v1/id1/%20x/locations?alt=json&extraLocationTypes=s-extralocationtypes&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://observability.googleapis.com/v1/id1/%20x/locations?alt=json&extraLocationTypes=s-extralocationtypes&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}]}",
+  "OUT: {\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}]}",
+  "OUT: ok",
+]
+
+test "Go's observability.organizations.locations.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}]}")
+  gv_note(f, "CALL observability.organizations.locations.list pages")
+  var p = svc.organizations.locations.list_pages("id1/ x", options: OrganizationsLocationsListOptions{extra_location_types: ["s-extralocationtypes"], filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_13)
+}
+
+const GO_14: List[Str] = [
   "CALL observability.organizations.locations.updateSettings",
   "REQ PATCH https://observability.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
@@ -260,10 +374,10 @@ test "Go's observability.organizations.locations.updateSettings" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_11)
+  gv_compare(gv_log_of(f), GO_14)
 }
 
-const GO_12: List[Str] = [
+const GO_15: List[Str] = [
   "CALL observability.organizations.locations.operations.cancel",
   "REQ POST https://observability.googleapis.com/v1/id1/%20x:cancel?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -282,10 +396,10 @@ test "Go's observability.organizations.locations.operations.cancel" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_12)
+  gv_compare(gv_log_of(f), GO_15)
 }
 
-const GO_13: List[Str] = [
+const GO_16: List[Str] = [
   "CALL observability.organizations.locations.operations.delete",
   "REQ DELETE https://observability.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -303,10 +417,10 @@ test "Go's observability.organizations.locations.operations.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_13)
+  gv_compare(gv_log_of(f), GO_16)
 }
 
-const GO_14: List[Str] = [
+const GO_17: List[Str] = [
   "CALL observability.organizations.locations.operations.get",
   "REQ GET https://observability.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -324,10 +438,10 @@ test "Go's observability.organizations.locations.operations.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_14)
+  gv_compare(gv_log_of(f), GO_17)
 }
 
-const GO_15: List[Str] = [
+const GO_18: List[Str] = [
   "CALL observability.organizations.locations.operations.list",
   "REQ GET https://observability.googleapis.com/v1/id1/%20x/operations?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&returnPartialSuccess=true",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -345,10 +459,48 @@ test "Go's observability.organizations.locations.operations.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_15)
+  gv_compare(gv_log_of(f), GO_18)
 }
 
-const GO_16: List[Str] = [
+const GO_19: List[Str] = [
+  "CALL observability.organizations.locations.operations.list pages",
+  "REQ GET https://observability.googleapis.com/v1/id1/%20x/operations?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&returnPartialSuccess=true",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "REQ GET https://observability.googleapis.com/v1/id1/%20x/operations?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false&returnPartialSuccess=true",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: ok",
+]
+
+test "Go's observability.organizations.locations.operations.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_queue(f, "{\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_note(f, "CALL observability.organizations.locations.operations.list pages")
+  var p = svc.organizations.locations.operations.list_pages("id1/ x", options: OrganizationsLocationsOperationsListOptions{filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), return_partial_success: Some(true), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_19)
+}
+
+const GO_20: List[Str] = [
   "CALL observability.projects.locations.get",
   "REQ GET https://observability.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -366,10 +518,10 @@ test "Go's observability.projects.locations.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_16)
+  gv_compare(gv_log_of(f), GO_20)
 }
 
-const GO_17: List[Str] = [
+const GO_21: List[Str] = [
   "CALL observability.projects.locations.getSettings",
   "REQ GET https://observability.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -387,10 +539,10 @@ test "Go's observability.projects.locations.getSettings" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_17)
+  gv_compare(gv_log_of(f), GO_21)
 }
 
-const GO_18: List[Str] = [
+const GO_22: List[Str] = [
   "CALL observability.projects.locations.list",
   "REQ GET https://observability.googleapis.com/v1/id1/%20x/locations?alt=json&extraLocationTypes=s-extralocationtypes&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -408,10 +560,48 @@ test "Go's observability.projects.locations.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_18)
+  gv_compare(gv_log_of(f), GO_22)
 }
 
-const GO_19: List[Str] = [
+const GO_23: List[Str] = [
+  "CALL observability.projects.locations.list pages",
+  "REQ GET https://observability.googleapis.com/v1/id1/%20x/locations?alt=json&extraLocationTypes=s-extralocationtypes&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://observability.googleapis.com/v1/id1/%20x/locations?alt=json&extraLocationTypes=s-extralocationtypes&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}]}",
+  "OUT: {\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}]}",
+  "OUT: ok",
+]
+
+test "Go's observability.projects.locations.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}]}")
+  gv_note(f, "CALL observability.projects.locations.list pages")
+  var p = svc.projects.locations.list_pages("id1/ x", options: ProjectsLocationsListOptions{extra_location_types: ["s-extralocationtypes"], filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_23)
+}
+
+const GO_24: List[Str] = [
   "CALL observability.projects.locations.updateSettings",
   "REQ PATCH https://observability.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
@@ -430,10 +620,10 @@ test "Go's observability.projects.locations.updateSettings" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_19)
+  gv_compare(gv_log_of(f), GO_24)
 }
 
-const GO_20: List[Str] = [
+const GO_25: List[Str] = [
   "CALL observability.projects.locations.buckets.create",
   "REQ POST https://observability.googleapis.com/v1/id1/%20x/buckets?alt=json&bucketId=s-bucketid&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -452,10 +642,10 @@ test "Go's observability.projects.locations.buckets.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_20)
+  gv_compare(gv_log_of(f), GO_25)
 }
 
-const GO_21: List[Str] = [
+const GO_26: List[Str] = [
   "CALL observability.projects.locations.buckets.get",
   "REQ GET https://observability.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -473,10 +663,10 @@ test "Go's observability.projects.locations.buckets.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_21)
+  gv_compare(gv_log_of(f), GO_26)
 }
 
-const GO_22: List[Str] = [
+const GO_27: List[Str] = [
   "CALL observability.projects.locations.buckets.list",
   "REQ GET https://observability.googleapis.com/v1/id1/%20x/buckets?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&showDeleted=true",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -494,10 +684,48 @@ test "Go's observability.projects.locations.buckets.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_22)
+  gv_compare(gv_log_of(f), GO_27)
 }
 
-const GO_23: List[Str] = [
+const GO_28: List[Str] = [
+  "CALL observability.projects.locations.buckets.list pages",
+  "REQ GET https://observability.googleapis.com/v1/id1/%20x/buckets?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&showDeleted=true",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"buckets\":[{\"cmekSettings\":{\"kmsKey\":\"s-kmskey\",\"kmsKeyVersion\":\"s-kmskeyversion\",\"serviceAccountId\":\"s-serviceaccountid\"},\"createTime\":\"s-createtime\",\"deleteTime\":\"s-deletetime\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"purgeTime\":\"s-purgetime\",\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"buckets\":[{\"cmekSettings\":{\"kmsKey\":\"s-kmskey\",\"kmsKeyVersion\":\"s-kmskeyversion\",\"serviceAccountId\":\"s-serviceaccountid\"},\"createTime\":\"s-createtime\",\"deleteTime\":\"s-deletetime\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"purgeTime\":\"s-purgetime\",\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://observability.googleapis.com/v1/id1/%20x/buckets?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false&showDeleted=true",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"buckets\":[{\"cmekSettings\":{\"kmsKey\":\"s-kmskey\",\"kmsKeyVersion\":\"s-kmskeyversion\",\"serviceAccountId\":\"s-serviceaccountid\"},\"createTime\":\"s-createtime\",\"deleteTime\":\"s-deletetime\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"purgeTime\":\"s-purgetime\",\"updateTime\":\"s-updatetime\"}]}",
+  "OUT: {\"buckets\":[{\"cmekSettings\":{\"kmsKey\":\"s-kmskey\",\"kmsKeyVersion\":\"s-kmskeyversion\",\"serviceAccountId\":\"s-serviceaccountid\"},\"createTime\":\"s-createtime\",\"deleteTime\":\"s-deletetime\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"purgeTime\":\"s-purgetime\",\"updateTime\":\"s-updatetime\"}]}",
+  "OUT: ok",
+]
+
+test "Go's observability.projects.locations.buckets.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"buckets\":[{\"cmekSettings\":{\"kmsKey\":\"s-kmskey\",\"kmsKeyVersion\":\"s-kmskeyversion\",\"serviceAccountId\":\"s-serviceaccountid\"},\"createTime\":\"s-createtime\",\"deleteTime\":\"s-deletetime\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"purgeTime\":\"s-purgetime\",\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"buckets\":[{\"cmekSettings\":{\"kmsKey\":\"s-kmskey\",\"kmsKeyVersion\":\"s-kmskeyversion\",\"serviceAccountId\":\"s-serviceaccountid\"},\"createTime\":\"s-createtime\",\"deleteTime\":\"s-deletetime\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"purgeTime\":\"s-purgetime\",\"updateTime\":\"s-updatetime\"}]}")
+  gv_note(f, "CALL observability.projects.locations.buckets.list pages")
+  var p = svc.projects.locations.buckets.list_pages("id1/ x", options: ProjectsLocationsBucketsListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), show_deleted: Some(true), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_28)
+}
+
+const GO_29: List[Str] = [
   "CALL observability.projects.locations.buckets.patch",
   "REQ PATCH https://observability.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
@@ -516,10 +744,10 @@ test "Go's observability.projects.locations.buckets.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_23)
+  gv_compare(gv_log_of(f), GO_29)
 }
 
-const GO_24: List[Str] = [
+const GO_30: List[Str] = [
   "CALL observability.projects.locations.buckets.datasets.get",
   "REQ GET https://observability.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -537,10 +765,10 @@ test "Go's observability.projects.locations.buckets.datasets.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_24)
+  gv_compare(gv_log_of(f), GO_30)
 }
 
-const GO_25: List[Str] = [
+const GO_31: List[Str] = [
   "CALL observability.projects.locations.buckets.datasets.list",
   "REQ GET https://observability.googleapis.com/v1/id1/%20x/datasets?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&showDeleted=true",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -558,10 +786,48 @@ test "Go's observability.projects.locations.buckets.datasets.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_25)
+  gv_compare(gv_log_of(f), GO_31)
 }
 
-const GO_26: List[Str] = [
+const GO_32: List[Str] = [
+  "CALL observability.projects.locations.buckets.datasets.list pages",
+  "REQ GET https://observability.googleapis.com/v1/id1/%20x/datasets?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&showDeleted=true",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"datasets\":[{\"createTime\":\"s-createtime\",\"deleteTime\":\"s-deletetime\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"purgeTime\":\"s-purgetime\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"datasets\":[{\"createTime\":\"s-createtime\",\"deleteTime\":\"s-deletetime\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"purgeTime\":\"s-purgetime\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://observability.googleapis.com/v1/id1/%20x/datasets?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false&showDeleted=true",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"datasets\":[{\"createTime\":\"s-createtime\",\"deleteTime\":\"s-deletetime\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"purgeTime\":\"s-purgetime\"}]}",
+  "OUT: {\"datasets\":[{\"createTime\":\"s-createtime\",\"deleteTime\":\"s-deletetime\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"purgeTime\":\"s-purgetime\"}]}",
+  "OUT: ok",
+]
+
+test "Go's observability.projects.locations.buckets.datasets.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"datasets\":[{\"createTime\":\"s-createtime\",\"deleteTime\":\"s-deletetime\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"purgeTime\":\"s-purgetime\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"datasets\":[{\"createTime\":\"s-createtime\",\"deleteTime\":\"s-deletetime\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"purgeTime\":\"s-purgetime\"}]}")
+  gv_note(f, "CALL observability.projects.locations.buckets.datasets.list pages")
+  var p = svc.projects.locations.buckets.datasets.list_pages("id1/ x", options: ProjectsLocationsBucketsDatasetsListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), show_deleted: Some(true), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_32)
+}
+
+const GO_33: List[Str] = [
   "CALL observability.projects.locations.buckets.datasets.links.create",
   "REQ POST https://observability.googleapis.com/v1/id1/%20x/links?alt=json&fields=kind%2Cid&linkId=s-linkid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -580,10 +846,10 @@ test "Go's observability.projects.locations.buckets.datasets.links.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_26)
+  gv_compare(gv_log_of(f), GO_33)
 }
 
-const GO_27: List[Str] = [
+const GO_34: List[Str] = [
   "CALL observability.projects.locations.buckets.datasets.links.delete",
   "REQ DELETE https://observability.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -601,10 +867,10 @@ test "Go's observability.projects.locations.buckets.datasets.links.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_27)
+  gv_compare(gv_log_of(f), GO_34)
 }
 
-const GO_28: List[Str] = [
+const GO_35: List[Str] = [
   "CALL observability.projects.locations.buckets.datasets.links.get",
   "REQ GET https://observability.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -622,10 +888,10 @@ test "Go's observability.projects.locations.buckets.datasets.links.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_28)
+  gv_compare(gv_log_of(f), GO_35)
 }
 
-const GO_29: List[Str] = [
+const GO_36: List[Str] = [
   "CALL observability.projects.locations.buckets.datasets.links.list",
   "REQ GET https://observability.googleapis.com/v1/id1/%20x/links?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -643,10 +909,48 @@ test "Go's observability.projects.locations.buckets.datasets.links.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_29)
+  gv_compare(gv_log_of(f), GO_36)
 }
 
-const GO_30: List[Str] = [
+const GO_37: List[Str] = [
+  "CALL observability.projects.locations.buckets.datasets.links.list pages",
+  "REQ GET https://observability.googleapis.com/v1/id1/%20x/links?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"links\":[{\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"links\":[{\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://observability.googleapis.com/v1/id1/%20x/links?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"links\":[{\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"name\":\"s-name\"}]}",
+  "OUT: {\"links\":[{\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"name\":\"s-name\"}]}",
+  "OUT: ok",
+]
+
+test "Go's observability.projects.locations.buckets.datasets.links.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"links\":[{\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"links\":[{\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"name\":\"s-name\"}]}")
+  gv_note(f, "CALL observability.projects.locations.buckets.datasets.links.list pages")
+  var p = svc.projects.locations.buckets.datasets.links.list_pages("id1/ x", options: ProjectsLocationsBucketsDatasetsLinksListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_37)
+}
+
+const GO_38: List[Str] = [
   "CALL observability.projects.locations.buckets.datasets.links.patch",
   "REQ PATCH https://observability.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
@@ -665,10 +969,10 @@ test "Go's observability.projects.locations.buckets.datasets.links.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_30)
+  gv_compare(gv_log_of(f), GO_38)
 }
 
-const GO_31: List[Str] = [
+const GO_39: List[Str] = [
   "CALL observability.projects.locations.buckets.datasets.views.get",
   "REQ GET https://observability.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -686,10 +990,10 @@ test "Go's observability.projects.locations.buckets.datasets.views.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_31)
+  gv_compare(gv_log_of(f), GO_39)
 }
 
-const GO_32: List[Str] = [
+const GO_40: List[Str] = [
   "CALL observability.projects.locations.buckets.datasets.views.list",
   "REQ GET https://observability.googleapis.com/v1/id1/%20x/views?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -707,10 +1011,48 @@ test "Go's observability.projects.locations.buckets.datasets.views.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_32)
+  gv_compare(gv_log_of(f), GO_40)
 }
 
-const GO_33: List[Str] = [
+const GO_41: List[Str] = [
+  "CALL observability.projects.locations.buckets.datasets.views.list pages",
+  "REQ GET https://observability.googleapis.com/v1/id1/%20x/views?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"views\":[{\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"updateTime\":\"s-updatetime\"}]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"views\":[{\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"updateTime\":\"s-updatetime\"}]}",
+  "REQ GET https://observability.googleapis.com/v1/id1/%20x/views?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"views\":[{\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"updateTime\":\"s-updatetime\"}]}",
+  "OUT: {\"views\":[{\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"updateTime\":\"s-updatetime\"}]}",
+  "OUT: ok",
+]
+
+test "Go's observability.projects.locations.buckets.datasets.views.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"views\":[{\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"updateTime\":\"s-updatetime\"}]}")
+  gv_queue(f, "{\"views\":[{\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"updateTime\":\"s-updatetime\"}]}")
+  gv_note(f, "CALL observability.projects.locations.buckets.datasets.views.list pages")
+  var p = svc.projects.locations.buckets.datasets.views.list_pages("id1/ x", options: ProjectsLocationsBucketsDatasetsViewsListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_41)
+}
+
+const GO_42: List[Str] = [
   "CALL observability.projects.locations.operations.cancel",
   "REQ POST https://observability.googleapis.com/v1/id1/%20x:cancel?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -729,10 +1071,10 @@ test "Go's observability.projects.locations.operations.cancel" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_33)
+  gv_compare(gv_log_of(f), GO_42)
 }
 
-const GO_34: List[Str] = [
+const GO_43: List[Str] = [
   "CALL observability.projects.locations.operations.delete",
   "REQ DELETE https://observability.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -750,10 +1092,10 @@ test "Go's observability.projects.locations.operations.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_34)
+  gv_compare(gv_log_of(f), GO_43)
 }
 
-const GO_35: List[Str] = [
+const GO_44: List[Str] = [
   "CALL observability.projects.locations.operations.get",
   "REQ GET https://observability.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -771,10 +1113,10 @@ test "Go's observability.projects.locations.operations.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_35)
+  gv_compare(gv_log_of(f), GO_44)
 }
 
-const GO_36: List[Str] = [
+const GO_45: List[Str] = [
   "CALL observability.projects.locations.operations.list",
   "REQ GET https://observability.googleapis.com/v1/id1/%20x/operations?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&returnPartialSuccess=true",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -792,10 +1134,48 @@ test "Go's observability.projects.locations.operations.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_36)
+  gv_compare(gv_log_of(f), GO_45)
 }
 
-const GO_37: List[Str] = [
+const GO_46: List[Str] = [
+  "CALL observability.projects.locations.operations.list pages",
+  "REQ GET https://observability.googleapis.com/v1/id1/%20x/operations?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&returnPartialSuccess=true",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "REQ GET https://observability.googleapis.com/v1/id1/%20x/operations?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false&returnPartialSuccess=true",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: ok",
+]
+
+test "Go's observability.projects.locations.operations.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_queue(f, "{\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_note(f, "CALL observability.projects.locations.operations.list pages")
+  var p = svc.projects.locations.operations.list_pages("id1/ x", options: ProjectsLocationsOperationsListOptions{filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), return_partial_success: Some(true), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_46)
+}
+
+const GO_47: List[Str] = [
   "CALL observability.projects.locations.scopes.get",
   "REQ GET https://observability.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -813,10 +1193,10 @@ test "Go's observability.projects.locations.scopes.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_37)
+  gv_compare(gv_log_of(f), GO_47)
 }
 
-const GO_38: List[Str] = [
+const GO_48: List[Str] = [
   "CALL observability.projects.locations.scopes.patch",
   "REQ PATCH https://observability.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
@@ -835,10 +1215,10 @@ test "Go's observability.projects.locations.scopes.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_38)
+  gv_compare(gv_log_of(f), GO_48)
 }
 
-const GO_39: List[Str] = [
+const GO_49: List[Str] = [
   "CALL observability.projects.locations.traceScopes.create",
   "REQ POST https://observability.googleapis.com/v1/id1/%20x/traceScopes?alt=json&fields=kind%2Cid&prettyPrint=false&traceScopeId=s-tracescopeid",
   "  H content-type=application/json | x-extra=v1",
@@ -857,10 +1237,10 @@ test "Go's observability.projects.locations.traceScopes.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_39)
+  gv_compare(gv_log_of(f), GO_49)
 }
 
-const GO_40: List[Str] = [
+const GO_50: List[Str] = [
   "CALL observability.projects.locations.traceScopes.delete",
   "REQ DELETE https://observability.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -878,10 +1258,10 @@ test "Go's observability.projects.locations.traceScopes.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_40)
+  gv_compare(gv_log_of(f), GO_50)
 }
 
-const GO_41: List[Str] = [
+const GO_51: List[Str] = [
   "CALL observability.projects.locations.traceScopes.get",
   "REQ GET https://observability.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -899,10 +1279,10 @@ test "Go's observability.projects.locations.traceScopes.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_41)
+  gv_compare(gv_log_of(f), GO_51)
 }
 
-const GO_42: List[Str] = [
+const GO_52: List[Str] = [
   "CALL observability.projects.locations.traceScopes.list",
   "REQ GET https://observability.googleapis.com/v1/id1/%20x/traceScopes?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -920,10 +1300,48 @@ test "Go's observability.projects.locations.traceScopes.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_42)
+  gv_compare(gv_log_of(f), GO_52)
 }
 
-const GO_43: List[Str] = [
+const GO_53: List[Str] = [
+  "CALL observability.projects.locations.traceScopes.list pages",
+  "REQ GET https://observability.googleapis.com/v1/id1/%20x/traceScopes?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"traceScopes\":[{\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"name\":\"s-name\",\"resourceNames\":[\"s-resourcenames\"],\"updateTime\":\"s-updatetime\"}]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"traceScopes\":[{\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"name\":\"s-name\",\"resourceNames\":[\"s-resourcenames\"],\"updateTime\":\"s-updatetime\"}]}",
+  "REQ GET https://observability.googleapis.com/v1/id1/%20x/traceScopes?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"traceScopes\":[{\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"name\":\"s-name\",\"resourceNames\":[\"s-resourcenames\"],\"updateTime\":\"s-updatetime\"}]}",
+  "OUT: {\"traceScopes\":[{\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"name\":\"s-name\",\"resourceNames\":[\"s-resourcenames\"],\"updateTime\":\"s-updatetime\"}]}",
+  "OUT: ok",
+]
+
+test "Go's observability.projects.locations.traceScopes.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"traceScopes\":[{\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"name\":\"s-name\",\"resourceNames\":[\"s-resourcenames\"],\"updateTime\":\"s-updatetime\"}]}")
+  gv_queue(f, "{\"traceScopes\":[{\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"name\":\"s-name\",\"resourceNames\":[\"s-resourcenames\"],\"updateTime\":\"s-updatetime\"}]}")
+  gv_note(f, "CALL observability.projects.locations.traceScopes.list pages")
+  var p = svc.projects.locations.trace_scopes.list_pages("id1/ x", options: ProjectsLocationsTraceScopesListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_53)
+}
+
+const GO_54: List[Str] = [
   "CALL observability.projects.locations.traceScopes.patch",
   "REQ PATCH https://observability.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
@@ -942,5 +1360,5 @@ test "Go's observability.projects.locations.traceScopes.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_43)
+  gv_compare(gv_log_of(f), GO_54)
 }

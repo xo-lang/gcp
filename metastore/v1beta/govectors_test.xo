@@ -51,6 +51,44 @@ test "Go's metastore.projects.locations.list" {
 }
 
 const GO_2: List[Str] = [
+  "CALL metastore.projects.locations.list pages",
+  "REQ GET https://metastore.googleapis.com/v1beta/id1/%20x/locations?alt=json&extraLocationTypes=s-extralocationtypes&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://metastore.googleapis.com/v1beta/id1/%20x/locations?alt=json&extraLocationTypes=s-extralocationtypes&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}]}",
+  "OUT: {\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}]}",
+  "OUT: ok",
+]
+
+test "Go's metastore.projects.locations.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}]}")
+  gv_note(f, "CALL metastore.projects.locations.list pages")
+  var p = svc.projects.locations.list_pages("id1/ x", options: ProjectsLocationsListOptions{extra_location_types: ["s-extralocationtypes"], filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_2)
+}
+
+const GO_3: List[Str] = [
   "CALL metastore.projects.locations.federations.create",
   "REQ POST https://metastore.googleapis.com/v1beta/id1/%20x/federations?alt=json&federationId=s-federationid&fields=kind%2Cid&prettyPrint=false&requestId=s-requestid",
   "  H content-type=application/json | x-extra=v1",
@@ -69,10 +107,10 @@ test "Go's metastore.projects.locations.federations.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_2)
+  gv_compare(gv_log_of(f), GO_3)
 }
 
-const GO_3: List[Str] = [
+const GO_4: List[Str] = [
   "CALL metastore.projects.locations.federations.delete",
   "REQ DELETE https://metastore.googleapis.com/v1beta/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&requestId=s-requestid",
   "  H x-extra=v1",
@@ -90,10 +128,10 @@ test "Go's metastore.projects.locations.federations.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_3)
+  gv_compare(gv_log_of(f), GO_4)
 }
 
-const GO_4: List[Str] = [
+const GO_5: List[Str] = [
   "CALL metastore.projects.locations.federations.get",
   "REQ GET https://metastore.googleapis.com/v1beta/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -111,10 +149,10 @@ test "Go's metastore.projects.locations.federations.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_4)
+  gv_compare(gv_log_of(f), GO_5)
 }
 
-const GO_5: List[Str] = [
+const GO_6: List[Str] = [
   "CALL metastore.projects.locations.federations.getIamPolicy",
   "REQ GET https://metastore.googleapis.com/v1beta/id1/%20x:getIamPolicy?alt=json&fields=kind%2Cid&options.requestedPolicyVersion=7&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -132,10 +170,10 @@ test "Go's metastore.projects.locations.federations.getIamPolicy" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_5)
+  gv_compare(gv_log_of(f), GO_6)
 }
 
-const GO_6: List[Str] = [
+const GO_7: List[Str] = [
   "CALL metastore.projects.locations.federations.list",
   "REQ GET https://metastore.googleapis.com/v1beta/id1/%20x/federations?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -153,10 +191,48 @@ test "Go's metastore.projects.locations.federations.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_6)
+  gv_compare(gv_log_of(f), GO_7)
 }
 
-const GO_7: List[Str] = [
+const GO_8: List[Str] = [
+  "CALL metastore.projects.locations.federations.list pages",
+  "REQ GET https://metastore.googleapis.com/v1beta/id1/%20x/federations?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"federations\":[{\"createTime\":\"s-createtime\",\"endpointUri\":\"s-endpointuri\",\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"state\":\"s-state\",\"stateMessage\":\"s-statemessage\",\"tags\":{\"k1\":\"s-tags\"},\"uid\":\"s-uid\",\"updateTime\":\"s-updatetime\",\"version\":\"s-version\"}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"federations\":[{\"createTime\":\"s-createtime\",\"endpointUri\":\"s-endpointuri\",\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"state\":\"s-state\",\"stateMessage\":\"s-statemessage\",\"tags\":{\"k1\":\"s-tags\"},\"uid\":\"s-uid\",\"updateTime\":\"s-updatetime\",\"version\":\"s-version\"}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}",
+  "REQ GET https://metastore.googleapis.com/v1beta/id1/%20x/federations?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"federations\":[{\"createTime\":\"s-createtime\",\"endpointUri\":\"s-endpointuri\",\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"state\":\"s-state\",\"stateMessage\":\"s-statemessage\",\"tags\":{\"k1\":\"s-tags\"},\"uid\":\"s-uid\",\"updateTime\":\"s-updatetime\",\"version\":\"s-version\"}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"federations\":[{\"createTime\":\"s-createtime\",\"endpointUri\":\"s-endpointuri\",\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"state\":\"s-state\",\"stateMessage\":\"s-statemessage\",\"tags\":{\"k1\":\"s-tags\"},\"uid\":\"s-uid\",\"updateTime\":\"s-updatetime\",\"version\":\"s-version\"}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: ok",
+]
+
+test "Go's metastore.projects.locations.federations.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"federations\":[{\"createTime\":\"s-createtime\",\"endpointUri\":\"s-endpointuri\",\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"state\":\"s-state\",\"stateMessage\":\"s-statemessage\",\"tags\":{\"k1\":\"s-tags\"},\"uid\":\"s-uid\",\"updateTime\":\"s-updatetime\",\"version\":\"s-version\"}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}")
+  gv_queue(f, "{\"federations\":[{\"createTime\":\"s-createtime\",\"endpointUri\":\"s-endpointuri\",\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"state\":\"s-state\",\"stateMessage\":\"s-statemessage\",\"tags\":{\"k1\":\"s-tags\"},\"uid\":\"s-uid\",\"updateTime\":\"s-updatetime\",\"version\":\"s-version\"}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_note(f, "CALL metastore.projects.locations.federations.list pages")
+  var p = svc.projects.locations.federations.list_pages("id1/ x", options: ProjectsLocationsFederationsListOptions{filter: Some("s-filter"), order_by: Some("s-orderby"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_8)
+}
+
+const GO_9: List[Str] = [
   "CALL metastore.projects.locations.federations.patch",
   "REQ PATCH https://metastore.googleapis.com/v1beta/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&requestId=s-requestid&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
@@ -175,10 +251,10 @@ test "Go's metastore.projects.locations.federations.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_7)
+  gv_compare(gv_log_of(f), GO_9)
 }
 
-const GO_8: List[Str] = [
+const GO_10: List[Str] = [
   "CALL metastore.projects.locations.federations.setIamPolicy",
   "REQ POST https://metastore.googleapis.com/v1beta/id1/%20x:setIamPolicy?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -197,10 +273,10 @@ test "Go's metastore.projects.locations.federations.setIamPolicy" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_8)
+  gv_compare(gv_log_of(f), GO_10)
 }
 
-const GO_9: List[Str] = [
+const GO_11: List[Str] = [
   "CALL metastore.projects.locations.federations.testIamPermissions",
   "REQ POST https://metastore.googleapis.com/v1beta/id1/%20x:testIamPermissions?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -219,10 +295,10 @@ test "Go's metastore.projects.locations.federations.testIamPermissions" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_9)
+  gv_compare(gv_log_of(f), GO_11)
 }
 
-const GO_10: List[Str] = [
+const GO_12: List[Str] = [
   "CALL metastore.projects.locations.operations.cancel",
   "REQ POST https://metastore.googleapis.com/v1beta/id1/%20x:cancel?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -241,10 +317,10 @@ test "Go's metastore.projects.locations.operations.cancel" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_10)
+  gv_compare(gv_log_of(f), GO_12)
 }
 
-const GO_11: List[Str] = [
+const GO_13: List[Str] = [
   "CALL metastore.projects.locations.operations.delete",
   "REQ DELETE https://metastore.googleapis.com/v1beta/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -262,10 +338,10 @@ test "Go's metastore.projects.locations.operations.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_11)
+  gv_compare(gv_log_of(f), GO_13)
 }
 
-const GO_12: List[Str] = [
+const GO_14: List[Str] = [
   "CALL metastore.projects.locations.operations.get",
   "REQ GET https://metastore.googleapis.com/v1beta/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -283,10 +359,10 @@ test "Go's metastore.projects.locations.operations.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_12)
+  gv_compare(gv_log_of(f), GO_14)
 }
 
-const GO_13: List[Str] = [
+const GO_15: List[Str] = [
   "CALL metastore.projects.locations.operations.list",
   "REQ GET https://metastore.googleapis.com/v1beta/id1/%20x/operations?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&returnPartialSuccess=true",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -304,10 +380,48 @@ test "Go's metastore.projects.locations.operations.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_13)
+  gv_compare(gv_log_of(f), GO_15)
 }
 
-const GO_14: List[Str] = [
+const GO_16: List[Str] = [
+  "CALL metastore.projects.locations.operations.list pages",
+  "REQ GET https://metastore.googleapis.com/v1beta/id1/%20x/operations?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&returnPartialSuccess=true",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "REQ GET https://metastore.googleapis.com/v1beta/id1/%20x/operations?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false&returnPartialSuccess=true",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: ok",
+]
+
+test "Go's metastore.projects.locations.operations.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_queue(f, "{\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_note(f, "CALL metastore.projects.locations.operations.list pages")
+  var p = svc.projects.locations.operations.list_pages("id1/ x", options: ProjectsLocationsOperationsListOptions{filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), return_partial_success: Some(true), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_16)
+}
+
+const GO_17: List[Str] = [
   "CALL metastore.projects.locations.services.alterLocation",
   "REQ POST https://metastore.googleapis.com/v1beta/id1/%20x:alterLocation?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -326,10 +440,10 @@ test "Go's metastore.projects.locations.services.alterLocation" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_14)
+  gv_compare(gv_log_of(f), GO_17)
 }
 
-const GO_15: List[Str] = [
+const GO_18: List[Str] = [
   "CALL metastore.projects.locations.services.alterTableProperties",
   "REQ POST https://metastore.googleapis.com/v1beta/id1/%20x:alterTableProperties?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -348,10 +462,10 @@ test "Go's metastore.projects.locations.services.alterTableProperties" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_15)
+  gv_compare(gv_log_of(f), GO_18)
 }
 
-const GO_16: List[Str] = [
+const GO_19: List[Str] = [
   "CALL metastore.projects.locations.services.cancelMigration",
   "REQ POST https://metastore.googleapis.com/v1beta/id1/%20x:cancelMigration?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -370,10 +484,10 @@ test "Go's metastore.projects.locations.services.cancelMigration" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_16)
+  gv_compare(gv_log_of(f), GO_19)
 }
 
-const GO_17: List[Str] = [
+const GO_20: List[Str] = [
   "CALL metastore.projects.locations.services.completeMigration",
   "REQ POST https://metastore.googleapis.com/v1beta/id1/%20x:completeMigration?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -392,14 +506,14 @@ test "Go's metastore.projects.locations.services.completeMigration" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_17)
+  gv_compare(gv_log_of(f), GO_20)
 }
 
-const GO_18: List[Str] = [
+const GO_21: List[Str] = [
   "CALL metastore.projects.locations.services.create",
   "REQ POST https://metastore.googleapis.com/v1beta/id1/%20x/services?alt=json&fields=kind%2Cid&prettyPrint=false&requestId=s-requestid&serviceId=s-serviceid",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"artifactGcsUri\":\"s-artifactgcsuri\",\"createTime\":\"s-createtime\",\"databaseType\":\"s-databasetype\",\"deletionProtection\":true,\"encryptionConfig\":{\"kmsKey\":\"s-kmskey\",\"kmsKeys\":[\"s-kmskeys\"]},\"endpointUri\":\"s-endpointuri\",\"hiveMetastoreConfig\":{\"auxiliaryVersions\":{\"k1\":{\"version\":\"s-version\"}},\"configOverrides\":{\"k1\":\"s-configoverrides\"},\"endpointProtocol\":\"s-endpointprotocol\",\"kerberosConfig\":{\"krb5ConfigGcsUri\":\"s-krb5configgcsuri\",\"principal\":\"s-principal\"},\"version\":\"s-version\"},\"labels\":{\"k1\":\"s-labels\"},\"lakehouseProxyConfig\":{\"catalog\":\"s-catalog\",\"namespaces\":[\"s-namespaces\"]},\"maintenanceWindow\":{\"dayOfWeek\":\"s-dayofweek\",\"hourOfDay\":7},\"metadataIntegration\":{\"dataCatalogConfig\":{\"enabled\":true},\"dataplexConfig\":{}},\"metadataManagementActivity\":{\"metadataExports\":[{\"databaseDumpType\":\"s-databasedumptype\",\"destinationGcsUri\":\"s-destinationgcsuri\",\"endTime\":\"s-endtime\",\"startTime\":\"s-starttime\",\"state\":\"s-state\"}],\"restores\":[{\"backup\":\"s-backup\",\"backupLocation\":\"s-backuplocation\",\"details\":\"s-details\",\"endTime\":\"s-endtime\",\"startTime\":\"s-starttime\",\"state\":\"s-state\",\"type\":\"s-type\"}]},\"multiRegionConfig\":{\"certificates\":[{\"certificate\":\"s-certificate\",\"expirationTime\":\"s-expirationtime\"}],\"customRegionConfig\":{\"readOnlyRegions\":[\"s-readonlyregions\"],\"readWriteRegions\":[\"s-readwriteregions\"]}},\"name\":\"s-name\",\"network\":\"s-network\",\"networkConfig\":{\"consumers\":[{\"endpointLocation\":\"s-endpointlocation\",\"endpointUri\":\"s-endpointuri\",\"subnetwork\":\"s-subnetwork\"}],\"customRoutesEnabled\":true},\"port\":7,\"releaseChannel\":\"s-releasechannel\",\"scalingConfig\":{\"autoscalingConfig\":{\"autoscalingEnabled\":true,\"autoscalingFactor\":1.5},\"instanceSize\":\"s-instancesize\",\"scalingFactor\":1.5},\"scheduledBackup\":{\"backupLocation\":\"s-backuplocation\",\"cronSchedule\":\"s-cronschedule\",\"enabled\":true,\"latestBackup\":{\"backupId\":\"s-backupid\",\"duration\":\"s-duration\",\"startTime\":\"s-starttime\",\"state\":\"s-state\"},\"nextScheduledTime\":\"s-nextscheduledtime\",\"timeZone\":\"s-timezone\"},\"state\":\"s-state\",\"stateMessage\":\"s-statemessage\",\"tags\":{\"k1\":\"s-tags\"},\"telemetryConfig\":{\"logFormat\":\"s-logformat\"},\"tier\":\"s-tier\",\"uid\":\"s-uid\",\"updateTime\":\"s-updatetime\"}",
+  "  B <2160 bytes> {\"artifactGcsUri\":\"s-artifactgcs...d\",\"updateTime\":\"s-updatetime\"}",
   "",
   "  SERVED 200 {\"done\":true,\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}",
   "OUT: {\"done\":true,\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}",
@@ -414,10 +528,10 @@ test "Go's metastore.projects.locations.services.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_18)
+  gv_compare(gv_log_of(f), GO_21)
 }
 
-const GO_19: List[Str] = [
+const GO_22: List[Str] = [
   "CALL metastore.projects.locations.services.delete",
   "REQ DELETE https://metastore.googleapis.com/v1beta/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&requestId=s-requestid",
   "  H x-extra=v1",
@@ -435,10 +549,10 @@ test "Go's metastore.projects.locations.services.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_19)
+  gv_compare(gv_log_of(f), GO_22)
 }
 
-const GO_20: List[Str] = [
+const GO_23: List[Str] = [
   "CALL metastore.projects.locations.services.exportMetadata",
   "REQ POST https://metastore.googleapis.com/v1beta/id1/%20x:exportMetadata?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -457,10 +571,10 @@ test "Go's metastore.projects.locations.services.exportMetadata" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_20)
+  gv_compare(gv_log_of(f), GO_23)
 }
 
-const GO_21: List[Str] = [
+const GO_24: List[Str] = [
   "CALL metastore.projects.locations.services.get",
   "REQ GET https://metastore.googleapis.com/v1beta/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -478,10 +592,10 @@ test "Go's metastore.projects.locations.services.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_21)
+  gv_compare(gv_log_of(f), GO_24)
 }
 
-const GO_22: List[Str] = [
+const GO_25: List[Str] = [
   "CALL metastore.projects.locations.services.getIamPolicy",
   "REQ GET https://metastore.googleapis.com/v1beta/id1/%20x:getIamPolicy?alt=json&fields=kind%2Cid&options.requestedPolicyVersion=7&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -499,10 +613,10 @@ test "Go's metastore.projects.locations.services.getIamPolicy" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_22)
+  gv_compare(gv_log_of(f), GO_25)
 }
 
-const GO_23: List[Str] = [
+const GO_26: List[Str] = [
   "CALL metastore.projects.locations.services.list",
   "REQ GET https://metastore.googleapis.com/v1beta/id1/%20x/services?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -520,10 +634,48 @@ test "Go's metastore.projects.locations.services.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_23)
+  gv_compare(gv_log_of(f), GO_26)
 }
 
-const GO_24: List[Str] = [
+const GO_27: List[Str] = [
+  "CALL metastore.projects.locations.services.list pages",
+  "REQ GET https://metastore.googleapis.com/v1beta/id1/%20x/services?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"services\":[{\"artifactGcsUri\":\"s-artifactgcsuri\",\"createTime\":\"s-createtime\",\"databaseType\":\"s-databasetype\",\"deletionProtection\":true,\"encryptionConfig\":{\"kmsKey\":\"s-kmskey\"},\"endpointUri\":\"s-endpointuri\",\"hiveMetastoreConfig\":{\"endpointProtocol\":\"s-endpointprotocol\",\"version\":\"s-version\"},\"labels\":{\"k1\":\"s-labels\"},\"lakehouseProxyConfig\":{\"catalog\":\"s-catalog\"},\"maintenanceWindow\":{\"dayOfWeek\":\"s-dayofweek\",\"hourOfDay\":7},\"metadataIntegration\":{},\"metadataManagementActivity\":{},\"multiRegionConfig\":{},\"name\":\"s-name\",\"network\":\"s-network\",\"networkConfig\":{\"customRoutesEnabled\":true},\"port\":7,\"releaseChannel\":\"s-releasechannel\",\"scalingConfig\":{\"instanceSize\":\"s-instancesize\",\"scalingFactor\":1.5},\"scheduledBackup\":{\"backupLocation\":\"s-backuplocation\",\"cronSchedule\":\"s-cronschedule\",\"enabled\":true,\"nextScheduledTime\":\"s-nextscheduledtime\",\"timeZone\":\"s-timezone\"},\"state\":\"s-state\",\"stateMessage\":\"s-statemessage\",\"tags\":{\"k1\":\"s-tags\"},\"telemetryConfig\":{\"logFormat\":\"s-logformat\"},\"tier\":\"s-tier\",\"uid\":\"s-uid\",\"updateTime\":\"s-updatetime\"}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"services\":[{\"artifactGcsUri\":\"s-artifactgcsuri\",\"createTime\":\"s-createtime\",\"databaseType\":\"s-databasetype\",\"deletionProtection\":true,\"encryptionConfig\":{\"kmsKey\":\"s-kmskey\"},\"endpointUri\":\"s-endpointuri\",\"hiveMetastoreConfig\":{\"endpointProtocol\":\"s-endpointprotocol\",\"version\":\"s-version\"},\"labels\":{\"k1\":\"s-labels\"},\"lakehouseProxyConfig\":{\"catalog\":\"s-catalog\"},\"maintenanceWindow\":{\"dayOfWeek\":\"s-dayofweek\",\"hourOfDay\":7},\"metadataIntegration\":{},\"metadataManagementActivity\":{},\"multiRegionConfig\":{},\"name\":\"s-name\",\"network\":\"s-network\",\"networkConfig\":{\"customRoutesEnabled\":true},\"port\":7,\"releaseChannel\":\"s-releasechannel\",\"scalingConfig\":{\"instanceSize\":\"s-instancesize\",\"scalingFactor\":1.5},\"scheduledBackup\":{\"backupLocation\":\"s-backuplocation\",\"cronSchedule\":\"s-cronschedule\",\"enabled\":true,\"nextScheduledTime\":\"s-nextscheduledtime\",\"timeZone\":\"s-timezone\"},\"state\":\"s-state\",\"stateMessage\":\"s-statemessage\",\"tags\":{\"k1\":\"s-tags\"},\"telemetryConfig\":{\"logFormat\":\"s-logformat\"},\"tier\":\"s-tier\",\"uid\":\"s-uid\",\"updateTime\":\"s-updatetime\"}],\"unreachable\":[\"s-unreachable\"]}",
+  "REQ GET https://metastore.googleapis.com/v1beta/id1/%20x/services?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"services\":[{\"artifactGcsUri\":\"s-artifactgcsuri\",\"createTime\":\"s-createtime\",\"databaseType\":\"s-databasetype\",\"deletionProtection\":true,\"encryptionConfig\":{\"kmsKey\":\"s-kmskey\"},\"endpointUri\":\"s-endpointuri\",\"hiveMetastoreConfig\":{\"endpointProtocol\":\"s-endpointprotocol\",\"version\":\"s-version\"},\"labels\":{\"k1\":\"s-labels\"},\"lakehouseProxyConfig\":{\"catalog\":\"s-catalog\"},\"maintenanceWindow\":{\"dayOfWeek\":\"s-dayofweek\",\"hourOfDay\":7},\"metadataIntegration\":{},\"metadataManagementActivity\":{},\"multiRegionConfig\":{},\"name\":\"s-name\",\"network\":\"s-network\",\"networkConfig\":{\"customRoutesEnabled\":true},\"port\":7,\"releaseChannel\":\"s-releasechannel\",\"scalingConfig\":{\"instanceSize\":\"s-instancesize\",\"scalingFactor\":1.5},\"scheduledBackup\":{\"backupLocation\":\"s-backuplocation\",\"cronSchedule\":\"s-cronschedule\",\"enabled\":true,\"nextScheduledTime\":\"s-nextscheduledtime\",\"timeZone\":\"s-timezone\"},\"state\":\"s-state\",\"stateMessage\":\"s-statemessage\",\"tags\":{\"k1\":\"s-tags\"},\"telemetryConfig\":{\"logFormat\":\"s-logformat\"},\"tier\":\"s-tier\",\"uid\":\"s-uid\",\"updateTime\":\"s-updatetime\"}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"services\":[{\"artifactGcsUri\":\"s-artifactgcsuri\",\"createTime\":\"s-createtime\",\"databaseType\":\"s-databasetype\",\"deletionProtection\":true,\"encryptionConfig\":{\"kmsKey\":\"s-kmskey\"},\"endpointUri\":\"s-endpointuri\",\"hiveMetastoreConfig\":{\"endpointProtocol\":\"s-endpointprotocol\",\"version\":\"s-version\"},\"labels\":{\"k1\":\"s-labels\"},\"lakehouseProxyConfig\":{\"catalog\":\"s-catalog\"},\"maintenanceWindow\":{\"dayOfWeek\":\"s-dayofweek\",\"hourOfDay\":7},\"metadataIntegration\":{},\"metadataManagementActivity\":{},\"multiRegionConfig\":{},\"name\":\"s-name\",\"network\":\"s-network\",\"networkConfig\":{\"customRoutesEnabled\":true},\"port\":7,\"releaseChannel\":\"s-releasechannel\",\"scalingConfig\":{\"instanceSize\":\"s-instancesize\",\"scalingFactor\":1.5},\"scheduledBackup\":{\"backupLocation\":\"s-backuplocation\",\"cronSchedule\":\"s-cronschedule\",\"enabled\":true,\"nextScheduledTime\":\"s-nextscheduledtime\",\"timeZone\":\"s-timezone\"},\"state\":\"s-state\",\"stateMessage\":\"s-statemessage\",\"tags\":{\"k1\":\"s-tags\"},\"telemetryConfig\":{\"logFormat\":\"s-logformat\"},\"tier\":\"s-tier\",\"uid\":\"s-uid\",\"updateTime\":\"s-updatetime\"}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: ok",
+]
+
+test "Go's metastore.projects.locations.services.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"services\":[{\"artifactGcsUri\":\"s-artifactgcsuri\",\"createTime\":\"s-createtime\",\"databaseType\":\"s-databasetype\",\"deletionProtection\":true,\"encryptionConfig\":{\"kmsKey\":\"s-kmskey\"},\"endpointUri\":\"s-endpointuri\",\"hiveMetastoreConfig\":{\"endpointProtocol\":\"s-endpointprotocol\",\"version\":\"s-version\"},\"labels\":{\"k1\":\"s-labels\"},\"lakehouseProxyConfig\":{\"catalog\":\"s-catalog\"},\"maintenanceWindow\":{\"dayOfWeek\":\"s-dayofweek\",\"hourOfDay\":7},\"metadataIntegration\":{},\"metadataManagementActivity\":{},\"multiRegionConfig\":{},\"name\":\"s-name\",\"network\":\"s-network\",\"networkConfig\":{\"customRoutesEnabled\":true},\"port\":7,\"releaseChannel\":\"s-releasechannel\",\"scalingConfig\":{\"instanceSize\":\"s-instancesize\",\"scalingFactor\":1.5},\"scheduledBackup\":{\"backupLocation\":\"s-backuplocation\",\"cronSchedule\":\"s-cronschedule\",\"enabled\":true,\"nextScheduledTime\":\"s-nextscheduledtime\",\"timeZone\":\"s-timezone\"},\"state\":\"s-state\",\"stateMessage\":\"s-statemessage\",\"tags\":{\"k1\":\"s-tags\"},\"telemetryConfig\":{\"logFormat\":\"s-logformat\"},\"tier\":\"s-tier\",\"uid\":\"s-uid\",\"updateTime\":\"s-updatetime\"}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_queue(f, "{\"services\":[{\"artifactGcsUri\":\"s-artifactgcsuri\",\"createTime\":\"s-createtime\",\"databaseType\":\"s-databasetype\",\"deletionProtection\":true,\"encryptionConfig\":{\"kmsKey\":\"s-kmskey\"},\"endpointUri\":\"s-endpointuri\",\"hiveMetastoreConfig\":{\"endpointProtocol\":\"s-endpointprotocol\",\"version\":\"s-version\"},\"labels\":{\"k1\":\"s-labels\"},\"lakehouseProxyConfig\":{\"catalog\":\"s-catalog\"},\"maintenanceWindow\":{\"dayOfWeek\":\"s-dayofweek\",\"hourOfDay\":7},\"metadataIntegration\":{},\"metadataManagementActivity\":{},\"multiRegionConfig\":{},\"name\":\"s-name\",\"network\":\"s-network\",\"networkConfig\":{\"customRoutesEnabled\":true},\"port\":7,\"releaseChannel\":\"s-releasechannel\",\"scalingConfig\":{\"instanceSize\":\"s-instancesize\",\"scalingFactor\":1.5},\"scheduledBackup\":{\"backupLocation\":\"s-backuplocation\",\"cronSchedule\":\"s-cronschedule\",\"enabled\":true,\"nextScheduledTime\":\"s-nextscheduledtime\",\"timeZone\":\"s-timezone\"},\"state\":\"s-state\",\"stateMessage\":\"s-statemessage\",\"tags\":{\"k1\":\"s-tags\"},\"telemetryConfig\":{\"logFormat\":\"s-logformat\"},\"tier\":\"s-tier\",\"uid\":\"s-uid\",\"updateTime\":\"s-updatetime\"}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_note(f, "CALL metastore.projects.locations.services.list pages")
+  var p = svc.projects.locations.services.list_pages("id1/ x", options: ProjectsLocationsServicesListOptions{filter: Some("s-filter"), order_by: Some("s-orderby"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_27)
+}
+
+const GO_28: List[Str] = [
   "CALL metastore.projects.locations.services.moveTableToDatabase",
   "REQ POST https://metastore.googleapis.com/v1beta/id1/%20x:moveTableToDatabase?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -542,14 +694,14 @@ test "Go's metastore.projects.locations.services.moveTableToDatabase" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_24)
+  gv_compare(gv_log_of(f), GO_28)
 }
 
-const GO_25: List[Str] = [
+const GO_29: List[Str] = [
   "CALL metastore.projects.locations.services.patch",
   "REQ PATCH https://metastore.googleapis.com/v1beta/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&requestId=s-requestid&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"artifactGcsUri\":\"s-artifactgcsuri\",\"createTime\":\"s-createtime\",\"databaseType\":\"s-databasetype\",\"deletionProtection\":true,\"encryptionConfig\":{\"kmsKey\":\"s-kmskey\",\"kmsKeys\":[\"s-kmskeys\"]},\"endpointUri\":\"s-endpointuri\",\"hiveMetastoreConfig\":{\"auxiliaryVersions\":{\"k1\":{\"version\":\"s-version\"}},\"configOverrides\":{\"k1\":\"s-configoverrides\"},\"endpointProtocol\":\"s-endpointprotocol\",\"kerberosConfig\":{\"krb5ConfigGcsUri\":\"s-krb5configgcsuri\",\"principal\":\"s-principal\"},\"version\":\"s-version\"},\"labels\":{\"k1\":\"s-labels\"},\"lakehouseProxyConfig\":{\"catalog\":\"s-catalog\",\"namespaces\":[\"s-namespaces\"]},\"maintenanceWindow\":{\"dayOfWeek\":\"s-dayofweek\",\"hourOfDay\":7},\"metadataIntegration\":{\"dataCatalogConfig\":{\"enabled\":true},\"dataplexConfig\":{}},\"metadataManagementActivity\":{\"metadataExports\":[{\"databaseDumpType\":\"s-databasedumptype\",\"destinationGcsUri\":\"s-destinationgcsuri\",\"endTime\":\"s-endtime\",\"startTime\":\"s-starttime\",\"state\":\"s-state\"}],\"restores\":[{\"backup\":\"s-backup\",\"backupLocation\":\"s-backuplocation\",\"details\":\"s-details\",\"endTime\":\"s-endtime\",\"startTime\":\"s-starttime\",\"state\":\"s-state\",\"type\":\"s-type\"}]},\"multiRegionConfig\":{\"certificates\":[{\"certificate\":\"s-certificate\",\"expirationTime\":\"s-expirationtime\"}],\"customRegionConfig\":{\"readOnlyRegions\":[\"s-readonlyregions\"],\"readWriteRegions\":[\"s-readwriteregions\"]}},\"name\":\"s-name\",\"network\":\"s-network\",\"networkConfig\":{\"consumers\":[{\"endpointLocation\":\"s-endpointlocation\",\"endpointUri\":\"s-endpointuri\",\"subnetwork\":\"s-subnetwork\"}],\"customRoutesEnabled\":true},\"port\":7,\"releaseChannel\":\"s-releasechannel\",\"scalingConfig\":{\"autoscalingConfig\":{\"autoscalingEnabled\":true,\"autoscalingFactor\":1.5},\"instanceSize\":\"s-instancesize\",\"scalingFactor\":1.5},\"scheduledBackup\":{\"backupLocation\":\"s-backuplocation\",\"cronSchedule\":\"s-cronschedule\",\"enabled\":true,\"latestBackup\":{\"backupId\":\"s-backupid\",\"duration\":\"s-duration\",\"startTime\":\"s-starttime\",\"state\":\"s-state\"},\"nextScheduledTime\":\"s-nextscheduledtime\",\"timeZone\":\"s-timezone\"},\"state\":\"s-state\",\"stateMessage\":\"s-statemessage\",\"tags\":{\"k1\":\"s-tags\"},\"telemetryConfig\":{\"logFormat\":\"s-logformat\"},\"tier\":\"s-tier\",\"uid\":\"s-uid\",\"updateTime\":\"s-updatetime\"}",
+  "  B <2160 bytes> {\"artifactGcsUri\":\"s-artifactgcs...d\",\"updateTime\":\"s-updatetime\"}",
   "",
   "  SERVED 200 {\"done\":true,\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}",
   "OUT: {\"done\":true,\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}",
@@ -564,10 +716,10 @@ test "Go's metastore.projects.locations.services.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_25)
+  gv_compare(gv_log_of(f), GO_29)
 }
 
-const GO_26: List[Str] = [
+const GO_30: List[Str] = [
   "CALL metastore.projects.locations.services.queryMetadata",
   "REQ POST https://metastore.googleapis.com/v1beta/id1/%20x:queryMetadata?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -586,10 +738,10 @@ test "Go's metastore.projects.locations.services.queryMetadata" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_26)
+  gv_compare(gv_log_of(f), GO_30)
 }
 
-const GO_27: List[Str] = [
+const GO_31: List[Str] = [
   "CALL metastore.projects.locations.services.removeIamPolicy",
   "REQ POST https://metastore.googleapis.com/v1beta/id1/%20x:removeIamPolicy?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -608,10 +760,10 @@ test "Go's metastore.projects.locations.services.removeIamPolicy" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_27)
+  gv_compare(gv_log_of(f), GO_31)
 }
 
-const GO_28: List[Str] = [
+const GO_32: List[Str] = [
   "CALL metastore.projects.locations.services.restore",
   "REQ POST https://metastore.googleapis.com/v1beta/id1/%20x:restore?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -630,10 +782,10 @@ test "Go's metastore.projects.locations.services.restore" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_28)
+  gv_compare(gv_log_of(f), GO_32)
 }
 
-const GO_29: List[Str] = [
+const GO_33: List[Str] = [
   "CALL metastore.projects.locations.services.setIamPolicy",
   "REQ POST https://metastore.googleapis.com/v1beta/id1/%20x:setIamPolicy?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -652,10 +804,10 @@ test "Go's metastore.projects.locations.services.setIamPolicy" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_29)
+  gv_compare(gv_log_of(f), GO_33)
 }
 
-const GO_30: List[Str] = [
+const GO_34: List[Str] = [
   "CALL metastore.projects.locations.services.startMigration",
   "REQ POST https://metastore.googleapis.com/v1beta/id1/%20x:startMigration?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -674,10 +826,10 @@ test "Go's metastore.projects.locations.services.startMigration" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_30)
+  gv_compare(gv_log_of(f), GO_34)
 }
 
-const GO_31: List[Str] = [
+const GO_35: List[Str] = [
   "CALL metastore.projects.locations.services.testIamPermissions",
   "REQ POST https://metastore.googleapis.com/v1beta/id1/%20x:testIamPermissions?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -696,14 +848,14 @@ test "Go's metastore.projects.locations.services.testIamPermissions" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_31)
+  gv_compare(gv_log_of(f), GO_35)
 }
 
-const GO_32: List[Str] = [
+const GO_36: List[Str] = [
   "CALL metastore.projects.locations.services.backups.create",
   "REQ POST https://metastore.googleapis.com/v1beta/id1/%20x/backups?alt=json&backupId=s-backupid&fields=kind%2Cid&prettyPrint=false&requestId=s-requestid",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"endTime\":\"s-endtime\",\"name\":\"s-name\",\"restoringServices\":[\"s-restoringservices\"],\"serviceRevision\":{\"artifactGcsUri\":\"s-artifactgcsuri\",\"createTime\":\"s-createtime\",\"databaseType\":\"s-databasetype\",\"deletionProtection\":true,\"encryptionConfig\":{\"kmsKey\":\"s-kmskey\",\"kmsKeys\":[\"s-kmskeys\"]},\"endpointUri\":\"s-endpointuri\",\"hiveMetastoreConfig\":{\"configOverrides\":{\"k1\":\"s-configoverrides\"},\"endpointProtocol\":\"s-endpointprotocol\",\"version\":\"s-version\"},\"labels\":{\"k1\":\"s-labels\"},\"lakehouseProxyConfig\":{\"catalog\":\"s-catalog\",\"namespaces\":[\"s-namespaces\"]},\"maintenanceWindow\":{\"dayOfWeek\":\"s-dayofweek\",\"hourOfDay\":7},\"metadataIntegration\":{},\"metadataManagementActivity\":{},\"multiRegionConfig\":{},\"name\":\"s-name\",\"network\":\"s-network\",\"networkConfig\":{\"customRoutesEnabled\":true},\"port\":7,\"releaseChannel\":\"s-releasechannel\",\"scalingConfig\":{\"instanceSize\":\"s-instancesize\",\"scalingFactor\":1.5},\"scheduledBackup\":{\"backupLocation\":\"s-backuplocation\",\"cronSchedule\":\"s-cronschedule\",\"enabled\":true,\"nextScheduledTime\":\"s-nextscheduledtime\",\"timeZone\":\"s-timezone\"},\"state\":\"s-state\",\"stateMessage\":\"s-statemessage\",\"tags\":{\"k1\":\"s-tags\"},\"telemetryConfig\":{\"logFormat\":\"s-logformat\"},\"tier\":\"s-tier\",\"uid\":\"s-uid\",\"updateTime\":\"s-updatetime\"},\"state\":\"s-state\"}",
+  "  B <1318 bytes> {\"createTime\":\"s-createtime\",\"de...updatetime\"},\"state\":\"s-state\"}",
   "",
   "  SERVED 200 {\"done\":true,\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}",
   "OUT: {\"done\":true,\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}",
@@ -718,10 +870,10 @@ test "Go's metastore.projects.locations.services.backups.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_32)
+  gv_compare(gv_log_of(f), GO_36)
 }
 
-const GO_33: List[Str] = [
+const GO_37: List[Str] = [
   "CALL metastore.projects.locations.services.backups.delete",
   "REQ DELETE https://metastore.googleapis.com/v1beta/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&requestId=s-requestid",
   "  H x-extra=v1",
@@ -739,10 +891,10 @@ test "Go's metastore.projects.locations.services.backups.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_33)
+  gv_compare(gv_log_of(f), GO_37)
 }
 
-const GO_34: List[Str] = [
+const GO_38: List[Str] = [
   "CALL metastore.projects.locations.services.backups.get",
   "REQ GET https://metastore.googleapis.com/v1beta/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -760,10 +912,10 @@ test "Go's metastore.projects.locations.services.backups.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_34)
+  gv_compare(gv_log_of(f), GO_38)
 }
 
-const GO_35: List[Str] = [
+const GO_39: List[Str] = [
   "CALL metastore.projects.locations.services.backups.getIamPolicy",
   "REQ GET https://metastore.googleapis.com/v1beta/id1/%20x:getIamPolicy?alt=json&fields=kind%2Cid&options.requestedPolicyVersion=7&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -781,10 +933,10 @@ test "Go's metastore.projects.locations.services.backups.getIamPolicy" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_35)
+  gv_compare(gv_log_of(f), GO_39)
 }
 
-const GO_36: List[Str] = [
+const GO_40: List[Str] = [
   "CALL metastore.projects.locations.services.backups.list",
   "REQ GET https://metastore.googleapis.com/v1beta/id1/%20x/backups?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -802,10 +954,48 @@ test "Go's metastore.projects.locations.services.backups.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_36)
+  gv_compare(gv_log_of(f), GO_40)
 }
 
-const GO_37: List[Str] = [
+const GO_41: List[Str] = [
+  "CALL metastore.projects.locations.services.backups.list pages",
+  "REQ GET https://metastore.googleapis.com/v1beta/id1/%20x/backups?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"backups\":[{\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"endTime\":\"s-endtime\",\"name\":\"s-name\",\"restoringServices\":[\"s-restoringservices\"],\"serviceRevision\":{\"artifactGcsUri\":\"s-artifactgcsuri\",\"createTime\":\"s-createtime\",\"databaseType\":\"s-databasetype\",\"deletionProtection\":true,\"endpointUri\":\"s-endpointuri\",\"name\":\"s-name\",\"network\":\"s-network\",\"port\":7,\"releaseChannel\":\"s-releasechannel\",\"state\":\"s-state\",\"stateMessage\":\"s-statemessage\",\"tier\":\"s-tier\",\"uid\":\"s-uid\",\"updateTime\":\"s-updatetime\"},\"state\":\"s-state\"}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"backups\":[{\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"endTime\":\"s-endtime\",\"name\":\"s-name\",\"restoringServices\":[\"s-restoringservices\"],\"serviceRevision\":{\"artifactGcsUri\":\"s-artifactgcsuri\",\"createTime\":\"s-createtime\",\"databaseType\":\"s-databasetype\",\"deletionProtection\":true,\"endpointUri\":\"s-endpointuri\",\"name\":\"s-name\",\"network\":\"s-network\",\"port\":7,\"releaseChannel\":\"s-releasechannel\",\"state\":\"s-state\",\"stateMessage\":\"s-statemessage\",\"tier\":\"s-tier\",\"uid\":\"s-uid\",\"updateTime\":\"s-updatetime\"},\"state\":\"s-state\"}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}",
+  "REQ GET https://metastore.googleapis.com/v1beta/id1/%20x/backups?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"backups\":[{\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"endTime\":\"s-endtime\",\"name\":\"s-name\",\"restoringServices\":[\"s-restoringservices\"],\"serviceRevision\":{\"artifactGcsUri\":\"s-artifactgcsuri\",\"createTime\":\"s-createtime\",\"databaseType\":\"s-databasetype\",\"deletionProtection\":true,\"endpointUri\":\"s-endpointuri\",\"name\":\"s-name\",\"network\":\"s-network\",\"port\":7,\"releaseChannel\":\"s-releasechannel\",\"state\":\"s-state\",\"stateMessage\":\"s-statemessage\",\"tier\":\"s-tier\",\"uid\":\"s-uid\",\"updateTime\":\"s-updatetime\"},\"state\":\"s-state\"}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"backups\":[{\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"endTime\":\"s-endtime\",\"name\":\"s-name\",\"restoringServices\":[\"s-restoringservices\"],\"serviceRevision\":{\"artifactGcsUri\":\"s-artifactgcsuri\",\"createTime\":\"s-createtime\",\"databaseType\":\"s-databasetype\",\"deletionProtection\":true,\"endpointUri\":\"s-endpointuri\",\"name\":\"s-name\",\"network\":\"s-network\",\"port\":7,\"releaseChannel\":\"s-releasechannel\",\"state\":\"s-state\",\"stateMessage\":\"s-statemessage\",\"tier\":\"s-tier\",\"uid\":\"s-uid\",\"updateTime\":\"s-updatetime\"},\"state\":\"s-state\"}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: ok",
+]
+
+test "Go's metastore.projects.locations.services.backups.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"backups\":[{\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"endTime\":\"s-endtime\",\"name\":\"s-name\",\"restoringServices\":[\"s-restoringservices\"],\"serviceRevision\":{\"artifactGcsUri\":\"s-artifactgcsuri\",\"createTime\":\"s-createtime\",\"databaseType\":\"s-databasetype\",\"deletionProtection\":true,\"endpointUri\":\"s-endpointuri\",\"name\":\"s-name\",\"network\":\"s-network\",\"port\":7,\"releaseChannel\":\"s-releasechannel\",\"state\":\"s-state\",\"stateMessage\":\"s-statemessage\",\"tier\":\"s-tier\",\"uid\":\"s-uid\",\"updateTime\":\"s-updatetime\"},\"state\":\"s-state\"}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}")
+  gv_queue(f, "{\"backups\":[{\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"endTime\":\"s-endtime\",\"name\":\"s-name\",\"restoringServices\":[\"s-restoringservices\"],\"serviceRevision\":{\"artifactGcsUri\":\"s-artifactgcsuri\",\"createTime\":\"s-createtime\",\"databaseType\":\"s-databasetype\",\"deletionProtection\":true,\"endpointUri\":\"s-endpointuri\",\"name\":\"s-name\",\"network\":\"s-network\",\"port\":7,\"releaseChannel\":\"s-releasechannel\",\"state\":\"s-state\",\"stateMessage\":\"s-statemessage\",\"tier\":\"s-tier\",\"uid\":\"s-uid\",\"updateTime\":\"s-updatetime\"},\"state\":\"s-state\"}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_note(f, "CALL metastore.projects.locations.services.backups.list pages")
+  var p = svc.projects.locations.services.backups.list_pages("id1/ x", options: ProjectsLocationsServicesBackupsListOptions{filter: Some("s-filter"), order_by: Some("s-orderby"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_41)
+}
+
+const GO_42: List[Str] = [
   "CALL metastore.projects.locations.services.backups.setIamPolicy",
   "REQ POST https://metastore.googleapis.com/v1beta/id1/%20x:setIamPolicy?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -824,10 +1014,10 @@ test "Go's metastore.projects.locations.services.backups.setIamPolicy" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_37)
+  gv_compare(gv_log_of(f), GO_42)
 }
 
-const GO_38: List[Str] = [
+const GO_43: List[Str] = [
   "CALL metastore.projects.locations.services.backups.testIamPermissions",
   "REQ POST https://metastore.googleapis.com/v1beta/id1/%20x:testIamPermissions?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -846,10 +1036,10 @@ test "Go's metastore.projects.locations.services.backups.testIamPermissions" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_38)
+  gv_compare(gv_log_of(f), GO_43)
 }
 
-const GO_39: List[Str] = [
+const GO_44: List[Str] = [
   "CALL metastore.projects.locations.services.databases.getIamPolicy",
   "REQ GET https://metastore.googleapis.com/v1beta/id1/%20x:getIamPolicy?alt=json&fields=kind%2Cid&options.requestedPolicyVersion=7&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -867,10 +1057,10 @@ test "Go's metastore.projects.locations.services.databases.getIamPolicy" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_39)
+  gv_compare(gv_log_of(f), GO_44)
 }
 
-const GO_40: List[Str] = [
+const GO_45: List[Str] = [
   "CALL metastore.projects.locations.services.databases.setIamPolicy",
   "REQ POST https://metastore.googleapis.com/v1beta/id1/%20x:setIamPolicy?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -889,10 +1079,10 @@ test "Go's metastore.projects.locations.services.databases.setIamPolicy" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_40)
+  gv_compare(gv_log_of(f), GO_45)
 }
 
-const GO_41: List[Str] = [
+const GO_46: List[Str] = [
   "CALL metastore.projects.locations.services.databases.testIamPermissions",
   "REQ POST https://metastore.googleapis.com/v1beta/id1/%20x:testIamPermissions?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -911,10 +1101,10 @@ test "Go's metastore.projects.locations.services.databases.testIamPermissions" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_41)
+  gv_compare(gv_log_of(f), GO_46)
 }
 
-const GO_42: List[Str] = [
+const GO_47: List[Str] = [
   "CALL metastore.projects.locations.services.databases.tables.getIamPolicy",
   "REQ GET https://metastore.googleapis.com/v1beta/id1/%20x:getIamPolicy?alt=json&fields=kind%2Cid&options.requestedPolicyVersion=7&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -932,10 +1122,10 @@ test "Go's metastore.projects.locations.services.databases.tables.getIamPolicy" 
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_42)
+  gv_compare(gv_log_of(f), GO_47)
 }
 
-const GO_43: List[Str] = [
+const GO_48: List[Str] = [
   "CALL metastore.projects.locations.services.databases.tables.setIamPolicy",
   "REQ POST https://metastore.googleapis.com/v1beta/id1/%20x:setIamPolicy?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -954,10 +1144,10 @@ test "Go's metastore.projects.locations.services.databases.tables.setIamPolicy" 
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_43)
+  gv_compare(gv_log_of(f), GO_48)
 }
 
-const GO_44: List[Str] = [
+const GO_49: List[Str] = [
   "CALL metastore.projects.locations.services.databases.tables.testIamPermissions",
   "REQ POST https://metastore.googleapis.com/v1beta/id1/%20x:testIamPermissions?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -976,10 +1166,10 @@ test "Go's metastore.projects.locations.services.databases.tables.testIamPermiss
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_44)
+  gv_compare(gv_log_of(f), GO_49)
 }
 
-const GO_45: List[Str] = [
+const GO_50: List[Str] = [
   "CALL metastore.projects.locations.services.metadataImports.create",
   "REQ POST https://metastore.googleapis.com/v1beta/id1/%20x/metadataImports?alt=json&fields=kind%2Cid&metadataImportId=s-metadataimportid&prettyPrint=false&requestId=s-requestid",
   "  H content-type=application/json | x-extra=v1",
@@ -998,10 +1188,10 @@ test "Go's metastore.projects.locations.services.metadataImports.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_45)
+  gv_compare(gv_log_of(f), GO_50)
 }
 
-const GO_46: List[Str] = [
+const GO_51: List[Str] = [
   "CALL metastore.projects.locations.services.metadataImports.get",
   "REQ GET https://metastore.googleapis.com/v1beta/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1019,10 +1209,10 @@ test "Go's metastore.projects.locations.services.metadataImports.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_46)
+  gv_compare(gv_log_of(f), GO_51)
 }
 
-const GO_47: List[Str] = [
+const GO_52: List[Str] = [
   "CALL metastore.projects.locations.services.metadataImports.list",
   "REQ GET https://metastore.googleapis.com/v1beta/id1/%20x/metadataImports?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1040,10 +1230,48 @@ test "Go's metastore.projects.locations.services.metadataImports.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_47)
+  gv_compare(gv_log_of(f), GO_52)
 }
 
-const GO_48: List[Str] = [
+const GO_53: List[Str] = [
+  "CALL metastore.projects.locations.services.metadataImports.list pages",
+  "REQ GET https://metastore.googleapis.com/v1beta/id1/%20x/metadataImports?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"metadataImports\":[{\"createTime\":\"s-createtime\",\"databaseDump\":{\"databaseType\":\"s-databasetype\",\"gcsUri\":\"s-gcsuri\",\"sourceDatabase\":\"s-sourcedatabase\",\"type\":\"s-type\"},\"description\":\"s-description\",\"endTime\":\"s-endtime\",\"name\":\"s-name\",\"state\":\"s-state\",\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"metadataImports\":[{\"createTime\":\"s-createtime\",\"databaseDump\":{\"databaseType\":\"s-databasetype\",\"gcsUri\":\"s-gcsuri\",\"sourceDatabase\":\"s-sourcedatabase\",\"type\":\"s-type\"},\"description\":\"s-description\",\"endTime\":\"s-endtime\",\"name\":\"s-name\",\"state\":\"s-state\",\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}",
+  "REQ GET https://metastore.googleapis.com/v1beta/id1/%20x/metadataImports?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"metadataImports\":[{\"createTime\":\"s-createtime\",\"databaseDump\":{\"databaseType\":\"s-databasetype\",\"gcsUri\":\"s-gcsuri\",\"sourceDatabase\":\"s-sourcedatabase\",\"type\":\"s-type\"},\"description\":\"s-description\",\"endTime\":\"s-endtime\",\"name\":\"s-name\",\"state\":\"s-state\",\"updateTime\":\"s-updatetime\"}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"metadataImports\":[{\"createTime\":\"s-createtime\",\"databaseDump\":{\"databaseType\":\"s-databasetype\",\"gcsUri\":\"s-gcsuri\",\"sourceDatabase\":\"s-sourcedatabase\",\"type\":\"s-type\"},\"description\":\"s-description\",\"endTime\":\"s-endtime\",\"name\":\"s-name\",\"state\":\"s-state\",\"updateTime\":\"s-updatetime\"}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: ok",
+]
+
+test "Go's metastore.projects.locations.services.metadataImports.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"metadataImports\":[{\"createTime\":\"s-createtime\",\"databaseDump\":{\"databaseType\":\"s-databasetype\",\"gcsUri\":\"s-gcsuri\",\"sourceDatabase\":\"s-sourcedatabase\",\"type\":\"s-type\"},\"description\":\"s-description\",\"endTime\":\"s-endtime\",\"name\":\"s-name\",\"state\":\"s-state\",\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}")
+  gv_queue(f, "{\"metadataImports\":[{\"createTime\":\"s-createtime\",\"databaseDump\":{\"databaseType\":\"s-databasetype\",\"gcsUri\":\"s-gcsuri\",\"sourceDatabase\":\"s-sourcedatabase\",\"type\":\"s-type\"},\"description\":\"s-description\",\"endTime\":\"s-endtime\",\"name\":\"s-name\",\"state\":\"s-state\",\"updateTime\":\"s-updatetime\"}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_note(f, "CALL metastore.projects.locations.services.metadataImports.list pages")
+  var p = svc.projects.locations.services.metadata_imports.list_pages("id1/ x", options: ProjectsLocationsServicesMetadataImportsListOptions{filter: Some("s-filter"), order_by: Some("s-orderby"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_53)
+}
+
+const GO_54: List[Str] = [
   "CALL metastore.projects.locations.services.metadataImports.patch",
   "REQ PATCH https://metastore.googleapis.com/v1beta/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&requestId=s-requestid&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
@@ -1062,10 +1290,10 @@ test "Go's metastore.projects.locations.services.metadataImports.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_48)
+  gv_compare(gv_log_of(f), GO_54)
 }
 
-const GO_49: List[Str] = [
+const GO_55: List[Str] = [
   "CALL metastore.projects.locations.services.migrationExecutions.delete",
   "REQ DELETE https://metastore.googleapis.com/v1beta/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&requestId=s-requestid",
   "  H x-extra=v1",
@@ -1083,10 +1311,10 @@ test "Go's metastore.projects.locations.services.migrationExecutions.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_49)
+  gv_compare(gv_log_of(f), GO_55)
 }
 
-const GO_50: List[Str] = [
+const GO_56: List[Str] = [
   "CALL metastore.projects.locations.services.migrationExecutions.get",
   "REQ GET https://metastore.googleapis.com/v1beta/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1104,10 +1332,10 @@ test "Go's metastore.projects.locations.services.migrationExecutions.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_50)
+  gv_compare(gv_log_of(f), GO_56)
 }
 
-const GO_51: List[Str] = [
+const GO_57: List[Str] = [
   "CALL metastore.projects.locations.services.migrationExecutions.list",
   "REQ GET https://metastore.googleapis.com/v1beta/id1/%20x/migrationExecutions?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1125,5 +1353,43 @@ test "Go's metastore.projects.locations.services.migrationExecutions.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_51)
+  gv_compare(gv_log_of(f), GO_57)
+}
+
+const GO_58: List[Str] = [
+  "CALL metastore.projects.locations.services.migrationExecutions.list pages",
+  "REQ GET https://metastore.googleapis.com/v1beta/id1/%20x/migrationExecutions?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"migrationExecutions\":[{\"biglakeMetastoreMigrationConfig\":{\"conflictPolicy\":\"s-conflictpolicy\",\"dryRun\":true,\"mode\":\"s-mode\",\"reportPath\":\"s-reportpath\"},\"createTime\":\"s-createtime\",\"endTime\":\"s-endtime\",\"name\":\"s-name\",\"phase\":\"s-phase\",\"state\":\"s-state\",\"stateMessage\":\"s-statemessage\"}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"migrationExecutions\":[{\"biglakeMetastoreMigrationConfig\":{\"conflictPolicy\":\"s-conflictpolicy\",\"dryRun\":true,\"mode\":\"s-mode\",\"reportPath\":\"s-reportpath\"},\"createTime\":\"s-createtime\",\"endTime\":\"s-endtime\",\"name\":\"s-name\",\"phase\":\"s-phase\",\"state\":\"s-state\",\"stateMessage\":\"s-statemessage\"}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}",
+  "REQ GET https://metastore.googleapis.com/v1beta/id1/%20x/migrationExecutions?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"migrationExecutions\":[{\"biglakeMetastoreMigrationConfig\":{\"conflictPolicy\":\"s-conflictpolicy\",\"dryRun\":true,\"mode\":\"s-mode\",\"reportPath\":\"s-reportpath\"},\"createTime\":\"s-createtime\",\"endTime\":\"s-endtime\",\"name\":\"s-name\",\"phase\":\"s-phase\",\"state\":\"s-state\",\"stateMessage\":\"s-statemessage\"}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"migrationExecutions\":[{\"biglakeMetastoreMigrationConfig\":{\"conflictPolicy\":\"s-conflictpolicy\",\"dryRun\":true,\"mode\":\"s-mode\",\"reportPath\":\"s-reportpath\"},\"createTime\":\"s-createtime\",\"endTime\":\"s-endtime\",\"name\":\"s-name\",\"phase\":\"s-phase\",\"state\":\"s-state\",\"stateMessage\":\"s-statemessage\"}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: ok",
+]
+
+test "Go's metastore.projects.locations.services.migrationExecutions.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"migrationExecutions\":[{\"biglakeMetastoreMigrationConfig\":{\"conflictPolicy\":\"s-conflictpolicy\",\"dryRun\":true,\"mode\":\"s-mode\",\"reportPath\":\"s-reportpath\"},\"createTime\":\"s-createtime\",\"endTime\":\"s-endtime\",\"name\":\"s-name\",\"phase\":\"s-phase\",\"state\":\"s-state\",\"stateMessage\":\"s-statemessage\"}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}")
+  gv_queue(f, "{\"migrationExecutions\":[{\"biglakeMetastoreMigrationConfig\":{\"conflictPolicy\":\"s-conflictpolicy\",\"dryRun\":true,\"mode\":\"s-mode\",\"reportPath\":\"s-reportpath\"},\"createTime\":\"s-createtime\",\"endTime\":\"s-endtime\",\"name\":\"s-name\",\"phase\":\"s-phase\",\"state\":\"s-state\",\"stateMessage\":\"s-statemessage\"}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_note(f, "CALL metastore.projects.locations.services.migrationExecutions.list pages")
+  var p = svc.projects.locations.services.migration_executions.list_pages("id1/ x", options: ProjectsLocationsServicesMigrationExecutionsListOptions{filter: Some("s-filter"), order_by: Some("s-orderby"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_58)
 }

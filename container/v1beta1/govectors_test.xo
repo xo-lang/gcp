@@ -30,6 +30,44 @@ test "Go's container.projects.aggregated.usableSubnetworks.list" {
 }
 
 const GO_1: List[Str] = [
+  "CALL container.projects.aggregated.usableSubnetworks.list pages",
+  "REQ GET https://container.googleapis.com/v1beta1/id1/%20x/aggregated/usableSubnetworks?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"subnetworks\":[{\"ipCidrRange\":\"s-ipcidrrange\",\"network\":\"s-network\",\"statusMessage\":\"s-statusmessage\",\"subnetwork\":\"s-subnetwork\"}]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"subnetworks\":[{\"ipCidrRange\":\"s-ipcidrrange\",\"network\":\"s-network\",\"statusMessage\":\"s-statusmessage\",\"subnetwork\":\"s-subnetwork\"}]}",
+  "REQ GET https://container.googleapis.com/v1beta1/id1/%20x/aggregated/usableSubnetworks?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"subnetworks\":[{\"ipCidrRange\":\"s-ipcidrrange\",\"network\":\"s-network\",\"statusMessage\":\"s-statusmessage\",\"subnetwork\":\"s-subnetwork\"}]}",
+  "OUT: {\"subnetworks\":[{\"ipCidrRange\":\"s-ipcidrrange\",\"network\":\"s-network\",\"statusMessage\":\"s-statusmessage\",\"subnetwork\":\"s-subnetwork\"}]}",
+  "OUT: ok",
+]
+
+test "Go's container.projects.aggregated.usableSubnetworks.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"subnetworks\":[{\"ipCidrRange\":\"s-ipcidrrange\",\"network\":\"s-network\",\"statusMessage\":\"s-statusmessage\",\"subnetwork\":\"s-subnetwork\"}]}")
+  gv_queue(f, "{\"subnetworks\":[{\"ipCidrRange\":\"s-ipcidrrange\",\"network\":\"s-network\",\"statusMessage\":\"s-statusmessage\",\"subnetwork\":\"s-subnetwork\"}]}")
+  gv_note(f, "CALL container.projects.aggregated.usableSubnetworks.list pages")
+  var p = svc.projects.aggregated.usable_subnetworks.list_pages("id1/ x", options: ProjectsAggregatedUsableSubnetworksListOptions{filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_1)
+}
+
+const GO_2: List[Str] = [
   "CALL container.projects.locations.getServerConfig",
   "REQ GET https://container.googleapis.com/v1beta1/id1/%20x/serverConfig?alt=json&fields=kind%2Cid&prettyPrint=false&projectId=s-projectid&zone=s-zone",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -47,10 +85,10 @@ test "Go's container.projects.locations.getServerConfig" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_1)
+  gv_compare(gv_log_of(f), GO_2)
 }
 
-const GO_2: List[Str] = [
+const GO_3: List[Str] = [
   "CALL container.projects.locations.list",
   "REQ GET https://container.googleapis.com/v1beta1/id1/%20x/locations?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -68,10 +106,10 @@ test "Go's container.projects.locations.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_2)
+  gv_compare(gv_log_of(f), GO_3)
 }
 
-const GO_3: List[Str] = [
+const GO_4: List[Str] = [
   "CALL container.projects.locations.clusters.checkAutopilotCompatibility",
   "REQ GET https://container.googleapis.com/v1beta1/id1/%20x:checkAutopilotCompatibility?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -89,10 +127,10 @@ test "Go's container.projects.locations.clusters.checkAutopilotCompatibility" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_3)
+  gv_compare(gv_log_of(f), GO_4)
 }
 
-const GO_4: List[Str] = [
+const GO_5: List[Str] = [
   "CALL container.projects.locations.clusters.completeControlPlaneUpgrade",
   "REQ POST https://container.googleapis.com/v1beta1/id1/%20x:completeControlPlaneUpgrade?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -111,10 +149,10 @@ test "Go's container.projects.locations.clusters.completeControlPlaneUpgrade" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_4)
+  gv_compare(gv_log_of(f), GO_5)
 }
 
-const GO_5: List[Str] = [
+const GO_6: List[Str] = [
   "CALL container.projects.locations.clusters.completeIpRotation",
   "REQ POST https://container.googleapis.com/v1beta1/id1/%20x:completeIpRotation?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -133,14 +171,14 @@ test "Go's container.projects.locations.clusters.completeIpRotation" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_5)
+  gv_compare(gv_log_of(f), GO_6)
 }
 
-const GO_6: List[Str] = [
+const GO_7: List[Str] = [
   "CALL container.projects.locations.clusters.create",
   "REQ POST https://container.googleapis.com/v1beta1/id1/%20x/clusters?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"cluster\":{\"addonsConfig\":{},\"alphaClusterFeatureGates\":[\"s-alphaclusterfeaturegates\"],\"anonymousAuthenticationConfig\":{\"mode\":\"s-mode\"},\"authenticatorGroupsConfig\":{\"enabled\":true,\"securityGroup\":\"s-securitygroup\"},\"autopilot\":{\"enabled\":true},\"autoscaling\":{\"autopilotGeneralProfile\":\"s-autopilotgeneralprofile\",\"autoprovisioningLocations\":[\"s-autoprovisioninglocations\"],\"autoscalingProfile\":\"s-autoscalingprofile\",\"enableNodeAutoprovisioning\":true},\"binaryAuthorization\":{\"enabled\":true,\"evaluationMode\":\"s-evaluationmode\"},\"clusterIpv4Cidr\":\"s-clusteripv4cidr\",\"clusterTelemetry\":{\"type\":\"s-type\"},\"compliancePostureConfig\":{\"mode\":\"s-mode\"},\"conditions\":[{\"canonicalCode\":\"s-canonicalcode\",\"code\":\"s-code\",\"message\":\"s-message\"}],\"confidentialNodes\":{\"confidentialInstanceType\":\"s-confidentialinstancetype\",\"enabled\":true},\"controlPlaneEgress\":{\"mode\":\"s-mode\"},\"controlPlaneEndpointsConfig\":{},\"costManagementConfig\":{\"enabled\":true},\"createTime\":\"s-createtime\",\"currentEmulatedVersion\":\"s-currentemulatedversion\",\"currentMasterVersion\":\"s-currentmasterversion\",\"currentNodeCount\":7,\"currentNodeVersion\":\"s-currentnodeversion\",\"databaseEncryption\":{\"currentState\":\"s-currentstate\",\"decryptionKeys\":[\"s-decryptionkeys\"],\"keyName\":\"s-keyname\",\"state\":\"s-state\"},\"defaultMaxPodsConstraint\":{\"maxPodsPerNode\":\"7\"},\"description\":\"s-description\",\"enableK8sBetaApis\":{\"enabledApis\":[\"s-enabledapis\"]},\"enableKubernetesAlpha\":true,\"enableTpu\":true,\"endpoint\":\"s-endpoint\",\"enterpriseConfig\":{\"clusterTier\":\"s-clustertier\",\"desiredTier\":\"s-desiredtier\"},\"etag\":\"s-etag\",\"expireTime\":\"s-expiretime\",\"fleet\":{\"membership\":\"s-membership\",\"membershipType\":\"s-membershiptype\",\"preRegistered\":true,\"project\":\"s-project\"},\"gkeAutoUpgradeConfig\":{\"patchMode\":\"s-patchmode\"},\"id\":\"s-id\",\"identityServiceConfig\":{\"enabled\":true},\"initialClusterVersion\":\"s-initialclusterversion\",\"initialNodeCount\":7,\"instanceGroupUrls\":[\"s-instancegroupurls\"],\"ipAllocationPolicy\":{\"allowRouteOverlap\":true,\"clusterIpv4Cidr\":\"s-clusteripv4cidr\",\"clusterIpv4CidrBlock\":\"s-clusteripv4cidrblock\",\"clusterSecondaryRangeName\":\"s-clustersecondaryrangename\",\"createSubnetwork\":true,\"defaultPodIpv4RangeUtilization\":1.5,\"ipv6AccessType\":\"s-ipv6accesstype\",\"nodeIpv4Cidr\":\"s-nodeipv4cidr\",\"nodeIpv4CidrBlock\":\"s-nodeipv4cidrblock\",\"servicesIpv4Cidr\":\"s-servicesipv4cidr\",\"servicesIpv4CidrBlock\":\"s-servicesipv4cidrblock\",\"servicesIpv6CidrBlock\":\"s-servicesipv6cidrblock\",\"servicesSecondaryRangeName\":\"s-servicessecondaryrangename\",\"stackType\":\"s-stacktype\",\"subnetIpv6CidrBlock\":\"s-subnetipv6cidrblock\",\"subnetworkName\":\"s-subnetworkname\",\"tpuIpv4CidrBlock\":\"s-tpuipv4cidrblock\",\"useIpAliases\":true,\"useRoutes\":true},\"labelFingerprint\":\"s-labelfingerprint\",\"legacyAbac\":{\"enabled\":true},\"location\":\"s-location\",\"locations\":[\"s-locations\"],\"loggingConfig\":{},\"loggingService\":\"s-loggingservice\",\"maintenancePolicy\":{\"resourceVersion\":\"s-resourceversion\"},\"managedMachineLearningDiagnosticsConfig\":{\"enabled\":true},\"managedOpentelemetryConfig\":{\"scope\":\"s-scope\"},\"master\":{},\"masterAuth\":{\"clientCertificate\":\"s-clientcertificate\",\"clientKey\":\"s-clientkey\",\"clusterCaCertificate\":\"s-clustercacertificate\",\"password\":\"s-password\",\"username\":\"s-username\"},\"masterAuthorizedNetworksConfig\":{\"enabled\":true,\"gcpPublicCidrsAccessEnabled\":true,\"privateEndpointEnforcementEnabled\":true},\"masterIpv4CidrBlock\":\"s-masteripv4cidrblock\",\"meshCertificates\":{\"enableCertificates\":true},\"monitoringConfig\":{},\"monitoringService\":\"s-monitoringservice\",\"name\":\"s-name\",\"network\":\"s-network\",\"networkConfig\":{\"datapathProvider\":\"s-datapathprovider\",\"defaultEnablePrivateNodes\":true,\"disableL4LbFirewallReconciliation\":true,\"enableCiliumClusterwideNetworkPolicy\":true,\"enableFqdnNetworkPolicy\":true,\"enableIntraNodeVisibility\":true,\"enableL4ilbSubsetting\":true,\"enableMultiNetworking\":true,\"inTransitEncryptionConfig\":\"s-intransitencryptionconfig\",\"network\":\"s-network\",\"privateIpv6GoogleAccess\":\"s-privateipv6googleaccess\",\"subnetwork\":\"s-subnetwork\"},\"networkPolicy\":{\"enabled\":true,\"provider\":\"s-provider\"},\"nodeConfig\":{\"bootDiskKmsKey\":\"s-bootdiskkmskey\",\"consolidationDelay\":\"s-consolidationdelay\",\"diskSizeGb\":7,\"diskType\":\"s-disktype\",\"effectiveCgroupMode\":\"s-effectivecgroupmode\",\"enableConfidentialStorage\":true,\"flexStart\":true,\"imageType\":\"s-imagetype\",\"labels\":{\"k1\":\"s-labels\"},\"localSsdCount\":7,\"localSsdEncryptionMode\":\"s-localssdencryptionmode\",\"machineType\":\"s-machinetype\",\"maxRunDuration\":\"s-maxrunduration\",\"metadata\":{\"k1\":\"s-metadata\"},\"minCpuPlatform\":\"s-mincpuplatform\",\"nodeGroup\":\"s-nodegroup\",\"oauthScopes\":[\"s-oauthscopes\"],\"preemptible\":true,\"resourceLabels\":{\"k1\":\"s-resourcelabels\"},\"serviceAccount\":\"s-serviceaccount\",\"spot\":true,\"storagePools\":[\"s-storagepools\"],\"tags\":[\"s-tags\"]},\"nodeCreationConfig\":{\"nodeCreationMode\":\"s-nodecreationmode\"},\"nodeIpv4CidrSize\":7,\"nodePoolAutoConfig\":{},\"nodePoolDefaults\":{},\"nodePoolUpgradeConcurrencyConfig\":{\"maxCount\":\"7\"},\"nodePools\":[{\"etag\":\"s-etag\",\"initialNodeCount\":7,\"name\":\"s-name\",\"podIpv4CidrSize\":7,\"selfLink\":\"s-selflink\",\"status\":\"s-status\",\"statusMessage\":\"s-statusmessage\",\"version\":\"s-version\"}],\"notificationConfig\":{},\"parentProductConfig\":{\"labels\":{\"k1\":\"s-labels\"},\"productName\":\"s-productname\"},\"podAutoscaling\":{\"hpaProfile\":\"s-hpaprofile\"},\"podSecurityPolicyConfig\":{\"enabled\":true},\"privateCluster\":true,\"privateClusterConfig\":{\"enablePrivateEndpoint\":true,\"enablePrivateNodes\":true,\"masterIpv4CidrBlock\":\"s-masteripv4cidrblock\",\"peeringName\":\"s-peeringname\",\"privateEndpoint\":\"s-privateendpoint\",\"privateEndpointSubnetwork\":\"s-privateendpointsubnetwork\",\"publicEndpoint\":\"s-publicendpoint\"},\"protectConfig\":{\"workloadVulnerabilityMode\":\"s-workloadvulnerabilitymode\"},\"rbacBindingConfig\":{\"enableInsecureBindingSystemAuthenticated\":true,\"enableInsecureBindingSystemUnauthenticated\":true},\"releaseChannel\":{\"channel\":\"s-channel\"},\"resourceLabels\":{\"k1\":\"s-resourcelabels\"},\"resourceUsageExportConfig\":{\"enableNetworkEgressMetering\":true},\"rollbackSafeUpgrade\":{\"controlPlaneSoakDuration\":\"s-controlplanesoakduration\"},\"satisfiesPzi\":true,\"satisfiesPzs\":true,\"scheduleUpgradeConfig\":{\"enabled\":true},\"secretManagerConfig\":{\"enabled\":true},\"secretSyncConfig\":{\"enabled\":true},\"securityPostureConfig\":{\"mode\":\"s-mode\",\"vulnerabilityMode\":\"s-vulnerabilitymode\"},\"selfLink\":\"s-selflink\",\"servicesIpv4Cidr\":\"s-servicesipv4cidr\",\"shieldedNodes\":{\"enabled\":true},\"status\":\"s-status\",\"statusMessage\":\"s-statusmessage\",\"subnetwork\":\"s-subnetwork\",\"tpuConfig\":{\"enabled\":true,\"ipv4CidrBlock\":\"s-ipv4cidrblock\",\"useServiceNetworking\":true},\"tpuIpv4CidrBlock\":\"s-tpuipv4cidrblock\",\"userManagedKeysConfig\":{\"aggregationCa\":\"s-aggregationca\",\"clusterCa\":\"s-clusterca\",\"controlPlaneDiskEncryptionKey\":\"s-controlplanediskencryptionkey\",\"controlPlaneDiskEncryptionKeyVersions\":[\"s-controlplanediskencryptionkeyversions\"],\"etcdApiCa\":\"s-etcdapica\",\"etcdPeerCa\":\"s-etcdpeerca\",\"gkeopsEtcdBackupEncryptionKey\":\"s-gkeopsetcdbackupencryptionkey\",\"serviceAccountSigningKeys\":[\"s-serviceaccountsigningkeys\"],\"serviceAccountVerificationKeys\":[\"s-serviceaccountverificationkeys\"]},\"verticalPodAutoscaling\":{\"enabled\":true},\"workloadAltsConfig\":{\"enableAlts\":true},\"workloadCertificates\":{\"enableCertificates\":true},\"workloadIdentityConfig\":{\"identityNamespace\":\"s-identitynamespace\",\"identityProvider\":\"s-identityprovider\",\"workloadPool\":\"s-workloadpool\"},\"zone\":\"s-zone\"},\"parent\":\"s-parent\",\"projectId\":\"s-projectid\",\"zone\":\"s-zone\"}",
+  "  B <7453 bytes> {\"cluster\":{\"addonsConfig\":{},\"a...:\"s-projectid\",\"zone\":\"s-zone\"}",
   "",
   "  SERVED 200 {\"clusterConditions\":[{\"canonicalCode\":\"s-canonicalcode\",\"code\":\"s-code\",\"message\":\"s-message\"}],\"detail\":\"s-detail\",\"endTime\":\"s-endtime\",\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"location\":\"s-location\",\"name\":\"s-name\",\"nodepoolConditions\":[{\"canonicalCode\":\"s-canonicalcode\",\"code\":\"s-code\",\"message\":\"s-message\"}],\"operationType\":\"s-operationtype\",\"progress\":{\"metrics\":[{\"doubleValue\":1.5,\"intValue\":\"7\",\"name\":\"s-name\",\"stringValue\":\"s-stringvalue\"}],\"name\":\"s-name\",\"stages\":[{\"name\":\"s-name\",\"status\":\"s-status\"}],\"status\":\"s-status\"},\"selfLink\":\"s-selflink\",\"startTime\":\"s-starttime\",\"status\":\"s-status\",\"statusMessage\":\"s-statusmessage\",\"targetLink\":\"s-targetlink\",\"zone\":\"s-zone\"}",
   "OUT: {\"clusterConditions\":[{\"canonicalCode\":\"s-canonicalcode\",\"code\":\"s-code\",\"message\":\"s-message\"}],\"detail\":\"s-detail\",\"endTime\":\"s-endtime\",\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"location\":\"s-location\",\"name\":\"s-name\",\"nodepoolConditions\":[{\"canonicalCode\":\"s-canonicalcode\",\"code\":\"s-code\",\"message\":\"s-message\"}],\"operationType\":\"s-operationtype\",\"progress\":{\"metrics\":[{\"doubleValue\":1.5,\"intValue\":\"7\",\"name\":\"s-name\",\"stringValue\":\"s-stringvalue\"}],\"name\":\"s-name\",\"stages\":[{\"name\":\"s-name\",\"status\":\"s-status\"}],\"status\":\"s-status\"},\"selfLink\":\"s-selflink\",\"startTime\":\"s-starttime\",\"status\":\"s-status\",\"statusMessage\":\"s-statusmessage\",\"targetLink\":\"s-targetlink\",\"zone\":\"s-zone\"}",
@@ -155,10 +193,10 @@ test "Go's container.projects.locations.clusters.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_6)
+  gv_compare(gv_log_of(f), GO_7)
 }
 
-const GO_7: List[Str] = [
+const GO_8: List[Str] = [
   "CALL container.projects.locations.clusters.delete",
   "REQ DELETE https://container.googleapis.com/v1beta1/id1/%20x?alt=json&clusterId=s-clusterid&fields=kind%2Cid&prettyPrint=false&projectId=s-projectid&zone=s-zone",
   "  H x-extra=v1",
@@ -176,10 +214,10 @@ test "Go's container.projects.locations.clusters.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_7)
+  gv_compare(gv_log_of(f), GO_8)
 }
 
-const GO_8: List[Str] = [
+const GO_9: List[Str] = [
   "CALL container.projects.locations.clusters.fetchClusterUpgradeInfo",
   "REQ GET https://container.googleapis.com/v1beta1/id1/%20x:fetchClusterUpgradeInfo?alt=json&fields=kind%2Cid&prettyPrint=false&version=s-version",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -197,10 +235,10 @@ test "Go's container.projects.locations.clusters.fetchClusterUpgradeInfo" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_8)
+  gv_compare(gv_log_of(f), GO_9)
 }
 
-const GO_9: List[Str] = [
+const GO_10: List[Str] = [
   "CALL container.projects.locations.clusters.get",
   "REQ GET https://container.googleapis.com/v1beta1/id1/%20x?alt=json&clusterId=s-clusterid&fields=kind%2Cid&prettyPrint=false&projectId=s-projectid&zone=s-zone",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -218,10 +256,10 @@ test "Go's container.projects.locations.clusters.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_9)
+  gv_compare(gv_log_of(f), GO_10)
 }
 
-const GO_10: List[Str] = [
+const GO_11: List[Str] = [
   "CALL container.projects.locations.clusters.getJwks",
   "REQ GET https://container.googleapis.com/v1beta1/id1/%20x/jwks?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -239,10 +277,10 @@ test "Go's container.projects.locations.clusters.getJwks" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_10)
+  gv_compare(gv_log_of(f), GO_11)
 }
 
-const GO_11: List[Str] = [
+const GO_12: List[Str] = [
   "CALL container.projects.locations.clusters.list",
   "REQ GET https://container.googleapis.com/v1beta1/id1/%20x/clusters?alt=json&fields=kind%2Cid&prettyPrint=false&projectId=s-projectid&zone=s-zone",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -260,14 +298,14 @@ test "Go's container.projects.locations.clusters.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_11)
+  gv_compare(gv_log_of(f), GO_12)
 }
 
-const GO_12: List[Str] = [
+const GO_13: List[Str] = [
   "CALL container.projects.locations.clusters.setAddons",
   "REQ POST https://container.googleapis.com/v1beta1/id1/%20x:setAddons?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"addonsConfig\":{\"agentSandboxConfig\":{\"enabled\":true},\"cloudRunConfig\":{\"disabled\":true,\"loadBalancerType\":\"s-loadbalancertype\"},\"configConnectorConfig\":{\"enabled\":true},\"dnsCacheConfig\":{\"enabled\":true},\"gcePersistentDiskCsiDriverConfig\":{\"enabled\":true},\"gcpFilestoreCsiDriverConfig\":{\"enabled\":true},\"gcsFuseCsiDriverConfig\":{\"enabled\":true},\"gkeBackupAgentConfig\":{\"enabled\":true},\"highScaleCheckpointingConfig\":{\"enabled\":true},\"horizontalPodAutoscaling\":{\"disabled\":true},\"httpLoadBalancing\":{\"disabled\":true},\"istioConfig\":{\"auth\":\"s-auth\",\"disabled\":true},\"kalmConfig\":{\"enabled\":true},\"kubernetesDashboard\":{\"disabled\":true},\"lustreCsiDriverConfig\":{\"disableMultiNic\":true,\"enableLegacyLustrePort\":true,\"enabled\":true},\"networkPolicyConfig\":{\"disabled\":true},\"nodeReadinessConfig\":{\"enabled\":true},\"parallelstoreCsiDriverConfig\":{\"enabled\":true},\"podSnapshotConfig\":{\"enabled\":true},\"rayOperatorConfig\":{\"enabled\":true},\"sliceControllerConfig\":{\"enabled\":true},\"slurmOperatorConfig\":{\"enabled\":true},\"statefulHaConfig\":{\"enabled\":true},\"wizSensorConfig\":{\"apiKeySecretUri\":\"s-apikeysecreturi\",\"enabled\":true,\"proxySecretUri\":\"s-proxysecreturi\",\"registrySecretUri\":\"s-registrysecreturi\"}},\"clusterId\":\"s-clusterid\",\"name\":\"s-name\",\"projectId\":\"s-projectid\",\"zone\":\"s-zone\"}",
+  "  B <1283 bytes> {\"addonsConfig\":{\"agentSandboxCo...:\"s-projectid\",\"zone\":\"s-zone\"}",
   "",
   "  SERVED 200 {\"clusterConditions\":[{\"canonicalCode\":\"s-canonicalcode\",\"code\":\"s-code\",\"message\":\"s-message\"}],\"detail\":\"s-detail\",\"endTime\":\"s-endtime\",\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"location\":\"s-location\",\"name\":\"s-name\",\"nodepoolConditions\":[{\"canonicalCode\":\"s-canonicalcode\",\"code\":\"s-code\",\"message\":\"s-message\"}],\"operationType\":\"s-operationtype\",\"progress\":{\"metrics\":[{\"doubleValue\":1.5,\"intValue\":\"7\",\"name\":\"s-name\",\"stringValue\":\"s-stringvalue\"}],\"name\":\"s-name\",\"stages\":[{\"name\":\"s-name\",\"status\":\"s-status\"}],\"status\":\"s-status\"},\"selfLink\":\"s-selflink\",\"startTime\":\"s-starttime\",\"status\":\"s-status\",\"statusMessage\":\"s-statusmessage\",\"targetLink\":\"s-targetlink\",\"zone\":\"s-zone\"}",
   "OUT: {\"clusterConditions\":[{\"canonicalCode\":\"s-canonicalcode\",\"code\":\"s-code\",\"message\":\"s-message\"}],\"detail\":\"s-detail\",\"endTime\":\"s-endtime\",\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"location\":\"s-location\",\"name\":\"s-name\",\"nodepoolConditions\":[{\"canonicalCode\":\"s-canonicalcode\",\"code\":\"s-code\",\"message\":\"s-message\"}],\"operationType\":\"s-operationtype\",\"progress\":{\"metrics\":[{\"doubleValue\":1.5,\"intValue\":\"7\",\"name\":\"s-name\",\"stringValue\":\"s-stringvalue\"}],\"name\":\"s-name\",\"stages\":[{\"name\":\"s-name\",\"status\":\"s-status\"}],\"status\":\"s-status\"},\"selfLink\":\"s-selflink\",\"startTime\":\"s-starttime\",\"status\":\"s-status\",\"statusMessage\":\"s-statusmessage\",\"targetLink\":\"s-targetlink\",\"zone\":\"s-zone\"}",
@@ -282,10 +320,10 @@ test "Go's container.projects.locations.clusters.setAddons" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_12)
+  gv_compare(gv_log_of(f), GO_13)
 }
 
-const GO_13: List[Str] = [
+const GO_14: List[Str] = [
   "CALL container.projects.locations.clusters.setLegacyAbac",
   "REQ POST https://container.googleapis.com/v1beta1/id1/%20x:setLegacyAbac?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -304,10 +342,10 @@ test "Go's container.projects.locations.clusters.setLegacyAbac" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_13)
+  gv_compare(gv_log_of(f), GO_14)
 }
 
-const GO_14: List[Str] = [
+const GO_15: List[Str] = [
   "CALL container.projects.locations.clusters.setLocations",
   "REQ POST https://container.googleapis.com/v1beta1/id1/%20x:setLocations?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -326,10 +364,10 @@ test "Go's container.projects.locations.clusters.setLocations" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_14)
+  gv_compare(gv_log_of(f), GO_15)
 }
 
-const GO_15: List[Str] = [
+const GO_16: List[Str] = [
   "CALL container.projects.locations.clusters.setLogging",
   "REQ POST https://container.googleapis.com/v1beta1/id1/%20x:setLogging?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -348,10 +386,10 @@ test "Go's container.projects.locations.clusters.setLogging" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_15)
+  gv_compare(gv_log_of(f), GO_16)
 }
 
-const GO_16: List[Str] = [
+const GO_17: List[Str] = [
   "CALL container.projects.locations.clusters.setMaintenancePolicy",
   "REQ POST https://container.googleapis.com/v1beta1/id1/%20x:setMaintenancePolicy?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -370,10 +408,10 @@ test "Go's container.projects.locations.clusters.setMaintenancePolicy" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_16)
+  gv_compare(gv_log_of(f), GO_17)
 }
 
-const GO_17: List[Str] = [
+const GO_18: List[Str] = [
   "CALL container.projects.locations.clusters.setMasterAuth",
   "REQ POST https://container.googleapis.com/v1beta1/id1/%20x:setMasterAuth?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -392,10 +430,10 @@ test "Go's container.projects.locations.clusters.setMasterAuth" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_17)
+  gv_compare(gv_log_of(f), GO_18)
 }
 
-const GO_18: List[Str] = [
+const GO_19: List[Str] = [
   "CALL container.projects.locations.clusters.setMonitoring",
   "REQ POST https://container.googleapis.com/v1beta1/id1/%20x:setMonitoring?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -414,10 +452,10 @@ test "Go's container.projects.locations.clusters.setMonitoring" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_18)
+  gv_compare(gv_log_of(f), GO_19)
 }
 
-const GO_19: List[Str] = [
+const GO_20: List[Str] = [
   "CALL container.projects.locations.clusters.setNetworkPolicy",
   "REQ POST https://container.googleapis.com/v1beta1/id1/%20x:setNetworkPolicy?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -436,10 +474,10 @@ test "Go's container.projects.locations.clusters.setNetworkPolicy" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_19)
+  gv_compare(gv_log_of(f), GO_20)
 }
 
-const GO_20: List[Str] = [
+const GO_21: List[Str] = [
   "CALL container.projects.locations.clusters.setResourceLabels",
   "REQ POST https://container.googleapis.com/v1beta1/id1/%20x:setResourceLabels?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -458,10 +496,10 @@ test "Go's container.projects.locations.clusters.setResourceLabels" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_20)
+  gv_compare(gv_log_of(f), GO_21)
 }
 
-const GO_21: List[Str] = [
+const GO_22: List[Str] = [
   "CALL container.projects.locations.clusters.startIpRotation",
   "REQ POST https://container.googleapis.com/v1beta1/id1/%20x:startIpRotation?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -480,14 +518,14 @@ test "Go's container.projects.locations.clusters.startIpRotation" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_21)
+  gv_compare(gv_log_of(f), GO_22)
 }
 
-const GO_22: List[Str] = [
+const GO_23: List[Str] = [
   "CALL container.projects.locations.clusters.update",
   "REQ PUT https://container.googleapis.com/v1beta1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"clusterId\":\"s-clusterid\",\"name\":\"s-name\",\"projectId\":\"s-projectid\",\"update\":{\"additionalPodRangesConfig\":{\"podRangeNames\":[\"s-podrangenames\"]},\"desiredAdditionalIpRangesConfig\":{},\"desiredAddonsConfig\":{},\"desiredAmbientNetworkingConfig\":{\"enabled\":true},\"desiredAnonymousAuthenticationConfig\":{\"mode\":\"s-mode\"},\"desiredAuthenticatorGroupsConfig\":{\"enabled\":true,\"securityGroup\":\"s-securitygroup\"},\"desiredAutoIpamConfig\":{\"enabled\":true},\"desiredAutopilotClusterPolicyConfig\":{\"noStandardNodePools\":true,\"noSystemImpersonation\":true,\"noSystemMutation\":true,\"noUnsafeWebhooks\":true},\"desiredAutopilotWorkloadPolicyConfig\":{\"allowNetAdmin\":true,\"autopilotCompatibilityAuditingEnabled\":true},\"desiredBinaryAuthorization\":{\"enabled\":true,\"evaluationMode\":\"s-evaluationmode\"},\"desiredClusterAutoscaling\":{\"autopilotGeneralProfile\":\"s-autopilotgeneralprofile\",\"autoprovisioningLocations\":[\"s-autoprovisioninglocations\"],\"autoscalingProfile\":\"s-autoscalingprofile\",\"enableNodeAutoprovisioning\":true},\"desiredClusterTelemetry\":{\"type\":\"s-type\"},\"desiredCompliancePostureConfig\":{\"mode\":\"s-mode\"},\"desiredContainerdConfig\":{},\"desiredControlPlaneEgress\":{\"mode\":\"s-mode\"},\"desiredControlPlaneEndpointsConfig\":{},\"desiredCostManagementConfig\":{\"enabled\":true},\"desiredDatabaseEncryption\":{\"currentState\":\"s-currentstate\",\"decryptionKeys\":[\"s-decryptionkeys\"],\"keyName\":\"s-keyname\",\"state\":\"s-state\"},\"desiredDatapathProvider\":\"s-desireddatapathprovider\",\"desiredDefaultEnablePrivateNodes\":true,\"desiredDefaultSnatStatus\":{\"disabled\":true},\"desiredDisableL4LbFirewallReconciliation\":true,\"desiredDnsConfig\":{\"additiveVpcScopeDnsDomain\":\"s-additivevpcscopednsdomain\",\"clusterDns\":\"s-clusterdns\",\"clusterDnsDomain\":\"s-clusterdnsdomain\",\"clusterDnsScope\":\"s-clusterdnsscope\"},\"desiredEmulatedVersion\":\"s-desiredemulatedversion\",\"desiredEnableCiliumClusterwideNetworkPolicy\":true,\"desiredEnableFqdnNetworkPolicy\":true,\"desiredEnableMultiNetworking\":true,\"desiredEnablePrivateEndpoint\":true,\"desiredEnterpriseConfig\":{\"desiredTier\":\"s-desiredtier\"},\"desiredFleet\":{\"membership\":\"s-membership\",\"membershipType\":\"s-membershiptype\",\"preRegistered\":true,\"project\":\"s-project\"},\"desiredGatewayApiConfig\":{\"channel\":\"s-channel\"},\"desiredGcfsConfig\":{\"enabled\":true},\"desiredHostMaintenancePolicy\":{\"maintenanceInterval\":\"s-maintenanceinterval\"},\"desiredIdentityServiceConfig\":{\"enabled\":true},\"desiredImage\":\"s-desiredimage\",\"desiredImageProject\":\"s-desiredimageproject\",\"desiredImageType\":\"s-desiredimagetype\",\"desiredInTransitEncryptionConfig\":\"s-desiredintransitencryptionconfig\",\"desiredIntraNodeVisibilityConfig\":{\"enabled\":true},\"desiredK8sBetaApis\":{\"enabledApis\":[\"s-enabledapis\"]},\"desiredL4ilbSubsettingConfig\":{\"enabled\":true},\"desiredLocations\":[\"s-desiredlocations\"],\"desiredLoggingConfig\":{},\"desiredLoggingService\":\"s-desiredloggingservice\",\"desiredManagedMachineLearningDiagnosticsConfig\":{\"enabled\":true},\"desiredManagedOpentelemetryConfig\":{\"scope\":\"s-scope\"},\"desiredMaster\":{},\"desiredMasterAuthorizedNetworksConfig\":{\"enabled\":true,\"gcpPublicCidrsAccessEnabled\":true,\"privateEndpointEnforcementEnabled\":true},\"desiredMasterVersion\":\"s-desiredmasterversion\",\"desiredMeshCertificates\":{\"enableCertificates\":true},\"desiredMonitoringConfig\":{},\"desiredMonitoringService\":\"s-desiredmonitoringservice\",\"desiredNetworkPerformanceConfig\":{\"totalEgressBandwidthTier\":\"s-totalegressbandwidthtier\"},\"desiredNetworkTierConfig\":{\"networkTier\":\"s-networktier\"},\"desiredNodeCreationConfig\":{\"nodeCreationMode\":\"s-nodecreationmode\"},\"desiredNodeKubeletConfig\":{\"allowedUnsafeSysctls\":[\"s-allowedunsafesysctls\"],\"containerLogMaxFiles\":7,\"containerLogMaxSize\":\"s-containerlogmaxsize\",\"containerLogMaxWorkers\":7,\"containerLogMonitorInterval\":\"s-containerlogmonitorinterval\",\"cpuCfsQuota\":true,\"cpuCfsQuotaPeriod\":\"s-cpucfsquotaperiod\",\"cpuManagerPolicy\":\"s-cpumanagerpolicy\",\"evictionMaxPodGracePeriodSeconds\":7,\"imageGcHighThresholdPercent\":7,\"imageGcLowThresholdPercent\":7,\"imageMaximumGcAge\":\"s-imagemaximumgcage\",\"imageMinimumGcAge\":\"s-imageminimumgcage\",\"insecureKubeletReadonlyPortEnabled\":true,\"maxParallelImagePulls\":7,\"podPidsLimit\":\"7\",\"reservedSystemCpus\":\"s-reservedsystemcpus\",\"shutdownGracePeriodCriticalPodsSeconds\":7,\"shutdownGracePeriodSeconds\":7,\"singleProcessOomKill\":true},\"desiredNodePoolAutoConfigKubeletConfig\":{\"allowedUnsafeSysctls\":[\"s-allowedunsafesysctls\"],\"containerLogMaxFiles\":7,\"containerLogMaxSize\":\"s-containerlogmaxsize\",\"containerLogMaxWorkers\":7,\"containerLogMonitorInterval\":\"s-containerlogmonitorinterval\",\"cpuCfsQuota\":true,\"cpuCfsQuotaPeriod\":\"s-cpucfsquotaperiod\",\"cpuManagerPolicy\":\"s-cpumanagerpolicy\",\"evictionMaxPodGracePeriodSeconds\":7,\"imageGcHighThresholdPercent\":7,\"imageGcLowThresholdPercent\":7,\"imageMaximumGcAge\":\"s-imagemaximumgcage\",\"imageMinimumGcAge\":\"s-imageminimumgcage\",\"insecureKubeletReadonlyPortEnabled\":true,\"maxParallelImagePulls\":7,\"podPidsLimit\":\"7\",\"reservedSystemCpus\":\"s-reservedsystemcpus\",\"shutdownGracePeriodCriticalPodsSeconds\":7,\"shutdownGracePeriodSeconds\":7,\"singleProcessOomKill\":true},\"desiredNodePoolAutoConfigLinuxNodeConfig\":{\"cgroupMode\":\"s-cgroupmode\",\"sysctls\":{\"k1\":\"s-sysctls\"},\"transparentHugepageDefrag\":\"s-transparenthugepagedefrag\",\"transparentHugepageEnabled\":\"s-transparenthugepageenabled\"},\"desiredNodePoolAutoConfigNetworkTags\":{\"tags\":[\"s-tags\"]},\"desiredNodePoolAutoConfigResourceManagerTags\":{\"tags\":{\"k1\":\"s-tags\"}},\"desiredNodePoolAutoscaling\":{\"autoprovisioned\":true,\"enabled\":true,\"locationPolicy\":\"s-locationpolicy\",\"maxNodeCount\":7,\"minNodeCount\":7,\"totalMaxNodeCount\":7,\"totalMinNodeCount\":7},\"desiredNodePoolId\":\"s-desirednodepoolid\",\"desiredNodePoolLoggingConfig\":{},\"desiredNodePoolUpgradeConcurrencyConfig\":{\"maxCount\":\"7\"},\"desiredNodeVersion\":\"s-desirednodeversion\",\"desiredNotificationConfig\":{},\"desiredParentProductConfig\":{\"labels\":{\"k1\":\"s-labels\"},\"productName\":\"s-productname\"},\"desiredPodAutoscaling\":{\"hpaProfile\":\"s-hpaprofile\"},\"desiredPodSecurityPolicyConfig\":{\"enabled\":true},\"desiredPrivateClusterConfig\":{\"enablePrivateEndpoint\":true,\"enablePrivateNodes\":true,\"masterIpv4CidrBlock\":\"s-masteripv4cidrblock\",\"peeringName\":\"s-peeringname\",\"privateEndpoint\":\"s-privateendpoint\",\"privateEndpointSubnetwork\":\"s-privateendpointsubnetwork\",\"publicEndpoint\":\"s-publicendpoint\"},\"desiredPrivateIpv6GoogleAccess\":\"s-desiredprivateipv6googleaccess\",\"desiredPrivilegedAdmissionConfig\":{\"allowlistPaths\":[\"s-allowlistpaths\"]},\"desiredProtectConfig\":{\"workloadVulnerabilityMode\":\"s-workloadvulnerabilitymode\"},\"desiredRbacBindingConfig\":{\"enableInsecureBindingSystemAuthenticated\":true,\"enableInsecureBindingSystemUnauthenticated\":true},\"desiredReleaseChannel\":{\"channel\":\"s-channel\"},\"desiredResourceUsageExportConfig\":{\"enableNetworkEgressMetering\":true},\"desiredRollbackSafeUpgrade\":{\"controlPlaneSoakDuration\":\"s-controlplanesoakduration\"},\"desiredScheduleUpgradeConfig\":{\"enabled\":true},\"desiredSecretManagerConfig\":{\"enabled\":true},\"desiredSecretSyncConfig\":{\"enabled\":true},\"desiredSecurityPostureConfig\":{\"mode\":\"s-mode\",\"vulnerabilityMode\":\"s-vulnerabilitymode\"},\"desiredServiceExternalIpsConfig\":{\"enabled\":true},\"desiredShieldedNodes\":{\"enabled\":true},\"desiredStackType\":\"s-desiredstacktype\",\"desiredTpuConfig\":{\"enabled\":true,\"ipv4CidrBlock\":\"s-ipv4cidrblock\",\"useServiceNetworking\":true},\"desiredUserManagedKeysConfig\":{\"aggregationCa\":\"s-aggregationca\",\"clusterCa\":\"s-clusterca\",\"controlPlaneDiskEncryptionKey\":\"s-controlplanediskencryptionkey\",\"controlPlaneDiskEncryptionKeyVersions\":[\"s-controlplanediskencryptionkeyversions\"],\"etcdApiCa\":\"s-etcdapica\",\"etcdPeerCa\":\"s-etcdpeerca\",\"gkeopsEtcdBackupEncryptionKey\":\"s-gkeopsetcdbackupencryptionkey\",\"serviceAccountSigningKeys\":[\"s-serviceaccountsigningkeys\"],\"serviceAccountVerificationKeys\":[\"s-serviceaccountverificationkeys\"]},\"desiredVerticalPodAutoscaling\":{\"enabled\":true},\"desiredWorkloadAltsConfig\":{\"enableAlts\":true},\"desiredWorkloadCertificates\":{\"enableCertificates\":true},\"desiredWorkloadIdentityConfig\":{\"identityNamespace\":\"s-identitynamespace\",\"identityProvider\":\"s-identityprovider\",\"workloadPool\":\"s-workloadpool\"},\"enableK8sBetaApis\":{\"enabledApis\":[\"s-enabledapis\"]},\"etag\":\"s-etag\",\"gkeAutoUpgradeConfig\":{\"patchMode\":\"s-patchmode\"},\"privateClusterConfig\":{\"enablePrivateEndpoint\":true,\"enablePrivateNodes\":true,\"masterIpv4CidrBlock\":\"s-masteripv4cidrblock\",\"peeringName\":\"s-peeringname\",\"privateEndpoint\":\"s-privateendpoint\",\"privateEndpointSubnetwork\":\"s-privateendpointsubnetwork\",\"publicEndpoint\":\"s-publicendpoint\"},\"removedAdditionalPodRangesConfig\":{\"podRangeNames\":[\"s-podrangenames\"]},\"userManagedKeysConfig\":{\"aggregationCa\":\"s-aggregationca\",\"clusterCa\":\"s-clusterca\",\"controlPlaneDiskEncryptionKey\":\"s-controlplanediskencryptionkey\",\"controlPlaneDiskEncryptionKeyVersions\":[\"s-controlplanediskencryptionkeyversions\"],\"etcdApiCa\":\"s-etcdapica\",\"etcdPeerCa\":\"s-etcdpeerca\",\"gkeopsEtcdBackupEncryptionKey\":\"s-gkeopsetcdbackupencryptionkey\",\"serviceAccountSigningKeys\":[\"s-serviceaccountsigningkeys\"],\"serviceAccountVerificationKeys\":[\"s-serviceaccountverificationkeys\"]}},\"zone\":\"s-zone\"}",
+  "  B <9077 bytes> {\"clusterId\":\"s-clusterid\",\"name...cationkeys\"]}},\"zone\":\"s-zone\"}",
   "",
   "  SERVED 200 {\"clusterConditions\":[{\"canonicalCode\":\"s-canonicalcode\",\"code\":\"s-code\",\"message\":\"s-message\"}],\"detail\":\"s-detail\",\"endTime\":\"s-endtime\",\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"location\":\"s-location\",\"name\":\"s-name\",\"nodepoolConditions\":[{\"canonicalCode\":\"s-canonicalcode\",\"code\":\"s-code\",\"message\":\"s-message\"}],\"operationType\":\"s-operationtype\",\"progress\":{\"metrics\":[{\"doubleValue\":1.5,\"intValue\":\"7\",\"name\":\"s-name\",\"stringValue\":\"s-stringvalue\"}],\"name\":\"s-name\",\"stages\":[{\"name\":\"s-name\",\"status\":\"s-status\"}],\"status\":\"s-status\"},\"selfLink\":\"s-selflink\",\"startTime\":\"s-starttime\",\"status\":\"s-status\",\"statusMessage\":\"s-statusmessage\",\"targetLink\":\"s-targetlink\",\"zone\":\"s-zone\"}",
   "OUT: {\"clusterConditions\":[{\"canonicalCode\":\"s-canonicalcode\",\"code\":\"s-code\",\"message\":\"s-message\"}],\"detail\":\"s-detail\",\"endTime\":\"s-endtime\",\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"location\":\"s-location\",\"name\":\"s-name\",\"nodepoolConditions\":[{\"canonicalCode\":\"s-canonicalcode\",\"code\":\"s-code\",\"message\":\"s-message\"}],\"operationType\":\"s-operationtype\",\"progress\":{\"metrics\":[{\"doubleValue\":1.5,\"intValue\":\"7\",\"name\":\"s-name\",\"stringValue\":\"s-stringvalue\"}],\"name\":\"s-name\",\"stages\":[{\"name\":\"s-name\",\"status\":\"s-status\"}],\"status\":\"s-status\"},\"selfLink\":\"s-selflink\",\"startTime\":\"s-starttime\",\"status\":\"s-status\",\"statusMessage\":\"s-statusmessage\",\"targetLink\":\"s-targetlink\",\"zone\":\"s-zone\"}",
@@ -502,10 +540,10 @@ test "Go's container.projects.locations.clusters.update" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_22)
+  gv_compare(gv_log_of(f), GO_23)
 }
 
-const GO_23: List[Str] = [
+const GO_24: List[Str] = [
   "CALL container.projects.locations.clusters.updateMaster",
   "REQ POST https://container.googleapis.com/v1beta1/id1/%20x:updateMaster?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -524,10 +562,10 @@ test "Go's container.projects.locations.clusters.updateMaster" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_23)
+  gv_compare(gv_log_of(f), GO_24)
 }
 
-const GO_24: List[Str] = [
+const GO_25: List[Str] = [
   "CALL container.projects.locations.clusters.nodePools.completeUpgrade",
   "REQ POST https://container.googleapis.com/v1beta1/id1/%20x:completeUpgrade?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -546,14 +584,14 @@ test "Go's container.projects.locations.clusters.nodePools.completeUpgrade" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_24)
+  gv_compare(gv_log_of(f), GO_25)
 }
 
-const GO_25: List[Str] = [
+const GO_26: List[Str] = [
   "CALL container.projects.locations.clusters.nodePools.create",
   "REQ POST https://container.googleapis.com/v1beta1/id1/%20x/nodePools?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"clusterId\":\"s-clusterid\",\"nodePool\":{\"autopilotConfig\":{\"enabled\":true},\"autoscaling\":{\"autoprovisioned\":true,\"enabled\":true,\"locationPolicy\":\"s-locationpolicy\",\"maxNodeCount\":7,\"minNodeCount\":7,\"totalMaxNodeCount\":7,\"totalMinNodeCount\":7},\"bestEffortProvisioning\":{\"enabled\":true,\"minProvisionNodes\":7},\"conditions\":[{\"canonicalCode\":\"s-canonicalcode\",\"code\":\"s-code\",\"message\":\"s-message\"}],\"config\":{\"bootDiskKmsKey\":\"s-bootdiskkmskey\",\"consolidationDelay\":\"s-consolidationdelay\",\"diskSizeGb\":7,\"diskType\":\"s-disktype\",\"effectiveCgroupMode\":\"s-effectivecgroupmode\",\"enableConfidentialStorage\":true,\"flexStart\":true,\"imageType\":\"s-imagetype\",\"labels\":{\"k1\":\"s-labels\"},\"localSsdCount\":7,\"localSsdEncryptionMode\":\"s-localssdencryptionmode\",\"machineType\":\"s-machinetype\",\"maxRunDuration\":\"s-maxrunduration\",\"metadata\":{\"k1\":\"s-metadata\"},\"minCpuPlatform\":\"s-mincpuplatform\",\"nodeGroup\":\"s-nodegroup\",\"oauthScopes\":[\"s-oauthscopes\"],\"preemptible\":true,\"resourceLabels\":{\"k1\":\"s-resourcelabels\"},\"serviceAccount\":\"s-serviceaccount\",\"spot\":true,\"storagePools\":[\"s-storagepools\"],\"tags\":[\"s-tags\"]},\"etag\":\"s-etag\",\"initialNodeCount\":7,\"instanceGroupUrls\":[\"s-instancegroupurls\"],\"kubeletCertInfo\":{\"nonTpmBootstrapCertExpireTime\":\"s-nontpmbootstrapcertexpiretime\",\"tpmBootstrapCertExpireTime\":\"s-tpmbootstrapcertexpiretime\"},\"locations\":[\"s-locations\"],\"maintenancePolicy\":{},\"management\":{\"autoRepair\":true,\"autoUpgrade\":true},\"maxPodsConstraint\":{\"maxPodsPerNode\":\"7\"},\"name\":\"s-name\",\"networkConfig\":{\"acceleratorNetworkProfile\":\"s-acceleratornetworkprofile\",\"createPodRange\":true,\"datapathProvider\":\"s-datapathprovider\",\"enablePrivateNodes\":true,\"network\":\"s-network\",\"podIpv4CidrBlock\":\"s-podipv4cidrblock\",\"podIpv4RangeUtilization\":1.5,\"podRange\":\"s-podrange\",\"subnetwork\":\"s-subnetwork\"},\"nodeDrainConfig\":{\"graceTerminationDuration\":\"s-graceterminationduration\",\"pdbTimeoutDuration\":\"s-pdbtimeoutduration\",\"respectPdbDuringNodePoolDeletion\":true},\"placementPolicy\":{\"policyName\":\"s-policyname\",\"tpuTopology\":\"s-tputopology\",\"type\":\"s-type\"},\"podIpv4CidrSize\":7,\"queuedProvisioning\":{\"enabled\":true},\"selfLink\":\"s-selflink\",\"status\":\"s-status\",\"statusMessage\":\"s-statusmessage\",\"updateInfo\":{},\"upgradeSettings\":{\"maxSurge\":7,\"maxUnavailable\":7,\"strategy\":\"s-strategy\"},\"version\":\"s-version\"},\"parent\":\"s-parent\",\"projectId\":\"s-projectid\",\"zone\":\"s-zone\"}",
+  "  B <2362 bytes> {\"clusterId\":\"s-clusterid\",\"node...:\"s-projectid\",\"zone\":\"s-zone\"}",
   "",
   "  SERVED 200 {\"clusterConditions\":[{\"canonicalCode\":\"s-canonicalcode\",\"code\":\"s-code\",\"message\":\"s-message\"}],\"detail\":\"s-detail\",\"endTime\":\"s-endtime\",\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"location\":\"s-location\",\"name\":\"s-name\",\"nodepoolConditions\":[{\"canonicalCode\":\"s-canonicalcode\",\"code\":\"s-code\",\"message\":\"s-message\"}],\"operationType\":\"s-operationtype\",\"progress\":{\"metrics\":[{\"doubleValue\":1.5,\"intValue\":\"7\",\"name\":\"s-name\",\"stringValue\":\"s-stringvalue\"}],\"name\":\"s-name\",\"stages\":[{\"name\":\"s-name\",\"status\":\"s-status\"}],\"status\":\"s-status\"},\"selfLink\":\"s-selflink\",\"startTime\":\"s-starttime\",\"status\":\"s-status\",\"statusMessage\":\"s-statusmessage\",\"targetLink\":\"s-targetlink\",\"zone\":\"s-zone\"}",
   "OUT: {\"clusterConditions\":[{\"canonicalCode\":\"s-canonicalcode\",\"code\":\"s-code\",\"message\":\"s-message\"}],\"detail\":\"s-detail\",\"endTime\":\"s-endtime\",\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"location\":\"s-location\",\"name\":\"s-name\",\"nodepoolConditions\":[{\"canonicalCode\":\"s-canonicalcode\",\"code\":\"s-code\",\"message\":\"s-message\"}],\"operationType\":\"s-operationtype\",\"progress\":{\"metrics\":[{\"doubleValue\":1.5,\"intValue\":\"7\",\"name\":\"s-name\",\"stringValue\":\"s-stringvalue\"}],\"name\":\"s-name\",\"stages\":[{\"name\":\"s-name\",\"status\":\"s-status\"}],\"status\":\"s-status\"},\"selfLink\":\"s-selflink\",\"startTime\":\"s-starttime\",\"status\":\"s-status\",\"statusMessage\":\"s-statusmessage\",\"targetLink\":\"s-targetlink\",\"zone\":\"s-zone\"}",
@@ -568,10 +606,10 @@ test "Go's container.projects.locations.clusters.nodePools.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_25)
+  gv_compare(gv_log_of(f), GO_26)
 }
 
-const GO_26: List[Str] = [
+const GO_27: List[Str] = [
   "CALL container.projects.locations.clusters.nodePools.delete",
   "REQ DELETE https://container.googleapis.com/v1beta1/id1/%20x?alt=json&clusterId=s-clusterid&fields=kind%2Cid&nodePoolId=s-nodepoolid&prettyPrint=false&projectId=s-projectid&zone=s-zone",
   "  H x-extra=v1",
@@ -589,10 +627,10 @@ test "Go's container.projects.locations.clusters.nodePools.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_26)
+  gv_compare(gv_log_of(f), GO_27)
 }
 
-const GO_27: List[Str] = [
+const GO_28: List[Str] = [
   "CALL container.projects.locations.clusters.nodePools.fetchNodePoolUpgradeInfo",
   "REQ GET https://container.googleapis.com/v1beta1/id1/%20x:fetchNodePoolUpgradeInfo?alt=json&fields=kind%2Cid&prettyPrint=false&version=s-version",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -610,10 +648,10 @@ test "Go's container.projects.locations.clusters.nodePools.fetchNodePoolUpgradeI
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_27)
+  gv_compare(gv_log_of(f), GO_28)
 }
 
-const GO_28: List[Str] = [
+const GO_29: List[Str] = [
   "CALL container.projects.locations.clusters.nodePools.get",
   "REQ GET https://container.googleapis.com/v1beta1/id1/%20x?alt=json&clusterId=s-clusterid&fields=kind%2Cid&nodePoolId=s-nodepoolid&prettyPrint=false&projectId=s-projectid&zone=s-zone",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -631,10 +669,10 @@ test "Go's container.projects.locations.clusters.nodePools.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_28)
+  gv_compare(gv_log_of(f), GO_29)
 }
 
-const GO_29: List[Str] = [
+const GO_30: List[Str] = [
   "CALL container.projects.locations.clusters.nodePools.list",
   "REQ GET https://container.googleapis.com/v1beta1/id1/%20x/nodePools?alt=json&clusterId=s-clusterid&fields=kind%2Cid&prettyPrint=false&projectId=s-projectid&zone=s-zone",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -652,10 +690,10 @@ test "Go's container.projects.locations.clusters.nodePools.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_29)
+  gv_compare(gv_log_of(f), GO_30)
 }
 
-const GO_30: List[Str] = [
+const GO_31: List[Str] = [
   "CALL container.projects.locations.clusters.nodePools.rollback",
   "REQ POST https://container.googleapis.com/v1beta1/id1/%20x:rollback?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -674,10 +712,10 @@ test "Go's container.projects.locations.clusters.nodePools.rollback" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_30)
+  gv_compare(gv_log_of(f), GO_31)
 }
 
-const GO_31: List[Str] = [
+const GO_32: List[Str] = [
   "CALL container.projects.locations.clusters.nodePools.setAutoscaling",
   "REQ POST https://container.googleapis.com/v1beta1/id1/%20x:setAutoscaling?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -696,10 +734,10 @@ test "Go's container.projects.locations.clusters.nodePools.setAutoscaling" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_31)
+  gv_compare(gv_log_of(f), GO_32)
 }
 
-const GO_32: List[Str] = [
+const GO_33: List[Str] = [
   "CALL container.projects.locations.clusters.nodePools.setManagement",
   "REQ POST https://container.googleapis.com/v1beta1/id1/%20x:setManagement?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -718,10 +756,10 @@ test "Go's container.projects.locations.clusters.nodePools.setManagement" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_32)
+  gv_compare(gv_log_of(f), GO_33)
 }
 
-const GO_33: List[Str] = [
+const GO_34: List[Str] = [
   "CALL container.projects.locations.clusters.nodePools.setSize",
   "REQ POST https://container.googleapis.com/v1beta1/id1/%20x:setSize?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -740,14 +778,14 @@ test "Go's container.projects.locations.clusters.nodePools.setSize" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_33)
+  gv_compare(gv_log_of(f), GO_34)
 }
 
-const GO_34: List[Str] = [
+const GO_35: List[Str] = [
   "CALL container.projects.locations.clusters.nodePools.update",
   "REQ PUT https://container.googleapis.com/v1beta1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"accelerators\":[{\"acceleratorCount\":\"7\",\"acceleratorType\":\"s-acceleratortype\",\"gpuDriverInstallationConfig\":{\"gpuDriverVersion\":\"s-gpudriverversion\",\"specificVersion\":\"s-specificversion\"},\"gpuPartitionSize\":\"s-gpupartitionsize\",\"gpuSharingConfig\":{\"gpuSharingStrategy\":\"s-gpusharingstrategy\",\"maxSharedClientsPerGpu\":\"7\"},\"maxTimeSharedClientsPerGpu\":\"7\"}],\"bootDisk\":{\"diskType\":\"s-disktype\",\"provisionedIops\":\"7\",\"provisionedThroughput\":\"7\",\"sizeGb\":\"7\"},\"clusterId\":\"s-clusterid\",\"confidentialNodes\":{\"confidentialInstanceType\":\"s-confidentialinstancetype\",\"enabled\":true},\"consolidationDelay\":\"s-consolidationdelay\",\"containerdConfig\":{\"privateRegistryAccessConfig\":{\"enabled\":true},\"registryHosts\":[{\"server\":\"s-server\"}],\"writableCgroups\":{\"enabled\":true}},\"diskSizeGb\":\"7\",\"diskType\":\"s-disktype\",\"etag\":\"s-etag\",\"fastSocket\":{\"enabled\":true},\"flexStart\":true,\"gcfsConfig\":{\"enabled\":true},\"gvnic\":{\"enabled\":true},\"image\":\"s-image\",\"imageProject\":\"s-imageproject\",\"imageType\":\"s-imagetype\",\"kubeletConfig\":{\"allowedUnsafeSysctls\":[\"s-allowedunsafesysctls\"],\"containerLogMaxFiles\":7,\"containerLogMaxSize\":\"s-containerlogmaxsize\",\"containerLogMaxWorkers\":7,\"containerLogMonitorInterval\":\"s-containerlogmonitorinterval\",\"cpuCfsQuota\":true,\"cpuCfsQuotaPeriod\":\"s-cpucfsquotaperiod\",\"cpuManagerPolicy\":\"s-cpumanagerpolicy\",\"crashLoopBackOff\":{\"maxContainerRestartPeriod\":\"s-maxcontainerrestartperiod\"},\"evictionMaxPodGracePeriodSeconds\":7,\"evictionMinimumReclaim\":{\"imagefsAvailable\":\"s-imagefsavailable\",\"imagefsInodesFree\":\"s-imagefsinodesfree\",\"memoryAvailable\":\"s-memoryavailable\",\"nodefsAvailable\":\"s-nodefsavailable\",\"nodefsInodesFree\":\"s-nodefsinodesfree\",\"pidAvailable\":\"s-pidavailable\"},\"evictionSoft\":{\"imagefsAvailable\":\"s-imagefsavailable\",\"imagefsInodesFree\":\"s-imagefsinodesfree\",\"memoryAvailable\":\"s-memoryavailable\",\"nodefsAvailable\":\"s-nodefsavailable\",\"nodefsInodesFree\":\"s-nodefsinodesfree\",\"pidAvailable\":\"s-pidavailable\"},\"evictionSoftGracePeriod\":{\"imagefsAvailable\":\"s-imagefsavailable\",\"imagefsInodesFree\":\"s-imagefsinodesfree\",\"memoryAvailable\":\"s-memoryavailable\",\"nodefsAvailable\":\"s-nodefsavailable\",\"nodefsInodesFree\":\"s-nodefsinodesfree\",\"pidAvailable\":\"s-pidavailable\"},\"imageGcHighThresholdPercent\":7,\"imageGcLowThresholdPercent\":7,\"imageMaximumGcAge\":\"s-imagemaximumgcage\",\"imageMinimumGcAge\":\"s-imageminimumgcage\",\"insecureKubeletReadonlyPortEnabled\":true,\"maxParallelImagePulls\":7,\"memoryManager\":{\"policy\":\"s-policy\"},\"podPidsLimit\":\"7\",\"reservedResourcesConfig\":{\"cpuReservedMillicore\":\"7\",\"effectiveCpuReservedMillicore\":\"7\",\"effectiveMemoryReservedMib\":\"7\",\"memoryReservedMib\":\"7\"},\"reservedSystemCpus\":\"s-reservedsystemcpus\",\"shutdownGracePeriodCriticalPodsSeconds\":7,\"shutdownGracePeriodSeconds\":7,\"singleProcessOomKill\":true,\"topologyManager\":{\"policy\":\"s-policy\",\"scope\":\"s-scope\"}},\"labels\":{\"labels\":{\"k1\":\"s-labels\"}},\"linuxNodeConfig\":{\"accurateTimeConfig\":{\"enablePtpKvmTimeSync\":true},\"cgroupMode\":\"s-cgroupmode\",\"customNodeInit\":{},\"diskIoScheduler\":{\"nodeAttachedDiskIoScheduler\":\"s-nodeattacheddiskioscheduler\",\"nodeSystemIoScheduler\":\"s-nodesystemioscheduler\"},\"hugepages\":{\"hugepageSize1g\":7,\"hugepageSize2m\":7},\"nodeKernelModuleLoading\":{\"policy\":\"s-policy\"},\"nodeVfioConfig\":{\"dmaEntryLimit\":7},\"swapConfig\":{\"enabled\":true},\"sysctls\":{\"k1\":\"s-sysctls\"},\"transparentHugepageDefrag\":\"s-transparenthugepagedefrag\",\"transparentHugepageEnabled\":\"s-transparenthugepageenabled\"},\"locations\":[\"s-locations\"],\"loggingConfig\":{\"variantConfig\":{\"variant\":\"s-variant\"}},\"machineType\":\"s-machinetype\",\"maintenancePolicy\":{\"exclusionUntilEndOfSupport\":{\"enabled\":true,\"endTime\":\"s-endtime\",\"startTime\":\"s-starttime\"}},\"maxRunDuration\":\"s-maxrunduration\",\"name\":\"s-name\",\"nodeConfigUpdateMode\":\"s-nodeconfigupdatemode\",\"nodeDrainConfig\":{\"graceTerminationDuration\":\"s-graceterminationduration\",\"pdbTimeoutDuration\":\"s-pdbtimeoutduration\",\"respectPdbDuringNodePoolDeletion\":true},\"nodeNetworkConfig\":{\"acceleratorNetworkProfile\":\"s-acceleratornetworkprofile\",\"additionalNodeNetworkConfigs\":[{\"network\":\"s-network\",\"stackType\":\"s-stacktype\",\"subnetwork\":\"s-subnetwork\"}],\"additionalPodNetworkConfigs\":[{\"networkAttachment\":\"s-networkattachment\",\"secondaryPodRange\":\"s-secondarypodrange\",\"subnetwork\":\"s-subnetwork\"}],\"createPodRange\":true,\"datapathProvider\":\"s-datapathprovider\",\"enablePrivateNodes\":true,\"network\":\"s-network\",\"networkPerformanceConfig\":{\"externalIpEgressBandwidthTier\":\"s-externalipegressbandwidthtier\",\"totalEgressBandwidthTier\":\"s-totalegressbandwidthtier\"},\"networkTierConfig\":{\"networkTier\":\"s-networktier\"},\"podCidrOverprovisionConfig\":{\"disable\":true},\"podIpv4CidrBlock\":\"s-podipv4cidrblock\",\"podIpv4RangeUtilization\":1.5,\"podRange\":\"s-podrange\",\"subnetwork\":\"s-subnetwork\"},\"nodePoolId\":\"s-nodepoolid\",\"nodeVersion\":\"s-nodeversion\",\"nodes\":[\"s-nodes\"],\"projectId\":\"s-projectid\",\"queuedProvisioning\":{\"enabled\":true},\"resourceLabels\":{\"labels\":{\"k1\":\"s-labels\"}},\"resourceManagerTags\":{\"tags\":{\"k1\":\"s-tags\"}},\"storagePools\":[\"s-storagepools\"],\"tags\":{\"tags\":[\"s-tags\"]},\"taintConfig\":{\"architectureTaintBehavior\":\"s-architecturetaintbehavior\"},\"taints\":{\"taints\":[{\"effect\":\"s-effect\",\"key\":\"s-key\",\"value\":\"s-value\"}]},\"upgradeSettings\":{\"blueGreenSettings\":{\"nodePoolSoakDuration\":\"s-nodepoolsoakduration\"},\"maxSurge\":7,\"maxUnavailable\":7,\"strategy\":\"s-strategy\"},\"windowsNodeConfig\":{\"osVersion\":\"s-osversion\"},\"workloadMetadataConfig\":{\"mode\":\"s-mode\",\"nodeMetadata\":\"s-nodemetadata\"},\"zone\":\"s-zone\"}",
+  "  B <5475 bytes> {\"accelerators\":[{\"acceleratorCo...nodemetadata\"},\"zone\":\"s-zone\"}",
   "",
   "  SERVED 200 {\"clusterConditions\":[{\"canonicalCode\":\"s-canonicalcode\",\"code\":\"s-code\",\"message\":\"s-message\"}],\"detail\":\"s-detail\",\"endTime\":\"s-endtime\",\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"location\":\"s-location\",\"name\":\"s-name\",\"nodepoolConditions\":[{\"canonicalCode\":\"s-canonicalcode\",\"code\":\"s-code\",\"message\":\"s-message\"}],\"operationType\":\"s-operationtype\",\"progress\":{\"metrics\":[{\"doubleValue\":1.5,\"intValue\":\"7\",\"name\":\"s-name\",\"stringValue\":\"s-stringvalue\"}],\"name\":\"s-name\",\"stages\":[{\"name\":\"s-name\",\"status\":\"s-status\"}],\"status\":\"s-status\"},\"selfLink\":\"s-selflink\",\"startTime\":\"s-starttime\",\"status\":\"s-status\",\"statusMessage\":\"s-statusmessage\",\"targetLink\":\"s-targetlink\",\"zone\":\"s-zone\"}",
   "OUT: {\"clusterConditions\":[{\"canonicalCode\":\"s-canonicalcode\",\"code\":\"s-code\",\"message\":\"s-message\"}],\"detail\":\"s-detail\",\"endTime\":\"s-endtime\",\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"location\":\"s-location\",\"name\":\"s-name\",\"nodepoolConditions\":[{\"canonicalCode\":\"s-canonicalcode\",\"code\":\"s-code\",\"message\":\"s-message\"}],\"operationType\":\"s-operationtype\",\"progress\":{\"metrics\":[{\"doubleValue\":1.5,\"intValue\":\"7\",\"name\":\"s-name\",\"stringValue\":\"s-stringvalue\"}],\"name\":\"s-name\",\"stages\":[{\"name\":\"s-name\",\"status\":\"s-status\"}],\"status\":\"s-status\"},\"selfLink\":\"s-selflink\",\"startTime\":\"s-starttime\",\"status\":\"s-status\",\"statusMessage\":\"s-statusmessage\",\"targetLink\":\"s-targetlink\",\"zone\":\"s-zone\"}",
@@ -762,10 +800,10 @@ test "Go's container.projects.locations.clusters.nodePools.update" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_34)
+  gv_compare(gv_log_of(f), GO_35)
 }
 
-const GO_35: List[Str] = [
+const GO_36: List[Str] = [
   "CALL container.projects.locations.clusters.well-known.getOpenid-configuration",
   "REQ GET https://container.googleapis.com/v1beta1/id1/%20x/.well-known/openid-configuration?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -783,10 +821,10 @@ test "Go's container.projects.locations.clusters.well-known.getOpenid-configurat
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_35)
+  gv_compare(gv_log_of(f), GO_36)
 }
 
-const GO_36: List[Str] = [
+const GO_37: List[Str] = [
   "CALL container.projects.locations.operations.cancel",
   "REQ POST https://container.googleapis.com/v1beta1/id1/%20x:cancel?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -805,10 +843,10 @@ test "Go's container.projects.locations.operations.cancel" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_36)
+  gv_compare(gv_log_of(f), GO_37)
 }
 
-const GO_37: List[Str] = [
+const GO_38: List[Str] = [
   "CALL container.projects.locations.operations.get",
   "REQ GET https://container.googleapis.com/v1beta1/id1/%20x?alt=json&fields=kind%2Cid&operationId=s-operationid&prettyPrint=false&projectId=s-projectid&zone=s-zone",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -826,10 +864,10 @@ test "Go's container.projects.locations.operations.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_37)
+  gv_compare(gv_log_of(f), GO_38)
 }
 
-const GO_38: List[Str] = [
+const GO_39: List[Str] = [
   "CALL container.projects.locations.operations.list",
   "REQ GET https://container.googleapis.com/v1beta1/id1/%20x/operations?alt=json&fields=kind%2Cid&prettyPrint=false&projectId=s-projectid&zone=s-zone",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -847,10 +885,10 @@ test "Go's container.projects.locations.operations.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_38)
+  gv_compare(gv_log_of(f), GO_39)
 }
 
-const GO_39: List[Str] = [
+const GO_40: List[Str] = [
   "CALL container.projects.zones.getServerconfig",
   "REQ GET https://container.googleapis.com/v1beta1/projects/id1%2F%20x/zones/id2%2F%20x/serverconfig?alt=json&fields=kind%2Cid&name=s-name&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -868,14 +906,14 @@ test "Go's container.projects.zones.getServerconfig" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_39)
+  gv_compare(gv_log_of(f), GO_40)
 }
 
-const GO_40: List[Str] = [
+const GO_41: List[Str] = [
   "CALL container.projects.zones.clusters.addons",
   "REQ POST https://container.googleapis.com/v1beta1/projects/id1%2F%20x/zones/id2%2F%20x/clusters/id3%2F%20x/addons?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"addonsConfig\":{\"agentSandboxConfig\":{\"enabled\":true},\"cloudRunConfig\":{\"disabled\":true,\"loadBalancerType\":\"s-loadbalancertype\"},\"configConnectorConfig\":{\"enabled\":true},\"dnsCacheConfig\":{\"enabled\":true},\"gcePersistentDiskCsiDriverConfig\":{\"enabled\":true},\"gcpFilestoreCsiDriverConfig\":{\"enabled\":true},\"gcsFuseCsiDriverConfig\":{\"enabled\":true},\"gkeBackupAgentConfig\":{\"enabled\":true},\"highScaleCheckpointingConfig\":{\"enabled\":true},\"horizontalPodAutoscaling\":{\"disabled\":true},\"httpLoadBalancing\":{\"disabled\":true},\"istioConfig\":{\"auth\":\"s-auth\",\"disabled\":true},\"kalmConfig\":{\"enabled\":true},\"kubernetesDashboard\":{\"disabled\":true},\"lustreCsiDriverConfig\":{\"disableMultiNic\":true,\"enableLegacyLustrePort\":true,\"enabled\":true},\"networkPolicyConfig\":{\"disabled\":true},\"nodeReadinessConfig\":{\"enabled\":true},\"parallelstoreCsiDriverConfig\":{\"enabled\":true},\"podSnapshotConfig\":{\"enabled\":true},\"rayOperatorConfig\":{\"enabled\":true},\"sliceControllerConfig\":{\"enabled\":true},\"slurmOperatorConfig\":{\"enabled\":true},\"statefulHaConfig\":{\"enabled\":true},\"wizSensorConfig\":{\"apiKeySecretUri\":\"s-apikeysecreturi\",\"enabled\":true,\"proxySecretUri\":\"s-proxysecreturi\",\"registrySecretUri\":\"s-registrysecreturi\"}},\"clusterId\":\"s-clusterid\",\"name\":\"s-name\",\"projectId\":\"s-projectid\",\"zone\":\"s-zone\"}",
+  "  B <1283 bytes> {\"addonsConfig\":{\"agentSandboxCo...:\"s-projectid\",\"zone\":\"s-zone\"}",
   "",
   "  SERVED 200 {\"clusterConditions\":[{\"canonicalCode\":\"s-canonicalcode\",\"code\":\"s-code\",\"message\":\"s-message\"}],\"detail\":\"s-detail\",\"endTime\":\"s-endtime\",\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"location\":\"s-location\",\"name\":\"s-name\",\"nodepoolConditions\":[{\"canonicalCode\":\"s-canonicalcode\",\"code\":\"s-code\",\"message\":\"s-message\"}],\"operationType\":\"s-operationtype\",\"progress\":{\"metrics\":[{\"doubleValue\":1.5,\"intValue\":\"7\",\"name\":\"s-name\",\"stringValue\":\"s-stringvalue\"}],\"name\":\"s-name\",\"stages\":[{\"name\":\"s-name\",\"status\":\"s-status\"}],\"status\":\"s-status\"},\"selfLink\":\"s-selflink\",\"startTime\":\"s-starttime\",\"status\":\"s-status\",\"statusMessage\":\"s-statusmessage\",\"targetLink\":\"s-targetlink\",\"zone\":\"s-zone\"}",
   "OUT: {\"clusterConditions\":[{\"canonicalCode\":\"s-canonicalcode\",\"code\":\"s-code\",\"message\":\"s-message\"}],\"detail\":\"s-detail\",\"endTime\":\"s-endtime\",\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"location\":\"s-location\",\"name\":\"s-name\",\"nodepoolConditions\":[{\"canonicalCode\":\"s-canonicalcode\",\"code\":\"s-code\",\"message\":\"s-message\"}],\"operationType\":\"s-operationtype\",\"progress\":{\"metrics\":[{\"doubleValue\":1.5,\"intValue\":\"7\",\"name\":\"s-name\",\"stringValue\":\"s-stringvalue\"}],\"name\":\"s-name\",\"stages\":[{\"name\":\"s-name\",\"status\":\"s-status\"}],\"status\":\"s-status\"},\"selfLink\":\"s-selflink\",\"startTime\":\"s-starttime\",\"status\":\"s-status\",\"statusMessage\":\"s-statusmessage\",\"targetLink\":\"s-targetlink\",\"zone\":\"s-zone\"}",
@@ -890,10 +928,10 @@ test "Go's container.projects.zones.clusters.addons" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_40)
+  gv_compare(gv_log_of(f), GO_41)
 }
 
-const GO_41: List[Str] = [
+const GO_42: List[Str] = [
   "CALL container.projects.zones.clusters.completeControlPlaneUpgrade",
   "REQ POST https://container.googleapis.com/v1beta1/id1/%20x:completeControlPlaneUpgrade?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -912,10 +950,10 @@ test "Go's container.projects.zones.clusters.completeControlPlaneUpgrade" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_41)
+  gv_compare(gv_log_of(f), GO_42)
 }
 
-const GO_42: List[Str] = [
+const GO_43: List[Str] = [
   "CALL container.projects.zones.clusters.completeIpRotation",
   "REQ POST https://container.googleapis.com/v1beta1/projects/id1%2F%20x/zones/id2%2F%20x/clusters/id3%2F%20x:completeIpRotation?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -934,14 +972,14 @@ test "Go's container.projects.zones.clusters.completeIpRotation" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_42)
+  gv_compare(gv_log_of(f), GO_43)
 }
 
-const GO_43: List[Str] = [
+const GO_44: List[Str] = [
   "CALL container.projects.zones.clusters.create",
   "REQ POST https://container.googleapis.com/v1beta1/projects/id1%2F%20x/zones/id2%2F%20x/clusters?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"cluster\":{\"addonsConfig\":{},\"alphaClusterFeatureGates\":[\"s-alphaclusterfeaturegates\"],\"anonymousAuthenticationConfig\":{\"mode\":\"s-mode\"},\"authenticatorGroupsConfig\":{\"enabled\":true,\"securityGroup\":\"s-securitygroup\"},\"autopilot\":{\"enabled\":true},\"autoscaling\":{\"autopilotGeneralProfile\":\"s-autopilotgeneralprofile\",\"autoprovisioningLocations\":[\"s-autoprovisioninglocations\"],\"autoscalingProfile\":\"s-autoscalingprofile\",\"enableNodeAutoprovisioning\":true},\"binaryAuthorization\":{\"enabled\":true,\"evaluationMode\":\"s-evaluationmode\"},\"clusterIpv4Cidr\":\"s-clusteripv4cidr\",\"clusterTelemetry\":{\"type\":\"s-type\"},\"compliancePostureConfig\":{\"mode\":\"s-mode\"},\"conditions\":[{\"canonicalCode\":\"s-canonicalcode\",\"code\":\"s-code\",\"message\":\"s-message\"}],\"confidentialNodes\":{\"confidentialInstanceType\":\"s-confidentialinstancetype\",\"enabled\":true},\"controlPlaneEgress\":{\"mode\":\"s-mode\"},\"controlPlaneEndpointsConfig\":{},\"costManagementConfig\":{\"enabled\":true},\"createTime\":\"s-createtime\",\"currentEmulatedVersion\":\"s-currentemulatedversion\",\"currentMasterVersion\":\"s-currentmasterversion\",\"currentNodeCount\":7,\"currentNodeVersion\":\"s-currentnodeversion\",\"databaseEncryption\":{\"currentState\":\"s-currentstate\",\"decryptionKeys\":[\"s-decryptionkeys\"],\"keyName\":\"s-keyname\",\"state\":\"s-state\"},\"defaultMaxPodsConstraint\":{\"maxPodsPerNode\":\"7\"},\"description\":\"s-description\",\"enableK8sBetaApis\":{\"enabledApis\":[\"s-enabledapis\"]},\"enableKubernetesAlpha\":true,\"enableTpu\":true,\"endpoint\":\"s-endpoint\",\"enterpriseConfig\":{\"clusterTier\":\"s-clustertier\",\"desiredTier\":\"s-desiredtier\"},\"etag\":\"s-etag\",\"expireTime\":\"s-expiretime\",\"fleet\":{\"membership\":\"s-membership\",\"membershipType\":\"s-membershiptype\",\"preRegistered\":true,\"project\":\"s-project\"},\"gkeAutoUpgradeConfig\":{\"patchMode\":\"s-patchmode\"},\"id\":\"s-id\",\"identityServiceConfig\":{\"enabled\":true},\"initialClusterVersion\":\"s-initialclusterversion\",\"initialNodeCount\":7,\"instanceGroupUrls\":[\"s-instancegroupurls\"],\"ipAllocationPolicy\":{\"allowRouteOverlap\":true,\"clusterIpv4Cidr\":\"s-clusteripv4cidr\",\"clusterIpv4CidrBlock\":\"s-clusteripv4cidrblock\",\"clusterSecondaryRangeName\":\"s-clustersecondaryrangename\",\"createSubnetwork\":true,\"defaultPodIpv4RangeUtilization\":1.5,\"ipv6AccessType\":\"s-ipv6accesstype\",\"nodeIpv4Cidr\":\"s-nodeipv4cidr\",\"nodeIpv4CidrBlock\":\"s-nodeipv4cidrblock\",\"servicesIpv4Cidr\":\"s-servicesipv4cidr\",\"servicesIpv4CidrBlock\":\"s-servicesipv4cidrblock\",\"servicesIpv6CidrBlock\":\"s-servicesipv6cidrblock\",\"servicesSecondaryRangeName\":\"s-servicessecondaryrangename\",\"stackType\":\"s-stacktype\",\"subnetIpv6CidrBlock\":\"s-subnetipv6cidrblock\",\"subnetworkName\":\"s-subnetworkname\",\"tpuIpv4CidrBlock\":\"s-tpuipv4cidrblock\",\"useIpAliases\":true,\"useRoutes\":true},\"labelFingerprint\":\"s-labelfingerprint\",\"legacyAbac\":{\"enabled\":true},\"location\":\"s-location\",\"locations\":[\"s-locations\"],\"loggingConfig\":{},\"loggingService\":\"s-loggingservice\",\"maintenancePolicy\":{\"resourceVersion\":\"s-resourceversion\"},\"managedMachineLearningDiagnosticsConfig\":{\"enabled\":true},\"managedOpentelemetryConfig\":{\"scope\":\"s-scope\"},\"master\":{},\"masterAuth\":{\"clientCertificate\":\"s-clientcertificate\",\"clientKey\":\"s-clientkey\",\"clusterCaCertificate\":\"s-clustercacertificate\",\"password\":\"s-password\",\"username\":\"s-username\"},\"masterAuthorizedNetworksConfig\":{\"enabled\":true,\"gcpPublicCidrsAccessEnabled\":true,\"privateEndpointEnforcementEnabled\":true},\"masterIpv4CidrBlock\":\"s-masteripv4cidrblock\",\"meshCertificates\":{\"enableCertificates\":true},\"monitoringConfig\":{},\"monitoringService\":\"s-monitoringservice\",\"name\":\"s-name\",\"network\":\"s-network\",\"networkConfig\":{\"datapathProvider\":\"s-datapathprovider\",\"defaultEnablePrivateNodes\":true,\"disableL4LbFirewallReconciliation\":true,\"enableCiliumClusterwideNetworkPolicy\":true,\"enableFqdnNetworkPolicy\":true,\"enableIntraNodeVisibility\":true,\"enableL4ilbSubsetting\":true,\"enableMultiNetworking\":true,\"inTransitEncryptionConfig\":\"s-intransitencryptionconfig\",\"network\":\"s-network\",\"privateIpv6GoogleAccess\":\"s-privateipv6googleaccess\",\"subnetwork\":\"s-subnetwork\"},\"networkPolicy\":{\"enabled\":true,\"provider\":\"s-provider\"},\"nodeConfig\":{\"bootDiskKmsKey\":\"s-bootdiskkmskey\",\"consolidationDelay\":\"s-consolidationdelay\",\"diskSizeGb\":7,\"diskType\":\"s-disktype\",\"effectiveCgroupMode\":\"s-effectivecgroupmode\",\"enableConfidentialStorage\":true,\"flexStart\":true,\"imageType\":\"s-imagetype\",\"labels\":{\"k1\":\"s-labels\"},\"localSsdCount\":7,\"localSsdEncryptionMode\":\"s-localssdencryptionmode\",\"machineType\":\"s-machinetype\",\"maxRunDuration\":\"s-maxrunduration\",\"metadata\":{\"k1\":\"s-metadata\"},\"minCpuPlatform\":\"s-mincpuplatform\",\"nodeGroup\":\"s-nodegroup\",\"oauthScopes\":[\"s-oauthscopes\"],\"preemptible\":true,\"resourceLabels\":{\"k1\":\"s-resourcelabels\"},\"serviceAccount\":\"s-serviceaccount\",\"spot\":true,\"storagePools\":[\"s-storagepools\"],\"tags\":[\"s-tags\"]},\"nodeCreationConfig\":{\"nodeCreationMode\":\"s-nodecreationmode\"},\"nodeIpv4CidrSize\":7,\"nodePoolAutoConfig\":{},\"nodePoolDefaults\":{},\"nodePoolUpgradeConcurrencyConfig\":{\"maxCount\":\"7\"},\"nodePools\":[{\"etag\":\"s-etag\",\"initialNodeCount\":7,\"name\":\"s-name\",\"podIpv4CidrSize\":7,\"selfLink\":\"s-selflink\",\"status\":\"s-status\",\"statusMessage\":\"s-statusmessage\",\"version\":\"s-version\"}],\"notificationConfig\":{},\"parentProductConfig\":{\"labels\":{\"k1\":\"s-labels\"},\"productName\":\"s-productname\"},\"podAutoscaling\":{\"hpaProfile\":\"s-hpaprofile\"},\"podSecurityPolicyConfig\":{\"enabled\":true},\"privateCluster\":true,\"privateClusterConfig\":{\"enablePrivateEndpoint\":true,\"enablePrivateNodes\":true,\"masterIpv4CidrBlock\":\"s-masteripv4cidrblock\",\"peeringName\":\"s-peeringname\",\"privateEndpoint\":\"s-privateendpoint\",\"privateEndpointSubnetwork\":\"s-privateendpointsubnetwork\",\"publicEndpoint\":\"s-publicendpoint\"},\"protectConfig\":{\"workloadVulnerabilityMode\":\"s-workloadvulnerabilitymode\"},\"rbacBindingConfig\":{\"enableInsecureBindingSystemAuthenticated\":true,\"enableInsecureBindingSystemUnauthenticated\":true},\"releaseChannel\":{\"channel\":\"s-channel\"},\"resourceLabels\":{\"k1\":\"s-resourcelabels\"},\"resourceUsageExportConfig\":{\"enableNetworkEgressMetering\":true},\"rollbackSafeUpgrade\":{\"controlPlaneSoakDuration\":\"s-controlplanesoakduration\"},\"satisfiesPzi\":true,\"satisfiesPzs\":true,\"scheduleUpgradeConfig\":{\"enabled\":true},\"secretManagerConfig\":{\"enabled\":true},\"secretSyncConfig\":{\"enabled\":true},\"securityPostureConfig\":{\"mode\":\"s-mode\",\"vulnerabilityMode\":\"s-vulnerabilitymode\"},\"selfLink\":\"s-selflink\",\"servicesIpv4Cidr\":\"s-servicesipv4cidr\",\"shieldedNodes\":{\"enabled\":true},\"status\":\"s-status\",\"statusMessage\":\"s-statusmessage\",\"subnetwork\":\"s-subnetwork\",\"tpuConfig\":{\"enabled\":true,\"ipv4CidrBlock\":\"s-ipv4cidrblock\",\"useServiceNetworking\":true},\"tpuIpv4CidrBlock\":\"s-tpuipv4cidrblock\",\"userManagedKeysConfig\":{\"aggregationCa\":\"s-aggregationca\",\"clusterCa\":\"s-clusterca\",\"controlPlaneDiskEncryptionKey\":\"s-controlplanediskencryptionkey\",\"controlPlaneDiskEncryptionKeyVersions\":[\"s-controlplanediskencryptionkeyversions\"],\"etcdApiCa\":\"s-etcdapica\",\"etcdPeerCa\":\"s-etcdpeerca\",\"gkeopsEtcdBackupEncryptionKey\":\"s-gkeopsetcdbackupencryptionkey\",\"serviceAccountSigningKeys\":[\"s-serviceaccountsigningkeys\"],\"serviceAccountVerificationKeys\":[\"s-serviceaccountverificationkeys\"]},\"verticalPodAutoscaling\":{\"enabled\":true},\"workloadAltsConfig\":{\"enableAlts\":true},\"workloadCertificates\":{\"enableCertificates\":true},\"workloadIdentityConfig\":{\"identityNamespace\":\"s-identitynamespace\",\"identityProvider\":\"s-identityprovider\",\"workloadPool\":\"s-workloadpool\"},\"zone\":\"s-zone\"},\"parent\":\"s-parent\",\"projectId\":\"s-projectid\",\"zone\":\"s-zone\"}",
+  "  B <7453 bytes> {\"cluster\":{\"addonsConfig\":{},\"a...:\"s-projectid\",\"zone\":\"s-zone\"}",
   "",
   "  SERVED 200 {\"clusterConditions\":[{\"canonicalCode\":\"s-canonicalcode\",\"code\":\"s-code\",\"message\":\"s-message\"}],\"detail\":\"s-detail\",\"endTime\":\"s-endtime\",\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"location\":\"s-location\",\"name\":\"s-name\",\"nodepoolConditions\":[{\"canonicalCode\":\"s-canonicalcode\",\"code\":\"s-code\",\"message\":\"s-message\"}],\"operationType\":\"s-operationtype\",\"progress\":{\"metrics\":[{\"doubleValue\":1.5,\"intValue\":\"7\",\"name\":\"s-name\",\"stringValue\":\"s-stringvalue\"}],\"name\":\"s-name\",\"stages\":[{\"name\":\"s-name\",\"status\":\"s-status\"}],\"status\":\"s-status\"},\"selfLink\":\"s-selflink\",\"startTime\":\"s-starttime\",\"status\":\"s-status\",\"statusMessage\":\"s-statusmessage\",\"targetLink\":\"s-targetlink\",\"zone\":\"s-zone\"}",
   "OUT: {\"clusterConditions\":[{\"canonicalCode\":\"s-canonicalcode\",\"code\":\"s-code\",\"message\":\"s-message\"}],\"detail\":\"s-detail\",\"endTime\":\"s-endtime\",\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"location\":\"s-location\",\"name\":\"s-name\",\"nodepoolConditions\":[{\"canonicalCode\":\"s-canonicalcode\",\"code\":\"s-code\",\"message\":\"s-message\"}],\"operationType\":\"s-operationtype\",\"progress\":{\"metrics\":[{\"doubleValue\":1.5,\"intValue\":\"7\",\"name\":\"s-name\",\"stringValue\":\"s-stringvalue\"}],\"name\":\"s-name\",\"stages\":[{\"name\":\"s-name\",\"status\":\"s-status\"}],\"status\":\"s-status\"},\"selfLink\":\"s-selflink\",\"startTime\":\"s-starttime\",\"status\":\"s-status\",\"statusMessage\":\"s-statusmessage\",\"targetLink\":\"s-targetlink\",\"zone\":\"s-zone\"}",
@@ -956,10 +994,10 @@ test "Go's container.projects.zones.clusters.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_43)
+  gv_compare(gv_log_of(f), GO_44)
 }
 
-const GO_44: List[Str] = [
+const GO_45: List[Str] = [
   "CALL container.projects.zones.clusters.delete",
   "REQ DELETE https://container.googleapis.com/v1beta1/projects/id1%2F%20x/zones/id2%2F%20x/clusters/id3%2F%20x?alt=json&fields=kind%2Cid&name=s-name&prettyPrint=false",
   "  H x-extra=v1",
@@ -977,10 +1015,10 @@ test "Go's container.projects.zones.clusters.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_44)
+  gv_compare(gv_log_of(f), GO_45)
 }
 
-const GO_45: List[Str] = [
+const GO_46: List[Str] = [
   "CALL container.projects.zones.clusters.fetchClusterUpgradeInfo",
   "REQ GET https://container.googleapis.com/v1beta1/id1/%20x:fetchClusterUpgradeInfo?alt=json&fields=kind%2Cid&prettyPrint=false&version=s-version",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -998,10 +1036,10 @@ test "Go's container.projects.zones.clusters.fetchClusterUpgradeInfo" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_45)
+  gv_compare(gv_log_of(f), GO_46)
 }
 
-const GO_46: List[Str] = [
+const GO_47: List[Str] = [
   "CALL container.projects.zones.clusters.get",
   "REQ GET https://container.googleapis.com/v1beta1/projects/id1%2F%20x/zones/id2%2F%20x/clusters/id3%2F%20x?alt=json&fields=kind%2Cid&name=s-name&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1019,10 +1057,10 @@ test "Go's container.projects.zones.clusters.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_46)
+  gv_compare(gv_log_of(f), GO_47)
 }
 
-const GO_47: List[Str] = [
+const GO_48: List[Str] = [
   "CALL container.projects.zones.clusters.legacyAbac",
   "REQ POST https://container.googleapis.com/v1beta1/projects/id1%2F%20x/zones/id2%2F%20x/clusters/id3%2F%20x/legacyAbac?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1041,10 +1079,10 @@ test "Go's container.projects.zones.clusters.legacyAbac" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_47)
+  gv_compare(gv_log_of(f), GO_48)
 }
 
-const GO_48: List[Str] = [
+const GO_49: List[Str] = [
   "CALL container.projects.zones.clusters.list",
   "REQ GET https://container.googleapis.com/v1beta1/projects/id1%2F%20x/zones/id2%2F%20x/clusters?alt=json&fields=kind%2Cid&parent=s-parent&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1062,10 +1100,10 @@ test "Go's container.projects.zones.clusters.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_48)
+  gv_compare(gv_log_of(f), GO_49)
 }
 
-const GO_49: List[Str] = [
+const GO_50: List[Str] = [
   "CALL container.projects.zones.clusters.locations",
   "REQ POST https://container.googleapis.com/v1beta1/projects/id1%2F%20x/zones/id2%2F%20x/clusters/id3%2F%20x/locations?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1084,10 +1122,10 @@ test "Go's container.projects.zones.clusters.locations" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_49)
+  gv_compare(gv_log_of(f), GO_50)
 }
 
-const GO_50: List[Str] = [
+const GO_51: List[Str] = [
   "CALL container.projects.zones.clusters.logging",
   "REQ POST https://container.googleapis.com/v1beta1/projects/id1%2F%20x/zones/id2%2F%20x/clusters/id3%2F%20x/logging?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1106,10 +1144,10 @@ test "Go's container.projects.zones.clusters.logging" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_50)
+  gv_compare(gv_log_of(f), GO_51)
 }
 
-const GO_51: List[Str] = [
+const GO_52: List[Str] = [
   "CALL container.projects.zones.clusters.master",
   "REQ POST https://container.googleapis.com/v1beta1/projects/id1%2F%20x/zones/id2%2F%20x/clusters/id3%2F%20x/master?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1128,10 +1166,10 @@ test "Go's container.projects.zones.clusters.master" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_51)
+  gv_compare(gv_log_of(f), GO_52)
 }
 
-const GO_52: List[Str] = [
+const GO_53: List[Str] = [
   "CALL container.projects.zones.clusters.monitoring",
   "REQ POST https://container.googleapis.com/v1beta1/projects/id1%2F%20x/zones/id2%2F%20x/clusters/id3%2F%20x/monitoring?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1150,10 +1188,10 @@ test "Go's container.projects.zones.clusters.monitoring" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_52)
+  gv_compare(gv_log_of(f), GO_53)
 }
 
-const GO_53: List[Str] = [
+const GO_54: List[Str] = [
   "CALL container.projects.zones.clusters.resourceLabels",
   "REQ POST https://container.googleapis.com/v1beta1/projects/id1%2F%20x/zones/id2%2F%20x/clusters/id3%2F%20x/resourceLabels?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1172,10 +1210,10 @@ test "Go's container.projects.zones.clusters.resourceLabels" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_53)
+  gv_compare(gv_log_of(f), GO_54)
 }
 
-const GO_54: List[Str] = [
+const GO_55: List[Str] = [
   "CALL container.projects.zones.clusters.setMaintenancePolicy",
   "REQ POST https://container.googleapis.com/v1beta1/projects/id1%2F%20x/zones/id2%2F%20x/clusters/id3%2F%20x:setMaintenancePolicy?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1194,10 +1232,10 @@ test "Go's container.projects.zones.clusters.setMaintenancePolicy" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_54)
+  gv_compare(gv_log_of(f), GO_55)
 }
 
-const GO_55: List[Str] = [
+const GO_56: List[Str] = [
   "CALL container.projects.zones.clusters.setMasterAuth",
   "REQ POST https://container.googleapis.com/v1beta1/projects/id1%2F%20x/zones/id2%2F%20x/clusters/id3%2F%20x:setMasterAuth?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1216,10 +1254,10 @@ test "Go's container.projects.zones.clusters.setMasterAuth" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_55)
+  gv_compare(gv_log_of(f), GO_56)
 }
 
-const GO_56: List[Str] = [
+const GO_57: List[Str] = [
   "CALL container.projects.zones.clusters.setNetworkPolicy",
   "REQ POST https://container.googleapis.com/v1beta1/projects/id1%2F%20x/zones/id2%2F%20x/clusters/id3%2F%20x:setNetworkPolicy?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1238,10 +1276,10 @@ test "Go's container.projects.zones.clusters.setNetworkPolicy" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_56)
+  gv_compare(gv_log_of(f), GO_57)
 }
 
-const GO_57: List[Str] = [
+const GO_58: List[Str] = [
   "CALL container.projects.zones.clusters.startIpRotation",
   "REQ POST https://container.googleapis.com/v1beta1/projects/id1%2F%20x/zones/id2%2F%20x/clusters/id3%2F%20x:startIpRotation?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1260,14 +1298,14 @@ test "Go's container.projects.zones.clusters.startIpRotation" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_57)
+  gv_compare(gv_log_of(f), GO_58)
 }
 
-const GO_58: List[Str] = [
+const GO_59: List[Str] = [
   "CALL container.projects.zones.clusters.update",
   "REQ PUT https://container.googleapis.com/v1beta1/projects/id1%2F%20x/zones/id2%2F%20x/clusters/id3%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"clusterId\":\"s-clusterid\",\"name\":\"s-name\",\"projectId\":\"s-projectid\",\"update\":{\"additionalPodRangesConfig\":{\"podRangeNames\":[\"s-podrangenames\"]},\"desiredAdditionalIpRangesConfig\":{},\"desiredAddonsConfig\":{},\"desiredAmbientNetworkingConfig\":{\"enabled\":true},\"desiredAnonymousAuthenticationConfig\":{\"mode\":\"s-mode\"},\"desiredAuthenticatorGroupsConfig\":{\"enabled\":true,\"securityGroup\":\"s-securitygroup\"},\"desiredAutoIpamConfig\":{\"enabled\":true},\"desiredAutopilotClusterPolicyConfig\":{\"noStandardNodePools\":true,\"noSystemImpersonation\":true,\"noSystemMutation\":true,\"noUnsafeWebhooks\":true},\"desiredAutopilotWorkloadPolicyConfig\":{\"allowNetAdmin\":true,\"autopilotCompatibilityAuditingEnabled\":true},\"desiredBinaryAuthorization\":{\"enabled\":true,\"evaluationMode\":\"s-evaluationmode\"},\"desiredClusterAutoscaling\":{\"autopilotGeneralProfile\":\"s-autopilotgeneralprofile\",\"autoprovisioningLocations\":[\"s-autoprovisioninglocations\"],\"autoscalingProfile\":\"s-autoscalingprofile\",\"enableNodeAutoprovisioning\":true},\"desiredClusterTelemetry\":{\"type\":\"s-type\"},\"desiredCompliancePostureConfig\":{\"mode\":\"s-mode\"},\"desiredContainerdConfig\":{},\"desiredControlPlaneEgress\":{\"mode\":\"s-mode\"},\"desiredControlPlaneEndpointsConfig\":{},\"desiredCostManagementConfig\":{\"enabled\":true},\"desiredDatabaseEncryption\":{\"currentState\":\"s-currentstate\",\"decryptionKeys\":[\"s-decryptionkeys\"],\"keyName\":\"s-keyname\",\"state\":\"s-state\"},\"desiredDatapathProvider\":\"s-desireddatapathprovider\",\"desiredDefaultEnablePrivateNodes\":true,\"desiredDefaultSnatStatus\":{\"disabled\":true},\"desiredDisableL4LbFirewallReconciliation\":true,\"desiredDnsConfig\":{\"additiveVpcScopeDnsDomain\":\"s-additivevpcscopednsdomain\",\"clusterDns\":\"s-clusterdns\",\"clusterDnsDomain\":\"s-clusterdnsdomain\",\"clusterDnsScope\":\"s-clusterdnsscope\"},\"desiredEmulatedVersion\":\"s-desiredemulatedversion\",\"desiredEnableCiliumClusterwideNetworkPolicy\":true,\"desiredEnableFqdnNetworkPolicy\":true,\"desiredEnableMultiNetworking\":true,\"desiredEnablePrivateEndpoint\":true,\"desiredEnterpriseConfig\":{\"desiredTier\":\"s-desiredtier\"},\"desiredFleet\":{\"membership\":\"s-membership\",\"membershipType\":\"s-membershiptype\",\"preRegistered\":true,\"project\":\"s-project\"},\"desiredGatewayApiConfig\":{\"channel\":\"s-channel\"},\"desiredGcfsConfig\":{\"enabled\":true},\"desiredHostMaintenancePolicy\":{\"maintenanceInterval\":\"s-maintenanceinterval\"},\"desiredIdentityServiceConfig\":{\"enabled\":true},\"desiredImage\":\"s-desiredimage\",\"desiredImageProject\":\"s-desiredimageproject\",\"desiredImageType\":\"s-desiredimagetype\",\"desiredInTransitEncryptionConfig\":\"s-desiredintransitencryptionconfig\",\"desiredIntraNodeVisibilityConfig\":{\"enabled\":true},\"desiredK8sBetaApis\":{\"enabledApis\":[\"s-enabledapis\"]},\"desiredL4ilbSubsettingConfig\":{\"enabled\":true},\"desiredLocations\":[\"s-desiredlocations\"],\"desiredLoggingConfig\":{},\"desiredLoggingService\":\"s-desiredloggingservice\",\"desiredManagedMachineLearningDiagnosticsConfig\":{\"enabled\":true},\"desiredManagedOpentelemetryConfig\":{\"scope\":\"s-scope\"},\"desiredMaster\":{},\"desiredMasterAuthorizedNetworksConfig\":{\"enabled\":true,\"gcpPublicCidrsAccessEnabled\":true,\"privateEndpointEnforcementEnabled\":true},\"desiredMasterVersion\":\"s-desiredmasterversion\",\"desiredMeshCertificates\":{\"enableCertificates\":true},\"desiredMonitoringConfig\":{},\"desiredMonitoringService\":\"s-desiredmonitoringservice\",\"desiredNetworkPerformanceConfig\":{\"totalEgressBandwidthTier\":\"s-totalegressbandwidthtier\"},\"desiredNetworkTierConfig\":{\"networkTier\":\"s-networktier\"},\"desiredNodeCreationConfig\":{\"nodeCreationMode\":\"s-nodecreationmode\"},\"desiredNodeKubeletConfig\":{\"allowedUnsafeSysctls\":[\"s-allowedunsafesysctls\"],\"containerLogMaxFiles\":7,\"containerLogMaxSize\":\"s-containerlogmaxsize\",\"containerLogMaxWorkers\":7,\"containerLogMonitorInterval\":\"s-containerlogmonitorinterval\",\"cpuCfsQuota\":true,\"cpuCfsQuotaPeriod\":\"s-cpucfsquotaperiod\",\"cpuManagerPolicy\":\"s-cpumanagerpolicy\",\"evictionMaxPodGracePeriodSeconds\":7,\"imageGcHighThresholdPercent\":7,\"imageGcLowThresholdPercent\":7,\"imageMaximumGcAge\":\"s-imagemaximumgcage\",\"imageMinimumGcAge\":\"s-imageminimumgcage\",\"insecureKubeletReadonlyPortEnabled\":true,\"maxParallelImagePulls\":7,\"podPidsLimit\":\"7\",\"reservedSystemCpus\":\"s-reservedsystemcpus\",\"shutdownGracePeriodCriticalPodsSeconds\":7,\"shutdownGracePeriodSeconds\":7,\"singleProcessOomKill\":true},\"desiredNodePoolAutoConfigKubeletConfig\":{\"allowedUnsafeSysctls\":[\"s-allowedunsafesysctls\"],\"containerLogMaxFiles\":7,\"containerLogMaxSize\":\"s-containerlogmaxsize\",\"containerLogMaxWorkers\":7,\"containerLogMonitorInterval\":\"s-containerlogmonitorinterval\",\"cpuCfsQuota\":true,\"cpuCfsQuotaPeriod\":\"s-cpucfsquotaperiod\",\"cpuManagerPolicy\":\"s-cpumanagerpolicy\",\"evictionMaxPodGracePeriodSeconds\":7,\"imageGcHighThresholdPercent\":7,\"imageGcLowThresholdPercent\":7,\"imageMaximumGcAge\":\"s-imagemaximumgcage\",\"imageMinimumGcAge\":\"s-imageminimumgcage\",\"insecureKubeletReadonlyPortEnabled\":true,\"maxParallelImagePulls\":7,\"podPidsLimit\":\"7\",\"reservedSystemCpus\":\"s-reservedsystemcpus\",\"shutdownGracePeriodCriticalPodsSeconds\":7,\"shutdownGracePeriodSeconds\":7,\"singleProcessOomKill\":true},\"desiredNodePoolAutoConfigLinuxNodeConfig\":{\"cgroupMode\":\"s-cgroupmode\",\"sysctls\":{\"k1\":\"s-sysctls\"},\"transparentHugepageDefrag\":\"s-transparenthugepagedefrag\",\"transparentHugepageEnabled\":\"s-transparenthugepageenabled\"},\"desiredNodePoolAutoConfigNetworkTags\":{\"tags\":[\"s-tags\"]},\"desiredNodePoolAutoConfigResourceManagerTags\":{\"tags\":{\"k1\":\"s-tags\"}},\"desiredNodePoolAutoscaling\":{\"autoprovisioned\":true,\"enabled\":true,\"locationPolicy\":\"s-locationpolicy\",\"maxNodeCount\":7,\"minNodeCount\":7,\"totalMaxNodeCount\":7,\"totalMinNodeCount\":7},\"desiredNodePoolId\":\"s-desirednodepoolid\",\"desiredNodePoolLoggingConfig\":{},\"desiredNodePoolUpgradeConcurrencyConfig\":{\"maxCount\":\"7\"},\"desiredNodeVersion\":\"s-desirednodeversion\",\"desiredNotificationConfig\":{},\"desiredParentProductConfig\":{\"labels\":{\"k1\":\"s-labels\"},\"productName\":\"s-productname\"},\"desiredPodAutoscaling\":{\"hpaProfile\":\"s-hpaprofile\"},\"desiredPodSecurityPolicyConfig\":{\"enabled\":true},\"desiredPrivateClusterConfig\":{\"enablePrivateEndpoint\":true,\"enablePrivateNodes\":true,\"masterIpv4CidrBlock\":\"s-masteripv4cidrblock\",\"peeringName\":\"s-peeringname\",\"privateEndpoint\":\"s-privateendpoint\",\"privateEndpointSubnetwork\":\"s-privateendpointsubnetwork\",\"publicEndpoint\":\"s-publicendpoint\"},\"desiredPrivateIpv6GoogleAccess\":\"s-desiredprivateipv6googleaccess\",\"desiredPrivilegedAdmissionConfig\":{\"allowlistPaths\":[\"s-allowlistpaths\"]},\"desiredProtectConfig\":{\"workloadVulnerabilityMode\":\"s-workloadvulnerabilitymode\"},\"desiredRbacBindingConfig\":{\"enableInsecureBindingSystemAuthenticated\":true,\"enableInsecureBindingSystemUnauthenticated\":true},\"desiredReleaseChannel\":{\"channel\":\"s-channel\"},\"desiredResourceUsageExportConfig\":{\"enableNetworkEgressMetering\":true},\"desiredRollbackSafeUpgrade\":{\"controlPlaneSoakDuration\":\"s-controlplanesoakduration\"},\"desiredScheduleUpgradeConfig\":{\"enabled\":true},\"desiredSecretManagerConfig\":{\"enabled\":true},\"desiredSecretSyncConfig\":{\"enabled\":true},\"desiredSecurityPostureConfig\":{\"mode\":\"s-mode\",\"vulnerabilityMode\":\"s-vulnerabilitymode\"},\"desiredServiceExternalIpsConfig\":{\"enabled\":true},\"desiredShieldedNodes\":{\"enabled\":true},\"desiredStackType\":\"s-desiredstacktype\",\"desiredTpuConfig\":{\"enabled\":true,\"ipv4CidrBlock\":\"s-ipv4cidrblock\",\"useServiceNetworking\":true},\"desiredUserManagedKeysConfig\":{\"aggregationCa\":\"s-aggregationca\",\"clusterCa\":\"s-clusterca\",\"controlPlaneDiskEncryptionKey\":\"s-controlplanediskencryptionkey\",\"controlPlaneDiskEncryptionKeyVersions\":[\"s-controlplanediskencryptionkeyversions\"],\"etcdApiCa\":\"s-etcdapica\",\"etcdPeerCa\":\"s-etcdpeerca\",\"gkeopsEtcdBackupEncryptionKey\":\"s-gkeopsetcdbackupencryptionkey\",\"serviceAccountSigningKeys\":[\"s-serviceaccountsigningkeys\"],\"serviceAccountVerificationKeys\":[\"s-serviceaccountverificationkeys\"]},\"desiredVerticalPodAutoscaling\":{\"enabled\":true},\"desiredWorkloadAltsConfig\":{\"enableAlts\":true},\"desiredWorkloadCertificates\":{\"enableCertificates\":true},\"desiredWorkloadIdentityConfig\":{\"identityNamespace\":\"s-identitynamespace\",\"identityProvider\":\"s-identityprovider\",\"workloadPool\":\"s-workloadpool\"},\"enableK8sBetaApis\":{\"enabledApis\":[\"s-enabledapis\"]},\"etag\":\"s-etag\",\"gkeAutoUpgradeConfig\":{\"patchMode\":\"s-patchmode\"},\"privateClusterConfig\":{\"enablePrivateEndpoint\":true,\"enablePrivateNodes\":true,\"masterIpv4CidrBlock\":\"s-masteripv4cidrblock\",\"peeringName\":\"s-peeringname\",\"privateEndpoint\":\"s-privateendpoint\",\"privateEndpointSubnetwork\":\"s-privateendpointsubnetwork\",\"publicEndpoint\":\"s-publicendpoint\"},\"removedAdditionalPodRangesConfig\":{\"podRangeNames\":[\"s-podrangenames\"]},\"userManagedKeysConfig\":{\"aggregationCa\":\"s-aggregationca\",\"clusterCa\":\"s-clusterca\",\"controlPlaneDiskEncryptionKey\":\"s-controlplanediskencryptionkey\",\"controlPlaneDiskEncryptionKeyVersions\":[\"s-controlplanediskencryptionkeyversions\"],\"etcdApiCa\":\"s-etcdapica\",\"etcdPeerCa\":\"s-etcdpeerca\",\"gkeopsEtcdBackupEncryptionKey\":\"s-gkeopsetcdbackupencryptionkey\",\"serviceAccountSigningKeys\":[\"s-serviceaccountsigningkeys\"],\"serviceAccountVerificationKeys\":[\"s-serviceaccountverificationkeys\"]}},\"zone\":\"s-zone\"}",
+  "  B <9077 bytes> {\"clusterId\":\"s-clusterid\",\"name...cationkeys\"]}},\"zone\":\"s-zone\"}",
   "",
   "  SERVED 200 {\"clusterConditions\":[{\"canonicalCode\":\"s-canonicalcode\",\"code\":\"s-code\",\"message\":\"s-message\"}],\"detail\":\"s-detail\",\"endTime\":\"s-endtime\",\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"location\":\"s-location\",\"name\":\"s-name\",\"nodepoolConditions\":[{\"canonicalCode\":\"s-canonicalcode\",\"code\":\"s-code\",\"message\":\"s-message\"}],\"operationType\":\"s-operationtype\",\"progress\":{\"metrics\":[{\"doubleValue\":1.5,\"intValue\":\"7\",\"name\":\"s-name\",\"stringValue\":\"s-stringvalue\"}],\"name\":\"s-name\",\"stages\":[{\"name\":\"s-name\",\"status\":\"s-status\"}],\"status\":\"s-status\"},\"selfLink\":\"s-selflink\",\"startTime\":\"s-starttime\",\"status\":\"s-status\",\"statusMessage\":\"s-statusmessage\",\"targetLink\":\"s-targetlink\",\"zone\":\"s-zone\"}",
   "OUT: {\"clusterConditions\":[{\"canonicalCode\":\"s-canonicalcode\",\"code\":\"s-code\",\"message\":\"s-message\"}],\"detail\":\"s-detail\",\"endTime\":\"s-endtime\",\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"location\":\"s-location\",\"name\":\"s-name\",\"nodepoolConditions\":[{\"canonicalCode\":\"s-canonicalcode\",\"code\":\"s-code\",\"message\":\"s-message\"}],\"operationType\":\"s-operationtype\",\"progress\":{\"metrics\":[{\"doubleValue\":1.5,\"intValue\":\"7\",\"name\":\"s-name\",\"stringValue\":\"s-stringvalue\"}],\"name\":\"s-name\",\"stages\":[{\"name\":\"s-name\",\"status\":\"s-status\"}],\"status\":\"s-status\"},\"selfLink\":\"s-selflink\",\"startTime\":\"s-starttime\",\"status\":\"s-status\",\"statusMessage\":\"s-statusmessage\",\"targetLink\":\"s-targetlink\",\"zone\":\"s-zone\"}",
@@ -1282,10 +1320,10 @@ test "Go's container.projects.zones.clusters.update" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_58)
+  gv_compare(gv_log_of(f), GO_59)
 }
 
-const GO_59: List[Str] = [
+const GO_60: List[Str] = [
   "CALL container.projects.zones.clusters.nodePools.autoscaling",
   "REQ POST https://container.googleapis.com/v1beta1/projects/id1%2F%20x/zones/id2%2F%20x/clusters/id3%2F%20x/nodePools/id4%2F%20x/autoscaling?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1304,14 +1342,14 @@ test "Go's container.projects.zones.clusters.nodePools.autoscaling" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_59)
+  gv_compare(gv_log_of(f), GO_60)
 }
 
-const GO_60: List[Str] = [
+const GO_61: List[Str] = [
   "CALL container.projects.zones.clusters.nodePools.create",
   "REQ POST https://container.googleapis.com/v1beta1/projects/id1%2F%20x/zones/id2%2F%20x/clusters/id3%2F%20x/nodePools?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"clusterId\":\"s-clusterid\",\"nodePool\":{\"autopilotConfig\":{\"enabled\":true},\"autoscaling\":{\"autoprovisioned\":true,\"enabled\":true,\"locationPolicy\":\"s-locationpolicy\",\"maxNodeCount\":7,\"minNodeCount\":7,\"totalMaxNodeCount\":7,\"totalMinNodeCount\":7},\"bestEffortProvisioning\":{\"enabled\":true,\"minProvisionNodes\":7},\"conditions\":[{\"canonicalCode\":\"s-canonicalcode\",\"code\":\"s-code\",\"message\":\"s-message\"}],\"config\":{\"bootDiskKmsKey\":\"s-bootdiskkmskey\",\"consolidationDelay\":\"s-consolidationdelay\",\"diskSizeGb\":7,\"diskType\":\"s-disktype\",\"effectiveCgroupMode\":\"s-effectivecgroupmode\",\"enableConfidentialStorage\":true,\"flexStart\":true,\"imageType\":\"s-imagetype\",\"labels\":{\"k1\":\"s-labels\"},\"localSsdCount\":7,\"localSsdEncryptionMode\":\"s-localssdencryptionmode\",\"machineType\":\"s-machinetype\",\"maxRunDuration\":\"s-maxrunduration\",\"metadata\":{\"k1\":\"s-metadata\"},\"minCpuPlatform\":\"s-mincpuplatform\",\"nodeGroup\":\"s-nodegroup\",\"oauthScopes\":[\"s-oauthscopes\"],\"preemptible\":true,\"resourceLabels\":{\"k1\":\"s-resourcelabels\"},\"serviceAccount\":\"s-serviceaccount\",\"spot\":true,\"storagePools\":[\"s-storagepools\"],\"tags\":[\"s-tags\"]},\"etag\":\"s-etag\",\"initialNodeCount\":7,\"instanceGroupUrls\":[\"s-instancegroupurls\"],\"kubeletCertInfo\":{\"nonTpmBootstrapCertExpireTime\":\"s-nontpmbootstrapcertexpiretime\",\"tpmBootstrapCertExpireTime\":\"s-tpmbootstrapcertexpiretime\"},\"locations\":[\"s-locations\"],\"maintenancePolicy\":{},\"management\":{\"autoRepair\":true,\"autoUpgrade\":true},\"maxPodsConstraint\":{\"maxPodsPerNode\":\"7\"},\"name\":\"s-name\",\"networkConfig\":{\"acceleratorNetworkProfile\":\"s-acceleratornetworkprofile\",\"createPodRange\":true,\"datapathProvider\":\"s-datapathprovider\",\"enablePrivateNodes\":true,\"network\":\"s-network\",\"podIpv4CidrBlock\":\"s-podipv4cidrblock\",\"podIpv4RangeUtilization\":1.5,\"podRange\":\"s-podrange\",\"subnetwork\":\"s-subnetwork\"},\"nodeDrainConfig\":{\"graceTerminationDuration\":\"s-graceterminationduration\",\"pdbTimeoutDuration\":\"s-pdbtimeoutduration\",\"respectPdbDuringNodePoolDeletion\":true},\"placementPolicy\":{\"policyName\":\"s-policyname\",\"tpuTopology\":\"s-tputopology\",\"type\":\"s-type\"},\"podIpv4CidrSize\":7,\"queuedProvisioning\":{\"enabled\":true},\"selfLink\":\"s-selflink\",\"status\":\"s-status\",\"statusMessage\":\"s-statusmessage\",\"updateInfo\":{},\"upgradeSettings\":{\"maxSurge\":7,\"maxUnavailable\":7,\"strategy\":\"s-strategy\"},\"version\":\"s-version\"},\"parent\":\"s-parent\",\"projectId\":\"s-projectid\",\"zone\":\"s-zone\"}",
+  "  B <2362 bytes> {\"clusterId\":\"s-clusterid\",\"node...:\"s-projectid\",\"zone\":\"s-zone\"}",
   "",
   "  SERVED 200 {\"clusterConditions\":[{\"canonicalCode\":\"s-canonicalcode\",\"code\":\"s-code\",\"message\":\"s-message\"}],\"detail\":\"s-detail\",\"endTime\":\"s-endtime\",\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"location\":\"s-location\",\"name\":\"s-name\",\"nodepoolConditions\":[{\"canonicalCode\":\"s-canonicalcode\",\"code\":\"s-code\",\"message\":\"s-message\"}],\"operationType\":\"s-operationtype\",\"progress\":{\"metrics\":[{\"doubleValue\":1.5,\"intValue\":\"7\",\"name\":\"s-name\",\"stringValue\":\"s-stringvalue\"}],\"name\":\"s-name\",\"stages\":[{\"name\":\"s-name\",\"status\":\"s-status\"}],\"status\":\"s-status\"},\"selfLink\":\"s-selflink\",\"startTime\":\"s-starttime\",\"status\":\"s-status\",\"statusMessage\":\"s-statusmessage\",\"targetLink\":\"s-targetlink\",\"zone\":\"s-zone\"}",
   "OUT: {\"clusterConditions\":[{\"canonicalCode\":\"s-canonicalcode\",\"code\":\"s-code\",\"message\":\"s-message\"}],\"detail\":\"s-detail\",\"endTime\":\"s-endtime\",\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"location\":\"s-location\",\"name\":\"s-name\",\"nodepoolConditions\":[{\"canonicalCode\":\"s-canonicalcode\",\"code\":\"s-code\",\"message\":\"s-message\"}],\"operationType\":\"s-operationtype\",\"progress\":{\"metrics\":[{\"doubleValue\":1.5,\"intValue\":\"7\",\"name\":\"s-name\",\"stringValue\":\"s-stringvalue\"}],\"name\":\"s-name\",\"stages\":[{\"name\":\"s-name\",\"status\":\"s-status\"}],\"status\":\"s-status\"},\"selfLink\":\"s-selflink\",\"startTime\":\"s-starttime\",\"status\":\"s-status\",\"statusMessage\":\"s-statusmessage\",\"targetLink\":\"s-targetlink\",\"zone\":\"s-zone\"}",
@@ -1326,10 +1364,10 @@ test "Go's container.projects.zones.clusters.nodePools.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_60)
+  gv_compare(gv_log_of(f), GO_61)
 }
 
-const GO_61: List[Str] = [
+const GO_62: List[Str] = [
   "CALL container.projects.zones.clusters.nodePools.delete",
   "REQ DELETE https://container.googleapis.com/v1beta1/projects/id1%2F%20x/zones/id2%2F%20x/clusters/id3%2F%20x/nodePools/id4%2F%20x?alt=json&fields=kind%2Cid&name=s-name&prettyPrint=false",
   "  H x-extra=v1",
@@ -1347,10 +1385,10 @@ test "Go's container.projects.zones.clusters.nodePools.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_61)
+  gv_compare(gv_log_of(f), GO_62)
 }
 
-const GO_62: List[Str] = [
+const GO_63: List[Str] = [
   "CALL container.projects.zones.clusters.nodePools.fetchNodePoolUpgradeInfo",
   "REQ GET https://container.googleapis.com/v1beta1/id1/%20x:fetchNodePoolUpgradeInfo?alt=json&fields=kind%2Cid&prettyPrint=false&version=s-version",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1368,10 +1406,10 @@ test "Go's container.projects.zones.clusters.nodePools.fetchNodePoolUpgradeInfo"
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_62)
+  gv_compare(gv_log_of(f), GO_63)
 }
 
-const GO_63: List[Str] = [
+const GO_64: List[Str] = [
   "CALL container.projects.zones.clusters.nodePools.get",
   "REQ GET https://container.googleapis.com/v1beta1/projects/id1%2F%20x/zones/id2%2F%20x/clusters/id3%2F%20x/nodePools/id4%2F%20x?alt=json&fields=kind%2Cid&name=s-name&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1389,10 +1427,10 @@ test "Go's container.projects.zones.clusters.nodePools.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_63)
+  gv_compare(gv_log_of(f), GO_64)
 }
 
-const GO_64: List[Str] = [
+const GO_65: List[Str] = [
   "CALL container.projects.zones.clusters.nodePools.list",
   "REQ GET https://container.googleapis.com/v1beta1/projects/id1%2F%20x/zones/id2%2F%20x/clusters/id3%2F%20x/nodePools?alt=json&fields=kind%2Cid&parent=s-parent&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1410,10 +1448,10 @@ test "Go's container.projects.zones.clusters.nodePools.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_64)
+  gv_compare(gv_log_of(f), GO_65)
 }
 
-const GO_65: List[Str] = [
+const GO_66: List[Str] = [
   "CALL container.projects.zones.clusters.nodePools.rollback",
   "REQ POST https://container.googleapis.com/v1beta1/projects/id1%2F%20x/zones/id2%2F%20x/clusters/id3%2F%20x/nodePools/id4%2F%20x:rollback?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1432,10 +1470,10 @@ test "Go's container.projects.zones.clusters.nodePools.rollback" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_65)
+  gv_compare(gv_log_of(f), GO_66)
 }
 
-const GO_66: List[Str] = [
+const GO_67: List[Str] = [
   "CALL container.projects.zones.clusters.nodePools.setManagement",
   "REQ POST https://container.googleapis.com/v1beta1/projects/id1%2F%20x/zones/id2%2F%20x/clusters/id3%2F%20x/nodePools/id4%2F%20x/setManagement?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1454,10 +1492,10 @@ test "Go's container.projects.zones.clusters.nodePools.setManagement" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_66)
+  gv_compare(gv_log_of(f), GO_67)
 }
 
-const GO_67: List[Str] = [
+const GO_68: List[Str] = [
   "CALL container.projects.zones.clusters.nodePools.setSize",
   "REQ POST https://container.googleapis.com/v1beta1/projects/id1%2F%20x/zones/id2%2F%20x/clusters/id3%2F%20x/nodePools/id4%2F%20x/setSize?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1476,14 +1514,14 @@ test "Go's container.projects.zones.clusters.nodePools.setSize" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_67)
+  gv_compare(gv_log_of(f), GO_68)
 }
 
-const GO_68: List[Str] = [
+const GO_69: List[Str] = [
   "CALL container.projects.zones.clusters.nodePools.update",
   "REQ POST https://container.googleapis.com/v1beta1/projects/id1%2F%20x/zones/id2%2F%20x/clusters/id3%2F%20x/nodePools/id4%2F%20x/update?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"accelerators\":[{\"acceleratorCount\":\"7\",\"acceleratorType\":\"s-acceleratortype\",\"gpuDriverInstallationConfig\":{\"gpuDriverVersion\":\"s-gpudriverversion\",\"specificVersion\":\"s-specificversion\"},\"gpuPartitionSize\":\"s-gpupartitionsize\",\"gpuSharingConfig\":{\"gpuSharingStrategy\":\"s-gpusharingstrategy\",\"maxSharedClientsPerGpu\":\"7\"},\"maxTimeSharedClientsPerGpu\":\"7\"}],\"bootDisk\":{\"diskType\":\"s-disktype\",\"provisionedIops\":\"7\",\"provisionedThroughput\":\"7\",\"sizeGb\":\"7\"},\"clusterId\":\"s-clusterid\",\"confidentialNodes\":{\"confidentialInstanceType\":\"s-confidentialinstancetype\",\"enabled\":true},\"consolidationDelay\":\"s-consolidationdelay\",\"containerdConfig\":{\"privateRegistryAccessConfig\":{\"enabled\":true},\"registryHosts\":[{\"server\":\"s-server\"}],\"writableCgroups\":{\"enabled\":true}},\"diskSizeGb\":\"7\",\"diskType\":\"s-disktype\",\"etag\":\"s-etag\",\"fastSocket\":{\"enabled\":true},\"flexStart\":true,\"gcfsConfig\":{\"enabled\":true},\"gvnic\":{\"enabled\":true},\"image\":\"s-image\",\"imageProject\":\"s-imageproject\",\"imageType\":\"s-imagetype\",\"kubeletConfig\":{\"allowedUnsafeSysctls\":[\"s-allowedunsafesysctls\"],\"containerLogMaxFiles\":7,\"containerLogMaxSize\":\"s-containerlogmaxsize\",\"containerLogMaxWorkers\":7,\"containerLogMonitorInterval\":\"s-containerlogmonitorinterval\",\"cpuCfsQuota\":true,\"cpuCfsQuotaPeriod\":\"s-cpucfsquotaperiod\",\"cpuManagerPolicy\":\"s-cpumanagerpolicy\",\"crashLoopBackOff\":{\"maxContainerRestartPeriod\":\"s-maxcontainerrestartperiod\"},\"evictionMaxPodGracePeriodSeconds\":7,\"evictionMinimumReclaim\":{\"imagefsAvailable\":\"s-imagefsavailable\",\"imagefsInodesFree\":\"s-imagefsinodesfree\",\"memoryAvailable\":\"s-memoryavailable\",\"nodefsAvailable\":\"s-nodefsavailable\",\"nodefsInodesFree\":\"s-nodefsinodesfree\",\"pidAvailable\":\"s-pidavailable\"},\"evictionSoft\":{\"imagefsAvailable\":\"s-imagefsavailable\",\"imagefsInodesFree\":\"s-imagefsinodesfree\",\"memoryAvailable\":\"s-memoryavailable\",\"nodefsAvailable\":\"s-nodefsavailable\",\"nodefsInodesFree\":\"s-nodefsinodesfree\",\"pidAvailable\":\"s-pidavailable\"},\"evictionSoftGracePeriod\":{\"imagefsAvailable\":\"s-imagefsavailable\",\"imagefsInodesFree\":\"s-imagefsinodesfree\",\"memoryAvailable\":\"s-memoryavailable\",\"nodefsAvailable\":\"s-nodefsavailable\",\"nodefsInodesFree\":\"s-nodefsinodesfree\",\"pidAvailable\":\"s-pidavailable\"},\"imageGcHighThresholdPercent\":7,\"imageGcLowThresholdPercent\":7,\"imageMaximumGcAge\":\"s-imagemaximumgcage\",\"imageMinimumGcAge\":\"s-imageminimumgcage\",\"insecureKubeletReadonlyPortEnabled\":true,\"maxParallelImagePulls\":7,\"memoryManager\":{\"policy\":\"s-policy\"},\"podPidsLimit\":\"7\",\"reservedResourcesConfig\":{\"cpuReservedMillicore\":\"7\",\"effectiveCpuReservedMillicore\":\"7\",\"effectiveMemoryReservedMib\":\"7\",\"memoryReservedMib\":\"7\"},\"reservedSystemCpus\":\"s-reservedsystemcpus\",\"shutdownGracePeriodCriticalPodsSeconds\":7,\"shutdownGracePeriodSeconds\":7,\"singleProcessOomKill\":true,\"topologyManager\":{\"policy\":\"s-policy\",\"scope\":\"s-scope\"}},\"labels\":{\"labels\":{\"k1\":\"s-labels\"}},\"linuxNodeConfig\":{\"accurateTimeConfig\":{\"enablePtpKvmTimeSync\":true},\"cgroupMode\":\"s-cgroupmode\",\"customNodeInit\":{},\"diskIoScheduler\":{\"nodeAttachedDiskIoScheduler\":\"s-nodeattacheddiskioscheduler\",\"nodeSystemIoScheduler\":\"s-nodesystemioscheduler\"},\"hugepages\":{\"hugepageSize1g\":7,\"hugepageSize2m\":7},\"nodeKernelModuleLoading\":{\"policy\":\"s-policy\"},\"nodeVfioConfig\":{\"dmaEntryLimit\":7},\"swapConfig\":{\"enabled\":true},\"sysctls\":{\"k1\":\"s-sysctls\"},\"transparentHugepageDefrag\":\"s-transparenthugepagedefrag\",\"transparentHugepageEnabled\":\"s-transparenthugepageenabled\"},\"locations\":[\"s-locations\"],\"loggingConfig\":{\"variantConfig\":{\"variant\":\"s-variant\"}},\"machineType\":\"s-machinetype\",\"maintenancePolicy\":{\"exclusionUntilEndOfSupport\":{\"enabled\":true,\"endTime\":\"s-endtime\",\"startTime\":\"s-starttime\"}},\"maxRunDuration\":\"s-maxrunduration\",\"name\":\"s-name\",\"nodeConfigUpdateMode\":\"s-nodeconfigupdatemode\",\"nodeDrainConfig\":{\"graceTerminationDuration\":\"s-graceterminationduration\",\"pdbTimeoutDuration\":\"s-pdbtimeoutduration\",\"respectPdbDuringNodePoolDeletion\":true},\"nodeNetworkConfig\":{\"acceleratorNetworkProfile\":\"s-acceleratornetworkprofile\",\"additionalNodeNetworkConfigs\":[{\"network\":\"s-network\",\"stackType\":\"s-stacktype\",\"subnetwork\":\"s-subnetwork\"}],\"additionalPodNetworkConfigs\":[{\"networkAttachment\":\"s-networkattachment\",\"secondaryPodRange\":\"s-secondarypodrange\",\"subnetwork\":\"s-subnetwork\"}],\"createPodRange\":true,\"datapathProvider\":\"s-datapathprovider\",\"enablePrivateNodes\":true,\"network\":\"s-network\",\"networkPerformanceConfig\":{\"externalIpEgressBandwidthTier\":\"s-externalipegressbandwidthtier\",\"totalEgressBandwidthTier\":\"s-totalegressbandwidthtier\"},\"networkTierConfig\":{\"networkTier\":\"s-networktier\"},\"podCidrOverprovisionConfig\":{\"disable\":true},\"podIpv4CidrBlock\":\"s-podipv4cidrblock\",\"podIpv4RangeUtilization\":1.5,\"podRange\":\"s-podrange\",\"subnetwork\":\"s-subnetwork\"},\"nodePoolId\":\"s-nodepoolid\",\"nodeVersion\":\"s-nodeversion\",\"nodes\":[\"s-nodes\"],\"projectId\":\"s-projectid\",\"queuedProvisioning\":{\"enabled\":true},\"resourceLabels\":{\"labels\":{\"k1\":\"s-labels\"}},\"resourceManagerTags\":{\"tags\":{\"k1\":\"s-tags\"}},\"storagePools\":[\"s-storagepools\"],\"tags\":{\"tags\":[\"s-tags\"]},\"taintConfig\":{\"architectureTaintBehavior\":\"s-architecturetaintbehavior\"},\"taints\":{\"taints\":[{\"effect\":\"s-effect\",\"key\":\"s-key\",\"value\":\"s-value\"}]},\"upgradeSettings\":{\"blueGreenSettings\":{\"nodePoolSoakDuration\":\"s-nodepoolsoakduration\"},\"maxSurge\":7,\"maxUnavailable\":7,\"strategy\":\"s-strategy\"},\"windowsNodeConfig\":{\"osVersion\":\"s-osversion\"},\"workloadMetadataConfig\":{\"mode\":\"s-mode\",\"nodeMetadata\":\"s-nodemetadata\"},\"zone\":\"s-zone\"}",
+  "  B <5475 bytes> {\"accelerators\":[{\"acceleratorCo...nodemetadata\"},\"zone\":\"s-zone\"}",
   "",
   "  SERVED 200 {\"clusterConditions\":[{\"canonicalCode\":\"s-canonicalcode\",\"code\":\"s-code\",\"message\":\"s-message\"}],\"detail\":\"s-detail\",\"endTime\":\"s-endtime\",\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"location\":\"s-location\",\"name\":\"s-name\",\"nodepoolConditions\":[{\"canonicalCode\":\"s-canonicalcode\",\"code\":\"s-code\",\"message\":\"s-message\"}],\"operationType\":\"s-operationtype\",\"progress\":{\"metrics\":[{\"doubleValue\":1.5,\"intValue\":\"7\",\"name\":\"s-name\",\"stringValue\":\"s-stringvalue\"}],\"name\":\"s-name\",\"stages\":[{\"name\":\"s-name\",\"status\":\"s-status\"}],\"status\":\"s-status\"},\"selfLink\":\"s-selflink\",\"startTime\":\"s-starttime\",\"status\":\"s-status\",\"statusMessage\":\"s-statusmessage\",\"targetLink\":\"s-targetlink\",\"zone\":\"s-zone\"}",
   "OUT: {\"clusterConditions\":[{\"canonicalCode\":\"s-canonicalcode\",\"code\":\"s-code\",\"message\":\"s-message\"}],\"detail\":\"s-detail\",\"endTime\":\"s-endtime\",\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"location\":\"s-location\",\"name\":\"s-name\",\"nodepoolConditions\":[{\"canonicalCode\":\"s-canonicalcode\",\"code\":\"s-code\",\"message\":\"s-message\"}],\"operationType\":\"s-operationtype\",\"progress\":{\"metrics\":[{\"doubleValue\":1.5,\"intValue\":\"7\",\"name\":\"s-name\",\"stringValue\":\"s-stringvalue\"}],\"name\":\"s-name\",\"stages\":[{\"name\":\"s-name\",\"status\":\"s-status\"}],\"status\":\"s-status\"},\"selfLink\":\"s-selflink\",\"startTime\":\"s-starttime\",\"status\":\"s-status\",\"statusMessage\":\"s-statusmessage\",\"targetLink\":\"s-targetlink\",\"zone\":\"s-zone\"}",
@@ -1498,10 +1536,10 @@ test "Go's container.projects.zones.clusters.nodePools.update" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_68)
+  gv_compare(gv_log_of(f), GO_69)
 }
 
-const GO_69: List[Str] = [
+const GO_70: List[Str] = [
   "CALL container.projects.zones.operations.cancel",
   "REQ POST https://container.googleapis.com/v1beta1/projects/id1%2F%20x/zones/id2%2F%20x/operations/id3%2F%20x:cancel?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1520,10 +1558,10 @@ test "Go's container.projects.zones.operations.cancel" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_69)
+  gv_compare(gv_log_of(f), GO_70)
 }
 
-const GO_70: List[Str] = [
+const GO_71: List[Str] = [
   "CALL container.projects.zones.operations.get",
   "REQ GET https://container.googleapis.com/v1beta1/projects/id1%2F%20x/zones/id2%2F%20x/operations/id3%2F%20x?alt=json&fields=kind%2Cid&name=s-name&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1541,10 +1579,10 @@ test "Go's container.projects.zones.operations.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_70)
+  gv_compare(gv_log_of(f), GO_71)
 }
 
-const GO_71: List[Str] = [
+const GO_72: List[Str] = [
   "CALL container.projects.zones.operations.list",
   "REQ GET https://container.googleapis.com/v1beta1/projects/id1%2F%20x/zones/id2%2F%20x/operations?alt=json&fields=kind%2Cid&parent=s-parent&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1562,5 +1600,5 @@ test "Go's container.projects.zones.operations.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_71)
+  gv_compare(gv_log_of(f), GO_72)
 }

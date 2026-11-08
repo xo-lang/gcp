@@ -74,6 +74,44 @@ test "Go's cloudprofiler.projects.profiles.list" {
 }
 
 const GO_3: List[Str] = [
+  "CALL cloudprofiler.projects.profiles.list pages",
+  "REQ GET https://cloudprofiler.googleapis.com/v2/id1/%20x/profiles?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"profiles\":[{\"deployment\":{\"projectId\":\"s-projectid\",\"target\":\"s-target\"},\"duration\":\"s-duration\",\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"profileBytes\":\"YWI=\",\"profileType\":\"s-profiletype\",\"startTime\":\"s-starttime\"}],\"skippedProfiles\":7}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"profiles\":[{\"deployment\":{\"projectId\":\"s-projectid\",\"target\":\"s-target\"},\"duration\":\"s-duration\",\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"profileBytes\":\"YWI=\",\"profileType\":\"s-profiletype\",\"startTime\":\"s-starttime\"}],\"skippedProfiles\":7}",
+  "REQ GET https://cloudprofiler.googleapis.com/v2/id1/%20x/profiles?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"profiles\":[{\"deployment\":{\"projectId\":\"s-projectid\",\"target\":\"s-target\"},\"duration\":\"s-duration\",\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"profileBytes\":\"YWI=\",\"profileType\":\"s-profiletype\",\"startTime\":\"s-starttime\"}],\"skippedProfiles\":7}",
+  "OUT: {\"profiles\":[{\"deployment\":{\"projectId\":\"s-projectid\",\"target\":\"s-target\"},\"duration\":\"s-duration\",\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"profileBytes\":\"YWI=\",\"profileType\":\"s-profiletype\",\"startTime\":\"s-starttime\"}],\"skippedProfiles\":7}",
+  "OUT: ok",
+]
+
+test "Go's cloudprofiler.projects.profiles.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"profiles\":[{\"deployment\":{\"projectId\":\"s-projectid\",\"target\":\"s-target\"},\"duration\":\"s-duration\",\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"profileBytes\":\"YWI=\",\"profileType\":\"s-profiletype\",\"startTime\":\"s-starttime\"}],\"skippedProfiles\":7}")
+  gv_queue(f, "{\"profiles\":[{\"deployment\":{\"projectId\":\"s-projectid\",\"target\":\"s-target\"},\"duration\":\"s-duration\",\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"profileBytes\":\"YWI=\",\"profileType\":\"s-profiletype\",\"startTime\":\"s-starttime\"}],\"skippedProfiles\":7}")
+  gv_note(f, "CALL cloudprofiler.projects.profiles.list pages")
+  var p = svc.projects.profiles.list_pages("id1/ x", options: ProjectsProfilesListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_3)
+}
+
+const GO_4: List[Str] = [
   "CALL cloudprofiler.projects.profiles.patch",
   "REQ PATCH https://cloudprofiler.googleapis.com/v2/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
@@ -92,5 +130,5 @@ test "Go's cloudprofiler.projects.profiles.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_3)
+  gv_compare(gv_log_of(f), GO_4)
 }

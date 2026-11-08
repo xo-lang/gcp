@@ -52,6 +52,44 @@ test "Go's tracing.projects.traces.list" {
 }
 
 const GO_2: List[Str] = [
+  "CALL tracing.projects.traces.list pages",
+  "REQ GET https://tracing.googleapis.com/v2/id1/%20x/traces?alt=json&endTime=s-endtime&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&startTime=s-starttime",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"traces\":[{\"name\":\"s-name\"}]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"traces\":[{\"name\":\"s-name\"}]}",
+  "REQ GET https://tracing.googleapis.com/v2/id1/%20x/traces?alt=json&endTime=s-endtime&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false&startTime=s-starttime",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"traces\":[{\"name\":\"s-name\"}]}",
+  "OUT: {\"traces\":[{\"name\":\"s-name\"}]}",
+  "OUT: ok",
+]
+
+test "Go's tracing.projects.traces.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"traces\":[{\"name\":\"s-name\"}]}")
+  gv_queue(f, "{\"traces\":[{\"name\":\"s-name\"}]}")
+  gv_note(f, "CALL tracing.projects.traces.list pages")
+  var p = svc.projects.traces.list_pages("id1/ x", options: ProjectsTracesListOptions{end_time: Some("s-endtime"), filter: Some("s-filter"), order_by: Some("s-orderby"), page_size: Some(7), page_token: Some("s-pagetoken"), start_time: Some("s-starttime"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_2)
+}
+
+const GO_3: List[Str] = [
   "CALL tracing.projects.traces.listSpans",
   "REQ GET https://tracing.googleapis.com/v2/id1/%20x:listSpans?alt=json&fields=kind%2Cid&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -69,10 +107,48 @@ test "Go's tracing.projects.traces.listSpans" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_2)
+  gv_compare(gv_log_of(f), GO_3)
 }
 
-const GO_3: List[Str] = [
+const GO_4: List[Str] = [
+  "CALL tracing.projects.traces.listSpans pages",
+  "REQ GET https://tracing.googleapis.com/v2/id1/%20x:listSpans?alt=json&fields=kind%2Cid&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"spans\":[{\"attributes\":{\"droppedAttributesCount\":7},\"displayName\":{\"truncatedCharacterCount\":7,\"value\":\"s-value\"},\"endTime\":\"s-endtime\",\"links\":{\"droppedLinksCount\":7},\"name\":\"s-name\",\"parentSpanId\":\"s-parentspanid\",\"spanId\":\"s-spanid\",\"stackTrace\":{\"stackTraceHashId\":\"7\"},\"startTime\":\"s-starttime\",\"status\":{\"code\":7,\"message\":\"s-message\"},\"timeEvents\":{\"droppedAnnotationsCount\":7,\"droppedNetworkEventsCount\":7}}]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"spans\":[{\"attributes\":{\"droppedAttributesCount\":7},\"displayName\":{\"truncatedCharacterCount\":7,\"value\":\"s-value\"},\"endTime\":\"s-endtime\",\"links\":{\"droppedLinksCount\":7},\"name\":\"s-name\",\"parentSpanId\":\"s-parentspanid\",\"spanId\":\"s-spanid\",\"stackTrace\":{\"stackTraceHashId\":\"7\"},\"startTime\":\"s-starttime\",\"status\":{\"code\":7,\"message\":\"s-message\"},\"timeEvents\":{\"droppedAnnotationsCount\":7,\"droppedNetworkEventsCount\":7}}]}",
+  "REQ GET https://tracing.googleapis.com/v2/id1/%20x:listSpans?alt=json&fields=kind%2Cid&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"spans\":[{\"attributes\":{\"droppedAttributesCount\":7},\"displayName\":{\"truncatedCharacterCount\":7,\"value\":\"s-value\"},\"endTime\":\"s-endtime\",\"links\":{\"droppedLinksCount\":7},\"name\":\"s-name\",\"parentSpanId\":\"s-parentspanid\",\"spanId\":\"s-spanid\",\"stackTrace\":{\"stackTraceHashId\":\"7\"},\"startTime\":\"s-starttime\",\"status\":{\"code\":7,\"message\":\"s-message\"},\"timeEvents\":{\"droppedAnnotationsCount\":7,\"droppedNetworkEventsCount\":7}}]}",
+  "OUT: {\"spans\":[{\"attributes\":{\"droppedAttributesCount\":7},\"displayName\":{\"truncatedCharacterCount\":7,\"value\":\"s-value\"},\"endTime\":\"s-endtime\",\"links\":{\"droppedLinksCount\":7},\"name\":\"s-name\",\"parentSpanId\":\"s-parentspanid\",\"spanId\":\"s-spanid\",\"stackTrace\":{\"stackTraceHashId\":\"7\"},\"startTime\":\"s-starttime\",\"status\":{\"code\":7,\"message\":\"s-message\"},\"timeEvents\":{\"droppedAnnotationsCount\":7,\"droppedNetworkEventsCount\":7}}]}",
+  "OUT: ok",
+]
+
+test "Go's tracing.projects.traces.listSpans pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"spans\":[{\"attributes\":{\"droppedAttributesCount\":7},\"displayName\":{\"truncatedCharacterCount\":7,\"value\":\"s-value\"},\"endTime\":\"s-endtime\",\"links\":{\"droppedLinksCount\":7},\"name\":\"s-name\",\"parentSpanId\":\"s-parentspanid\",\"spanId\":\"s-spanid\",\"stackTrace\":{\"stackTraceHashId\":\"7\"},\"startTime\":\"s-starttime\",\"status\":{\"code\":7,\"message\":\"s-message\"},\"timeEvents\":{\"droppedAnnotationsCount\":7,\"droppedNetworkEventsCount\":7}}]}")
+  gv_queue(f, "{\"spans\":[{\"attributes\":{\"droppedAttributesCount\":7},\"displayName\":{\"truncatedCharacterCount\":7,\"value\":\"s-value\"},\"endTime\":\"s-endtime\",\"links\":{\"droppedLinksCount\":7},\"name\":\"s-name\",\"parentSpanId\":\"s-parentspanid\",\"spanId\":\"s-spanid\",\"stackTrace\":{\"stackTraceHashId\":\"7\"},\"startTime\":\"s-starttime\",\"status\":{\"code\":7,\"message\":\"s-message\"},\"timeEvents\":{\"droppedAnnotationsCount\":7,\"droppedNetworkEventsCount\":7}}]}")
+  gv_note(f, "CALL tracing.projects.traces.listSpans pages")
+  var p = svc.projects.traces.list_spans_pages("id1/ x", options: ProjectsTracesListSpansOptions{page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_4)
+}
+
+const GO_5: List[Str] = [
   "CALL tracing.projects.traces.spans.create",
   "REQ PUT https://tracing.googleapis.com/v2/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -91,5 +167,5 @@ test "Go's tracing.projects.traces.spans.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_3)
+  gv_compare(gv_log_of(f), GO_5)
 }

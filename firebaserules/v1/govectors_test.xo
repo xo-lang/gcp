@@ -137,6 +137,44 @@ test "Go's firebaserules.projects.releases.list" {
 }
 
 const GO_6: List[Str] = [
+  "CALL firebaserules.projects.releases.list pages",
+  "REQ GET https://firebaserules.googleapis.com/v1/id1/%20x/releases?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"releases\":[{\"createTime\":\"s-createtime\",\"name\":\"s-name\",\"rulesetName\":\"s-rulesetname\",\"updateTime\":\"s-updatetime\"}]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"releases\":[{\"createTime\":\"s-createtime\",\"name\":\"s-name\",\"rulesetName\":\"s-rulesetname\",\"updateTime\":\"s-updatetime\"}]}",
+  "REQ GET https://firebaserules.googleapis.com/v1/id1/%20x/releases?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"releases\":[{\"createTime\":\"s-createtime\",\"name\":\"s-name\",\"rulesetName\":\"s-rulesetname\",\"updateTime\":\"s-updatetime\"}]}",
+  "OUT: {\"releases\":[{\"createTime\":\"s-createtime\",\"name\":\"s-name\",\"rulesetName\":\"s-rulesetname\",\"updateTime\":\"s-updatetime\"}]}",
+  "OUT: ok",
+]
+
+test "Go's firebaserules.projects.releases.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"releases\":[{\"createTime\":\"s-createtime\",\"name\":\"s-name\",\"rulesetName\":\"s-rulesetname\",\"updateTime\":\"s-updatetime\"}]}")
+  gv_queue(f, "{\"releases\":[{\"createTime\":\"s-createtime\",\"name\":\"s-name\",\"rulesetName\":\"s-rulesetname\",\"updateTime\":\"s-updatetime\"}]}")
+  gv_note(f, "CALL firebaserules.projects.releases.list pages")
+  var p = svc.projects.releases.list_pages("id1/ x", options: ProjectsReleasesListOptions{filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_6)
+}
+
+const GO_7: List[Str] = [
   "CALL firebaserules.projects.releases.patch",
   "REQ PATCH https://firebaserules.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -155,10 +193,10 @@ test "Go's firebaserules.projects.releases.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_6)
+  gv_compare(gv_log_of(f), GO_7)
 }
 
-const GO_7: List[Str] = [
+const GO_8: List[Str] = [
   "CALL firebaserules.projects.rulesets.create",
   "REQ POST https://firebaserules.googleapis.com/v1/id1/%20x/rulesets?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -177,10 +215,10 @@ test "Go's firebaserules.projects.rulesets.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_7)
+  gv_compare(gv_log_of(f), GO_8)
 }
 
-const GO_8: List[Str] = [
+const GO_9: List[Str] = [
   "CALL firebaserules.projects.rulesets.delete",
   "REQ DELETE https://firebaserules.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -198,10 +236,10 @@ test "Go's firebaserules.projects.rulesets.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_8)
+  gv_compare(gv_log_of(f), GO_9)
 }
 
-const GO_9: List[Str] = [
+const GO_10: List[Str] = [
   "CALL firebaserules.projects.rulesets.get",
   "REQ GET https://firebaserules.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -219,10 +257,10 @@ test "Go's firebaserules.projects.rulesets.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_9)
+  gv_compare(gv_log_of(f), GO_10)
 }
 
-const GO_10: List[Str] = [
+const GO_11: List[Str] = [
   "CALL firebaserules.projects.rulesets.list",
   "REQ GET https://firebaserules.googleapis.com/v1/id1/%20x/rulesets?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -240,5 +278,43 @@ test "Go's firebaserules.projects.rulesets.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_10)
+  gv_compare(gv_log_of(f), GO_11)
+}
+
+const GO_12: List[Str] = [
+  "CALL firebaserules.projects.rulesets.list pages",
+  "REQ GET https://firebaserules.googleapis.com/v1/id1/%20x/rulesets?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"rulesets\":[{\"attachmentPoint\":\"s-attachmentpoint\",\"createTime\":\"s-createtime\",\"metadata\":{},\"name\":\"s-name\",\"source\":{}}]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"rulesets\":[{\"attachmentPoint\":\"s-attachmentpoint\",\"createTime\":\"s-createtime\",\"metadata\":{},\"name\":\"s-name\",\"source\":{}}]}",
+  "REQ GET https://firebaserules.googleapis.com/v1/id1/%20x/rulesets?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"rulesets\":[{\"attachmentPoint\":\"s-attachmentpoint\",\"createTime\":\"s-createtime\",\"metadata\":{},\"name\":\"s-name\",\"source\":{}}]}",
+  "OUT: {\"rulesets\":[{\"attachmentPoint\":\"s-attachmentpoint\",\"createTime\":\"s-createtime\",\"metadata\":{},\"name\":\"s-name\",\"source\":{}}]}",
+  "OUT: ok",
+]
+
+test "Go's firebaserules.projects.rulesets.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"rulesets\":[{\"attachmentPoint\":\"s-attachmentpoint\",\"createTime\":\"s-createtime\",\"metadata\":{},\"name\":\"s-name\",\"source\":{}}]}")
+  gv_queue(f, "{\"rulesets\":[{\"attachmentPoint\":\"s-attachmentpoint\",\"createTime\":\"s-createtime\",\"metadata\":{},\"name\":\"s-name\",\"source\":{}}]}")
+  gv_note(f, "CALL firebaserules.projects.rulesets.list pages")
+  var p = svc.projects.rulesets.list_pages("id1/ x", options: ProjectsRulesetsListOptions{filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_12)
 }

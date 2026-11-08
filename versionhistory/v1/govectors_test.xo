@@ -30,6 +30,44 @@ test "Go's versionhistory.platforms.list" {
 }
 
 const GO_1: List[Str] = [
+  "CALL versionhistory.platforms.list pages",
+  "REQ GET https://versionhistory.googleapis.com/v1/id1/%20x/platforms?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"platforms\":[{\"name\":\"s-name\",\"platformType\":\"s-platformtype\"}]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"platforms\":[{\"name\":\"s-name\",\"platformType\":\"s-platformtype\"}]}",
+  "REQ GET https://versionhistory.googleapis.com/v1/id1/%20x/platforms?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"platforms\":[{\"name\":\"s-name\",\"platformType\":\"s-platformtype\"}]}",
+  "OUT: {\"platforms\":[{\"name\":\"s-name\",\"platformType\":\"s-platformtype\"}]}",
+  "OUT: ok",
+]
+
+test "Go's versionhistory.platforms.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"platforms\":[{\"name\":\"s-name\",\"platformType\":\"s-platformtype\"}]}")
+  gv_queue(f, "{\"platforms\":[{\"name\":\"s-name\",\"platformType\":\"s-platformtype\"}]}")
+  gv_note(f, "CALL versionhistory.platforms.list pages")
+  var p = svc.platforms.list_pages("id1/ x", options: PlatformsListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_1)
+}
+
+const GO_2: List[Str] = [
   "CALL versionhistory.platforms.channels.list",
   "REQ GET https://versionhistory.googleapis.com/v1/id1/%20x/channels?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -47,10 +85,48 @@ test "Go's versionhistory.platforms.channels.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_1)
+  gv_compare(gv_log_of(f), GO_2)
 }
 
-const GO_2: List[Str] = [
+const GO_3: List[Str] = [
+  "CALL versionhistory.platforms.channels.list pages",
+  "REQ GET https://versionhistory.googleapis.com/v1/id1/%20x/channels?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"channels\":[{\"channelType\":\"s-channeltype\",\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"channels\":[{\"channelType\":\"s-channeltype\",\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://versionhistory.googleapis.com/v1/id1/%20x/channels?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"channels\":[{\"channelType\":\"s-channeltype\",\"name\":\"s-name\"}]}",
+  "OUT: {\"channels\":[{\"channelType\":\"s-channeltype\",\"name\":\"s-name\"}]}",
+  "OUT: ok",
+]
+
+test "Go's versionhistory.platforms.channels.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"channels\":[{\"channelType\":\"s-channeltype\",\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"channels\":[{\"channelType\":\"s-channeltype\",\"name\":\"s-name\"}]}")
+  gv_note(f, "CALL versionhistory.platforms.channels.list pages")
+  var p = svc.platforms.channels.list_pages("id1/ x", options: PlatformsChannelsListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_3)
+}
+
+const GO_4: List[Str] = [
   "CALL versionhistory.platforms.channels.versions.list",
   "REQ GET https://versionhistory.googleapis.com/v1/id1/%20x/versions?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -68,10 +144,48 @@ test "Go's versionhistory.platforms.channels.versions.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_2)
+  gv_compare(gv_log_of(f), GO_4)
 }
 
-const GO_3: List[Str] = [
+const GO_5: List[Str] = [
+  "CALL versionhistory.platforms.channels.versions.list pages",
+  "REQ GET https://versionhistory.googleapis.com/v1/id1/%20x/versions?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"versions\":[{\"name\":\"s-name\",\"version\":\"s-version\"}]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"versions\":[{\"name\":\"s-name\",\"version\":\"s-version\"}]}",
+  "REQ GET https://versionhistory.googleapis.com/v1/id1/%20x/versions?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"versions\":[{\"name\":\"s-name\",\"version\":\"s-version\"}]}",
+  "OUT: {\"versions\":[{\"name\":\"s-name\",\"version\":\"s-version\"}]}",
+  "OUT: ok",
+]
+
+test "Go's versionhistory.platforms.channels.versions.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"versions\":[{\"name\":\"s-name\",\"version\":\"s-version\"}]}")
+  gv_queue(f, "{\"versions\":[{\"name\":\"s-name\",\"version\":\"s-version\"}]}")
+  gv_note(f, "CALL versionhistory.platforms.channels.versions.list pages")
+  var p = svc.platforms.channels.versions.list_pages("id1/ x", options: PlatformsChannelsVersionsListOptions{filter: Some("s-filter"), order_by: Some("s-orderby"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_5)
+}
+
+const GO_6: List[Str] = [
   "CALL versionhistory.platforms.channels.versions.releases.list",
   "REQ GET https://versionhistory.googleapis.com/v1/id1/%20x/releases?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -89,5 +203,43 @@ test "Go's versionhistory.platforms.channels.versions.releases.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_3)
+  gv_compare(gv_log_of(f), GO_6)
+}
+
+const GO_7: List[Str] = [
+  "CALL versionhistory.platforms.channels.versions.releases.list pages",
+  "REQ GET https://versionhistory.googleapis.com/v1/id1/%20x/releases?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"releases\":[{\"fraction\":1.5,\"fractionGroup\":\"7\",\"name\":\"s-name\",\"pinnable\":true,\"serving\":{\"endTime\":\"s-endtime\",\"startTime\":\"s-starttime\"},\"version\":\"s-version\"}]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"releases\":[{\"fraction\":1.5,\"fractionGroup\":\"7\",\"name\":\"s-name\",\"pinnable\":true,\"serving\":{\"endTime\":\"s-endtime\",\"startTime\":\"s-starttime\"},\"version\":\"s-version\"}]}",
+  "REQ GET https://versionhistory.googleapis.com/v1/id1/%20x/releases?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"releases\":[{\"fraction\":1.5,\"fractionGroup\":\"7\",\"name\":\"s-name\",\"pinnable\":true,\"serving\":{\"endTime\":\"s-endtime\",\"startTime\":\"s-starttime\"},\"version\":\"s-version\"}]}",
+  "OUT: {\"releases\":[{\"fraction\":1.5,\"fractionGroup\":\"7\",\"name\":\"s-name\",\"pinnable\":true,\"serving\":{\"endTime\":\"s-endtime\",\"startTime\":\"s-starttime\"},\"version\":\"s-version\"}]}",
+  "OUT: ok",
+]
+
+test "Go's versionhistory.platforms.channels.versions.releases.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"releases\":[{\"fraction\":1.5,\"fractionGroup\":\"7\",\"name\":\"s-name\",\"pinnable\":true,\"serving\":{\"endTime\":\"s-endtime\",\"startTime\":\"s-starttime\"},\"version\":\"s-version\"}]}")
+  gv_queue(f, "{\"releases\":[{\"fraction\":1.5,\"fractionGroup\":\"7\",\"name\":\"s-name\",\"pinnable\":true,\"serving\":{\"endTime\":\"s-endtime\",\"startTime\":\"s-starttime\"},\"version\":\"s-version\"}]}")
+  gv_note(f, "CALL versionhistory.platforms.channels.versions.releases.list pages")
+  var p = svc.platforms.channels.versions.releases.list_pages("id1/ x", options: PlatformsChannelsVersionsReleasesListOptions{filter: Some("s-filter"), order_by: Some("s-orderby"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_7)
 }

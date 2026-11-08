@@ -56,7 +56,7 @@ const GO_2: List[Str] = [
   "CALL vault.matters.count",
   "REQ POST https://vault.googleapis.com/v1/matters/id1%2F%20x:count?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"query\":{\"accountInfo\":{\"emails\":[\"s-emails\"]},\"calendarOptions\":{\"locationQuery\":[\"s-locationquery\"],\"minusWords\":[\"s-minuswords\"],\"peopleQuery\":[\"s-peoplequery\"],\"responseStatuses\":[\"s-responsestatuses\"],\"versionDate\":\"s-versiondate\"},\"corpus\":\"s-corpus\",\"dataScope\":\"s-datascope\",\"driveDocumentInfo\":{},\"driveOptions\":{\"clientSideEncryptedOption\":\"s-clientsideencryptedoption\",\"includeSharedDrives\":true,\"includeTeamDrives\":true,\"sharedDrivesOption\":\"s-shareddrivesoption\",\"versionDate\":\"s-versiondate\"},\"endTime\":\"s-endtime\",\"geminiInWorkspaceOptions\":{},\"geminiOptions\":{},\"hangoutsChatInfo\":{\"roomId\":[\"s-roomid\"]},\"hangoutsChatOptions\":{\"includeRooms\":true},\"mailOptions\":{\"clientSideEncryptedOption\":\"s-clientsideencryptedoption\",\"excludeDrafts\":true},\"method\":\"s-method\",\"orgUnitInfo\":{\"orgUnitId\":\"s-orgunitid\"},\"searchMethod\":\"s-searchmethod\",\"sharedDriveInfo\":{\"sharedDriveIds\":[\"s-shareddriveids\"]},\"sitesUrlInfo\":{\"urls\":[\"s-urls\"]},\"startTime\":\"s-starttime\",\"teamDriveInfo\":{\"teamDriveIds\":[\"s-teamdriveids\"]},\"terms\":\"s-terms\",\"timeZone\":\"s-timezone\",\"voiceOptions\":{\"coveredData\":[\"s-covereddata\"]}},\"view\":\"s-view\"}",
+  "  B <1135 bytes> {\"query\":{\"accountInfo\":{\"emails...overeddata\"]}},\"view\":\"s-view\"}",
   "",
   "  SERVED 200 {\"done\":true,\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}",
   "OUT: {\"done\":true,\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}",
@@ -160,6 +160,44 @@ test "Go's vault.matters.list" {
 }
 
 const GO_7: List[Str] = [
+  "CALL vault.matters.list pages",
+  "REQ GET https://vault.googleapis.com/v1/matters?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&state=s-state&view=s-view",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"matters\":[{\"description\":\"s-description\",\"matterId\":\"s-matterid\",\"matterRegion\":\"s-matterregion\",\"name\":\"s-name\",\"state\":\"s-state\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"matters\":[{\"description\":\"s-description\",\"matterId\":\"s-matterid\",\"matterRegion\":\"s-matterregion\",\"name\":\"s-name\",\"state\":\"s-state\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://vault.googleapis.com/v1/matters?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false&state=s-state&view=s-view",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"matters\":[{\"description\":\"s-description\",\"matterId\":\"s-matterid\",\"matterRegion\":\"s-matterregion\",\"name\":\"s-name\",\"state\":\"s-state\"}]}",
+  "OUT: {\"matters\":[{\"description\":\"s-description\",\"matterId\":\"s-matterid\",\"matterRegion\":\"s-matterregion\",\"name\":\"s-name\",\"state\":\"s-state\"}]}",
+  "OUT: ok",
+]
+
+test "Go's vault.matters.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"matters\":[{\"description\":\"s-description\",\"matterId\":\"s-matterid\",\"matterRegion\":\"s-matterregion\",\"name\":\"s-name\",\"state\":\"s-state\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"matters\":[{\"description\":\"s-description\",\"matterId\":\"s-matterid\",\"matterRegion\":\"s-matterregion\",\"name\":\"s-name\",\"state\":\"s-state\"}]}")
+  gv_note(f, "CALL vault.matters.list pages")
+  var p = svc.matters.list_pages(options: MattersListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), state: Some("s-state"), view: Some("s-view"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_7)
+}
+
+const GO_8: List[Str] = [
   "CALL vault.matters.removePermissions",
   "REQ POST https://vault.googleapis.com/v1/matters/id1%2F%20x:removePermissions?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -178,10 +216,10 @@ test "Go's vault.matters.removePermissions" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_7)
+  gv_compare(gv_log_of(f), GO_8)
 }
 
-const GO_8: List[Str] = [
+const GO_9: List[Str] = [
   "CALL vault.matters.reopen",
   "REQ POST https://vault.googleapis.com/v1/matters/id1%2F%20x:reopen?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -200,10 +238,10 @@ test "Go's vault.matters.reopen" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_8)
+  gv_compare(gv_log_of(f), GO_9)
 }
 
-const GO_9: List[Str] = [
+const GO_10: List[Str] = [
   "CALL vault.matters.undelete",
   "REQ POST https://vault.googleapis.com/v1/matters/id1%2F%20x:undelete?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -222,10 +260,10 @@ test "Go's vault.matters.undelete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_9)
+  gv_compare(gv_log_of(f), GO_10)
 }
 
-const GO_10: List[Str] = [
+const GO_11: List[Str] = [
   "CALL vault.matters.update",
   "REQ PUT https://vault.googleapis.com/v1/matters/id1%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -244,14 +282,14 @@ test "Go's vault.matters.update" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_10)
+  gv_compare(gv_log_of(f), GO_11)
 }
 
-const GO_11: List[Str] = [
+const GO_12: List[Str] = [
   "CALL vault.matters.exports.create",
   "REQ POST https://vault.googleapis.com/v1/matters/id1%2F%20x/exports?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"cloudStorageSink\":{\"files\":[{\"bucketName\":\"s-bucketname\",\"md5Hash\":\"s-md5hash\",\"objectName\":\"s-objectname\",\"size\":\"7\"}]},\"createTime\":\"s-createtime\",\"exportOptions\":{\"calendarOptions\":{\"exportFormat\":\"s-exportformat\"},\"driveOptions\":{\"includeAccessInfo\":true},\"geminiInWorkspaceOptions\":{\"exportFormat\":\"s-exportformat\"},\"geminiOptions\":{\"exportFormat\":\"s-exportformat\"},\"groupsOptions\":{\"exportFormat\":\"s-exportformat\"},\"hangoutsChatOptions\":{\"exportFormat\":\"s-exportformat\"},\"mailOptions\":{\"exportFormat\":\"s-exportformat\",\"exportLinkedDriveFiles\":true,\"showConfidentialModeContent\":true,\"useNewExport\":true},\"region\":\"s-region\",\"voiceOptions\":{\"exportFormat\":\"s-exportformat\"}},\"id\":\"s-id\",\"matterId\":\"s-matterid\",\"name\":\"s-name\",\"parentExportId\":\"s-parentexportid\",\"query\":{\"accountInfo\":{\"emails\":[\"s-emails\"]},\"calendarOptions\":{\"locationQuery\":[\"s-locationquery\"],\"minusWords\":[\"s-minuswords\"],\"peopleQuery\":[\"s-peoplequery\"],\"responseStatuses\":[\"s-responsestatuses\"],\"versionDate\":\"s-versiondate\"},\"corpus\":\"s-corpus\",\"dataScope\":\"s-datascope\",\"driveDocumentInfo\":{},\"driveOptions\":{\"clientSideEncryptedOption\":\"s-clientsideencryptedoption\",\"includeSharedDrives\":true,\"includeTeamDrives\":true,\"sharedDrivesOption\":\"s-shareddrivesoption\",\"versionDate\":\"s-versiondate\"},\"endTime\":\"s-endtime\",\"geminiInWorkspaceOptions\":{},\"geminiOptions\":{},\"hangoutsChatInfo\":{\"roomId\":[\"s-roomid\"]},\"hangoutsChatOptions\":{\"includeRooms\":true},\"mailOptions\":{\"clientSideEncryptedOption\":\"s-clientsideencryptedoption\",\"excludeDrafts\":true},\"method\":\"s-method\",\"orgUnitInfo\":{\"orgUnitId\":\"s-orgunitid\"},\"searchMethod\":\"s-searchmethod\",\"sharedDriveInfo\":{\"sharedDriveIds\":[\"s-shareddriveids\"]},\"sitesUrlInfo\":{\"urls\":[\"s-urls\"]},\"startTime\":\"s-starttime\",\"teamDriveInfo\":{\"teamDriveIds\":[\"s-teamdriveids\"]},\"terms\":\"s-terms\",\"timeZone\":\"s-timezone\",\"voiceOptions\":{\"coveredData\":[\"s-covereddata\"]}},\"requester\":{\"displayName\":\"s-displayname\",\"email\":\"s-email\"},\"stats\":{\"exportedArtifactCount\":\"7\",\"sizeInBytes\":\"7\",\"totalArtifactCount\":\"7\"},\"status\":\"s-status\"}",
+  "  B <2051 bytes> {\"cloudStorageSink\":{\"files\":[{\"...ount\":\"7\"},\"status\":\"s-status\"}",
   "",
   "  SERVED 200 {\"cloudStorageSink\":{\"files\":[{\"bucketName\":\"s-bucketname\",\"md5Hash\":\"s-md5hash\",\"objectName\":\"s-objectname\",\"size\":\"7\"}]},\"createTime\":\"s-createtime\",\"exportOptions\":{\"calendarOptions\":{\"exportFormat\":\"s-exportformat\"},\"driveOptions\":{\"includeAccessInfo\":true},\"geminiInWorkspaceOptions\":{\"exportFormat\":\"s-exportformat\"},\"geminiOptions\":{\"exportFormat\":\"s-exportformat\"},\"groupsOptions\":{\"exportFormat\":\"s-exportformat\"},\"hangoutsChatOptions\":{\"exportFormat\":\"s-exportformat\"},\"mailOptions\":{\"exportFormat\":\"s-exportformat\",\"exportLinkedDriveFiles\":true,\"showConfidentialModeContent\":true,\"useNewExport\":true},\"region\":\"s-region\",\"voiceOptions\":{\"exportFormat\":\"s-exportformat\"}},\"id\":\"s-id\",\"matterId\":\"s-matterid\",\"name\":\"s-name\",\"parentExportId\":\"s-parentexportid\",\"query\":{\"accountInfo\":{\"emails\":[\"s-emails\"]},\"calendarOptions\":{\"locationQuery\":[\"s-locationquery\"],\"minusWords\":[\"s-minuswords\"],\"peopleQuery\":[\"s-peoplequery\"],\"responseStatuses\":[\"s-responsestatuses\"],\"versionDate\":\"s-versiondate\"},\"corpus\":\"s-corpus\",\"dataScope\":\"s-datascope\",\"driveDocumentInfo\":{},\"driveOptions\":{\"clientSideEncryptedOption\":\"s-clientsideencryptedoption\",\"includeSharedDrives\":true,\"includeTeamDrives\":true,\"sharedDrivesOption\":\"s-shareddrivesoption\",\"versionDate\":\"s-versiondate\"},\"endTime\":\"s-endtime\",\"geminiInWorkspaceOptions\":{},\"geminiOptions\":{},\"hangoutsChatInfo\":{\"roomId\":[\"s-roomid\"]},\"hangoutsChatOptions\":{\"includeRooms\":true},\"mailOptions\":{\"clientSideEncryptedOption\":\"s-clientsideencryptedoption\",\"excludeDrafts\":true},\"method\":\"s-method\",\"orgUnitInfo\":{\"orgUnitId\":\"s-orgunitid\"},\"searchMethod\":\"s-searchmethod\",\"sharedDriveInfo\":{\"sharedDriveIds\":[\"s-shareddriveids\"]},\"sitesUrlInfo\":{\"urls\":[\"s-urls\"]},\"startTime\":\"s-starttime\",\"teamDriveInfo\":{\"teamDriveIds\":[\"s-teamdriveids\"]},\"terms\":\"s-terms\",\"timeZone\":\"s-timezone\",\"voiceOptions\":{\"coveredData\":[\"s-covereddata\"]}},\"requester\":{\"displayName\":\"s-displayname\",\"email\":\"s-email\"},\"stats\":{\"exportedArtifactCount\":\"7\",\"sizeInBytes\":\"7\",\"totalArtifactCount\":\"7\"},\"status\":\"s-status\"}",
   "OUT: {\"cloudStorageSink\":{\"files\":[{\"bucketName\":\"s-bucketname\",\"md5Hash\":\"s-md5hash\",\"objectName\":\"s-objectname\",\"size\":\"7\"}]},\"createTime\":\"s-createtime\",\"exportOptions\":{\"calendarOptions\":{\"exportFormat\":\"s-exportformat\"},\"driveOptions\":{\"includeAccessInfo\":true},\"geminiInWorkspaceOptions\":{\"exportFormat\":\"s-exportformat\"},\"geminiOptions\":{\"exportFormat\":\"s-exportformat\"},\"groupsOptions\":{\"exportFormat\":\"s-exportformat\"},\"hangoutsChatOptions\":{\"exportFormat\":\"s-exportformat\"},\"mailOptions\":{\"exportFormat\":\"s-exportformat\",\"exportLinkedDriveFiles\":true,\"showConfidentialModeContent\":true,\"useNewExport\":true},\"region\":\"s-region\",\"voiceOptions\":{\"exportFormat\":\"s-exportformat\"}},\"id\":\"s-id\",\"matterId\":\"s-matterid\",\"name\":\"s-name\",\"parentExportId\":\"s-parentexportid\",\"query\":{\"accountInfo\":{\"emails\":[\"s-emails\"]},\"calendarOptions\":{\"locationQuery\":[\"s-locationquery\"],\"minusWords\":[\"s-minuswords\"],\"peopleQuery\":[\"s-peoplequery\"],\"responseStatuses\":[\"s-responsestatuses\"],\"versionDate\":\"s-versiondate\"},\"corpus\":\"s-corpus\",\"dataScope\":\"s-datascope\",\"driveDocumentInfo\":{},\"driveOptions\":{\"clientSideEncryptedOption\":\"s-clientsideencryptedoption\",\"includeSharedDrives\":true,\"includeTeamDrives\":true,\"sharedDrivesOption\":\"s-shareddrivesoption\",\"versionDate\":\"s-versiondate\"},\"endTime\":\"s-endtime\",\"geminiInWorkspaceOptions\":{},\"geminiOptions\":{},\"hangoutsChatInfo\":{\"roomId\":[\"s-roomid\"]},\"hangoutsChatOptions\":{\"includeRooms\":true},\"mailOptions\":{\"clientSideEncryptedOption\":\"s-clientsideencryptedoption\",\"excludeDrafts\":true},\"method\":\"s-method\",\"orgUnitInfo\":{\"orgUnitId\":\"s-orgunitid\"},\"searchMethod\":\"s-searchmethod\",\"sharedDriveInfo\":{\"sharedDriveIds\":[\"s-shareddriveids\"]},\"sitesUrlInfo\":{\"urls\":[\"s-urls\"]},\"startTime\":\"s-starttime\",\"teamDriveInfo\":{\"teamDriveIds\":[\"s-teamdriveids\"]},\"terms\":\"s-terms\",\"timeZone\":\"s-timezone\",\"voiceOptions\":{\"coveredData\":[\"s-covereddata\"]}},\"requester\":{\"displayName\":\"s-displayname\",\"email\":\"s-email\"},\"stats\":{\"exportedArtifactCount\":\"7\",\"sizeInBytes\":\"7\",\"totalArtifactCount\":\"7\"},\"status\":\"s-status\"}",
@@ -266,10 +304,10 @@ test "Go's vault.matters.exports.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_11)
+  gv_compare(gv_log_of(f), GO_12)
 }
 
-const GO_12: List[Str] = [
+const GO_13: List[Str] = [
   "CALL vault.matters.exports.delete",
   "REQ DELETE https://vault.googleapis.com/v1/matters/id1%2F%20x/exports/id2%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -287,10 +325,10 @@ test "Go's vault.matters.exports.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_12)
+  gv_compare(gv_log_of(f), GO_13)
 }
 
-const GO_13: List[Str] = [
+const GO_14: List[Str] = [
   "CALL vault.matters.exports.get",
   "REQ GET https://vault.googleapis.com/v1/matters/id1%2F%20x/exports/id2%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -308,10 +346,10 @@ test "Go's vault.matters.exports.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_13)
+  gv_compare(gv_log_of(f), GO_14)
 }
 
-const GO_14: List[Str] = [
+const GO_15: List[Str] = [
   "CALL vault.matters.exports.list",
   "REQ GET https://vault.googleapis.com/v1/matters/id1%2F%20x/exports?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -329,10 +367,48 @@ test "Go's vault.matters.exports.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_14)
+  gv_compare(gv_log_of(f), GO_15)
 }
 
-const GO_15: List[Str] = [
+const GO_16: List[Str] = [
+  "CALL vault.matters.exports.list pages",
+  "REQ GET https://vault.googleapis.com/v1/matters/id1%2F%20x/exports?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"exports\":[{\"cloudStorageSink\":{},\"createTime\":\"s-createtime\",\"exportOptions\":{\"region\":\"s-region\"},\"id\":\"s-id\",\"matterId\":\"s-matterid\",\"name\":\"s-name\",\"parentExportId\":\"s-parentexportid\",\"query\":{\"corpus\":\"s-corpus\",\"dataScope\":\"s-datascope\",\"endTime\":\"s-endtime\",\"method\":\"s-method\",\"searchMethod\":\"s-searchmethod\",\"startTime\":\"s-starttime\",\"terms\":\"s-terms\",\"timeZone\":\"s-timezone\"},\"requester\":{\"displayName\":\"s-displayname\",\"email\":\"s-email\"},\"stats\":{\"exportedArtifactCount\":\"7\",\"sizeInBytes\":\"7\",\"totalArtifactCount\":\"7\"},\"status\":\"s-status\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"exports\":[{\"cloudStorageSink\":{},\"createTime\":\"s-createtime\",\"exportOptions\":{\"region\":\"s-region\"},\"id\":\"s-id\",\"matterId\":\"s-matterid\",\"name\":\"s-name\",\"parentExportId\":\"s-parentexportid\",\"query\":{\"corpus\":\"s-corpus\",\"dataScope\":\"s-datascope\",\"endTime\":\"s-endtime\",\"method\":\"s-method\",\"searchMethod\":\"s-searchmethod\",\"startTime\":\"s-starttime\",\"terms\":\"s-terms\",\"timeZone\":\"s-timezone\"},\"requester\":{\"displayName\":\"s-displayname\",\"email\":\"s-email\"},\"stats\":{\"exportedArtifactCount\":\"7\",\"sizeInBytes\":\"7\",\"totalArtifactCount\":\"7\"},\"status\":\"s-status\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://vault.googleapis.com/v1/matters/id1%2F%20x/exports?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"exports\":[{\"cloudStorageSink\":{},\"createTime\":\"s-createtime\",\"exportOptions\":{\"region\":\"s-region\"},\"id\":\"s-id\",\"matterId\":\"s-matterid\",\"name\":\"s-name\",\"parentExportId\":\"s-parentexportid\",\"query\":{\"corpus\":\"s-corpus\",\"dataScope\":\"s-datascope\",\"endTime\":\"s-endtime\",\"method\":\"s-method\",\"searchMethod\":\"s-searchmethod\",\"startTime\":\"s-starttime\",\"terms\":\"s-terms\",\"timeZone\":\"s-timezone\"},\"requester\":{\"displayName\":\"s-displayname\",\"email\":\"s-email\"},\"stats\":{\"exportedArtifactCount\":\"7\",\"sizeInBytes\":\"7\",\"totalArtifactCount\":\"7\"},\"status\":\"s-status\"}]}",
+  "OUT: {\"exports\":[{\"cloudStorageSink\":{},\"createTime\":\"s-createtime\",\"exportOptions\":{\"region\":\"s-region\"},\"id\":\"s-id\",\"matterId\":\"s-matterid\",\"name\":\"s-name\",\"parentExportId\":\"s-parentexportid\",\"query\":{\"corpus\":\"s-corpus\",\"dataScope\":\"s-datascope\",\"endTime\":\"s-endtime\",\"method\":\"s-method\",\"searchMethod\":\"s-searchmethod\",\"startTime\":\"s-starttime\",\"terms\":\"s-terms\",\"timeZone\":\"s-timezone\"},\"requester\":{\"displayName\":\"s-displayname\",\"email\":\"s-email\"},\"stats\":{\"exportedArtifactCount\":\"7\",\"sizeInBytes\":\"7\",\"totalArtifactCount\":\"7\"},\"status\":\"s-status\"}]}",
+  "OUT: ok",
+]
+
+test "Go's vault.matters.exports.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"exports\":[{\"cloudStorageSink\":{},\"createTime\":\"s-createtime\",\"exportOptions\":{\"region\":\"s-region\"},\"id\":\"s-id\",\"matterId\":\"s-matterid\",\"name\":\"s-name\",\"parentExportId\":\"s-parentexportid\",\"query\":{\"corpus\":\"s-corpus\",\"dataScope\":\"s-datascope\",\"endTime\":\"s-endtime\",\"method\":\"s-method\",\"searchMethod\":\"s-searchmethod\",\"startTime\":\"s-starttime\",\"terms\":\"s-terms\",\"timeZone\":\"s-timezone\"},\"requester\":{\"displayName\":\"s-displayname\",\"email\":\"s-email\"},\"stats\":{\"exportedArtifactCount\":\"7\",\"sizeInBytes\":\"7\",\"totalArtifactCount\":\"7\"},\"status\":\"s-status\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"exports\":[{\"cloudStorageSink\":{},\"createTime\":\"s-createtime\",\"exportOptions\":{\"region\":\"s-region\"},\"id\":\"s-id\",\"matterId\":\"s-matterid\",\"name\":\"s-name\",\"parentExportId\":\"s-parentexportid\",\"query\":{\"corpus\":\"s-corpus\",\"dataScope\":\"s-datascope\",\"endTime\":\"s-endtime\",\"method\":\"s-method\",\"searchMethod\":\"s-searchmethod\",\"startTime\":\"s-starttime\",\"terms\":\"s-terms\",\"timeZone\":\"s-timezone\"},\"requester\":{\"displayName\":\"s-displayname\",\"email\":\"s-email\"},\"stats\":{\"exportedArtifactCount\":\"7\",\"sizeInBytes\":\"7\",\"totalArtifactCount\":\"7\"},\"status\":\"s-status\"}]}")
+  gv_note(f, "CALL vault.matters.exports.list pages")
+  var p = svc.matters.exports.list_pages("id1/ x", options: MattersExportsListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_16)
+}
+
+const GO_17: List[Str] = [
   "CALL vault.matters.holds.addHeldAccounts",
   "REQ POST https://vault.googleapis.com/v1/matters/id1%2F%20x/holds/id2%2F%20x:addHeldAccounts?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -351,10 +427,10 @@ test "Go's vault.matters.holds.addHeldAccounts" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_15)
+  gv_compare(gv_log_of(f), GO_17)
 }
 
-const GO_16: List[Str] = [
+const GO_18: List[Str] = [
   "CALL vault.matters.holds.create",
   "REQ POST https://vault.googleapis.com/v1/matters/id1%2F%20x/holds?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -373,10 +449,10 @@ test "Go's vault.matters.holds.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_16)
+  gv_compare(gv_log_of(f), GO_18)
 }
 
-const GO_17: List[Str] = [
+const GO_19: List[Str] = [
   "CALL vault.matters.holds.delete",
   "REQ DELETE https://vault.googleapis.com/v1/matters/id1%2F%20x/holds/id2%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -394,10 +470,10 @@ test "Go's vault.matters.holds.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_17)
+  gv_compare(gv_log_of(f), GO_19)
 }
 
-const GO_18: List[Str] = [
+const GO_20: List[Str] = [
   "CALL vault.matters.holds.get",
   "REQ GET https://vault.googleapis.com/v1/matters/id1%2F%20x/holds/id2%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false&view=s-view",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -415,10 +491,10 @@ test "Go's vault.matters.holds.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_18)
+  gv_compare(gv_log_of(f), GO_20)
 }
 
-const GO_19: List[Str] = [
+const GO_21: List[Str] = [
   "CALL vault.matters.holds.list",
   "REQ GET https://vault.googleapis.com/v1/matters/id1%2F%20x/holds?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&view=s-view",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -436,10 +512,48 @@ test "Go's vault.matters.holds.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_19)
+  gv_compare(gv_log_of(f), GO_21)
 }
 
-const GO_20: List[Str] = [
+const GO_22: List[Str] = [
+  "CALL vault.matters.holds.list pages",
+  "REQ GET https://vault.googleapis.com/v1/matters/id1%2F%20x/holds?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&view=s-view",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"holds\":[{\"corpus\":\"s-corpus\",\"holdId\":\"s-holdid\",\"name\":\"s-name\",\"orgUnit\":{\"holdTime\":\"s-holdtime\",\"orgUnitId\":\"s-orgunitid\"},\"query\":{},\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"holds\":[{\"corpus\":\"s-corpus\",\"holdId\":\"s-holdid\",\"name\":\"s-name\",\"orgUnit\":{\"holdTime\":\"s-holdtime\",\"orgUnitId\":\"s-orgunitid\"},\"query\":{},\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://vault.googleapis.com/v1/matters/id1%2F%20x/holds?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false&view=s-view",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"holds\":[{\"corpus\":\"s-corpus\",\"holdId\":\"s-holdid\",\"name\":\"s-name\",\"orgUnit\":{\"holdTime\":\"s-holdtime\",\"orgUnitId\":\"s-orgunitid\"},\"query\":{},\"updateTime\":\"s-updatetime\"}]}",
+  "OUT: {\"holds\":[{\"corpus\":\"s-corpus\",\"holdId\":\"s-holdid\",\"name\":\"s-name\",\"orgUnit\":{\"holdTime\":\"s-holdtime\",\"orgUnitId\":\"s-orgunitid\"},\"query\":{},\"updateTime\":\"s-updatetime\"}]}",
+  "OUT: ok",
+]
+
+test "Go's vault.matters.holds.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"holds\":[{\"corpus\":\"s-corpus\",\"holdId\":\"s-holdid\",\"name\":\"s-name\",\"orgUnit\":{\"holdTime\":\"s-holdtime\",\"orgUnitId\":\"s-orgunitid\"},\"query\":{},\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"holds\":[{\"corpus\":\"s-corpus\",\"holdId\":\"s-holdid\",\"name\":\"s-name\",\"orgUnit\":{\"holdTime\":\"s-holdtime\",\"orgUnitId\":\"s-orgunitid\"},\"query\":{},\"updateTime\":\"s-updatetime\"}]}")
+  gv_note(f, "CALL vault.matters.holds.list pages")
+  var p = svc.matters.holds.list_pages("id1/ x", options: MattersHoldsListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), view: Some("s-view"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_22)
+}
+
+const GO_23: List[Str] = [
   "CALL vault.matters.holds.removeHeldAccounts",
   "REQ POST https://vault.googleapis.com/v1/matters/id1%2F%20x/holds/id2%2F%20x:removeHeldAccounts?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -458,10 +572,10 @@ test "Go's vault.matters.holds.removeHeldAccounts" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_20)
+  gv_compare(gv_log_of(f), GO_23)
 }
 
-const GO_21: List[Str] = [
+const GO_24: List[Str] = [
   "CALL vault.matters.holds.update",
   "REQ PUT https://vault.googleapis.com/v1/matters/id1%2F%20x/holds/id2%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -480,10 +594,10 @@ test "Go's vault.matters.holds.update" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_21)
+  gv_compare(gv_log_of(f), GO_24)
 }
 
-const GO_22: List[Str] = [
+const GO_25: List[Str] = [
   "CALL vault.matters.holds.accounts.create",
   "REQ POST https://vault.googleapis.com/v1/matters/id1%2F%20x/holds/id2%2F%20x/accounts?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -502,10 +616,10 @@ test "Go's vault.matters.holds.accounts.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_22)
+  gv_compare(gv_log_of(f), GO_25)
 }
 
-const GO_23: List[Str] = [
+const GO_26: List[Str] = [
   "CALL vault.matters.holds.accounts.delete",
   "REQ DELETE https://vault.googleapis.com/v1/matters/id1%2F%20x/holds/id2%2F%20x/accounts/id3%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -523,10 +637,10 @@ test "Go's vault.matters.holds.accounts.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_23)
+  gv_compare(gv_log_of(f), GO_26)
 }
 
-const GO_24: List[Str] = [
+const GO_27: List[Str] = [
   "CALL vault.matters.holds.accounts.list",
   "REQ GET https://vault.googleapis.com/v1/matters/id1%2F%20x/holds/id2%2F%20x/accounts?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -544,14 +658,14 @@ test "Go's vault.matters.holds.accounts.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_24)
+  gv_compare(gv_log_of(f), GO_27)
 }
 
-const GO_25: List[Str] = [
+const GO_28: List[Str] = [
   "CALL vault.matters.savedQueries.create",
   "REQ POST https://vault.googleapis.com/v1/matters/id1%2F%20x/savedQueries?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"createTime\":\"s-createtime\",\"displayName\":\"s-displayname\",\"matterId\":\"s-matterid\",\"query\":{\"accountInfo\":{\"emails\":[\"s-emails\"]},\"calendarOptions\":{\"locationQuery\":[\"s-locationquery\"],\"minusWords\":[\"s-minuswords\"],\"peopleQuery\":[\"s-peoplequery\"],\"responseStatuses\":[\"s-responsestatuses\"],\"versionDate\":\"s-versiondate\"},\"corpus\":\"s-corpus\",\"dataScope\":\"s-datascope\",\"driveDocumentInfo\":{},\"driveOptions\":{\"clientSideEncryptedOption\":\"s-clientsideencryptedoption\",\"includeSharedDrives\":true,\"includeTeamDrives\":true,\"sharedDrivesOption\":\"s-shareddrivesoption\",\"versionDate\":\"s-versiondate\"},\"endTime\":\"s-endtime\",\"geminiInWorkspaceOptions\":{},\"geminiOptions\":{},\"hangoutsChatInfo\":{\"roomId\":[\"s-roomid\"]},\"hangoutsChatOptions\":{\"includeRooms\":true},\"mailOptions\":{\"clientSideEncryptedOption\":\"s-clientsideencryptedoption\",\"excludeDrafts\":true},\"method\":\"s-method\",\"orgUnitInfo\":{\"orgUnitId\":\"s-orgunitid\"},\"searchMethod\":\"s-searchmethod\",\"sharedDriveInfo\":{\"sharedDriveIds\":[\"s-shareddriveids\"]},\"sitesUrlInfo\":{\"urls\":[\"s-urls\"]},\"startTime\":\"s-starttime\",\"teamDriveInfo\":{\"teamDriveIds\":[\"s-teamdriveids\"]},\"terms\":\"s-terms\",\"timeZone\":\"s-timezone\",\"voiceOptions\":{\"coveredData\":[\"s-covereddata\"]}},\"savedQueryId\":\"s-savedqueryid\"}",
+  "  B <1233 bytes> {\"createTime\":\"s-createtime\",\"di...savedQueryId\":\"s-savedqueryid\"}",
   "",
   "  SERVED 200 {\"createTime\":\"s-createtime\",\"displayName\":\"s-displayname\",\"matterId\":\"s-matterid\",\"query\":{\"accountInfo\":{\"emails\":[\"s-emails\"]},\"calendarOptions\":{\"locationQuery\":[\"s-locationquery\"],\"minusWords\":[\"s-minuswords\"],\"peopleQuery\":[\"s-peoplequery\"],\"responseStatuses\":[\"s-responsestatuses\"],\"versionDate\":\"s-versiondate\"},\"corpus\":\"s-corpus\",\"dataScope\":\"s-datascope\",\"driveDocumentInfo\":{},\"driveOptions\":{\"clientSideEncryptedOption\":\"s-clientsideencryptedoption\",\"includeSharedDrives\":true,\"includeTeamDrives\":true,\"sharedDrivesOption\":\"s-shareddrivesoption\",\"versionDate\":\"s-versiondate\"},\"endTime\":\"s-endtime\",\"geminiInWorkspaceOptions\":{},\"geminiOptions\":{},\"hangoutsChatInfo\":{\"roomId\":[\"s-roomid\"]},\"hangoutsChatOptions\":{\"includeRooms\":true},\"mailOptions\":{\"clientSideEncryptedOption\":\"s-clientsideencryptedoption\",\"excludeDrafts\":true},\"method\":\"s-method\",\"orgUnitInfo\":{\"orgUnitId\":\"s-orgunitid\"},\"searchMethod\":\"s-searchmethod\",\"sharedDriveInfo\":{\"sharedDriveIds\":[\"s-shareddriveids\"]},\"sitesUrlInfo\":{\"urls\":[\"s-urls\"]},\"startTime\":\"s-starttime\",\"teamDriveInfo\":{\"teamDriveIds\":[\"s-teamdriveids\"]},\"terms\":\"s-terms\",\"timeZone\":\"s-timezone\",\"voiceOptions\":{\"coveredData\":[\"s-covereddata\"]}},\"savedQueryId\":\"s-savedqueryid\"}",
   "OUT: {\"createTime\":\"s-createtime\",\"displayName\":\"s-displayname\",\"matterId\":\"s-matterid\",\"query\":{\"accountInfo\":{\"emails\":[\"s-emails\"]},\"calendarOptions\":{\"locationQuery\":[\"s-locationquery\"],\"minusWords\":[\"s-minuswords\"],\"peopleQuery\":[\"s-peoplequery\"],\"responseStatuses\":[\"s-responsestatuses\"],\"versionDate\":\"s-versiondate\"},\"corpus\":\"s-corpus\",\"dataScope\":\"s-datascope\",\"driveDocumentInfo\":{},\"driveOptions\":{\"clientSideEncryptedOption\":\"s-clientsideencryptedoption\",\"includeSharedDrives\":true,\"includeTeamDrives\":true,\"sharedDrivesOption\":\"s-shareddrivesoption\",\"versionDate\":\"s-versiondate\"},\"endTime\":\"s-endtime\",\"geminiInWorkspaceOptions\":{},\"geminiOptions\":{},\"hangoutsChatInfo\":{\"roomId\":[\"s-roomid\"]},\"hangoutsChatOptions\":{\"includeRooms\":true},\"mailOptions\":{\"clientSideEncryptedOption\":\"s-clientsideencryptedoption\",\"excludeDrafts\":true},\"method\":\"s-method\",\"orgUnitInfo\":{\"orgUnitId\":\"s-orgunitid\"},\"searchMethod\":\"s-searchmethod\",\"sharedDriveInfo\":{\"sharedDriveIds\":[\"s-shareddriveids\"]},\"sitesUrlInfo\":{\"urls\":[\"s-urls\"]},\"startTime\":\"s-starttime\",\"teamDriveInfo\":{\"teamDriveIds\":[\"s-teamdriveids\"]},\"terms\":\"s-terms\",\"timeZone\":\"s-timezone\",\"voiceOptions\":{\"coveredData\":[\"s-covereddata\"]}},\"savedQueryId\":\"s-savedqueryid\"}",
@@ -566,10 +680,10 @@ test "Go's vault.matters.savedQueries.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_25)
+  gv_compare(gv_log_of(f), GO_28)
 }
 
-const GO_26: List[Str] = [
+const GO_29: List[Str] = [
   "CALL vault.matters.savedQueries.delete",
   "REQ DELETE https://vault.googleapis.com/v1/matters/id1%2F%20x/savedQueries/id2%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -587,10 +701,10 @@ test "Go's vault.matters.savedQueries.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_26)
+  gv_compare(gv_log_of(f), GO_29)
 }
 
-const GO_27: List[Str] = [
+const GO_30: List[Str] = [
   "CALL vault.matters.savedQueries.get",
   "REQ GET https://vault.googleapis.com/v1/matters/id1%2F%20x/savedQueries/id2%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -608,10 +722,10 @@ test "Go's vault.matters.savedQueries.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_27)
+  gv_compare(gv_log_of(f), GO_30)
 }
 
-const GO_28: List[Str] = [
+const GO_31: List[Str] = [
   "CALL vault.matters.savedQueries.list",
   "REQ GET https://vault.googleapis.com/v1/matters/id1%2F%20x/savedQueries?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -629,10 +743,48 @@ test "Go's vault.matters.savedQueries.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_28)
+  gv_compare(gv_log_of(f), GO_31)
 }
 
-const GO_29: List[Str] = [
+const GO_32: List[Str] = [
+  "CALL vault.matters.savedQueries.list pages",
+  "REQ GET https://vault.googleapis.com/v1/matters/id1%2F%20x/savedQueries?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"savedQueries\":[{\"createTime\":\"s-createtime\",\"displayName\":\"s-displayname\",\"matterId\":\"s-matterid\",\"query\":{\"corpus\":\"s-corpus\",\"dataScope\":\"s-datascope\",\"endTime\":\"s-endtime\",\"method\":\"s-method\",\"searchMethod\":\"s-searchmethod\",\"startTime\":\"s-starttime\",\"terms\":\"s-terms\",\"timeZone\":\"s-timezone\"},\"savedQueryId\":\"s-savedqueryid\"}]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"savedQueries\":[{\"createTime\":\"s-createtime\",\"displayName\":\"s-displayname\",\"matterId\":\"s-matterid\",\"query\":{\"corpus\":\"s-corpus\",\"dataScope\":\"s-datascope\",\"endTime\":\"s-endtime\",\"method\":\"s-method\",\"searchMethod\":\"s-searchmethod\",\"startTime\":\"s-starttime\",\"terms\":\"s-terms\",\"timeZone\":\"s-timezone\"},\"savedQueryId\":\"s-savedqueryid\"}]}",
+  "REQ GET https://vault.googleapis.com/v1/matters/id1%2F%20x/savedQueries?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"savedQueries\":[{\"createTime\":\"s-createtime\",\"displayName\":\"s-displayname\",\"matterId\":\"s-matterid\",\"query\":{\"corpus\":\"s-corpus\",\"dataScope\":\"s-datascope\",\"endTime\":\"s-endtime\",\"method\":\"s-method\",\"searchMethod\":\"s-searchmethod\",\"startTime\":\"s-starttime\",\"terms\":\"s-terms\",\"timeZone\":\"s-timezone\"},\"savedQueryId\":\"s-savedqueryid\"}]}",
+  "OUT: {\"savedQueries\":[{\"createTime\":\"s-createtime\",\"displayName\":\"s-displayname\",\"matterId\":\"s-matterid\",\"query\":{\"corpus\":\"s-corpus\",\"dataScope\":\"s-datascope\",\"endTime\":\"s-endtime\",\"method\":\"s-method\",\"searchMethod\":\"s-searchmethod\",\"startTime\":\"s-starttime\",\"terms\":\"s-terms\",\"timeZone\":\"s-timezone\"},\"savedQueryId\":\"s-savedqueryid\"}]}",
+  "OUT: ok",
+]
+
+test "Go's vault.matters.savedQueries.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"savedQueries\":[{\"createTime\":\"s-createtime\",\"displayName\":\"s-displayname\",\"matterId\":\"s-matterid\",\"query\":{\"corpus\":\"s-corpus\",\"dataScope\":\"s-datascope\",\"endTime\":\"s-endtime\",\"method\":\"s-method\",\"searchMethod\":\"s-searchmethod\",\"startTime\":\"s-starttime\",\"terms\":\"s-terms\",\"timeZone\":\"s-timezone\"},\"savedQueryId\":\"s-savedqueryid\"}]}")
+  gv_queue(f, "{\"savedQueries\":[{\"createTime\":\"s-createtime\",\"displayName\":\"s-displayname\",\"matterId\":\"s-matterid\",\"query\":{\"corpus\":\"s-corpus\",\"dataScope\":\"s-datascope\",\"endTime\":\"s-endtime\",\"method\":\"s-method\",\"searchMethod\":\"s-searchmethod\",\"startTime\":\"s-starttime\",\"terms\":\"s-terms\",\"timeZone\":\"s-timezone\"},\"savedQueryId\":\"s-savedqueryid\"}]}")
+  gv_note(f, "CALL vault.matters.savedQueries.list pages")
+  var p = svc.matters.saved_queries.list_pages("id1/ x", options: MattersSavedQueriesListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_32)
+}
+
+const GO_33: List[Str] = [
   "CALL vault.operations.cancel",
   "REQ POST https://vault.googleapis.com/v1/id1/%20x:cancel?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -651,10 +803,10 @@ test "Go's vault.operations.cancel" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_29)
+  gv_compare(gv_log_of(f), GO_33)
 }
 
-const GO_30: List[Str] = [
+const GO_34: List[Str] = [
   "CALL vault.operations.delete",
   "REQ DELETE https://vault.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -672,10 +824,10 @@ test "Go's vault.operations.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_30)
+  gv_compare(gv_log_of(f), GO_34)
 }
 
-const GO_31: List[Str] = [
+const GO_35: List[Str] = [
   "CALL vault.operations.get",
   "REQ GET https://vault.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -693,10 +845,10 @@ test "Go's vault.operations.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_31)
+  gv_compare(gv_log_of(f), GO_35)
 }
 
-const GO_32: List[Str] = [
+const GO_36: List[Str] = [
   "CALL vault.operations.list",
   "REQ GET https://vault.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&returnPartialSuccess=true",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -714,5 +866,43 @@ test "Go's vault.operations.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_32)
+  gv_compare(gv_log_of(f), GO_36)
+}
+
+const GO_37: List[Str] = [
+  "CALL vault.operations.list pages",
+  "REQ GET https://vault.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&returnPartialSuccess=true",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "REQ GET https://vault.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false&returnPartialSuccess=true",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: ok",
+]
+
+test "Go's vault.operations.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_queue(f, "{\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_note(f, "CALL vault.operations.list pages")
+  var p = svc.operations.list_pages("id1/ x", options: OperationsListOptions{filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), return_partial_success: Some(true), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_37)
 }

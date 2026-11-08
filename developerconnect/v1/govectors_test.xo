@@ -51,6 +51,44 @@ test "Go's developerconnect.projects.locations.list" {
 }
 
 const GO_2: List[Str] = [
+  "CALL developerconnect.projects.locations.list pages",
+  "REQ GET https://developerconnect.googleapis.com/v1/id1/%20x/locations?alt=json&extraLocationTypes=s-extralocationtypes&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://developerconnect.googleapis.com/v1/id1/%20x/locations?alt=json&extraLocationTypes=s-extralocationtypes&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}]}",
+  "OUT: {\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}]}",
+  "OUT: ok",
+]
+
+test "Go's developerconnect.projects.locations.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}]}")
+  gv_note(f, "CALL developerconnect.projects.locations.list pages")
+  var p = svc.projects.locations.list_pages("id1/ x", options: ProjectsLocationsListOptions{extra_location_types: ["s-extralocationtypes"], filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_2)
+}
+
+const GO_3: List[Str] = [
   "CALL developerconnect.projects.locations.accountConnectors.create",
   "REQ POST https://developerconnect.googleapis.com/v1/id1/%20x/accountConnectors?accountConnectorId=s-accountconnectorid&alt=json&fields=kind%2Cid&prettyPrint=false&requestId=s-requestid&validateOnly=true",
   "  H content-type=application/json | x-extra=v1",
@@ -69,10 +107,10 @@ test "Go's developerconnect.projects.locations.accountConnectors.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_2)
+  gv_compare(gv_log_of(f), GO_3)
 }
 
-const GO_3: List[Str] = [
+const GO_4: List[Str] = [
   "CALL developerconnect.projects.locations.accountConnectors.delete",
   "REQ DELETE https://developerconnect.googleapis.com/v1/id1/%20x?alt=json&etag=s-etag&fields=kind%2Cid&force=true&prettyPrint=false&requestId=s-requestid&validateOnly=true",
   "  H x-extra=v1",
@@ -90,10 +128,10 @@ test "Go's developerconnect.projects.locations.accountConnectors.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_3)
+  gv_compare(gv_log_of(f), GO_4)
 }
 
-const GO_4: List[Str] = [
+const GO_5: List[Str] = [
   "CALL developerconnect.projects.locations.accountConnectors.fetchUserRepositories",
   "REQ GET https://developerconnect.googleapis.com/v1/id1/%20x:fetchUserRepositories?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&repository=s-repository",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -111,10 +149,48 @@ test "Go's developerconnect.projects.locations.accountConnectors.fetchUserReposi
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_4)
+  gv_compare(gv_log_of(f), GO_5)
 }
 
-const GO_5: List[Str] = [
+const GO_6: List[Str] = [
+  "CALL developerconnect.projects.locations.accountConnectors.fetchUserRepositories pages",
+  "REQ GET https://developerconnect.googleapis.com/v1/id1/%20x:fetchUserRepositories?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&repository=s-repository",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"userRepos\":[{\"cloneUri\":\"s-cloneuri\",\"displayName\":\"s-displayname\",\"gitProxyUri\":\"s-gitproxyuri\"}]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"userRepos\":[{\"cloneUri\":\"s-cloneuri\",\"displayName\":\"s-displayname\",\"gitProxyUri\":\"s-gitproxyuri\"}]}",
+  "REQ GET https://developerconnect.googleapis.com/v1/id1/%20x:fetchUserRepositories?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false&repository=s-repository",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"userRepos\":[{\"cloneUri\":\"s-cloneuri\",\"displayName\":\"s-displayname\",\"gitProxyUri\":\"s-gitproxyuri\"}]}",
+  "OUT: {\"userRepos\":[{\"cloneUri\":\"s-cloneuri\",\"displayName\":\"s-displayname\",\"gitProxyUri\":\"s-gitproxyuri\"}]}",
+  "OUT: ok",
+]
+
+test "Go's developerconnect.projects.locations.accountConnectors.fetchUserRepositories pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"userRepos\":[{\"cloneUri\":\"s-cloneuri\",\"displayName\":\"s-displayname\",\"gitProxyUri\":\"s-gitproxyuri\"}]}")
+  gv_queue(f, "{\"userRepos\":[{\"cloneUri\":\"s-cloneuri\",\"displayName\":\"s-displayname\",\"gitProxyUri\":\"s-gitproxyuri\"}]}")
+  gv_note(f, "CALL developerconnect.projects.locations.accountConnectors.fetchUserRepositories pages")
+  var p = svc.projects.locations.account_connectors.fetch_user_repositories_pages("id1/ x", options: ProjectsLocationsAccountConnectorsFetchUserRepositoriesOptions{page_size: Some(7), page_token: Some("s-pagetoken"), repository: Some("s-repository"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_6)
+}
+
+const GO_7: List[Str] = [
   "CALL developerconnect.projects.locations.accountConnectors.get",
   "REQ GET https://developerconnect.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -132,10 +208,10 @@ test "Go's developerconnect.projects.locations.accountConnectors.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_5)
+  gv_compare(gv_log_of(f), GO_7)
 }
 
-const GO_6: List[Str] = [
+const GO_8: List[Str] = [
   "CALL developerconnect.projects.locations.accountConnectors.list",
   "REQ GET https://developerconnect.googleapis.com/v1/id1/%20x/accountConnectors?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -153,10 +229,48 @@ test "Go's developerconnect.projects.locations.accountConnectors.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_6)
+  gv_compare(gv_log_of(f), GO_8)
 }
 
-const GO_7: List[Str] = [
+const GO_9: List[Str] = [
+  "CALL developerconnect.projects.locations.accountConnectors.list pages",
+  "REQ GET https://developerconnect.googleapis.com/v1/id1/%20x/accountConnectors?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"accountConnectors\":[{\"annotations\":{\"k1\":\"s-annotations\"},\"createTime\":\"s-createtime\",\"customOauthConfig\":{\"authUri\":\"s-authuri\",\"clientId\":\"s-clientid\",\"clientSecret\":\"s-clientsecret\",\"hostUri\":\"s-hosturi\",\"pkceDisabled\":true,\"scmProvider\":\"s-scmprovider\",\"serverVersion\":\"s-serverversion\",\"sslCaCertificate\":\"s-sslcacertificate\",\"tokenUri\":\"s-tokenuri\"},\"etag\":\"s-etag\",\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"oauthStartUri\":\"s-oauthstarturi\",\"providerOauthConfig\":{\"systemProviderId\":\"s-systemproviderid\"},\"proxyConfig\":{\"enabled\":true,\"httpProxyBaseUri\":\"s-httpproxybaseuri\"},\"uid\":\"s-uid\",\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"accountConnectors\":[{\"annotations\":{\"k1\":\"s-annotations\"},\"createTime\":\"s-createtime\",\"customOauthConfig\":{\"authUri\":\"s-authuri\",\"clientId\":\"s-clientid\",\"clientSecret\":\"s-clientsecret\",\"hostUri\":\"s-hosturi\",\"pkceDisabled\":true,\"scmProvider\":\"s-scmprovider\",\"serverVersion\":\"s-serverversion\",\"sslCaCertificate\":\"s-sslcacertificate\",\"tokenUri\":\"s-tokenuri\"},\"etag\":\"s-etag\",\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"oauthStartUri\":\"s-oauthstarturi\",\"providerOauthConfig\":{\"systemProviderId\":\"s-systemproviderid\"},\"proxyConfig\":{\"enabled\":true,\"httpProxyBaseUri\":\"s-httpproxybaseuri\"},\"uid\":\"s-uid\",\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}",
+  "REQ GET https://developerconnect.googleapis.com/v1/id1/%20x/accountConnectors?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"accountConnectors\":[{\"annotations\":{\"k1\":\"s-annotations\"},\"createTime\":\"s-createtime\",\"customOauthConfig\":{\"authUri\":\"s-authuri\",\"clientId\":\"s-clientid\",\"clientSecret\":\"s-clientsecret\",\"hostUri\":\"s-hosturi\",\"pkceDisabled\":true,\"scmProvider\":\"s-scmprovider\",\"serverVersion\":\"s-serverversion\",\"sslCaCertificate\":\"s-sslcacertificate\",\"tokenUri\":\"s-tokenuri\"},\"etag\":\"s-etag\",\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"oauthStartUri\":\"s-oauthstarturi\",\"providerOauthConfig\":{\"systemProviderId\":\"s-systemproviderid\"},\"proxyConfig\":{\"enabled\":true,\"httpProxyBaseUri\":\"s-httpproxybaseuri\"},\"uid\":\"s-uid\",\"updateTime\":\"s-updatetime\"}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"accountConnectors\":[{\"annotations\":{\"k1\":\"s-annotations\"},\"createTime\":\"s-createtime\",\"customOauthConfig\":{\"authUri\":\"s-authuri\",\"clientId\":\"s-clientid\",\"clientSecret\":\"s-clientsecret\",\"hostUri\":\"s-hosturi\",\"pkceDisabled\":true,\"scmProvider\":\"s-scmprovider\",\"serverVersion\":\"s-serverversion\",\"sslCaCertificate\":\"s-sslcacertificate\",\"tokenUri\":\"s-tokenuri\"},\"etag\":\"s-etag\",\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"oauthStartUri\":\"s-oauthstarturi\",\"providerOauthConfig\":{\"systemProviderId\":\"s-systemproviderid\"},\"proxyConfig\":{\"enabled\":true,\"httpProxyBaseUri\":\"s-httpproxybaseuri\"},\"uid\":\"s-uid\",\"updateTime\":\"s-updatetime\"}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: ok",
+]
+
+test "Go's developerconnect.projects.locations.accountConnectors.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"accountConnectors\":[{\"annotations\":{\"k1\":\"s-annotations\"},\"createTime\":\"s-createtime\",\"customOauthConfig\":{\"authUri\":\"s-authuri\",\"clientId\":\"s-clientid\",\"clientSecret\":\"s-clientsecret\",\"hostUri\":\"s-hosturi\",\"pkceDisabled\":true,\"scmProvider\":\"s-scmprovider\",\"serverVersion\":\"s-serverversion\",\"sslCaCertificate\":\"s-sslcacertificate\",\"tokenUri\":\"s-tokenuri\"},\"etag\":\"s-etag\",\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"oauthStartUri\":\"s-oauthstarturi\",\"providerOauthConfig\":{\"systemProviderId\":\"s-systemproviderid\"},\"proxyConfig\":{\"enabled\":true,\"httpProxyBaseUri\":\"s-httpproxybaseuri\"},\"uid\":\"s-uid\",\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}")
+  gv_queue(f, "{\"accountConnectors\":[{\"annotations\":{\"k1\":\"s-annotations\"},\"createTime\":\"s-createtime\",\"customOauthConfig\":{\"authUri\":\"s-authuri\",\"clientId\":\"s-clientid\",\"clientSecret\":\"s-clientsecret\",\"hostUri\":\"s-hosturi\",\"pkceDisabled\":true,\"scmProvider\":\"s-scmprovider\",\"serverVersion\":\"s-serverversion\",\"sslCaCertificate\":\"s-sslcacertificate\",\"tokenUri\":\"s-tokenuri\"},\"etag\":\"s-etag\",\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"oauthStartUri\":\"s-oauthstarturi\",\"providerOauthConfig\":{\"systemProviderId\":\"s-systemproviderid\"},\"proxyConfig\":{\"enabled\":true,\"httpProxyBaseUri\":\"s-httpproxybaseuri\"},\"uid\":\"s-uid\",\"updateTime\":\"s-updatetime\"}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_note(f, "CALL developerconnect.projects.locations.accountConnectors.list pages")
+  var p = svc.projects.locations.account_connectors.list_pages("id1/ x", options: ProjectsLocationsAccountConnectorsListOptions{filter: Some("s-filter"), order_by: Some("s-orderby"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_9)
+}
+
+const GO_10: List[Str] = [
   "CALL developerconnect.projects.locations.accountConnectors.patch",
   "REQ PATCH https://developerconnect.googleapis.com/v1/id1/%20x?allowMissing=true&alt=json&fields=kind%2Cid&prettyPrint=false&requestId=s-requestid&updateMask=s-updatemask&validateOnly=true",
   "  H content-type=application/json | x-extra=v1",
@@ -175,10 +289,10 @@ test "Go's developerconnect.projects.locations.accountConnectors.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_7)
+  gv_compare(gv_log_of(f), GO_10)
 }
 
-const GO_8: List[Str] = [
+const GO_11: List[Str] = [
   "CALL developerconnect.projects.locations.accountConnectors.users.delete",
   "REQ DELETE https://developerconnect.googleapis.com/v1/id1/%20x?alt=json&etag=s-etag&fields=kind%2Cid&prettyPrint=false&requestId=s-requestid&validateOnly=true",
   "  H x-extra=v1",
@@ -196,10 +310,10 @@ test "Go's developerconnect.projects.locations.accountConnectors.users.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_8)
+  gv_compare(gv_log_of(f), GO_11)
 }
 
-const GO_9: List[Str] = [
+const GO_12: List[Str] = [
   "CALL developerconnect.projects.locations.accountConnectors.users.deleteSelf",
   "REQ DELETE https://developerconnect.googleapis.com/v1/id1/%20x/users:deleteSelf?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -217,10 +331,10 @@ test "Go's developerconnect.projects.locations.accountConnectors.users.deleteSel
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_9)
+  gv_compare(gv_log_of(f), GO_12)
 }
 
-const GO_10: List[Str] = [
+const GO_13: List[Str] = [
   "CALL developerconnect.projects.locations.accountConnectors.users.fetchAccessToken",
   "REQ POST https://developerconnect.googleapis.com/v1/id1/%20x/users:fetchAccessToken?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -239,10 +353,10 @@ test "Go's developerconnect.projects.locations.accountConnectors.users.fetchAcce
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_10)
+  gv_compare(gv_log_of(f), GO_13)
 }
 
-const GO_11: List[Str] = [
+const GO_14: List[Str] = [
   "CALL developerconnect.projects.locations.accountConnectors.users.fetchSelf",
   "REQ GET https://developerconnect.googleapis.com/v1/id1/%20x/users:fetchSelf?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -260,10 +374,10 @@ test "Go's developerconnect.projects.locations.accountConnectors.users.fetchSelf
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_11)
+  gv_compare(gv_log_of(f), GO_14)
 }
 
-const GO_12: List[Str] = [
+const GO_15: List[Str] = [
   "CALL developerconnect.projects.locations.accountConnectors.users.finishOAuthFlow",
   "REQ GET https://developerconnect.googleapis.com/v1/id1/%20x/users:finishOAuthFlow?alt=json&fields=kind%2Cid&googleOauthParams.scopes=s-googleoauthparams.scopes&googleOauthParams.ticket=s-googleoauthparams.ticket&googleOauthParams.versionInfo=s-googleoauthparams.versioninfo&oauthParams.code=s-oauthparams.code&oauthParams.ticket=s-oauthparams.ticket&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -281,10 +395,10 @@ test "Go's developerconnect.projects.locations.accountConnectors.users.finishOAu
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_12)
+  gv_compare(gv_log_of(f), GO_15)
 }
 
-const GO_13: List[Str] = [
+const GO_16: List[Str] = [
   "CALL developerconnect.projects.locations.accountConnectors.users.list",
   "REQ GET https://developerconnect.googleapis.com/v1/id1/%20x/users?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -302,10 +416,48 @@ test "Go's developerconnect.projects.locations.accountConnectors.users.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_13)
+  gv_compare(gv_log_of(f), GO_16)
 }
 
-const GO_14: List[Str] = [
+const GO_17: List[Str] = [
+  "CALL developerconnect.projects.locations.accountConnectors.users.list pages",
+  "REQ GET https://developerconnect.googleapis.com/v1/id1/%20x/users?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"],\"users\":[{\"createTime\":\"s-createtime\",\"displayName\":\"s-displayname\",\"lastTokenRequestTime\":\"s-lasttokenrequesttime\",\"name\":\"s-name\"}]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"],\"users\":[{\"createTime\":\"s-createtime\",\"displayName\":\"s-displayname\",\"lastTokenRequestTime\":\"s-lasttokenrequesttime\",\"name\":\"s-name\"}]}",
+  "REQ GET https://developerconnect.googleapis.com/v1/id1/%20x/users?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"unreachable\":[\"s-unreachable\"],\"users\":[{\"createTime\":\"s-createtime\",\"displayName\":\"s-displayname\",\"lastTokenRequestTime\":\"s-lasttokenrequesttime\",\"name\":\"s-name\"}]}",
+  "OUT: {\"unreachable\":[\"s-unreachable\"],\"users\":[{\"createTime\":\"s-createtime\",\"displayName\":\"s-displayname\",\"lastTokenRequestTime\":\"s-lasttokenrequesttime\",\"name\":\"s-name\"}]}",
+  "OUT: ok",
+]
+
+test "Go's developerconnect.projects.locations.accountConnectors.users.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"],\"users\":[{\"createTime\":\"s-createtime\",\"displayName\":\"s-displayname\",\"lastTokenRequestTime\":\"s-lasttokenrequesttime\",\"name\":\"s-name\"}]}")
+  gv_queue(f, "{\"unreachable\":[\"s-unreachable\"],\"users\":[{\"createTime\":\"s-createtime\",\"displayName\":\"s-displayname\",\"lastTokenRequestTime\":\"s-lasttokenrequesttime\",\"name\":\"s-name\"}]}")
+  gv_note(f, "CALL developerconnect.projects.locations.accountConnectors.users.list pages")
+  var p = svc.projects.locations.account_connectors.users.list_pages("id1/ x", options: ProjectsLocationsAccountConnectorsUsersListOptions{filter: Some("s-filter"), order_by: Some("s-orderby"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_17)
+}
+
+const GO_18: List[Str] = [
   "CALL developerconnect.projects.locations.accountConnectors.users.startOAuthFlow",
   "REQ GET https://developerconnect.googleapis.com/v1/id1/%20x/users:startOAuthFlow?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -323,14 +475,14 @@ test "Go's developerconnect.projects.locations.accountConnectors.users.startOAut
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_14)
+  gv_compare(gv_log_of(f), GO_18)
 }
 
-const GO_15: List[Str] = [
+const GO_19: List[Str] = [
   "CALL developerconnect.projects.locations.connections.create",
   "REQ POST https://developerconnect.googleapis.com/v1/id1/%20x/connections?alt=json&connectionId=s-connectionid&fields=kind%2Cid&prettyPrint=false&requestId=s-requestid&validateOnly=true",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"annotations\":{\"k1\":\"s-annotations\"},\"bitbucketCloudConfig\":{\"authorizerCredential\":{\"userTokenSecretVersion\":\"s-usertokensecretversion\",\"username\":\"s-username\"},\"readAuthorizerCredential\":{\"userTokenSecretVersion\":\"s-usertokensecretversion\",\"username\":\"s-username\"},\"webhookSecretSecretVersion\":\"s-webhooksecretsecretversion\",\"workspace\":\"s-workspace\"},\"bitbucketDataCenterConfig\":{\"authorizerCredential\":{\"userTokenSecretVersion\":\"s-usertokensecretversion\",\"username\":\"s-username\"},\"hostUri\":\"s-hosturi\",\"readAuthorizerCredential\":{\"userTokenSecretVersion\":\"s-usertokensecretversion\",\"username\":\"s-username\"},\"serverVersion\":\"s-serverversion\",\"serviceDirectoryConfig\":{\"service\":\"s-service\"},\"sslCaCertificate\":\"s-sslcacertificate\",\"webhookSecretSecretVersion\":\"s-webhooksecretsecretversion\"},\"createTime\":\"s-createtime\",\"cryptoKeyConfig\":{\"keyReference\":\"s-keyreference\"},\"deleteTime\":\"s-deletetime\",\"disabled\":true,\"etag\":\"s-etag\",\"gitProxyConfig\":{\"enabled\":true,\"httpProxyBaseUri\":\"s-httpproxybaseuri\"},\"githubConfig\":{\"appInstallationId\":\"7\",\"authorizerCredential\":{\"oauthTokenSecretVersion\":\"s-oauthtokensecretversion\",\"username\":\"s-username\"},\"githubApp\":\"s-githubapp\",\"installationUri\":\"s-installationuri\"},\"githubEnterpriseConfig\":{\"appId\":\"7\",\"appInstallationId\":\"7\",\"appSlug\":\"s-appslug\",\"hostUri\":\"s-hosturi\",\"installationUri\":\"s-installationuri\",\"organization\":\"s-organization\",\"privateKeySecretVersion\":\"s-privatekeysecretversion\",\"serverVersion\":\"s-serverversion\",\"serviceDirectoryConfig\":{\"service\":\"s-service\"},\"sslCaCertificate\":\"s-sslcacertificate\",\"webhookSecretSecretVersion\":\"s-webhooksecretsecretversion\"},\"gitlabConfig\":{\"authorizerCredential\":{\"userTokenSecretVersion\":\"s-usertokensecretversion\",\"username\":\"s-username\"},\"readAuthorizerCredential\":{\"userTokenSecretVersion\":\"s-usertokensecretversion\",\"username\":\"s-username\"},\"webhookSecretSecretVersion\":\"s-webhooksecretsecretversion\"},\"gitlabEnterpriseConfig\":{\"authorizerCredential\":{\"userTokenSecretVersion\":\"s-usertokensecretversion\",\"username\":\"s-username\"},\"hostUri\":\"s-hosturi\",\"readAuthorizerCredential\":{\"userTokenSecretVersion\":\"s-usertokensecretversion\",\"username\":\"s-username\"},\"serverVersion\":\"s-serverversion\",\"serviceDirectoryConfig\":{\"service\":\"s-service\"},\"sslCaCertificate\":\"s-sslcacertificate\",\"webhookSecretSecretVersion\":\"s-webhooksecretsecretversion\"},\"httpConfig\":{\"basicAuthentication\":{\"passwordSecretVersion\":\"s-passwordsecretversion\",\"username\":\"s-username\"},\"bearerTokenAuthentication\":{\"tokenSecretVersion\":\"s-tokensecretversion\"},\"hostUri\":\"s-hosturi\",\"serviceDirectoryConfig\":{\"service\":\"s-service\"},\"sslCaCertificate\":\"s-sslcacertificate\"},\"installationState\":{\"actionUri\":\"s-actionuri\",\"message\":\"s-message\",\"stage\":\"s-stage\"},\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"reconciling\":true,\"secureSourceManagerInstanceConfig\":{\"instance\":\"s-instance\"},\"uid\":\"s-uid\",\"updateTime\":\"s-updatetime\"}",
+  "  B <2906 bytes> {\"annotations\":{\"k1\":\"s-annotati...d\",\"updateTime\":\"s-updatetime\"}",
   "",
   "  SERVED 200 {\"done\":true,\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}",
   "OUT: {\"done\":true,\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}",
@@ -345,10 +497,10 @@ test "Go's developerconnect.projects.locations.connections.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_15)
+  gv_compare(gv_log_of(f), GO_19)
 }
 
-const GO_16: List[Str] = [
+const GO_20: List[Str] = [
   "CALL developerconnect.projects.locations.connections.delete",
   "REQ DELETE https://developerconnect.googleapis.com/v1/id1/%20x?alt=json&etag=s-etag&fields=kind%2Cid&prettyPrint=false&requestId=s-requestid&validateOnly=true",
   "  H x-extra=v1",
@@ -366,10 +518,10 @@ test "Go's developerconnect.projects.locations.connections.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_16)
+  gv_compare(gv_log_of(f), GO_20)
 }
 
-const GO_17: List[Str] = [
+const GO_21: List[Str] = [
   "CALL developerconnect.projects.locations.connections.fetchGitHubInstallations",
   "REQ GET https://developerconnect.googleapis.com/v1/id1/%20x:fetchGitHubInstallations?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -387,10 +539,10 @@ test "Go's developerconnect.projects.locations.connections.fetchGitHubInstallati
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_17)
+  gv_compare(gv_log_of(f), GO_21)
 }
 
-const GO_18: List[Str] = [
+const GO_22: List[Str] = [
   "CALL developerconnect.projects.locations.connections.fetchLinkableGitRepositories",
   "REQ GET https://developerconnect.googleapis.com/v1/id1/%20x:fetchLinkableGitRepositories?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -408,10 +560,48 @@ test "Go's developerconnect.projects.locations.connections.fetchLinkableGitRepos
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_18)
+  gv_compare(gv_log_of(f), GO_22)
 }
 
-const GO_19: List[Str] = [
+const GO_23: List[Str] = [
+  "CALL developerconnect.projects.locations.connections.fetchLinkableGitRepositories pages",
+  "REQ GET https://developerconnect.googleapis.com/v1/id1/%20x:fetchLinkableGitRepositories?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"linkableGitRepositories\":[{\"cloneUri\":\"s-cloneuri\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"linkableGitRepositories\":[{\"cloneUri\":\"s-cloneuri\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://developerconnect.googleapis.com/v1/id1/%20x:fetchLinkableGitRepositories?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"linkableGitRepositories\":[{\"cloneUri\":\"s-cloneuri\"}]}",
+  "OUT: {\"linkableGitRepositories\":[{\"cloneUri\":\"s-cloneuri\"}]}",
+  "OUT: ok",
+]
+
+test "Go's developerconnect.projects.locations.connections.fetchLinkableGitRepositories pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"linkableGitRepositories\":[{\"cloneUri\":\"s-cloneuri\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"linkableGitRepositories\":[{\"cloneUri\":\"s-cloneuri\"}]}")
+  gv_note(f, "CALL developerconnect.projects.locations.connections.fetchLinkableGitRepositories pages")
+  var p = svc.projects.locations.connections.fetch_linkable_git_repositories_pages("id1/ x", options: ProjectsLocationsConnectionsFetchLinkableGitRepositoriesOptions{page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_23)
+}
+
+const GO_24: List[Str] = [
   "CALL developerconnect.projects.locations.connections.get",
   "REQ GET https://developerconnect.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -429,10 +619,10 @@ test "Go's developerconnect.projects.locations.connections.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_19)
+  gv_compare(gv_log_of(f), GO_24)
 }
 
-const GO_20: List[Str] = [
+const GO_25: List[Str] = [
   "CALL developerconnect.projects.locations.connections.list",
   "REQ GET https://developerconnect.googleapis.com/v1/id1/%20x/connections?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -450,14 +640,52 @@ test "Go's developerconnect.projects.locations.connections.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_20)
+  gv_compare(gv_log_of(f), GO_25)
 }
 
-const GO_21: List[Str] = [
+const GO_26: List[Str] = [
+  "CALL developerconnect.projects.locations.connections.list pages",
+  "REQ GET https://developerconnect.googleapis.com/v1/id1/%20x/connections?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"connections\":[{\"annotations\":{\"k1\":\"s-annotations\"},\"bitbucketCloudConfig\":{\"webhookSecretSecretVersion\":\"s-webhooksecretsecretversion\",\"workspace\":\"s-workspace\"},\"bitbucketDataCenterConfig\":{\"hostUri\":\"s-hosturi\",\"serverVersion\":\"s-serverversion\",\"sslCaCertificate\":\"s-sslcacertificate\",\"webhookSecretSecretVersion\":\"s-webhooksecretsecretversion\"},\"createTime\":\"s-createtime\",\"cryptoKeyConfig\":{\"keyReference\":\"s-keyreference\"},\"deleteTime\":\"s-deletetime\",\"disabled\":true,\"etag\":\"s-etag\",\"gitProxyConfig\":{\"enabled\":true,\"httpProxyBaseUri\":\"s-httpproxybaseuri\"},\"githubConfig\":{\"appInstallationId\":\"7\",\"githubApp\":\"s-githubapp\",\"installationUri\":\"s-installationuri\"},\"githubEnterpriseConfig\":{\"appId\":\"7\",\"appInstallationId\":\"7\",\"appSlug\":\"s-appslug\",\"hostUri\":\"s-hosturi\",\"installationUri\":\"s-installationuri\",\"organization\":\"s-organization\",\"privateKeySecretVersion\":\"s-privatekeysecretversion\",\"serverVersion\":\"s-serverversion\",\"sslCaCertificate\":\"s-sslcacertificate\",\"webhookSecretSecretVersion\":\"s-webhooksecretsecretversion\"},\"gitlabConfig\":{\"webhookSecretSecretVersion\":\"s-webhooksecretsecretversion\"},\"gitlabEnterpriseConfig\":{\"hostUri\":\"s-hosturi\",\"serverVersion\":\"s-serverversion\",\"sslCaCertificate\":\"s-sslcacertificate\",\"webhookSecretSecretVersion\":\"s-webhooksecretsecretversion\"},\"httpConfig\":{\"hostUri\":\"s-hosturi\",\"sslCaCertificate\":\"s-sslcacertificate\"},\"installationState\":{\"actionUri\":\"s-actionuri\",\"message\":\"s-message\",\"stage\":\"s-stage\"},\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"reconciling\":true,\"secureSourceManagerInstanceConfig\":{\"instance\":\"s-instance\"},\"uid\":\"s-uid\",\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"connections\":[{\"annotations\":{\"k1\":\"s-annotations\"},\"bitbucketCloudConfig\":{\"webhookSecretSecretVersion\":\"s-webhooksecretsecretversion\",\"workspace\":\"s-workspace\"},\"bitbucketDataCenterConfig\":{\"hostUri\":\"s-hosturi\",\"serverVersion\":\"s-serverversion\",\"sslCaCertificate\":\"s-sslcacertificate\",\"webhookSecretSecretVersion\":\"s-webhooksecretsecretversion\"},\"createTime\":\"s-createtime\",\"cryptoKeyConfig\":{\"keyReference\":\"s-keyreference\"},\"deleteTime\":\"s-deletetime\",\"disabled\":true,\"etag\":\"s-etag\",\"gitProxyConfig\":{\"enabled\":true,\"httpProxyBaseUri\":\"s-httpproxybaseuri\"},\"githubConfig\":{\"appInstallationId\":\"7\",\"githubApp\":\"s-githubapp\",\"installationUri\":\"s-installationuri\"},\"githubEnterpriseConfig\":{\"appId\":\"7\",\"appInstallationId\":\"7\",\"appSlug\":\"s-appslug\",\"hostUri\":\"s-hosturi\",\"installationUri\":\"s-installationuri\",\"organization\":\"s-organization\",\"privateKeySecretVersion\":\"s-privatekeysecretversion\",\"serverVersion\":\"s-serverversion\",\"sslCaCertificate\":\"s-sslcacertificate\",\"webhookSecretSecretVersion\":\"s-webhooksecretsecretversion\"},\"gitlabConfig\":{\"webhookSecretSecretVersion\":\"s-webhooksecretsecretversion\"},\"gitlabEnterpriseConfig\":{\"hostUri\":\"s-hosturi\",\"serverVersion\":\"s-serverversion\",\"sslCaCertificate\":\"s-sslcacertificate\",\"webhookSecretSecretVersion\":\"s-webhooksecretsecretversion\"},\"httpConfig\":{\"hostUri\":\"s-hosturi\",\"sslCaCertificate\":\"s-sslcacertificate\"},\"installationState\":{\"actionUri\":\"s-actionuri\",\"message\":\"s-message\",\"stage\":\"s-stage\"},\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"reconciling\":true,\"secureSourceManagerInstanceConfig\":{\"instance\":\"s-instance\"},\"uid\":\"s-uid\",\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}",
+  "REQ GET https://developerconnect.googleapis.com/v1/id1/%20x/connections?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"connections\":[{\"annotations\":{\"k1\":\"s-annotations\"},\"bitbucketCloudConfig\":{\"webhookSecretSecretVersion\":\"s-webhooksecretsecretversion\",\"workspace\":\"s-workspace\"},\"bitbucketDataCenterConfig\":{\"hostUri\":\"s-hosturi\",\"serverVersion\":\"s-serverversion\",\"sslCaCertificate\":\"s-sslcacertificate\",\"webhookSecretSecretVersion\":\"s-webhooksecretsecretversion\"},\"createTime\":\"s-createtime\",\"cryptoKeyConfig\":{\"keyReference\":\"s-keyreference\"},\"deleteTime\":\"s-deletetime\",\"disabled\":true,\"etag\":\"s-etag\",\"gitProxyConfig\":{\"enabled\":true,\"httpProxyBaseUri\":\"s-httpproxybaseuri\"},\"githubConfig\":{\"appInstallationId\":\"7\",\"githubApp\":\"s-githubapp\",\"installationUri\":\"s-installationuri\"},\"githubEnterpriseConfig\":{\"appId\":\"7\",\"appInstallationId\":\"7\",\"appSlug\":\"s-appslug\",\"hostUri\":\"s-hosturi\",\"installationUri\":\"s-installationuri\",\"organization\":\"s-organization\",\"privateKeySecretVersion\":\"s-privatekeysecretversion\",\"serverVersion\":\"s-serverversion\",\"sslCaCertificate\":\"s-sslcacertificate\",\"webhookSecretSecretVersion\":\"s-webhooksecretsecretversion\"},\"gitlabConfig\":{\"webhookSecretSecretVersion\":\"s-webhooksecretsecretversion\"},\"gitlabEnterpriseConfig\":{\"hostUri\":\"s-hosturi\",\"serverVersion\":\"s-serverversion\",\"sslCaCertificate\":\"s-sslcacertificate\",\"webhookSecretSecretVersion\":\"s-webhooksecretsecretversion\"},\"httpConfig\":{\"hostUri\":\"s-hosturi\",\"sslCaCertificate\":\"s-sslcacertificate\"},\"installationState\":{\"actionUri\":\"s-actionuri\",\"message\":\"s-message\",\"stage\":\"s-stage\"},\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"reconciling\":true,\"secureSourceManagerInstanceConfig\":{\"instance\":\"s-instance\"},\"uid\":\"s-uid\",\"updateTime\":\"s-updatetime\"}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"connections\":[{\"annotations\":{\"k1\":\"s-annotations\"},\"bitbucketCloudConfig\":{\"webhookSecretSecretVersion\":\"s-webhooksecretsecretversion\",\"workspace\":\"s-workspace\"},\"bitbucketDataCenterConfig\":{\"hostUri\":\"s-hosturi\",\"serverVersion\":\"s-serverversion\",\"sslCaCertificate\":\"s-sslcacertificate\",\"webhookSecretSecretVersion\":\"s-webhooksecretsecretversion\"},\"createTime\":\"s-createtime\",\"cryptoKeyConfig\":{\"keyReference\":\"s-keyreference\"},\"deleteTime\":\"s-deletetime\",\"disabled\":true,\"etag\":\"s-etag\",\"gitProxyConfig\":{\"enabled\":true,\"httpProxyBaseUri\":\"s-httpproxybaseuri\"},\"githubConfig\":{\"appInstallationId\":\"7\",\"githubApp\":\"s-githubapp\",\"installationUri\":\"s-installationuri\"},\"githubEnterpriseConfig\":{\"appId\":\"7\",\"appInstallationId\":\"7\",\"appSlug\":\"s-appslug\",\"hostUri\":\"s-hosturi\",\"installationUri\":\"s-installationuri\",\"organization\":\"s-organization\",\"privateKeySecretVersion\":\"s-privatekeysecretversion\",\"serverVersion\":\"s-serverversion\",\"sslCaCertificate\":\"s-sslcacertificate\",\"webhookSecretSecretVersion\":\"s-webhooksecretsecretversion\"},\"gitlabConfig\":{\"webhookSecretSecretVersion\":\"s-webhooksecretsecretversion\"},\"gitlabEnterpriseConfig\":{\"hostUri\":\"s-hosturi\",\"serverVersion\":\"s-serverversion\",\"sslCaCertificate\":\"s-sslcacertificate\",\"webhookSecretSecretVersion\":\"s-webhooksecretsecretversion\"},\"httpConfig\":{\"hostUri\":\"s-hosturi\",\"sslCaCertificate\":\"s-sslcacertificate\"},\"installationState\":{\"actionUri\":\"s-actionuri\",\"message\":\"s-message\",\"stage\":\"s-stage\"},\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"reconciling\":true,\"secureSourceManagerInstanceConfig\":{\"instance\":\"s-instance\"},\"uid\":\"s-uid\",\"updateTime\":\"s-updatetime\"}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: ok",
+]
+
+test "Go's developerconnect.projects.locations.connections.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"connections\":[{\"annotations\":{\"k1\":\"s-annotations\"},\"bitbucketCloudConfig\":{\"webhookSecretSecretVersion\":\"s-webhooksecretsecretversion\",\"workspace\":\"s-workspace\"},\"bitbucketDataCenterConfig\":{\"hostUri\":\"s-hosturi\",\"serverVersion\":\"s-serverversion\",\"sslCaCertificate\":\"s-sslcacertificate\",\"webhookSecretSecretVersion\":\"s-webhooksecretsecretversion\"},\"createTime\":\"s-createtime\",\"cryptoKeyConfig\":{\"keyReference\":\"s-keyreference\"},\"deleteTime\":\"s-deletetime\",\"disabled\":true,\"etag\":\"s-etag\",\"gitProxyConfig\":{\"enabled\":true,\"httpProxyBaseUri\":\"s-httpproxybaseuri\"},\"githubConfig\":{\"appInstallationId\":\"7\",\"githubApp\":\"s-githubapp\",\"installationUri\":\"s-installationuri\"},\"githubEnterpriseConfig\":{\"appId\":\"7\",\"appInstallationId\":\"7\",\"appSlug\":\"s-appslug\",\"hostUri\":\"s-hosturi\",\"installationUri\":\"s-installationuri\",\"organization\":\"s-organization\",\"privateKeySecretVersion\":\"s-privatekeysecretversion\",\"serverVersion\":\"s-serverversion\",\"sslCaCertificate\":\"s-sslcacertificate\",\"webhookSecretSecretVersion\":\"s-webhooksecretsecretversion\"},\"gitlabConfig\":{\"webhookSecretSecretVersion\":\"s-webhooksecretsecretversion\"},\"gitlabEnterpriseConfig\":{\"hostUri\":\"s-hosturi\",\"serverVersion\":\"s-serverversion\",\"sslCaCertificate\":\"s-sslcacertificate\",\"webhookSecretSecretVersion\":\"s-webhooksecretsecretversion\"},\"httpConfig\":{\"hostUri\":\"s-hosturi\",\"sslCaCertificate\":\"s-sslcacertificate\"},\"installationState\":{\"actionUri\":\"s-actionuri\",\"message\":\"s-message\",\"stage\":\"s-stage\"},\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"reconciling\":true,\"secureSourceManagerInstanceConfig\":{\"instance\":\"s-instance\"},\"uid\":\"s-uid\",\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}")
+  gv_queue(f, "{\"connections\":[{\"annotations\":{\"k1\":\"s-annotations\"},\"bitbucketCloudConfig\":{\"webhookSecretSecretVersion\":\"s-webhooksecretsecretversion\",\"workspace\":\"s-workspace\"},\"bitbucketDataCenterConfig\":{\"hostUri\":\"s-hosturi\",\"serverVersion\":\"s-serverversion\",\"sslCaCertificate\":\"s-sslcacertificate\",\"webhookSecretSecretVersion\":\"s-webhooksecretsecretversion\"},\"createTime\":\"s-createtime\",\"cryptoKeyConfig\":{\"keyReference\":\"s-keyreference\"},\"deleteTime\":\"s-deletetime\",\"disabled\":true,\"etag\":\"s-etag\",\"gitProxyConfig\":{\"enabled\":true,\"httpProxyBaseUri\":\"s-httpproxybaseuri\"},\"githubConfig\":{\"appInstallationId\":\"7\",\"githubApp\":\"s-githubapp\",\"installationUri\":\"s-installationuri\"},\"githubEnterpriseConfig\":{\"appId\":\"7\",\"appInstallationId\":\"7\",\"appSlug\":\"s-appslug\",\"hostUri\":\"s-hosturi\",\"installationUri\":\"s-installationuri\",\"organization\":\"s-organization\",\"privateKeySecretVersion\":\"s-privatekeysecretversion\",\"serverVersion\":\"s-serverversion\",\"sslCaCertificate\":\"s-sslcacertificate\",\"webhookSecretSecretVersion\":\"s-webhooksecretsecretversion\"},\"gitlabConfig\":{\"webhookSecretSecretVersion\":\"s-webhooksecretsecretversion\"},\"gitlabEnterpriseConfig\":{\"hostUri\":\"s-hosturi\",\"serverVersion\":\"s-serverversion\",\"sslCaCertificate\":\"s-sslcacertificate\",\"webhookSecretSecretVersion\":\"s-webhooksecretsecretversion\"},\"httpConfig\":{\"hostUri\":\"s-hosturi\",\"sslCaCertificate\":\"s-sslcacertificate\"},\"installationState\":{\"actionUri\":\"s-actionuri\",\"message\":\"s-message\",\"stage\":\"s-stage\"},\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"reconciling\":true,\"secureSourceManagerInstanceConfig\":{\"instance\":\"s-instance\"},\"uid\":\"s-uid\",\"updateTime\":\"s-updatetime\"}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_note(f, "CALL developerconnect.projects.locations.connections.list pages")
+  var p = svc.projects.locations.connections.list_pages("id1/ x", options: ProjectsLocationsConnectionsListOptions{filter: Some("s-filter"), order_by: Some("s-orderby"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_26)
+}
+
+const GO_27: List[Str] = [
   "CALL developerconnect.projects.locations.connections.patch",
   "REQ PATCH https://developerconnect.googleapis.com/v1/id1/%20x?allowMissing=true&alt=json&fields=kind%2Cid&prettyPrint=false&requestId=s-requestid&updateMask=s-updatemask&validateOnly=true",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"annotations\":{\"k1\":\"s-annotations\"},\"bitbucketCloudConfig\":{\"authorizerCredential\":{\"userTokenSecretVersion\":\"s-usertokensecretversion\",\"username\":\"s-username\"},\"readAuthorizerCredential\":{\"userTokenSecretVersion\":\"s-usertokensecretversion\",\"username\":\"s-username\"},\"webhookSecretSecretVersion\":\"s-webhooksecretsecretversion\",\"workspace\":\"s-workspace\"},\"bitbucketDataCenterConfig\":{\"authorizerCredential\":{\"userTokenSecretVersion\":\"s-usertokensecretversion\",\"username\":\"s-username\"},\"hostUri\":\"s-hosturi\",\"readAuthorizerCredential\":{\"userTokenSecretVersion\":\"s-usertokensecretversion\",\"username\":\"s-username\"},\"serverVersion\":\"s-serverversion\",\"serviceDirectoryConfig\":{\"service\":\"s-service\"},\"sslCaCertificate\":\"s-sslcacertificate\",\"webhookSecretSecretVersion\":\"s-webhooksecretsecretversion\"},\"createTime\":\"s-createtime\",\"cryptoKeyConfig\":{\"keyReference\":\"s-keyreference\"},\"deleteTime\":\"s-deletetime\",\"disabled\":true,\"etag\":\"s-etag\",\"gitProxyConfig\":{\"enabled\":true,\"httpProxyBaseUri\":\"s-httpproxybaseuri\"},\"githubConfig\":{\"appInstallationId\":\"7\",\"authorizerCredential\":{\"oauthTokenSecretVersion\":\"s-oauthtokensecretversion\",\"username\":\"s-username\"},\"githubApp\":\"s-githubapp\",\"installationUri\":\"s-installationuri\"},\"githubEnterpriseConfig\":{\"appId\":\"7\",\"appInstallationId\":\"7\",\"appSlug\":\"s-appslug\",\"hostUri\":\"s-hosturi\",\"installationUri\":\"s-installationuri\",\"organization\":\"s-organization\",\"privateKeySecretVersion\":\"s-privatekeysecretversion\",\"serverVersion\":\"s-serverversion\",\"serviceDirectoryConfig\":{\"service\":\"s-service\"},\"sslCaCertificate\":\"s-sslcacertificate\",\"webhookSecretSecretVersion\":\"s-webhooksecretsecretversion\"},\"gitlabConfig\":{\"authorizerCredential\":{\"userTokenSecretVersion\":\"s-usertokensecretversion\",\"username\":\"s-username\"},\"readAuthorizerCredential\":{\"userTokenSecretVersion\":\"s-usertokensecretversion\",\"username\":\"s-username\"},\"webhookSecretSecretVersion\":\"s-webhooksecretsecretversion\"},\"gitlabEnterpriseConfig\":{\"authorizerCredential\":{\"userTokenSecretVersion\":\"s-usertokensecretversion\",\"username\":\"s-username\"},\"hostUri\":\"s-hosturi\",\"readAuthorizerCredential\":{\"userTokenSecretVersion\":\"s-usertokensecretversion\",\"username\":\"s-username\"},\"serverVersion\":\"s-serverversion\",\"serviceDirectoryConfig\":{\"service\":\"s-service\"},\"sslCaCertificate\":\"s-sslcacertificate\",\"webhookSecretSecretVersion\":\"s-webhooksecretsecretversion\"},\"httpConfig\":{\"basicAuthentication\":{\"passwordSecretVersion\":\"s-passwordsecretversion\",\"username\":\"s-username\"},\"bearerTokenAuthentication\":{\"tokenSecretVersion\":\"s-tokensecretversion\"},\"hostUri\":\"s-hosturi\",\"serviceDirectoryConfig\":{\"service\":\"s-service\"},\"sslCaCertificate\":\"s-sslcacertificate\"},\"installationState\":{\"actionUri\":\"s-actionuri\",\"message\":\"s-message\",\"stage\":\"s-stage\"},\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"reconciling\":true,\"secureSourceManagerInstanceConfig\":{\"instance\":\"s-instance\"},\"uid\":\"s-uid\",\"updateTime\":\"s-updatetime\"}",
+  "  B <2906 bytes> {\"annotations\":{\"k1\":\"s-annotati...d\",\"updateTime\":\"s-updatetime\"}",
   "",
   "  SERVED 200 {\"done\":true,\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}",
   "OUT: {\"done\":true,\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}",
@@ -472,10 +700,10 @@ test "Go's developerconnect.projects.locations.connections.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_21)
+  gv_compare(gv_log_of(f), GO_27)
 }
 
-const GO_22: List[Str] = [
+const GO_28: List[Str] = [
   "CALL developerconnect.projects.locations.connections.processGitHubEnterpriseWebhook",
   "REQ POST https://developerconnect.googleapis.com/v1/id1/%20x/connections:processGitHubEnterpriseWebhook?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -494,10 +722,10 @@ test "Go's developerconnect.projects.locations.connections.processGitHubEnterpri
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_22)
+  gv_compare(gv_log_of(f), GO_28)
 }
 
-const GO_23: List[Str] = [
+const GO_29: List[Str] = [
   "CALL developerconnect.projects.locations.connections.gitRepositoryLinks.addPullRequestComment",
   "REQ POST https://developerconnect.googleapis.com/v1/id1/%20x:addPullRequestComment?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -516,10 +744,10 @@ test "Go's developerconnect.projects.locations.connections.gitRepositoryLinks.ad
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_23)
+  gv_compare(gv_log_of(f), GO_29)
 }
 
-const GO_24: List[Str] = [
+const GO_30: List[Str] = [
   "CALL developerconnect.projects.locations.connections.gitRepositoryLinks.addPullRequestReviewComment",
   "REQ POST https://developerconnect.googleapis.com/v1/id1/%20x:addPullRequestReviewComment?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -538,10 +766,10 @@ test "Go's developerconnect.projects.locations.connections.gitRepositoryLinks.ad
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_24)
+  gv_compare(gv_log_of(f), GO_30)
 }
 
-const GO_25: List[Str] = [
+const GO_31: List[Str] = [
   "CALL developerconnect.projects.locations.connections.gitRepositoryLinks.create",
   "REQ POST https://developerconnect.googleapis.com/v1/id1/%20x/gitRepositoryLinks?alt=json&fields=kind%2Cid&gitRepositoryLinkId=s-gitrepositorylinkid&prettyPrint=false&requestId=s-requestid&validateOnly=true",
   "  H content-type=application/json | x-extra=v1",
@@ -560,10 +788,10 @@ test "Go's developerconnect.projects.locations.connections.gitRepositoryLinks.cr
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_25)
+  gv_compare(gv_log_of(f), GO_31)
 }
 
-const GO_26: List[Str] = [
+const GO_32: List[Str] = [
   "CALL developerconnect.projects.locations.connections.gitRepositoryLinks.delete",
   "REQ DELETE https://developerconnect.googleapis.com/v1/id1/%20x?alt=json&etag=s-etag&fields=kind%2Cid&prettyPrint=false&requestId=s-requestid&validateOnly=true",
   "  H x-extra=v1",
@@ -581,10 +809,10 @@ test "Go's developerconnect.projects.locations.connections.gitRepositoryLinks.de
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_26)
+  gv_compare(gv_log_of(f), GO_32)
 }
 
-const GO_27: List[Str] = [
+const GO_33: List[Str] = [
   "CALL developerconnect.projects.locations.connections.gitRepositoryLinks.diffCommit",
   "REQ GET https://developerconnect.googleapis.com/v1/id1/%20x:diffCommit?alt=json&baseSha=s-basesha&fields=kind%2Cid&headSha=s-headsha&pathFilters=s-pathfilters&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -602,10 +830,10 @@ test "Go's developerconnect.projects.locations.connections.gitRepositoryLinks.di
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_27)
+  gv_compare(gv_log_of(f), GO_33)
 }
 
-const GO_28: List[Str] = [
+const GO_34: List[Str] = [
   "CALL developerconnect.projects.locations.connections.gitRepositoryLinks.fetchCommit",
   "REQ GET https://developerconnect.googleapis.com/v1/id1/%20x:fetchCommit?alt=json&commitSha=s-commitsha&fields=kind%2Cid&pathFilters=s-pathfilters&prettyPrint=false&view=s-view",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -623,10 +851,10 @@ test "Go's developerconnect.projects.locations.connections.gitRepositoryLinks.fe
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_28)
+  gv_compare(gv_log_of(f), GO_34)
 }
 
-const GO_29: List[Str] = [
+const GO_35: List[Str] = [
   "CALL developerconnect.projects.locations.connections.gitRepositoryLinks.fetchCommitList",
   "REQ GET https://developerconnect.googleapis.com/v1/id1/%20x:fetchCommitList?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&ref=s-ref&view=s-view",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -644,10 +872,48 @@ test "Go's developerconnect.projects.locations.connections.gitRepositoryLinks.fe
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_29)
+  gv_compare(gv_log_of(f), GO_35)
 }
 
-const GO_30: List[Str] = [
+const GO_36: List[Str] = [
+  "CALL developerconnect.projects.locations.connections.gitRepositoryLinks.fetchCommitList pages",
+  "REQ GET https://developerconnect.googleapis.com/v1/id1/%20x:fetchCommitList?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&ref=s-ref&view=s-view",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"commits\":[{\"author\":\"s-author\",\"authorEmail\":\"s-authoremail\",\"commitTime\":\"s-committime\",\"message\":\"s-message\",\"sha\":\"s-sha\",\"url\":\"s-url\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"commits\":[{\"author\":\"s-author\",\"authorEmail\":\"s-authoremail\",\"commitTime\":\"s-committime\",\"message\":\"s-message\",\"sha\":\"s-sha\",\"url\":\"s-url\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://developerconnect.googleapis.com/v1/id1/%20x:fetchCommitList?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false&ref=s-ref&view=s-view",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"commits\":[{\"author\":\"s-author\",\"authorEmail\":\"s-authoremail\",\"commitTime\":\"s-committime\",\"message\":\"s-message\",\"sha\":\"s-sha\",\"url\":\"s-url\"}]}",
+  "OUT: {\"commits\":[{\"author\":\"s-author\",\"authorEmail\":\"s-authoremail\",\"commitTime\":\"s-committime\",\"message\":\"s-message\",\"sha\":\"s-sha\",\"url\":\"s-url\"}]}",
+  "OUT: ok",
+]
+
+test "Go's developerconnect.projects.locations.connections.gitRepositoryLinks.fetchCommitList pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"commits\":[{\"author\":\"s-author\",\"authorEmail\":\"s-authoremail\",\"commitTime\":\"s-committime\",\"message\":\"s-message\",\"sha\":\"s-sha\",\"url\":\"s-url\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"commits\":[{\"author\":\"s-author\",\"authorEmail\":\"s-authoremail\",\"commitTime\":\"s-committime\",\"message\":\"s-message\",\"sha\":\"s-sha\",\"url\":\"s-url\"}]}")
+  gv_note(f, "CALL developerconnect.projects.locations.connections.gitRepositoryLinks.fetchCommitList pages")
+  var p = svc.projects.locations.connections.git_repository_links.fetch_commit_list_pages("id1/ x", options: ProjectsLocationsConnectionsGitRepositoryLinksFetchCommitListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), ref: Some("s-ref"), view: Some("s-view"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_36)
+}
+
+const GO_37: List[Str] = [
   "CALL developerconnect.projects.locations.connections.gitRepositoryLinks.fetchFileBlame",
   "REQ GET https://developerconnect.googleapis.com/v1/id1/%20x:fetchFileBlame?alt=json&fields=kind%2Cid&firstLine=7&lastLine=7&path=s-path&prettyPrint=false&ref=s-ref",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -665,10 +931,10 @@ test "Go's developerconnect.projects.locations.connections.gitRepositoryLinks.fe
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_30)
+  gv_compare(gv_log_of(f), GO_37)
 }
 
-const GO_31: List[Str] = [
+const GO_38: List[Str] = [
   "CALL developerconnect.projects.locations.connections.gitRepositoryLinks.fetchGitRefs",
   "REQ GET https://developerconnect.googleapis.com/v1/id1/%20x:fetchGitRefs?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&refType=s-reftype",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -686,10 +952,48 @@ test "Go's developerconnect.projects.locations.connections.gitRepositoryLinks.fe
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_31)
+  gv_compare(gv_log_of(f), GO_38)
 }
 
-const GO_32: List[Str] = [
+const GO_39: List[Str] = [
+  "CALL developerconnect.projects.locations.connections.gitRepositoryLinks.fetchGitRefs pages",
+  "REQ GET https://developerconnect.googleapis.com/v1/id1/%20x:fetchGitRefs?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&refType=s-reftype",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"refNames\":[\"s-refnames\"]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"refNames\":[\"s-refnames\"]}",
+  "REQ GET https://developerconnect.googleapis.com/v1/id1/%20x:fetchGitRefs?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false&refType=s-reftype",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"refNames\":[\"s-refnames\"]}",
+  "OUT: {\"refNames\":[\"s-refnames\"]}",
+  "OUT: ok",
+]
+
+test "Go's developerconnect.projects.locations.connections.gitRepositoryLinks.fetchGitRefs pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"refNames\":[\"s-refnames\"]}")
+  gv_queue(f, "{\"refNames\":[\"s-refnames\"]}")
+  gv_note(f, "CALL developerconnect.projects.locations.connections.gitRepositoryLinks.fetchGitRefs pages")
+  var p = svc.projects.locations.connections.git_repository_links.fetch_git_refs_pages("id1/ x", options: ProjectsLocationsConnectionsGitRepositoryLinksFetchGitRefsOptions{page_size: Some(7), page_token: Some("s-pagetoken"), ref_type: Some("s-reftype"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_39)
+}
+
+const GO_40: List[Str] = [
   "CALL developerconnect.projects.locations.connections.gitRepositoryLinks.fetchPullRequest",
   "REQ GET https://developerconnect.googleapis.com/v1/id1/%20x:fetchPullRequest?alt=json&fields=kind%2Cid&prettyPrint=false&pullRequestId=s-pullrequestid",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -707,10 +1011,10 @@ test "Go's developerconnect.projects.locations.connections.gitRepositoryLinks.fe
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_32)
+  gv_compare(gv_log_of(f), GO_40)
 }
 
-const GO_33: List[Str] = [
+const GO_41: List[Str] = [
   "CALL developerconnect.projects.locations.connections.gitRepositoryLinks.fetchPullRequestList",
   "REQ GET https://developerconnect.googleapis.com/v1/id1/%20x:fetchPullRequestList?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -728,10 +1032,48 @@ test "Go's developerconnect.projects.locations.connections.gitRepositoryLinks.fe
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_33)
+  gv_compare(gv_log_of(f), GO_41)
 }
 
-const GO_34: List[Str] = [
+const GO_42: List[Str] = [
+  "CALL developerconnect.projects.locations.connections.gitRepositoryLinks.fetchPullRequestList pages",
+  "REQ GET https://developerconnect.googleapis.com/v1/id1/%20x:fetchPullRequestList?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"pullRequests\":[{\"author\":\"s-author\",\"baseRef\":\"s-baseref\",\"body\":\"s-body\",\"closeTime\":\"s-closetime\",\"createTime\":\"s-createtime\",\"declineTime\":\"s-declinetime\",\"headRef\":\"s-headref\",\"htmlUrl\":\"s-htmlurl\",\"id\":\"s-id\",\"mergeTime\":\"s-mergetime\",\"mergeability\":\"s-mergeability\",\"state\":\"s-state\",\"title\":\"s-title\",\"updateTime\":\"s-updatetime\"}]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"pullRequests\":[{\"author\":\"s-author\",\"baseRef\":\"s-baseref\",\"body\":\"s-body\",\"closeTime\":\"s-closetime\",\"createTime\":\"s-createtime\",\"declineTime\":\"s-declinetime\",\"headRef\":\"s-headref\",\"htmlUrl\":\"s-htmlurl\",\"id\":\"s-id\",\"mergeTime\":\"s-mergetime\",\"mergeability\":\"s-mergeability\",\"state\":\"s-state\",\"title\":\"s-title\",\"updateTime\":\"s-updatetime\"}]}",
+  "REQ GET https://developerconnect.googleapis.com/v1/id1/%20x:fetchPullRequestList?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"pullRequests\":[{\"author\":\"s-author\",\"baseRef\":\"s-baseref\",\"body\":\"s-body\",\"closeTime\":\"s-closetime\",\"createTime\":\"s-createtime\",\"declineTime\":\"s-declinetime\",\"headRef\":\"s-headref\",\"htmlUrl\":\"s-htmlurl\",\"id\":\"s-id\",\"mergeTime\":\"s-mergetime\",\"mergeability\":\"s-mergeability\",\"state\":\"s-state\",\"title\":\"s-title\",\"updateTime\":\"s-updatetime\"}]}",
+  "OUT: {\"pullRequests\":[{\"author\":\"s-author\",\"baseRef\":\"s-baseref\",\"body\":\"s-body\",\"closeTime\":\"s-closetime\",\"createTime\":\"s-createtime\",\"declineTime\":\"s-declinetime\",\"headRef\":\"s-headref\",\"htmlUrl\":\"s-htmlurl\",\"id\":\"s-id\",\"mergeTime\":\"s-mergetime\",\"mergeability\":\"s-mergeability\",\"state\":\"s-state\",\"title\":\"s-title\",\"updateTime\":\"s-updatetime\"}]}",
+  "OUT: ok",
+]
+
+test "Go's developerconnect.projects.locations.connections.gitRepositoryLinks.fetchPullRequestList pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"pullRequests\":[{\"author\":\"s-author\",\"baseRef\":\"s-baseref\",\"body\":\"s-body\",\"closeTime\":\"s-closetime\",\"createTime\":\"s-createtime\",\"declineTime\":\"s-declinetime\",\"headRef\":\"s-headref\",\"htmlUrl\":\"s-htmlurl\",\"id\":\"s-id\",\"mergeTime\":\"s-mergetime\",\"mergeability\":\"s-mergeability\",\"state\":\"s-state\",\"title\":\"s-title\",\"updateTime\":\"s-updatetime\"}]}")
+  gv_queue(f, "{\"pullRequests\":[{\"author\":\"s-author\",\"baseRef\":\"s-baseref\",\"body\":\"s-body\",\"closeTime\":\"s-closetime\",\"createTime\":\"s-createtime\",\"declineTime\":\"s-declinetime\",\"headRef\":\"s-headref\",\"htmlUrl\":\"s-htmlurl\",\"id\":\"s-id\",\"mergeTime\":\"s-mergetime\",\"mergeability\":\"s-mergeability\",\"state\":\"s-state\",\"title\":\"s-title\",\"updateTime\":\"s-updatetime\"}]}")
+  gv_note(f, "CALL developerconnect.projects.locations.connections.gitRepositoryLinks.fetchPullRequestList pages")
+  var p = svc.projects.locations.connections.git_repository_links.fetch_pull_request_list_pages("id1/ x", options: ProjectsLocationsConnectionsGitRepositoryLinksFetchPullRequestListOptions{filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_42)
+}
+
+const GO_43: List[Str] = [
   "CALL developerconnect.projects.locations.connections.gitRepositoryLinks.fetchReadToken",
   "REQ POST https://developerconnect.googleapis.com/v1/id1/%20x:fetchReadToken?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -750,10 +1092,10 @@ test "Go's developerconnect.projects.locations.connections.gitRepositoryLinks.fe
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_34)
+  gv_compare(gv_log_of(f), GO_43)
 }
 
-const GO_35: List[Str] = [
+const GO_44: List[Str] = [
   "CALL developerconnect.projects.locations.connections.gitRepositoryLinks.fetchReadWriteToken",
   "REQ POST https://developerconnect.googleapis.com/v1/id1/%20x:fetchReadWriteToken?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -772,10 +1114,10 @@ test "Go's developerconnect.projects.locations.connections.gitRepositoryLinks.fe
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_35)
+  gv_compare(gv_log_of(f), GO_44)
 }
 
-const GO_36: List[Str] = [
+const GO_45: List[Str] = [
   "CALL developerconnect.projects.locations.connections.gitRepositoryLinks.get",
   "REQ GET https://developerconnect.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -793,10 +1135,10 @@ test "Go's developerconnect.projects.locations.connections.gitRepositoryLinks.ge
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_36)
+  gv_compare(gv_log_of(f), GO_45)
 }
 
-const GO_37: List[Str] = [
+const GO_46: List[Str] = [
   "CALL developerconnect.projects.locations.connections.gitRepositoryLinks.list",
   "REQ GET https://developerconnect.googleapis.com/v1/id1/%20x/gitRepositoryLinks?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -814,10 +1156,48 @@ test "Go's developerconnect.projects.locations.connections.gitRepositoryLinks.li
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_37)
+  gv_compare(gv_log_of(f), GO_46)
 }
 
-const GO_38: List[Str] = [
+const GO_47: List[Str] = [
+  "CALL developerconnect.projects.locations.connections.gitRepositoryLinks.list pages",
+  "REQ GET https://developerconnect.googleapis.com/v1/id1/%20x/gitRepositoryLinks?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"gitRepositoryLinks\":[{\"annotations\":{\"k1\":\"s-annotations\"},\"cloneUri\":\"s-cloneuri\",\"createTime\":\"s-createtime\",\"deleteTime\":\"s-deletetime\",\"etag\":\"s-etag\",\"gitProxyUri\":\"s-gitproxyuri\",\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"reconciling\":true,\"uid\":\"s-uid\",\"updateTime\":\"s-updatetime\",\"webhookId\":\"s-webhookid\"}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"gitRepositoryLinks\":[{\"annotations\":{\"k1\":\"s-annotations\"},\"cloneUri\":\"s-cloneuri\",\"createTime\":\"s-createtime\",\"deleteTime\":\"s-deletetime\",\"etag\":\"s-etag\",\"gitProxyUri\":\"s-gitproxyuri\",\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"reconciling\":true,\"uid\":\"s-uid\",\"updateTime\":\"s-updatetime\",\"webhookId\":\"s-webhookid\"}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}",
+  "REQ GET https://developerconnect.googleapis.com/v1/id1/%20x/gitRepositoryLinks?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"gitRepositoryLinks\":[{\"annotations\":{\"k1\":\"s-annotations\"},\"cloneUri\":\"s-cloneuri\",\"createTime\":\"s-createtime\",\"deleteTime\":\"s-deletetime\",\"etag\":\"s-etag\",\"gitProxyUri\":\"s-gitproxyuri\",\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"reconciling\":true,\"uid\":\"s-uid\",\"updateTime\":\"s-updatetime\",\"webhookId\":\"s-webhookid\"}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"gitRepositoryLinks\":[{\"annotations\":{\"k1\":\"s-annotations\"},\"cloneUri\":\"s-cloneuri\",\"createTime\":\"s-createtime\",\"deleteTime\":\"s-deletetime\",\"etag\":\"s-etag\",\"gitProxyUri\":\"s-gitproxyuri\",\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"reconciling\":true,\"uid\":\"s-uid\",\"updateTime\":\"s-updatetime\",\"webhookId\":\"s-webhookid\"}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: ok",
+]
+
+test "Go's developerconnect.projects.locations.connections.gitRepositoryLinks.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"gitRepositoryLinks\":[{\"annotations\":{\"k1\":\"s-annotations\"},\"cloneUri\":\"s-cloneuri\",\"createTime\":\"s-createtime\",\"deleteTime\":\"s-deletetime\",\"etag\":\"s-etag\",\"gitProxyUri\":\"s-gitproxyuri\",\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"reconciling\":true,\"uid\":\"s-uid\",\"updateTime\":\"s-updatetime\",\"webhookId\":\"s-webhookid\"}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}")
+  gv_queue(f, "{\"gitRepositoryLinks\":[{\"annotations\":{\"k1\":\"s-annotations\"},\"cloneUri\":\"s-cloneuri\",\"createTime\":\"s-createtime\",\"deleteTime\":\"s-deletetime\",\"etag\":\"s-etag\",\"gitProxyUri\":\"s-gitproxyuri\",\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"reconciling\":true,\"uid\":\"s-uid\",\"updateTime\":\"s-updatetime\",\"webhookId\":\"s-webhookid\"}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_note(f, "CALL developerconnect.projects.locations.connections.gitRepositoryLinks.list pages")
+  var p = svc.projects.locations.connections.git_repository_links.list_pages("id1/ x", options: ProjectsLocationsConnectionsGitRepositoryLinksListOptions{filter: Some("s-filter"), order_by: Some("s-orderby"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_47)
+}
+
+const GO_48: List[Str] = [
   "CALL developerconnect.projects.locations.connections.gitRepositoryLinks.modifyPullRequest",
   "REQ POST https://developerconnect.googleapis.com/v1/id1/%20x:modifyPullRequest?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -836,10 +1216,10 @@ test "Go's developerconnect.projects.locations.connections.gitRepositoryLinks.mo
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_38)
+  gv_compare(gv_log_of(f), GO_48)
 }
 
-const GO_39: List[Str] = [
+const GO_49: List[Str] = [
   "CALL developerconnect.projects.locations.connections.gitRepositoryLinks.openPullRequest",
   "REQ POST https://developerconnect.googleapis.com/v1/id1/%20x:openPullRequest?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -858,10 +1238,10 @@ test "Go's developerconnect.projects.locations.connections.gitRepositoryLinks.op
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_39)
+  gv_compare(gv_log_of(f), GO_49)
 }
 
-const GO_40: List[Str] = [
+const GO_50: List[Str] = [
   "CALL developerconnect.projects.locations.connections.gitRepositoryLinks.processBitbucketCloudWebhook",
   "REQ POST https://developerconnect.googleapis.com/v1/id1/%20x:processBitbucketCloudWebhook?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -880,10 +1260,10 @@ test "Go's developerconnect.projects.locations.connections.gitRepositoryLinks.pr
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_40)
+  gv_compare(gv_log_of(f), GO_50)
 }
 
-const GO_41: List[Str] = [
+const GO_51: List[Str] = [
   "CALL developerconnect.projects.locations.connections.gitRepositoryLinks.processBitbucketDataCenterWebhook",
   "REQ POST https://developerconnect.googleapis.com/v1/id1/%20x:processBitbucketDataCenterWebhook?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -902,10 +1282,10 @@ test "Go's developerconnect.projects.locations.connections.gitRepositoryLinks.pr
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_41)
+  gv_compare(gv_log_of(f), GO_51)
 }
 
-const GO_42: List[Str] = [
+const GO_52: List[Str] = [
   "CALL developerconnect.projects.locations.connections.gitRepositoryLinks.processGitLabEnterpriseWebhook",
   "REQ POST https://developerconnect.googleapis.com/v1/id1/%20x:processGitLabEnterpriseWebhook?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -924,10 +1304,10 @@ test "Go's developerconnect.projects.locations.connections.gitRepositoryLinks.pr
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_42)
+  gv_compare(gv_log_of(f), GO_52)
 }
 
-const GO_43: List[Str] = [
+const GO_53: List[Str] = [
   "CALL developerconnect.projects.locations.connections.gitRepositoryLinks.processGitLabWebhook",
   "REQ POST https://developerconnect.googleapis.com/v1/id1/%20x:processGitLabWebhook?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -946,10 +1326,10 @@ test "Go's developerconnect.projects.locations.connections.gitRepositoryLinks.pr
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_43)
+  gv_compare(gv_log_of(f), GO_53)
 }
 
-const GO_44: List[Str] = [
+const GO_54: List[Str] = [
   "CALL developerconnect.projects.locations.insightsConfigs.create",
   "REQ POST https://developerconnect.googleapis.com/v1/id1/%20x/insightsConfigs?alt=json&fields=kind%2Cid&insightsConfigId=s-insightsconfigid&prettyPrint=false&validateOnly=true",
   "  H content-type=application/json | x-extra=v1",
@@ -968,10 +1348,10 @@ test "Go's developerconnect.projects.locations.insightsConfigs.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_44)
+  gv_compare(gv_log_of(f), GO_54)
 }
 
-const GO_45: List[Str] = [
+const GO_55: List[Str] = [
   "CALL developerconnect.projects.locations.insightsConfigs.delete",
   "REQ DELETE https://developerconnect.googleapis.com/v1/id1/%20x?alt=json&etag=s-etag&fields=kind%2Cid&prettyPrint=false&requestId=s-requestid&validateOnly=true",
   "  H x-extra=v1",
@@ -989,10 +1369,10 @@ test "Go's developerconnect.projects.locations.insightsConfigs.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_45)
+  gv_compare(gv_log_of(f), GO_55)
 }
 
-const GO_46: List[Str] = [
+const GO_56: List[Str] = [
   "CALL developerconnect.projects.locations.insightsConfigs.get",
   "REQ GET https://developerconnect.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1010,10 +1390,10 @@ test "Go's developerconnect.projects.locations.insightsConfigs.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_46)
+  gv_compare(gv_log_of(f), GO_56)
 }
 
-const GO_47: List[Str] = [
+const GO_57: List[Str] = [
   "CALL developerconnect.projects.locations.insightsConfigs.list",
   "REQ GET https://developerconnect.googleapis.com/v1/id1/%20x/insightsConfigs?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1031,10 +1411,48 @@ test "Go's developerconnect.projects.locations.insightsConfigs.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_47)
+  gv_compare(gv_log_of(f), GO_57)
 }
 
-const GO_48: List[Str] = [
+const GO_58: List[Str] = [
+  "CALL developerconnect.projects.locations.insightsConfigs.list pages",
+  "REQ GET https://developerconnect.googleapis.com/v1/id1/%20x/insightsConfigs?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"insightsConfigs\":[{\"annotations\":{\"k1\":\"s-annotations\"},\"appHubApplication\":\"s-apphubapplication\",\"createTime\":\"s-createtime\",\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"projects\":{},\"reconciling\":true,\"state\":\"s-state\",\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"insightsConfigs\":[{\"annotations\":{\"k1\":\"s-annotations\"},\"appHubApplication\":\"s-apphubapplication\",\"createTime\":\"s-createtime\",\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"projects\":{},\"reconciling\":true,\"state\":\"s-state\",\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}",
+  "REQ GET https://developerconnect.googleapis.com/v1/id1/%20x/insightsConfigs?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"insightsConfigs\":[{\"annotations\":{\"k1\":\"s-annotations\"},\"appHubApplication\":\"s-apphubapplication\",\"createTime\":\"s-createtime\",\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"projects\":{},\"reconciling\":true,\"state\":\"s-state\",\"updateTime\":\"s-updatetime\"}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"insightsConfigs\":[{\"annotations\":{\"k1\":\"s-annotations\"},\"appHubApplication\":\"s-apphubapplication\",\"createTime\":\"s-createtime\",\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"projects\":{},\"reconciling\":true,\"state\":\"s-state\",\"updateTime\":\"s-updatetime\"}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: ok",
+]
+
+test "Go's developerconnect.projects.locations.insightsConfigs.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"insightsConfigs\":[{\"annotations\":{\"k1\":\"s-annotations\"},\"appHubApplication\":\"s-apphubapplication\",\"createTime\":\"s-createtime\",\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"projects\":{},\"reconciling\":true,\"state\":\"s-state\",\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}")
+  gv_queue(f, "{\"insightsConfigs\":[{\"annotations\":{\"k1\":\"s-annotations\"},\"appHubApplication\":\"s-apphubapplication\",\"createTime\":\"s-createtime\",\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"projects\":{},\"reconciling\":true,\"state\":\"s-state\",\"updateTime\":\"s-updatetime\"}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_note(f, "CALL developerconnect.projects.locations.insightsConfigs.list pages")
+  var p = svc.projects.locations.insights_configs.list_pages("id1/ x", options: ProjectsLocationsInsightsConfigsListOptions{filter: Some("s-filter"), order_by: Some("s-orderby"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_58)
+}
+
+const GO_59: List[Str] = [
   "CALL developerconnect.projects.locations.insightsConfigs.patch",
   "REQ PATCH https://developerconnect.googleapis.com/v1/id1/%20x?allowMissing=true&alt=json&fields=kind%2Cid&prettyPrint=false&requestId=s-requestid&validateOnly=true",
   "  H content-type=application/json | x-extra=v1",
@@ -1053,10 +1471,10 @@ test "Go's developerconnect.projects.locations.insightsConfigs.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_48)
+  gv_compare(gv_log_of(f), GO_59)
 }
 
-const GO_49: List[Str] = [
+const GO_60: List[Str] = [
   "CALL developerconnect.projects.locations.insightsConfigs.deploymentEvents.get",
   "REQ GET https://developerconnect.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1074,10 +1492,10 @@ test "Go's developerconnect.projects.locations.insightsConfigs.deploymentEvents.
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_49)
+  gv_compare(gv_log_of(f), GO_60)
 }
 
-const GO_50: List[Str] = [
+const GO_61: List[Str] = [
   "CALL developerconnect.projects.locations.insightsConfigs.deploymentEvents.list",
   "REQ GET https://developerconnect.googleapis.com/v1/id1/%20x/deploymentEvents?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1095,10 +1513,48 @@ test "Go's developerconnect.projects.locations.insightsConfigs.deploymentEvents.
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_50)
+  gv_compare(gv_log_of(f), GO_61)
 }
 
-const GO_51: List[Str] = [
+const GO_62: List[Str] = [
+  "CALL developerconnect.projects.locations.insightsConfigs.deploymentEvents.list pages",
+  "REQ GET https://developerconnect.googleapis.com/v1/id1/%20x/deploymentEvents?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"deploymentEvents\":[{\"createTime\":\"s-createtime\",\"deployTime\":\"s-deploytime\",\"name\":\"s-name\",\"runtimeConfig\":{\"state\":\"s-state\",\"uri\":\"s-uri\"},\"runtimeDeploymentUri\":\"s-runtimedeploymenturi\",\"state\":\"s-state\",\"undeployTime\":\"s-undeploytime\",\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"deploymentEvents\":[{\"createTime\":\"s-createtime\",\"deployTime\":\"s-deploytime\",\"name\":\"s-name\",\"runtimeConfig\":{\"state\":\"s-state\",\"uri\":\"s-uri\"},\"runtimeDeploymentUri\":\"s-runtimedeploymenturi\",\"state\":\"s-state\",\"undeployTime\":\"s-undeploytime\",\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://developerconnect.googleapis.com/v1/id1/%20x/deploymentEvents?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"deploymentEvents\":[{\"createTime\":\"s-createtime\",\"deployTime\":\"s-deploytime\",\"name\":\"s-name\",\"runtimeConfig\":{\"state\":\"s-state\",\"uri\":\"s-uri\"},\"runtimeDeploymentUri\":\"s-runtimedeploymenturi\",\"state\":\"s-state\",\"undeployTime\":\"s-undeploytime\",\"updateTime\":\"s-updatetime\"}]}",
+  "OUT: {\"deploymentEvents\":[{\"createTime\":\"s-createtime\",\"deployTime\":\"s-deploytime\",\"name\":\"s-name\",\"runtimeConfig\":{\"state\":\"s-state\",\"uri\":\"s-uri\"},\"runtimeDeploymentUri\":\"s-runtimedeploymenturi\",\"state\":\"s-state\",\"undeployTime\":\"s-undeploytime\",\"updateTime\":\"s-updatetime\"}]}",
+  "OUT: ok",
+]
+
+test "Go's developerconnect.projects.locations.insightsConfigs.deploymentEvents.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"deploymentEvents\":[{\"createTime\":\"s-createtime\",\"deployTime\":\"s-deploytime\",\"name\":\"s-name\",\"runtimeConfig\":{\"state\":\"s-state\",\"uri\":\"s-uri\"},\"runtimeDeploymentUri\":\"s-runtimedeploymenturi\",\"state\":\"s-state\",\"undeployTime\":\"s-undeploytime\",\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"deploymentEvents\":[{\"createTime\":\"s-createtime\",\"deployTime\":\"s-deploytime\",\"name\":\"s-name\",\"runtimeConfig\":{\"state\":\"s-state\",\"uri\":\"s-uri\"},\"runtimeDeploymentUri\":\"s-runtimedeploymenturi\",\"state\":\"s-state\",\"undeployTime\":\"s-undeploytime\",\"updateTime\":\"s-updatetime\"}]}")
+  gv_note(f, "CALL developerconnect.projects.locations.insightsConfigs.deploymentEvents.list pages")
+  var p = svc.projects.locations.insights_configs.deployment_events.list_pages("id1/ x", options: ProjectsLocationsInsightsConfigsDeploymentEventsListOptions{filter: Some("s-filter"), order_by: Some("s-orderby"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_62)
+}
+
+const GO_63: List[Str] = [
   "CALL developerconnect.projects.locations.operations.cancel",
   "REQ POST https://developerconnect.googleapis.com/v1/id1/%20x:cancel?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1117,10 +1573,10 @@ test "Go's developerconnect.projects.locations.operations.cancel" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_51)
+  gv_compare(gv_log_of(f), GO_63)
 }
 
-const GO_52: List[Str] = [
+const GO_64: List[Str] = [
   "CALL developerconnect.projects.locations.operations.delete",
   "REQ DELETE https://developerconnect.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -1138,10 +1594,10 @@ test "Go's developerconnect.projects.locations.operations.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_52)
+  gv_compare(gv_log_of(f), GO_64)
 }
 
-const GO_53: List[Str] = [
+const GO_65: List[Str] = [
   "CALL developerconnect.projects.locations.operations.get",
   "REQ GET https://developerconnect.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1159,10 +1615,10 @@ test "Go's developerconnect.projects.locations.operations.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_53)
+  gv_compare(gv_log_of(f), GO_65)
 }
 
-const GO_54: List[Str] = [
+const GO_66: List[Str] = [
   "CALL developerconnect.projects.locations.operations.list",
   "REQ GET https://developerconnect.googleapis.com/v1/id1/%20x/operations?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&returnPartialSuccess=true",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1180,5 +1636,43 @@ test "Go's developerconnect.projects.locations.operations.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_54)
+  gv_compare(gv_log_of(f), GO_66)
+}
+
+const GO_67: List[Str] = [
+  "CALL developerconnect.projects.locations.operations.list pages",
+  "REQ GET https://developerconnect.googleapis.com/v1/id1/%20x/operations?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&returnPartialSuccess=true",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "REQ GET https://developerconnect.googleapis.com/v1/id1/%20x/operations?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false&returnPartialSuccess=true",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: ok",
+]
+
+test "Go's developerconnect.projects.locations.operations.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_queue(f, "{\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_note(f, "CALL developerconnect.projects.locations.operations.list pages")
+  var p = svc.projects.locations.operations.list_pages("id1/ x", options: ProjectsLocationsOperationsListOptions{filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), return_partial_success: Some(true), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_67)
 }

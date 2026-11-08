@@ -51,6 +51,44 @@ test "Go's batch.projects.locations.list" {
 }
 
 const GO_2: List[Str] = [
+  "CALL batch.projects.locations.list pages",
+  "REQ GET https://batch.googleapis.com/v1/id1/%20x/locations?alt=json&extraLocationTypes=s-extralocationtypes&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://batch.googleapis.com/v1/id1/%20x/locations?alt=json&extraLocationTypes=s-extralocationtypes&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}]}",
+  "OUT: {\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}]}",
+  "OUT: ok",
+]
+
+test "Go's batch.projects.locations.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}]}")
+  gv_note(f, "CALL batch.projects.locations.list pages")
+  var p = svc.projects.locations.list_pages("id1/ x", options: ProjectsLocationsListOptions{extra_location_types: ["s-extralocationtypes"], filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_2)
+}
+
+const GO_3: List[Str] = [
   "CALL batch.projects.locations.jobs.cancel",
   "REQ POST https://batch.googleapis.com/v1/id1/%20x:cancel?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -69,14 +107,14 @@ test "Go's batch.projects.locations.jobs.cancel" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_2)
+  gv_compare(gv_log_of(f), GO_3)
 }
 
-const GO_3: List[Str] = [
+const GO_4: List[Str] = [
   "CALL batch.projects.locations.jobs.create",
   "REQ POST https://batch.googleapis.com/v1/id1/%20x/jobs?alt=json&fields=kind%2Cid&jobId=s-jobid&prettyPrint=false&requestId=s-requestid",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"allocationPolicy\":{\"instances\":[{\"blockProjectSshKeys\":true,\"installGpuDrivers\":true,\"installOpsAgent\":true,\"instanceTemplate\":\"s-instancetemplate\"}],\"labels\":{\"k1\":\"s-labels\"},\"location\":{\"allowedLocations\":[\"s-allowedlocations\"]},\"network\":{},\"placement\":{\"collocation\":\"s-collocation\",\"maxDistance\":\"7\"},\"serviceAccount\":{\"email\":\"s-email\",\"scopes\":[\"s-scopes\"]},\"tags\":[\"s-tags\"]},\"createTime\":\"s-createtime\",\"labels\":{\"k1\":\"s-labels\"},\"logsPolicy\":{\"cloudLoggingOption\":{\"useGenericTaskMonitoredResource\":true},\"destination\":\"s-destination\",\"logsPath\":\"s-logspath\"},\"name\":\"s-name\",\"notifications\":[{\"message\":{\"newJobState\":\"s-newjobstate\",\"newTaskState\":\"s-newtaskstate\",\"type\":\"s-type\"},\"pubsubTopic\":\"s-pubsubtopic\"}],\"priority\":\"7\",\"status\":{\"runDuration\":\"s-runduration\",\"state\":\"s-state\",\"statusEvents\":[{\"description\":\"s-description\",\"eventTime\":\"s-eventtime\",\"taskState\":\"s-taskstate\",\"type\":\"s-type\"}],\"taskGroups\":{\"k1\":{}}},\"taskGroups\":[{\"name\":\"s-name\",\"parallelism\":\"7\",\"permissiveSsh\":true,\"requireHostsFile\":true,\"runAsNonRoot\":true,\"schedulingPolicy\":\"s-schedulingpolicy\",\"taskCount\":\"7\",\"taskCountPerNode\":\"7\",\"taskSpec\":{\"maxRetryCount\":7,\"maxRunDuration\":\"s-maxrunduration\"}}],\"uid\":\"s-uid\",\"updateTime\":\"s-updatetime\"}",
+  "  B <1248 bytes> {\"allocationPolicy\":{\"instances\"...d\",\"updateTime\":\"s-updatetime\"}",
   "",
   "  SERVED 200 {\"allocationPolicy\":{\"instances\":[{\"blockProjectSshKeys\":true,\"installGpuDrivers\":true,\"installOpsAgent\":true,\"instanceTemplate\":\"s-instancetemplate\"}],\"labels\":{\"k1\":\"s-labels\"},\"location\":{\"allowedLocations\":[\"s-allowedlocations\"]},\"network\":{},\"placement\":{\"collocation\":\"s-collocation\",\"maxDistance\":\"7\"},\"serviceAccount\":{\"email\":\"s-email\",\"scopes\":[\"s-scopes\"]},\"tags\":[\"s-tags\"]},\"createTime\":\"s-createtime\",\"labels\":{\"k1\":\"s-labels\"},\"logsPolicy\":{\"cloudLoggingOption\":{\"useGenericTaskMonitoredResource\":true},\"destination\":\"s-destination\",\"logsPath\":\"s-logspath\"},\"name\":\"s-name\",\"notifications\":[{\"message\":{\"newJobState\":\"s-newjobstate\",\"newTaskState\":\"s-newtaskstate\",\"type\":\"s-type\"},\"pubsubTopic\":\"s-pubsubtopic\"}],\"priority\":\"7\",\"status\":{\"runDuration\":\"s-runduration\",\"state\":\"s-state\",\"statusEvents\":[{\"description\":\"s-description\",\"eventTime\":\"s-eventtime\",\"taskState\":\"s-taskstate\",\"type\":\"s-type\"}],\"taskGroups\":{\"k1\":{}}},\"taskGroups\":[{\"name\":\"s-name\",\"parallelism\":\"7\",\"permissiveSsh\":true,\"requireHostsFile\":true,\"runAsNonRoot\":true,\"schedulingPolicy\":\"s-schedulingpolicy\",\"taskCount\":\"7\",\"taskCountPerNode\":\"7\",\"taskSpec\":{\"maxRetryCount\":7,\"maxRunDuration\":\"s-maxrunduration\"}}],\"uid\":\"s-uid\",\"updateTime\":\"s-updatetime\"}",
   "OUT: {\"allocationPolicy\":{\"instances\":[{\"blockProjectSshKeys\":true,\"installGpuDrivers\":true,\"installOpsAgent\":true,\"instanceTemplate\":\"s-instancetemplate\"}],\"labels\":{\"k1\":\"s-labels\"},\"location\":{\"allowedLocations\":[\"s-allowedlocations\"]},\"network\":{},\"placement\":{\"collocation\":\"s-collocation\",\"maxDistance\":\"7\"},\"serviceAccount\":{\"email\":\"s-email\",\"scopes\":[\"s-scopes\"]},\"tags\":[\"s-tags\"]},\"createTime\":\"s-createtime\",\"labels\":{\"k1\":\"s-labels\"},\"logsPolicy\":{\"cloudLoggingOption\":{\"useGenericTaskMonitoredResource\":true},\"destination\":\"s-destination\",\"logsPath\":\"s-logspath\"},\"name\":\"s-name\",\"notifications\":[{\"message\":{\"newJobState\":\"s-newjobstate\",\"newTaskState\":\"s-newtaskstate\",\"type\":\"s-type\"},\"pubsubTopic\":\"s-pubsubtopic\"}],\"priority\":\"7\",\"status\":{\"runDuration\":\"s-runduration\",\"state\":\"s-state\",\"statusEvents\":[{\"description\":\"s-description\",\"eventTime\":\"s-eventtime\",\"taskState\":\"s-taskstate\",\"type\":\"s-type\"}],\"taskGroups\":{\"k1\":{}}},\"taskGroups\":[{\"name\":\"s-name\",\"parallelism\":\"7\",\"permissiveSsh\":true,\"requireHostsFile\":true,\"runAsNonRoot\":true,\"schedulingPolicy\":\"s-schedulingpolicy\",\"taskCount\":\"7\",\"taskCountPerNode\":\"7\",\"taskSpec\":{\"maxRetryCount\":7,\"maxRunDuration\":\"s-maxrunduration\"}}],\"uid\":\"s-uid\",\"updateTime\":\"s-updatetime\"}",
@@ -91,10 +129,10 @@ test "Go's batch.projects.locations.jobs.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_3)
+  gv_compare(gv_log_of(f), GO_4)
 }
 
-const GO_4: List[Str] = [
+const GO_5: List[Str] = [
   "CALL batch.projects.locations.jobs.delete",
   "REQ DELETE https://batch.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&reason=s-reason&requestId=s-requestid",
   "  H x-extra=v1",
@@ -112,10 +150,10 @@ test "Go's batch.projects.locations.jobs.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_4)
+  gv_compare(gv_log_of(f), GO_5)
 }
 
-const GO_5: List[Str] = [
+const GO_6: List[Str] = [
   "CALL batch.projects.locations.jobs.get",
   "REQ GET https://batch.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -133,10 +171,10 @@ test "Go's batch.projects.locations.jobs.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_5)
+  gv_compare(gv_log_of(f), GO_6)
 }
 
-const GO_6: List[Str] = [
+const GO_7: List[Str] = [
   "CALL batch.projects.locations.jobs.list",
   "REQ GET https://batch.googleapis.com/v1/id1/%20x/jobs?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -154,10 +192,48 @@ test "Go's batch.projects.locations.jobs.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_6)
+  gv_compare(gv_log_of(f), GO_7)
 }
 
-const GO_7: List[Str] = [
+const GO_8: List[Str] = [
+  "CALL batch.projects.locations.jobs.list pages",
+  "REQ GET https://batch.googleapis.com/v1/id1/%20x/jobs?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"jobs\":[{\"allocationPolicy\":{},\"createTime\":\"s-createtime\",\"labels\":{\"k1\":\"s-labels\"},\"logsPolicy\":{\"destination\":\"s-destination\",\"logsPath\":\"s-logspath\"},\"name\":\"s-name\",\"priority\":\"7\",\"status\":{\"runDuration\":\"s-runduration\",\"state\":\"s-state\"},\"uid\":\"s-uid\",\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"jobs\":[{\"allocationPolicy\":{},\"createTime\":\"s-createtime\",\"labels\":{\"k1\":\"s-labels\"},\"logsPolicy\":{\"destination\":\"s-destination\",\"logsPath\":\"s-logspath\"},\"name\":\"s-name\",\"priority\":\"7\",\"status\":{\"runDuration\":\"s-runduration\",\"state\":\"s-state\"},\"uid\":\"s-uid\",\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}",
+  "REQ GET https://batch.googleapis.com/v1/id1/%20x/jobs?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"jobs\":[{\"allocationPolicy\":{},\"createTime\":\"s-createtime\",\"labels\":{\"k1\":\"s-labels\"},\"logsPolicy\":{\"destination\":\"s-destination\",\"logsPath\":\"s-logspath\"},\"name\":\"s-name\",\"priority\":\"7\",\"status\":{\"runDuration\":\"s-runduration\",\"state\":\"s-state\"},\"uid\":\"s-uid\",\"updateTime\":\"s-updatetime\"}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"jobs\":[{\"allocationPolicy\":{},\"createTime\":\"s-createtime\",\"labels\":{\"k1\":\"s-labels\"},\"logsPolicy\":{\"destination\":\"s-destination\",\"logsPath\":\"s-logspath\"},\"name\":\"s-name\",\"priority\":\"7\",\"status\":{\"runDuration\":\"s-runduration\",\"state\":\"s-state\"},\"uid\":\"s-uid\",\"updateTime\":\"s-updatetime\"}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: ok",
+]
+
+test "Go's batch.projects.locations.jobs.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"jobs\":[{\"allocationPolicy\":{},\"createTime\":\"s-createtime\",\"labels\":{\"k1\":\"s-labels\"},\"logsPolicy\":{\"destination\":\"s-destination\",\"logsPath\":\"s-logspath\"},\"name\":\"s-name\",\"priority\":\"7\",\"status\":{\"runDuration\":\"s-runduration\",\"state\":\"s-state\"},\"uid\":\"s-uid\",\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}")
+  gv_queue(f, "{\"jobs\":[{\"allocationPolicy\":{},\"createTime\":\"s-createtime\",\"labels\":{\"k1\":\"s-labels\"},\"logsPolicy\":{\"destination\":\"s-destination\",\"logsPath\":\"s-logspath\"},\"name\":\"s-name\",\"priority\":\"7\",\"status\":{\"runDuration\":\"s-runduration\",\"state\":\"s-state\"},\"uid\":\"s-uid\",\"updateTime\":\"s-updatetime\"}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_note(f, "CALL batch.projects.locations.jobs.list pages")
+  var p = svc.projects.locations.jobs.list_pages("id1/ x", options: ProjectsLocationsJobsListOptions{filter: Some("s-filter"), order_by: Some("s-orderby"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_8)
+}
+
+const GO_9: List[Str] = [
   "CALL batch.projects.locations.jobs.taskGroups.tasks.get",
   "REQ GET https://batch.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -175,10 +251,10 @@ test "Go's batch.projects.locations.jobs.taskGroups.tasks.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_7)
+  gv_compare(gv_log_of(f), GO_9)
 }
 
-const GO_8: List[Str] = [
+const GO_10: List[Str] = [
   "CALL batch.projects.locations.jobs.taskGroups.tasks.list",
   "REQ GET https://batch.googleapis.com/v1/id1/%20x/tasks?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -196,10 +272,48 @@ test "Go's batch.projects.locations.jobs.taskGroups.tasks.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_8)
+  gv_compare(gv_log_of(f), GO_10)
 }
 
-const GO_9: List[Str] = [
+const GO_11: List[Str] = [
+  "CALL batch.projects.locations.jobs.taskGroups.tasks.list pages",
+  "REQ GET https://batch.googleapis.com/v1/id1/%20x/tasks?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"tasks\":[{\"name\":\"s-name\",\"status\":{\"state\":\"s-state\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"tasks\":[{\"name\":\"s-name\",\"status\":{\"state\":\"s-state\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "REQ GET https://batch.googleapis.com/v1/id1/%20x/tasks?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"tasks\":[{\"name\":\"s-name\",\"status\":{\"state\":\"s-state\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"tasks\":[{\"name\":\"s-name\",\"status\":{\"state\":\"s-state\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: ok",
+]
+
+test "Go's batch.projects.locations.jobs.taskGroups.tasks.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"tasks\":[{\"name\":\"s-name\",\"status\":{\"state\":\"s-state\"}}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_queue(f, "{\"tasks\":[{\"name\":\"s-name\",\"status\":{\"state\":\"s-state\"}}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_note(f, "CALL batch.projects.locations.jobs.taskGroups.tasks.list pages")
+  var p = svc.projects.locations.jobs.task_groups.tasks.list_pages("id1/ x", options: ProjectsLocationsJobsTaskGroupsTasksListOptions{filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_11)
+}
+
+const GO_12: List[Str] = [
   "CALL batch.projects.locations.operations.cancel",
   "REQ POST https://batch.googleapis.com/v1/id1/%20x:cancel?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -218,10 +332,10 @@ test "Go's batch.projects.locations.operations.cancel" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_9)
+  gv_compare(gv_log_of(f), GO_12)
 }
 
-const GO_10: List[Str] = [
+const GO_13: List[Str] = [
   "CALL batch.projects.locations.operations.delete",
   "REQ DELETE https://batch.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -239,10 +353,10 @@ test "Go's batch.projects.locations.operations.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_10)
+  gv_compare(gv_log_of(f), GO_13)
 }
 
-const GO_11: List[Str] = [
+const GO_14: List[Str] = [
   "CALL batch.projects.locations.operations.get",
   "REQ GET https://batch.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -260,10 +374,10 @@ test "Go's batch.projects.locations.operations.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_11)
+  gv_compare(gv_log_of(f), GO_14)
 }
 
-const GO_12: List[Str] = [
+const GO_15: List[Str] = [
   "CALL batch.projects.locations.operations.list",
   "REQ GET https://batch.googleapis.com/v1/id1/%20x/operations?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&returnPartialSuccess=true",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -281,10 +395,48 @@ test "Go's batch.projects.locations.operations.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_12)
+  gv_compare(gv_log_of(f), GO_15)
 }
 
-const GO_13: List[Str] = [
+const GO_16: List[Str] = [
+  "CALL batch.projects.locations.operations.list pages",
+  "REQ GET https://batch.googleapis.com/v1/id1/%20x/operations?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&returnPartialSuccess=true",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "REQ GET https://batch.googleapis.com/v1/id1/%20x/operations?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false&returnPartialSuccess=true",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: ok",
+]
+
+test "Go's batch.projects.locations.operations.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_queue(f, "{\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_note(f, "CALL batch.projects.locations.operations.list pages")
+  var p = svc.projects.locations.operations.list_pages("id1/ x", options: ProjectsLocationsOperationsListOptions{filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), return_partial_success: Some(true), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_16)
+}
+
+const GO_17: List[Str] = [
   "CALL batch.projects.locations.state.report",
   "REQ POST https://batch.googleapis.com/v1/id1/%20x/state:report?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -303,5 +455,5 @@ test "Go's batch.projects.locations.state.report" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_13)
+  gv_compare(gv_log_of(f), GO_17)
 }

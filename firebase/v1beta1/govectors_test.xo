@@ -30,6 +30,44 @@ test "Go's firebase.availableProjects.list" {
 }
 
 const GO_1: List[Str] = [
+  "CALL firebase.availableProjects.list pages",
+  "REQ GET https://firebase.googleapis.com/v1beta1/availableProjects?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"projectInfo\":[{\"displayName\":\"s-displayname\",\"locationId\":\"s-locationid\",\"project\":\"s-project\"}]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"projectInfo\":[{\"displayName\":\"s-displayname\",\"locationId\":\"s-locationid\",\"project\":\"s-project\"}]}",
+  "REQ GET https://firebase.googleapis.com/v1beta1/availableProjects?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"projectInfo\":[{\"displayName\":\"s-displayname\",\"locationId\":\"s-locationid\",\"project\":\"s-project\"}]}",
+  "OUT: {\"projectInfo\":[{\"displayName\":\"s-displayname\",\"locationId\":\"s-locationid\",\"project\":\"s-project\"}]}",
+  "OUT: ok",
+]
+
+test "Go's firebase.availableProjects.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"projectInfo\":[{\"displayName\":\"s-displayname\",\"locationId\":\"s-locationid\",\"project\":\"s-project\"}]}")
+  gv_queue(f, "{\"projectInfo\":[{\"displayName\":\"s-displayname\",\"locationId\":\"s-locationid\",\"project\":\"s-project\"}]}")
+  gv_note(f, "CALL firebase.availableProjects.list pages")
+  var p = svc.available_projects.list_pages(options: AvailableProjectsListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_1)
+}
+
+const GO_2: List[Str] = [
   "CALL firebase.operations.get",
   "REQ GET https://firebase.googleapis.com/v1beta1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -47,10 +85,10 @@ test "Go's firebase.operations.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_1)
+  gv_compare(gv_log_of(f), GO_2)
 }
 
-const GO_2: List[Str] = [
+const GO_3: List[Str] = [
   "CALL firebase.projects.addFirebase",
   "REQ POST https://firebase.googleapis.com/v1beta1/id1/%20x:addFirebase?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -69,10 +107,10 @@ test "Go's firebase.projects.addFirebase" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_2)
+  gv_compare(gv_log_of(f), GO_3)
 }
 
-const GO_3: List[Str] = [
+const GO_4: List[Str] = [
   "CALL firebase.projects.addGoogleAnalytics",
   "REQ POST https://firebase.googleapis.com/v1beta1/id1/%20x:addGoogleAnalytics?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -91,10 +129,10 @@ test "Go's firebase.projects.addGoogleAnalytics" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_3)
+  gv_compare(gv_log_of(f), GO_4)
 }
 
-const GO_4: List[Str] = [
+const GO_5: List[Str] = [
   "CALL firebase.projects.get",
   "REQ GET https://firebase.googleapis.com/v1beta1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -112,10 +150,10 @@ test "Go's firebase.projects.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_4)
+  gv_compare(gv_log_of(f), GO_5)
 }
 
-const GO_5: List[Str] = [
+const GO_6: List[Str] = [
   "CALL firebase.projects.getAdminSdkConfig",
   "REQ GET https://firebase.googleapis.com/v1beta1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -133,10 +171,10 @@ test "Go's firebase.projects.getAdminSdkConfig" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_5)
+  gv_compare(gv_log_of(f), GO_6)
 }
 
-const GO_6: List[Str] = [
+const GO_7: List[Str] = [
   "CALL firebase.projects.getAnalyticsDetails",
   "REQ GET https://firebase.googleapis.com/v1beta1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -154,10 +192,10 @@ test "Go's firebase.projects.getAnalyticsDetails" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_6)
+  gv_compare(gv_log_of(f), GO_7)
 }
 
-const GO_7: List[Str] = [
+const GO_8: List[Str] = [
   "CALL firebase.projects.list",
   "REQ GET https://firebase.googleapis.com/v1beta1/projects?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&showDeleted=true",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -175,10 +213,48 @@ test "Go's firebase.projects.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_7)
+  gv_compare(gv_log_of(f), GO_8)
 }
 
-const GO_8: List[Str] = [
+const GO_9: List[Str] = [
+  "CALL firebase.projects.list pages",
+  "REQ GET https://firebase.googleapis.com/v1beta1/projects?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&showDeleted=true",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"results\":[{\"annotations\":{\"k1\":\"s-annotations\"},\"displayName\":\"s-displayname\",\"etag\":\"s-etag\",\"name\":\"s-name\",\"projectId\":\"s-projectid\",\"projectNumber\":\"7\",\"resources\":{\"hostingSite\":\"s-hostingsite\",\"locationId\":\"s-locationid\",\"realtimeDatabaseInstance\":\"s-realtimedatabaseinstance\",\"storageBucket\":\"s-storagebucket\"},\"state\":\"s-state\"}]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"results\":[{\"annotations\":{\"k1\":\"s-annotations\"},\"displayName\":\"s-displayname\",\"etag\":\"s-etag\",\"name\":\"s-name\",\"projectId\":\"s-projectid\",\"projectNumber\":\"7\",\"resources\":{\"hostingSite\":\"s-hostingsite\",\"locationId\":\"s-locationid\",\"realtimeDatabaseInstance\":\"s-realtimedatabaseinstance\",\"storageBucket\":\"s-storagebucket\"},\"state\":\"s-state\"}]}",
+  "REQ GET https://firebase.googleapis.com/v1beta1/projects?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false&showDeleted=true",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"results\":[{\"annotations\":{\"k1\":\"s-annotations\"},\"displayName\":\"s-displayname\",\"etag\":\"s-etag\",\"name\":\"s-name\",\"projectId\":\"s-projectid\",\"projectNumber\":\"7\",\"resources\":{\"hostingSite\":\"s-hostingsite\",\"locationId\":\"s-locationid\",\"realtimeDatabaseInstance\":\"s-realtimedatabaseinstance\",\"storageBucket\":\"s-storagebucket\"},\"state\":\"s-state\"}]}",
+  "OUT: {\"results\":[{\"annotations\":{\"k1\":\"s-annotations\"},\"displayName\":\"s-displayname\",\"etag\":\"s-etag\",\"name\":\"s-name\",\"projectId\":\"s-projectid\",\"projectNumber\":\"7\",\"resources\":{\"hostingSite\":\"s-hostingsite\",\"locationId\":\"s-locationid\",\"realtimeDatabaseInstance\":\"s-realtimedatabaseinstance\",\"storageBucket\":\"s-storagebucket\"},\"state\":\"s-state\"}]}",
+  "OUT: ok",
+]
+
+test "Go's firebase.projects.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"results\":[{\"annotations\":{\"k1\":\"s-annotations\"},\"displayName\":\"s-displayname\",\"etag\":\"s-etag\",\"name\":\"s-name\",\"projectId\":\"s-projectid\",\"projectNumber\":\"7\",\"resources\":{\"hostingSite\":\"s-hostingsite\",\"locationId\":\"s-locationid\",\"realtimeDatabaseInstance\":\"s-realtimedatabaseinstance\",\"storageBucket\":\"s-storagebucket\"},\"state\":\"s-state\"}]}")
+  gv_queue(f, "{\"results\":[{\"annotations\":{\"k1\":\"s-annotations\"},\"displayName\":\"s-displayname\",\"etag\":\"s-etag\",\"name\":\"s-name\",\"projectId\":\"s-projectid\",\"projectNumber\":\"7\",\"resources\":{\"hostingSite\":\"s-hostingsite\",\"locationId\":\"s-locationid\",\"realtimeDatabaseInstance\":\"s-realtimedatabaseinstance\",\"storageBucket\":\"s-storagebucket\"},\"state\":\"s-state\"}]}")
+  gv_note(f, "CALL firebase.projects.list pages")
+  var p = svc.projects.list_pages(options: ProjectsListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), show_deleted: Some(true), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_9)
+}
+
+const GO_10: List[Str] = [
   "CALL firebase.projects.patch",
   "REQ PATCH https://firebase.googleapis.com/v1beta1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
@@ -197,10 +273,10 @@ test "Go's firebase.projects.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_8)
+  gv_compare(gv_log_of(f), GO_10)
 }
 
-const GO_9: List[Str] = [
+const GO_11: List[Str] = [
   "CALL firebase.projects.removeAnalytics",
   "REQ POST https://firebase.googleapis.com/v1beta1/id1/%20x:removeAnalytics?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -219,10 +295,10 @@ test "Go's firebase.projects.removeAnalytics" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_9)
+  gv_compare(gv_log_of(f), GO_11)
 }
 
-const GO_10: List[Str] = [
+const GO_12: List[Str] = [
   "CALL firebase.projects.searchApps",
   "REQ GET https://firebase.googleapis.com/v1beta1/id1/%20x:searchApps?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&showDeleted=true",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -240,10 +316,48 @@ test "Go's firebase.projects.searchApps" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_10)
+  gv_compare(gv_log_of(f), GO_12)
 }
 
-const GO_11: List[Str] = [
+const GO_13: List[Str] = [
+  "CALL firebase.projects.searchApps pages",
+  "REQ GET https://firebase.googleapis.com/v1beta1/id1/%20x:searchApps?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&showDeleted=true",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"apps\":[{\"apiKeyId\":\"s-apikeyid\",\"appId\":\"s-appid\",\"displayName\":\"s-displayname\",\"expireTime\":\"s-expiretime\",\"name\":\"s-name\",\"namespace\":\"s-namespace\",\"platform\":\"s-platform\",\"state\":\"s-state\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"apps\":[{\"apiKeyId\":\"s-apikeyid\",\"appId\":\"s-appid\",\"displayName\":\"s-displayname\",\"expireTime\":\"s-expiretime\",\"name\":\"s-name\",\"namespace\":\"s-namespace\",\"platform\":\"s-platform\",\"state\":\"s-state\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://firebase.googleapis.com/v1beta1/id1/%20x:searchApps?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false&showDeleted=true",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"apps\":[{\"apiKeyId\":\"s-apikeyid\",\"appId\":\"s-appid\",\"displayName\":\"s-displayname\",\"expireTime\":\"s-expiretime\",\"name\":\"s-name\",\"namespace\":\"s-namespace\",\"platform\":\"s-platform\",\"state\":\"s-state\"}]}",
+  "OUT: {\"apps\":[{\"apiKeyId\":\"s-apikeyid\",\"appId\":\"s-appid\",\"displayName\":\"s-displayname\",\"expireTime\":\"s-expiretime\",\"name\":\"s-name\",\"namespace\":\"s-namespace\",\"platform\":\"s-platform\",\"state\":\"s-state\"}]}",
+  "OUT: ok",
+]
+
+test "Go's firebase.projects.searchApps pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"apps\":[{\"apiKeyId\":\"s-apikeyid\",\"appId\":\"s-appid\",\"displayName\":\"s-displayname\",\"expireTime\":\"s-expiretime\",\"name\":\"s-name\",\"namespace\":\"s-namespace\",\"platform\":\"s-platform\",\"state\":\"s-state\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"apps\":[{\"apiKeyId\":\"s-apikeyid\",\"appId\":\"s-appid\",\"displayName\":\"s-displayname\",\"expireTime\":\"s-expiretime\",\"name\":\"s-name\",\"namespace\":\"s-namespace\",\"platform\":\"s-platform\",\"state\":\"s-state\"}]}")
+  gv_note(f, "CALL firebase.projects.searchApps pages")
+  var p = svc.projects.search_apps_pages("id1/ x", options: ProjectsSearchAppsOptions{filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), show_deleted: Some(true), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_13)
+}
+
+const GO_14: List[Str] = [
   "CALL firebase.projects.androidApps.create",
   "REQ POST https://firebase.googleapis.com/v1beta1/id1/%20x/androidApps?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -262,10 +376,10 @@ test "Go's firebase.projects.androidApps.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_11)
+  gv_compare(gv_log_of(f), GO_14)
 }
 
-const GO_12: List[Str] = [
+const GO_15: List[Str] = [
   "CALL firebase.projects.androidApps.get",
   "REQ GET https://firebase.googleapis.com/v1beta1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -283,10 +397,10 @@ test "Go's firebase.projects.androidApps.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_12)
+  gv_compare(gv_log_of(f), GO_15)
 }
 
-const GO_13: List[Str] = [
+const GO_16: List[Str] = [
   "CALL firebase.projects.androidApps.getConfig",
   "REQ GET https://firebase.googleapis.com/v1beta1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -304,10 +418,10 @@ test "Go's firebase.projects.androidApps.getConfig" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_13)
+  gv_compare(gv_log_of(f), GO_16)
 }
 
-const GO_14: List[Str] = [
+const GO_17: List[Str] = [
   "CALL firebase.projects.androidApps.list",
   "REQ GET https://firebase.googleapis.com/v1beta1/id1/%20x/androidApps?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&showDeleted=true",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -325,10 +439,48 @@ test "Go's firebase.projects.androidApps.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_14)
+  gv_compare(gv_log_of(f), GO_17)
 }
 
-const GO_15: List[Str] = [
+const GO_18: List[Str] = [
+  "CALL firebase.projects.androidApps.list pages",
+  "REQ GET https://firebase.googleapis.com/v1beta1/id1/%20x/androidApps?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&showDeleted=true",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"apps\":[{\"apiKeyId\":\"s-apikeyid\",\"appId\":\"s-appid\",\"displayName\":\"s-displayname\",\"etag\":\"s-etag\",\"expireTime\":\"s-expiretime\",\"name\":\"s-name\",\"packageName\":\"s-packagename\",\"projectId\":\"s-projectid\",\"sha1Hashes\":[\"s-sha1hashes\"],\"sha256Hashes\":[\"s-sha256hashes\"],\"state\":\"s-state\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"apps\":[{\"apiKeyId\":\"s-apikeyid\",\"appId\":\"s-appid\",\"displayName\":\"s-displayname\",\"etag\":\"s-etag\",\"expireTime\":\"s-expiretime\",\"name\":\"s-name\",\"packageName\":\"s-packagename\",\"projectId\":\"s-projectid\",\"sha1Hashes\":[\"s-sha1hashes\"],\"sha256Hashes\":[\"s-sha256hashes\"],\"state\":\"s-state\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://firebase.googleapis.com/v1beta1/id1/%20x/androidApps?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false&showDeleted=true",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"apps\":[{\"apiKeyId\":\"s-apikeyid\",\"appId\":\"s-appid\",\"displayName\":\"s-displayname\",\"etag\":\"s-etag\",\"expireTime\":\"s-expiretime\",\"name\":\"s-name\",\"packageName\":\"s-packagename\",\"projectId\":\"s-projectid\",\"sha1Hashes\":[\"s-sha1hashes\"],\"sha256Hashes\":[\"s-sha256hashes\"],\"state\":\"s-state\"}]}",
+  "OUT: {\"apps\":[{\"apiKeyId\":\"s-apikeyid\",\"appId\":\"s-appid\",\"displayName\":\"s-displayname\",\"etag\":\"s-etag\",\"expireTime\":\"s-expiretime\",\"name\":\"s-name\",\"packageName\":\"s-packagename\",\"projectId\":\"s-projectid\",\"sha1Hashes\":[\"s-sha1hashes\"],\"sha256Hashes\":[\"s-sha256hashes\"],\"state\":\"s-state\"}]}",
+  "OUT: ok",
+]
+
+test "Go's firebase.projects.androidApps.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"apps\":[{\"apiKeyId\":\"s-apikeyid\",\"appId\":\"s-appid\",\"displayName\":\"s-displayname\",\"etag\":\"s-etag\",\"expireTime\":\"s-expiretime\",\"name\":\"s-name\",\"packageName\":\"s-packagename\",\"projectId\":\"s-projectid\",\"sha1Hashes\":[\"s-sha1hashes\"],\"sha256Hashes\":[\"s-sha256hashes\"],\"state\":\"s-state\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"apps\":[{\"apiKeyId\":\"s-apikeyid\",\"appId\":\"s-appid\",\"displayName\":\"s-displayname\",\"etag\":\"s-etag\",\"expireTime\":\"s-expiretime\",\"name\":\"s-name\",\"packageName\":\"s-packagename\",\"projectId\":\"s-projectid\",\"sha1Hashes\":[\"s-sha1hashes\"],\"sha256Hashes\":[\"s-sha256hashes\"],\"state\":\"s-state\"}]}")
+  gv_note(f, "CALL firebase.projects.androidApps.list pages")
+  var p = svc.projects.android_apps.list_pages("id1/ x", options: ProjectsAndroidAppsListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), show_deleted: Some(true), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_18)
+}
+
+const GO_19: List[Str] = [
   "CALL firebase.projects.androidApps.patch",
   "REQ PATCH https://firebase.googleapis.com/v1beta1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
@@ -347,10 +499,10 @@ test "Go's firebase.projects.androidApps.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_15)
+  gv_compare(gv_log_of(f), GO_19)
 }
 
-const GO_16: List[Str] = [
+const GO_20: List[Str] = [
   "CALL firebase.projects.androidApps.remove",
   "REQ POST https://firebase.googleapis.com/v1beta1/id1/%20x:remove?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -369,10 +521,10 @@ test "Go's firebase.projects.androidApps.remove" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_16)
+  gv_compare(gv_log_of(f), GO_20)
 }
 
-const GO_17: List[Str] = [
+const GO_21: List[Str] = [
   "CALL firebase.projects.androidApps.undelete",
   "REQ POST https://firebase.googleapis.com/v1beta1/id1/%20x:undelete?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -391,10 +543,10 @@ test "Go's firebase.projects.androidApps.undelete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_17)
+  gv_compare(gv_log_of(f), GO_21)
 }
 
-const GO_18: List[Str] = [
+const GO_22: List[Str] = [
   "CALL firebase.projects.androidApps.sha.create",
   "REQ POST https://firebase.googleapis.com/v1beta1/id1/%20x/sha?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -413,10 +565,10 @@ test "Go's firebase.projects.androidApps.sha.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_18)
+  gv_compare(gv_log_of(f), GO_22)
 }
 
-const GO_19: List[Str] = [
+const GO_23: List[Str] = [
   "CALL firebase.projects.androidApps.sha.delete",
   "REQ DELETE https://firebase.googleapis.com/v1beta1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -434,10 +586,10 @@ test "Go's firebase.projects.androidApps.sha.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_19)
+  gv_compare(gv_log_of(f), GO_23)
 }
 
-const GO_20: List[Str] = [
+const GO_24: List[Str] = [
   "CALL firebase.projects.androidApps.sha.list",
   "REQ GET https://firebase.googleapis.com/v1beta1/id1/%20x/sha?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -455,10 +607,10 @@ test "Go's firebase.projects.androidApps.sha.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_20)
+  gv_compare(gv_log_of(f), GO_24)
 }
 
-const GO_21: List[Str] = [
+const GO_25: List[Str] = [
   "CALL firebase.projects.availableLocations.list",
   "REQ GET https://firebase.googleapis.com/v1beta1/id1/%20x/availableLocations?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -476,10 +628,48 @@ test "Go's firebase.projects.availableLocations.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_21)
+  gv_compare(gv_log_of(f), GO_25)
 }
 
-const GO_22: List[Str] = [
+const GO_26: List[Str] = [
+  "CALL firebase.projects.availableLocations.list pages",
+  "REQ GET https://firebase.googleapis.com/v1beta1/id1/%20x/availableLocations?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"locations\":[{\"features\":[\"s-features\"],\"locationId\":\"s-locationid\",\"type\":\"s-type\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"locations\":[{\"features\":[\"s-features\"],\"locationId\":\"s-locationid\",\"type\":\"s-type\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://firebase.googleapis.com/v1beta1/id1/%20x/availableLocations?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"locations\":[{\"features\":[\"s-features\"],\"locationId\":\"s-locationid\",\"type\":\"s-type\"}]}",
+  "OUT: {\"locations\":[{\"features\":[\"s-features\"],\"locationId\":\"s-locationid\",\"type\":\"s-type\"}]}",
+  "OUT: ok",
+]
+
+test "Go's firebase.projects.availableLocations.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"locations\":[{\"features\":[\"s-features\"],\"locationId\":\"s-locationid\",\"type\":\"s-type\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"locations\":[{\"features\":[\"s-features\"],\"locationId\":\"s-locationid\",\"type\":\"s-type\"}]}")
+  gv_note(f, "CALL firebase.projects.availableLocations.list pages")
+  var p = svc.projects.available_locations.list_pages("id1/ x", options: ProjectsAvailableLocationsListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_26)
+}
+
+const GO_27: List[Str] = [
   "CALL firebase.projects.defaultLocation.finalize",
   "REQ POST https://firebase.googleapis.com/v1beta1/id1/%20x/defaultLocation:finalize?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -498,10 +688,10 @@ test "Go's firebase.projects.defaultLocation.finalize" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_22)
+  gv_compare(gv_log_of(f), GO_27)
 }
 
-const GO_23: List[Str] = [
+const GO_28: List[Str] = [
   "CALL firebase.projects.iosApps.create",
   "REQ POST https://firebase.googleapis.com/v1beta1/id1/%20x/iosApps?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -520,10 +710,10 @@ test "Go's firebase.projects.iosApps.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_23)
+  gv_compare(gv_log_of(f), GO_28)
 }
 
-const GO_24: List[Str] = [
+const GO_29: List[Str] = [
   "CALL firebase.projects.iosApps.get",
   "REQ GET https://firebase.googleapis.com/v1beta1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -541,10 +731,10 @@ test "Go's firebase.projects.iosApps.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_24)
+  gv_compare(gv_log_of(f), GO_29)
 }
 
-const GO_25: List[Str] = [
+const GO_30: List[Str] = [
   "CALL firebase.projects.iosApps.getConfig",
   "REQ GET https://firebase.googleapis.com/v1beta1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -562,10 +752,10 @@ test "Go's firebase.projects.iosApps.getConfig" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_25)
+  gv_compare(gv_log_of(f), GO_30)
 }
 
-const GO_26: List[Str] = [
+const GO_31: List[Str] = [
   "CALL firebase.projects.iosApps.list",
   "REQ GET https://firebase.googleapis.com/v1beta1/id1/%20x/iosApps?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&showDeleted=true",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -583,10 +773,48 @@ test "Go's firebase.projects.iosApps.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_26)
+  gv_compare(gv_log_of(f), GO_31)
 }
 
-const GO_27: List[Str] = [
+const GO_32: List[Str] = [
+  "CALL firebase.projects.iosApps.list pages",
+  "REQ GET https://firebase.googleapis.com/v1beta1/id1/%20x/iosApps?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&showDeleted=true",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"apps\":[{\"apiKeyId\":\"s-apikeyid\",\"appId\":\"s-appid\",\"appStoreId\":\"s-appstoreid\",\"bundleId\":\"s-bundleid\",\"displayName\":\"s-displayname\",\"etag\":\"s-etag\",\"expireTime\":\"s-expiretime\",\"name\":\"s-name\",\"projectId\":\"s-projectid\",\"state\":\"s-state\",\"teamId\":\"s-teamid\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"apps\":[{\"apiKeyId\":\"s-apikeyid\",\"appId\":\"s-appid\",\"appStoreId\":\"s-appstoreid\",\"bundleId\":\"s-bundleid\",\"displayName\":\"s-displayname\",\"etag\":\"s-etag\",\"expireTime\":\"s-expiretime\",\"name\":\"s-name\",\"projectId\":\"s-projectid\",\"state\":\"s-state\",\"teamId\":\"s-teamid\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://firebase.googleapis.com/v1beta1/id1/%20x/iosApps?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false&showDeleted=true",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"apps\":[{\"apiKeyId\":\"s-apikeyid\",\"appId\":\"s-appid\",\"appStoreId\":\"s-appstoreid\",\"bundleId\":\"s-bundleid\",\"displayName\":\"s-displayname\",\"etag\":\"s-etag\",\"expireTime\":\"s-expiretime\",\"name\":\"s-name\",\"projectId\":\"s-projectid\",\"state\":\"s-state\",\"teamId\":\"s-teamid\"}]}",
+  "OUT: {\"apps\":[{\"apiKeyId\":\"s-apikeyid\",\"appId\":\"s-appid\",\"appStoreId\":\"s-appstoreid\",\"bundleId\":\"s-bundleid\",\"displayName\":\"s-displayname\",\"etag\":\"s-etag\",\"expireTime\":\"s-expiretime\",\"name\":\"s-name\",\"projectId\":\"s-projectid\",\"state\":\"s-state\",\"teamId\":\"s-teamid\"}]}",
+  "OUT: ok",
+]
+
+test "Go's firebase.projects.iosApps.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"apps\":[{\"apiKeyId\":\"s-apikeyid\",\"appId\":\"s-appid\",\"appStoreId\":\"s-appstoreid\",\"bundleId\":\"s-bundleid\",\"displayName\":\"s-displayname\",\"etag\":\"s-etag\",\"expireTime\":\"s-expiretime\",\"name\":\"s-name\",\"projectId\":\"s-projectid\",\"state\":\"s-state\",\"teamId\":\"s-teamid\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"apps\":[{\"apiKeyId\":\"s-apikeyid\",\"appId\":\"s-appid\",\"appStoreId\":\"s-appstoreid\",\"bundleId\":\"s-bundleid\",\"displayName\":\"s-displayname\",\"etag\":\"s-etag\",\"expireTime\":\"s-expiretime\",\"name\":\"s-name\",\"projectId\":\"s-projectid\",\"state\":\"s-state\",\"teamId\":\"s-teamid\"}]}")
+  gv_note(f, "CALL firebase.projects.iosApps.list pages")
+  var p = svc.projects.ios_apps.list_pages("id1/ x", options: ProjectsIosAppsListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), show_deleted: Some(true), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_32)
+}
+
+const GO_33: List[Str] = [
   "CALL firebase.projects.iosApps.patch",
   "REQ PATCH https://firebase.googleapis.com/v1beta1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
@@ -605,10 +833,10 @@ test "Go's firebase.projects.iosApps.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_27)
+  gv_compare(gv_log_of(f), GO_33)
 }
 
-const GO_28: List[Str] = [
+const GO_34: List[Str] = [
   "CALL firebase.projects.iosApps.remove",
   "REQ POST https://firebase.googleapis.com/v1beta1/id1/%20x:remove?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -627,10 +855,10 @@ test "Go's firebase.projects.iosApps.remove" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_28)
+  gv_compare(gv_log_of(f), GO_34)
 }
 
-const GO_29: List[Str] = [
+const GO_35: List[Str] = [
   "CALL firebase.projects.iosApps.undelete",
   "REQ POST https://firebase.googleapis.com/v1beta1/id1/%20x:undelete?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -649,10 +877,10 @@ test "Go's firebase.projects.iosApps.undelete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_29)
+  gv_compare(gv_log_of(f), GO_35)
 }
 
-const GO_30: List[Str] = [
+const GO_36: List[Str] = [
   "CALL firebase.projects.webApps.create",
   "REQ POST https://firebase.googleapis.com/v1beta1/id1/%20x/webApps?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -671,10 +899,10 @@ test "Go's firebase.projects.webApps.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_30)
+  gv_compare(gv_log_of(f), GO_36)
 }
 
-const GO_31: List[Str] = [
+const GO_37: List[Str] = [
   "CALL firebase.projects.webApps.get",
   "REQ GET https://firebase.googleapis.com/v1beta1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -692,10 +920,10 @@ test "Go's firebase.projects.webApps.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_31)
+  gv_compare(gv_log_of(f), GO_37)
 }
 
-const GO_32: List[Str] = [
+const GO_38: List[Str] = [
   "CALL firebase.projects.webApps.getConfig",
   "REQ GET https://firebase.googleapis.com/v1beta1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -713,10 +941,10 @@ test "Go's firebase.projects.webApps.getConfig" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_32)
+  gv_compare(gv_log_of(f), GO_38)
 }
 
-const GO_33: List[Str] = [
+const GO_39: List[Str] = [
   "CALL firebase.projects.webApps.list",
   "REQ GET https://firebase.googleapis.com/v1beta1/id1/%20x/webApps?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&showDeleted=true",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -734,10 +962,48 @@ test "Go's firebase.projects.webApps.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_33)
+  gv_compare(gv_log_of(f), GO_39)
 }
 
-const GO_34: List[Str] = [
+const GO_40: List[Str] = [
+  "CALL firebase.projects.webApps.list pages",
+  "REQ GET https://firebase.googleapis.com/v1beta1/id1/%20x/webApps?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&showDeleted=true",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"apps\":[{\"apiKeyId\":\"s-apikeyid\",\"appId\":\"s-appid\",\"appUrls\":[\"s-appurls\"],\"displayName\":\"s-displayname\",\"etag\":\"s-etag\",\"expireTime\":\"s-expiretime\",\"name\":\"s-name\",\"projectId\":\"s-projectid\",\"state\":\"s-state\",\"webId\":\"s-webid\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"apps\":[{\"apiKeyId\":\"s-apikeyid\",\"appId\":\"s-appid\",\"appUrls\":[\"s-appurls\"],\"displayName\":\"s-displayname\",\"etag\":\"s-etag\",\"expireTime\":\"s-expiretime\",\"name\":\"s-name\",\"projectId\":\"s-projectid\",\"state\":\"s-state\",\"webId\":\"s-webid\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://firebase.googleapis.com/v1beta1/id1/%20x/webApps?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false&showDeleted=true",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"apps\":[{\"apiKeyId\":\"s-apikeyid\",\"appId\":\"s-appid\",\"appUrls\":[\"s-appurls\"],\"displayName\":\"s-displayname\",\"etag\":\"s-etag\",\"expireTime\":\"s-expiretime\",\"name\":\"s-name\",\"projectId\":\"s-projectid\",\"state\":\"s-state\",\"webId\":\"s-webid\"}]}",
+  "OUT: {\"apps\":[{\"apiKeyId\":\"s-apikeyid\",\"appId\":\"s-appid\",\"appUrls\":[\"s-appurls\"],\"displayName\":\"s-displayname\",\"etag\":\"s-etag\",\"expireTime\":\"s-expiretime\",\"name\":\"s-name\",\"projectId\":\"s-projectid\",\"state\":\"s-state\",\"webId\":\"s-webid\"}]}",
+  "OUT: ok",
+]
+
+test "Go's firebase.projects.webApps.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"apps\":[{\"apiKeyId\":\"s-apikeyid\",\"appId\":\"s-appid\",\"appUrls\":[\"s-appurls\"],\"displayName\":\"s-displayname\",\"etag\":\"s-etag\",\"expireTime\":\"s-expiretime\",\"name\":\"s-name\",\"projectId\":\"s-projectid\",\"state\":\"s-state\",\"webId\":\"s-webid\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"apps\":[{\"apiKeyId\":\"s-apikeyid\",\"appId\":\"s-appid\",\"appUrls\":[\"s-appurls\"],\"displayName\":\"s-displayname\",\"etag\":\"s-etag\",\"expireTime\":\"s-expiretime\",\"name\":\"s-name\",\"projectId\":\"s-projectid\",\"state\":\"s-state\",\"webId\":\"s-webid\"}]}")
+  gv_note(f, "CALL firebase.projects.webApps.list pages")
+  var p = svc.projects.web_apps.list_pages("id1/ x", options: ProjectsWebAppsListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), show_deleted: Some(true), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_40)
+}
+
+const GO_41: List[Str] = [
   "CALL firebase.projects.webApps.patch",
   "REQ PATCH https://firebase.googleapis.com/v1beta1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
@@ -756,10 +1022,10 @@ test "Go's firebase.projects.webApps.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_34)
+  gv_compare(gv_log_of(f), GO_41)
 }
 
-const GO_35: List[Str] = [
+const GO_42: List[Str] = [
   "CALL firebase.projects.webApps.remove",
   "REQ POST https://firebase.googleapis.com/v1beta1/id1/%20x:remove?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -778,10 +1044,10 @@ test "Go's firebase.projects.webApps.remove" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_35)
+  gv_compare(gv_log_of(f), GO_42)
 }
 
-const GO_36: List[Str] = [
+const GO_43: List[Str] = [
   "CALL firebase.projects.webApps.undelete",
   "REQ POST https://firebase.googleapis.com/v1beta1/id1/%20x:undelete?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -800,5 +1066,5 @@ test "Go's firebase.projects.webApps.undelete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_36)
+  gv_compare(gv_log_of(f), GO_43)
 }

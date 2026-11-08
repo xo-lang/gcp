@@ -30,6 +30,44 @@ test "Go's cloudprivatecatalog.folders.catalogs.search" {
 }
 
 const GO_1: List[Str] = [
+  "CALL cloudprivatecatalog.folders.catalogs.search pages",
+  "REQ GET https://cloudprivatecatalog.googleapis.com/v1beta1/id1/%20x/catalogs:search?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&query=s-query",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"catalogs\":[{\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"catalogs\":[{\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://cloudprivatecatalog.googleapis.com/v1beta1/id1/%20x/catalogs:search?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false&query=s-query",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"catalogs\":[{\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"updateTime\":\"s-updatetime\"}]}",
+  "OUT: {\"catalogs\":[{\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"updateTime\":\"s-updatetime\"}]}",
+  "OUT: ok",
+]
+
+test "Go's cloudprivatecatalog.folders.catalogs.search pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"catalogs\":[{\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"catalogs\":[{\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"updateTime\":\"s-updatetime\"}]}")
+  gv_note(f, "CALL cloudprivatecatalog.folders.catalogs.search pages")
+  var p = svc.folders.catalogs.search_pages("id1/ x", options: FoldersCatalogsSearchOptions{page_size: Some(7), page_token: Some("s-pagetoken"), query: Some("s-query"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_1)
+}
+
+const GO_2: List[Str] = [
   "CALL cloudprivatecatalog.folders.products.search",
   "REQ GET https://cloudprivatecatalog.googleapis.com/v1beta1/id1/%20x/products:search?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&query=s-query",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -47,10 +85,48 @@ test "Go's cloudprivatecatalog.folders.products.search" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_1)
+  gv_compare(gv_log_of(f), GO_2)
 }
 
-const GO_2: List[Str] = [
+const GO_3: List[Str] = [
+  "CALL cloudprivatecatalog.folders.products.search pages",
+  "REQ GET https://cloudprivatecatalog.googleapis.com/v1beta1/id1/%20x/products:search?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&query=s-query",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"products\":[{\"assetType\":\"s-assettype\",\"createTime\":\"s-createtime\",\"displayMetadata\":{\"k\":\"v\"},\"iconUri\":\"s-iconuri\",\"name\":\"s-name\",\"updateTime\":\"s-updatetime\"}]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"products\":[{\"assetType\":\"s-assettype\",\"createTime\":\"s-createtime\",\"displayMetadata\":{\"k\":\"v\"},\"iconUri\":\"s-iconuri\",\"name\":\"s-name\",\"updateTime\":\"s-updatetime\"}]}",
+  "REQ GET https://cloudprivatecatalog.googleapis.com/v1beta1/id1/%20x/products:search?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false&query=s-query",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"products\":[{\"assetType\":\"s-assettype\",\"createTime\":\"s-createtime\",\"displayMetadata\":{\"k\":\"v\"},\"iconUri\":\"s-iconuri\",\"name\":\"s-name\",\"updateTime\":\"s-updatetime\"}]}",
+  "OUT: {\"products\":[{\"assetType\":\"s-assettype\",\"createTime\":\"s-createtime\",\"displayMetadata\":{\"k\":\"v\"},\"iconUri\":\"s-iconuri\",\"name\":\"s-name\",\"updateTime\":\"s-updatetime\"}]}",
+  "OUT: ok",
+]
+
+test "Go's cloudprivatecatalog.folders.products.search pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"products\":[{\"assetType\":\"s-assettype\",\"createTime\":\"s-createtime\",\"displayMetadata\":{\"k\":\"v\"},\"iconUri\":\"s-iconuri\",\"name\":\"s-name\",\"updateTime\":\"s-updatetime\"}]}")
+  gv_queue(f, "{\"products\":[{\"assetType\":\"s-assettype\",\"createTime\":\"s-createtime\",\"displayMetadata\":{\"k\":\"v\"},\"iconUri\":\"s-iconuri\",\"name\":\"s-name\",\"updateTime\":\"s-updatetime\"}]}")
+  gv_note(f, "CALL cloudprivatecatalog.folders.products.search pages")
+  var p = svc.folders.products.search_pages("id1/ x", options: FoldersProductsSearchOptions{page_size: Some(7), page_token: Some("s-pagetoken"), query: Some("s-query"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_3)
+}
+
+const GO_4: List[Str] = [
   "CALL cloudprivatecatalog.folders.versions.search",
   "REQ GET https://cloudprivatecatalog.googleapis.com/v1beta1/id1/%20x/versions:search?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&query=s-query",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -68,10 +144,48 @@ test "Go's cloudprivatecatalog.folders.versions.search" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_2)
+  gv_compare(gv_log_of(f), GO_4)
 }
 
-const GO_3: List[Str] = [
+const GO_5: List[Str] = [
+  "CALL cloudprivatecatalog.folders.versions.search pages",
+  "REQ GET https://cloudprivatecatalog.googleapis.com/v1beta1/id1/%20x/versions:search?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&query=s-query",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"versions\":[{\"asset\":{\"k\":\"v\"},\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"name\":\"s-name\",\"updateTime\":\"s-updatetime\"}]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"versions\":[{\"asset\":{\"k\":\"v\"},\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"name\":\"s-name\",\"updateTime\":\"s-updatetime\"}]}",
+  "REQ GET https://cloudprivatecatalog.googleapis.com/v1beta1/id1/%20x/versions:search?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false&query=s-query",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"versions\":[{\"asset\":{\"k\":\"v\"},\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"name\":\"s-name\",\"updateTime\":\"s-updatetime\"}]}",
+  "OUT: {\"versions\":[{\"asset\":{\"k\":\"v\"},\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"name\":\"s-name\",\"updateTime\":\"s-updatetime\"}]}",
+  "OUT: ok",
+]
+
+test "Go's cloudprivatecatalog.folders.versions.search pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"versions\":[{\"asset\":{\"k\":\"v\"},\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"name\":\"s-name\",\"updateTime\":\"s-updatetime\"}]}")
+  gv_queue(f, "{\"versions\":[{\"asset\":{\"k\":\"v\"},\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"name\":\"s-name\",\"updateTime\":\"s-updatetime\"}]}")
+  gv_note(f, "CALL cloudprivatecatalog.folders.versions.search pages")
+  var p = svc.folders.versions.search_pages("id1/ x", options: FoldersVersionsSearchOptions{page_size: Some(7), page_token: Some("s-pagetoken"), query: Some("s-query"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_5)
+}
+
+const GO_6: List[Str] = [
   "CALL cloudprivatecatalog.organizations.catalogs.search",
   "REQ GET https://cloudprivatecatalog.googleapis.com/v1beta1/id1/%20x/catalogs:search?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&query=s-query",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -89,10 +203,48 @@ test "Go's cloudprivatecatalog.organizations.catalogs.search" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_3)
+  gv_compare(gv_log_of(f), GO_6)
 }
 
-const GO_4: List[Str] = [
+const GO_7: List[Str] = [
+  "CALL cloudprivatecatalog.organizations.catalogs.search pages",
+  "REQ GET https://cloudprivatecatalog.googleapis.com/v1beta1/id1/%20x/catalogs:search?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&query=s-query",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"catalogs\":[{\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"catalogs\":[{\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://cloudprivatecatalog.googleapis.com/v1beta1/id1/%20x/catalogs:search?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false&query=s-query",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"catalogs\":[{\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"updateTime\":\"s-updatetime\"}]}",
+  "OUT: {\"catalogs\":[{\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"updateTime\":\"s-updatetime\"}]}",
+  "OUT: ok",
+]
+
+test "Go's cloudprivatecatalog.organizations.catalogs.search pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"catalogs\":[{\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"catalogs\":[{\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"updateTime\":\"s-updatetime\"}]}")
+  gv_note(f, "CALL cloudprivatecatalog.organizations.catalogs.search pages")
+  var p = svc.organizations.catalogs.search_pages("id1/ x", options: OrganizationsCatalogsSearchOptions{page_size: Some(7), page_token: Some("s-pagetoken"), query: Some("s-query"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_7)
+}
+
+const GO_8: List[Str] = [
   "CALL cloudprivatecatalog.organizations.products.search",
   "REQ GET https://cloudprivatecatalog.googleapis.com/v1beta1/id1/%20x/products:search?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&query=s-query",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -110,10 +262,48 @@ test "Go's cloudprivatecatalog.organizations.products.search" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_4)
+  gv_compare(gv_log_of(f), GO_8)
 }
 
-const GO_5: List[Str] = [
+const GO_9: List[Str] = [
+  "CALL cloudprivatecatalog.organizations.products.search pages",
+  "REQ GET https://cloudprivatecatalog.googleapis.com/v1beta1/id1/%20x/products:search?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&query=s-query",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"products\":[{\"assetType\":\"s-assettype\",\"createTime\":\"s-createtime\",\"displayMetadata\":{\"k\":\"v\"},\"iconUri\":\"s-iconuri\",\"name\":\"s-name\",\"updateTime\":\"s-updatetime\"}]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"products\":[{\"assetType\":\"s-assettype\",\"createTime\":\"s-createtime\",\"displayMetadata\":{\"k\":\"v\"},\"iconUri\":\"s-iconuri\",\"name\":\"s-name\",\"updateTime\":\"s-updatetime\"}]}",
+  "REQ GET https://cloudprivatecatalog.googleapis.com/v1beta1/id1/%20x/products:search?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false&query=s-query",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"products\":[{\"assetType\":\"s-assettype\",\"createTime\":\"s-createtime\",\"displayMetadata\":{\"k\":\"v\"},\"iconUri\":\"s-iconuri\",\"name\":\"s-name\",\"updateTime\":\"s-updatetime\"}]}",
+  "OUT: {\"products\":[{\"assetType\":\"s-assettype\",\"createTime\":\"s-createtime\",\"displayMetadata\":{\"k\":\"v\"},\"iconUri\":\"s-iconuri\",\"name\":\"s-name\",\"updateTime\":\"s-updatetime\"}]}",
+  "OUT: ok",
+]
+
+test "Go's cloudprivatecatalog.organizations.products.search pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"products\":[{\"assetType\":\"s-assettype\",\"createTime\":\"s-createtime\",\"displayMetadata\":{\"k\":\"v\"},\"iconUri\":\"s-iconuri\",\"name\":\"s-name\",\"updateTime\":\"s-updatetime\"}]}")
+  gv_queue(f, "{\"products\":[{\"assetType\":\"s-assettype\",\"createTime\":\"s-createtime\",\"displayMetadata\":{\"k\":\"v\"},\"iconUri\":\"s-iconuri\",\"name\":\"s-name\",\"updateTime\":\"s-updatetime\"}]}")
+  gv_note(f, "CALL cloudprivatecatalog.organizations.products.search pages")
+  var p = svc.organizations.products.search_pages("id1/ x", options: OrganizationsProductsSearchOptions{page_size: Some(7), page_token: Some("s-pagetoken"), query: Some("s-query"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_9)
+}
+
+const GO_10: List[Str] = [
   "CALL cloudprivatecatalog.organizations.versions.search",
   "REQ GET https://cloudprivatecatalog.googleapis.com/v1beta1/id1/%20x/versions:search?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&query=s-query",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -131,10 +321,48 @@ test "Go's cloudprivatecatalog.organizations.versions.search" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_5)
+  gv_compare(gv_log_of(f), GO_10)
 }
 
-const GO_6: List[Str] = [
+const GO_11: List[Str] = [
+  "CALL cloudprivatecatalog.organizations.versions.search pages",
+  "REQ GET https://cloudprivatecatalog.googleapis.com/v1beta1/id1/%20x/versions:search?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&query=s-query",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"versions\":[{\"asset\":{\"k\":\"v\"},\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"name\":\"s-name\",\"updateTime\":\"s-updatetime\"}]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"versions\":[{\"asset\":{\"k\":\"v\"},\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"name\":\"s-name\",\"updateTime\":\"s-updatetime\"}]}",
+  "REQ GET https://cloudprivatecatalog.googleapis.com/v1beta1/id1/%20x/versions:search?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false&query=s-query",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"versions\":[{\"asset\":{\"k\":\"v\"},\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"name\":\"s-name\",\"updateTime\":\"s-updatetime\"}]}",
+  "OUT: {\"versions\":[{\"asset\":{\"k\":\"v\"},\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"name\":\"s-name\",\"updateTime\":\"s-updatetime\"}]}",
+  "OUT: ok",
+]
+
+test "Go's cloudprivatecatalog.organizations.versions.search pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"versions\":[{\"asset\":{\"k\":\"v\"},\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"name\":\"s-name\",\"updateTime\":\"s-updatetime\"}]}")
+  gv_queue(f, "{\"versions\":[{\"asset\":{\"k\":\"v\"},\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"name\":\"s-name\",\"updateTime\":\"s-updatetime\"}]}")
+  gv_note(f, "CALL cloudprivatecatalog.organizations.versions.search pages")
+  var p = svc.organizations.versions.search_pages("id1/ x", options: OrganizationsVersionsSearchOptions{page_size: Some(7), page_token: Some("s-pagetoken"), query: Some("s-query"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_11)
+}
+
+const GO_12: List[Str] = [
   "CALL cloudprivatecatalog.projects.catalogs.search",
   "REQ GET https://cloudprivatecatalog.googleapis.com/v1beta1/id1/%20x/catalogs:search?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&query=s-query",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -152,10 +380,48 @@ test "Go's cloudprivatecatalog.projects.catalogs.search" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_6)
+  gv_compare(gv_log_of(f), GO_12)
 }
 
-const GO_7: List[Str] = [
+const GO_13: List[Str] = [
+  "CALL cloudprivatecatalog.projects.catalogs.search pages",
+  "REQ GET https://cloudprivatecatalog.googleapis.com/v1beta1/id1/%20x/catalogs:search?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&query=s-query",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"catalogs\":[{\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"catalogs\":[{\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://cloudprivatecatalog.googleapis.com/v1beta1/id1/%20x/catalogs:search?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false&query=s-query",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"catalogs\":[{\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"updateTime\":\"s-updatetime\"}]}",
+  "OUT: {\"catalogs\":[{\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"updateTime\":\"s-updatetime\"}]}",
+  "OUT: ok",
+]
+
+test "Go's cloudprivatecatalog.projects.catalogs.search pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"catalogs\":[{\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"catalogs\":[{\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"updateTime\":\"s-updatetime\"}]}")
+  gv_note(f, "CALL cloudprivatecatalog.projects.catalogs.search pages")
+  var p = svc.projects.catalogs.search_pages("id1/ x", options: ProjectsCatalogsSearchOptions{page_size: Some(7), page_token: Some("s-pagetoken"), query: Some("s-query"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_13)
+}
+
+const GO_14: List[Str] = [
   "CALL cloudprivatecatalog.projects.products.search",
   "REQ GET https://cloudprivatecatalog.googleapis.com/v1beta1/id1/%20x/products:search?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&query=s-query",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -173,10 +439,48 @@ test "Go's cloudprivatecatalog.projects.products.search" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_7)
+  gv_compare(gv_log_of(f), GO_14)
 }
 
-const GO_8: List[Str] = [
+const GO_15: List[Str] = [
+  "CALL cloudprivatecatalog.projects.products.search pages",
+  "REQ GET https://cloudprivatecatalog.googleapis.com/v1beta1/id1/%20x/products:search?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&query=s-query",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"products\":[{\"assetType\":\"s-assettype\",\"createTime\":\"s-createtime\",\"displayMetadata\":{\"k\":\"v\"},\"iconUri\":\"s-iconuri\",\"name\":\"s-name\",\"updateTime\":\"s-updatetime\"}]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"products\":[{\"assetType\":\"s-assettype\",\"createTime\":\"s-createtime\",\"displayMetadata\":{\"k\":\"v\"},\"iconUri\":\"s-iconuri\",\"name\":\"s-name\",\"updateTime\":\"s-updatetime\"}]}",
+  "REQ GET https://cloudprivatecatalog.googleapis.com/v1beta1/id1/%20x/products:search?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false&query=s-query",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"products\":[{\"assetType\":\"s-assettype\",\"createTime\":\"s-createtime\",\"displayMetadata\":{\"k\":\"v\"},\"iconUri\":\"s-iconuri\",\"name\":\"s-name\",\"updateTime\":\"s-updatetime\"}]}",
+  "OUT: {\"products\":[{\"assetType\":\"s-assettype\",\"createTime\":\"s-createtime\",\"displayMetadata\":{\"k\":\"v\"},\"iconUri\":\"s-iconuri\",\"name\":\"s-name\",\"updateTime\":\"s-updatetime\"}]}",
+  "OUT: ok",
+]
+
+test "Go's cloudprivatecatalog.projects.products.search pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"products\":[{\"assetType\":\"s-assettype\",\"createTime\":\"s-createtime\",\"displayMetadata\":{\"k\":\"v\"},\"iconUri\":\"s-iconuri\",\"name\":\"s-name\",\"updateTime\":\"s-updatetime\"}]}")
+  gv_queue(f, "{\"products\":[{\"assetType\":\"s-assettype\",\"createTime\":\"s-createtime\",\"displayMetadata\":{\"k\":\"v\"},\"iconUri\":\"s-iconuri\",\"name\":\"s-name\",\"updateTime\":\"s-updatetime\"}]}")
+  gv_note(f, "CALL cloudprivatecatalog.projects.products.search pages")
+  var p = svc.projects.products.search_pages("id1/ x", options: ProjectsProductsSearchOptions{page_size: Some(7), page_token: Some("s-pagetoken"), query: Some("s-query"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_15)
+}
+
+const GO_16: List[Str] = [
   "CALL cloudprivatecatalog.projects.versions.search",
   "REQ GET https://cloudprivatecatalog.googleapis.com/v1beta1/id1/%20x/versions:search?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&query=s-query",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -194,5 +498,43 @@ test "Go's cloudprivatecatalog.projects.versions.search" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_8)
+  gv_compare(gv_log_of(f), GO_16)
+}
+
+const GO_17: List[Str] = [
+  "CALL cloudprivatecatalog.projects.versions.search pages",
+  "REQ GET https://cloudprivatecatalog.googleapis.com/v1beta1/id1/%20x/versions:search?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&query=s-query",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"versions\":[{\"asset\":{\"k\":\"v\"},\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"name\":\"s-name\",\"updateTime\":\"s-updatetime\"}]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"versions\":[{\"asset\":{\"k\":\"v\"},\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"name\":\"s-name\",\"updateTime\":\"s-updatetime\"}]}",
+  "REQ GET https://cloudprivatecatalog.googleapis.com/v1beta1/id1/%20x/versions:search?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false&query=s-query",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"versions\":[{\"asset\":{\"k\":\"v\"},\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"name\":\"s-name\",\"updateTime\":\"s-updatetime\"}]}",
+  "OUT: {\"versions\":[{\"asset\":{\"k\":\"v\"},\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"name\":\"s-name\",\"updateTime\":\"s-updatetime\"}]}",
+  "OUT: ok",
+]
+
+test "Go's cloudprivatecatalog.projects.versions.search pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"versions\":[{\"asset\":{\"k\":\"v\"},\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"name\":\"s-name\",\"updateTime\":\"s-updatetime\"}]}")
+  gv_queue(f, "{\"versions\":[{\"asset\":{\"k\":\"v\"},\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"name\":\"s-name\",\"updateTime\":\"s-updatetime\"}]}")
+  gv_note(f, "CALL cloudprivatecatalog.projects.versions.search pages")
+  var p = svc.projects.versions.search_pages("id1/ x", options: ProjectsVersionsSearchOptions{page_size: Some(7), page_token: Some("s-pagetoken"), query: Some("s-query"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_17)
 }

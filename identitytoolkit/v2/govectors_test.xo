@@ -162,6 +162,44 @@ test "Go's identitytoolkit.defaultSupportedIdps.list" {
 }
 
 const GO_7: List[Str] = [
+  "CALL identitytoolkit.defaultSupportedIdps.list pages",
+  "REQ GET https://identitytoolkit.googleapis.com/v2/defaultSupportedIdps?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"defaultSupportedIdps\":[{\"description\":\"s-description\",\"idpId\":\"s-idpid\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"defaultSupportedIdps\":[{\"description\":\"s-description\",\"idpId\":\"s-idpid\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://identitytoolkit.googleapis.com/v2/defaultSupportedIdps?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"defaultSupportedIdps\":[{\"description\":\"s-description\",\"idpId\":\"s-idpid\"}]}",
+  "OUT: {\"defaultSupportedIdps\":[{\"description\":\"s-description\",\"idpId\":\"s-idpid\"}]}",
+  "OUT: ok",
+]
+
+test "Go's identitytoolkit.defaultSupportedIdps.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"defaultSupportedIdps\":[{\"description\":\"s-description\",\"idpId\":\"s-idpid\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"defaultSupportedIdps\":[{\"description\":\"s-description\",\"idpId\":\"s-idpid\"}]}")
+  gv_note(f, "CALL identitytoolkit.defaultSupportedIdps.list pages")
+  var p = svc.default_supported_idps.list_pages(options: DefaultSupportedIdpsListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_7)
+}
+
+const GO_8: List[Str] = [
   "CALL identitytoolkit.projects.getConfig",
   "REQ GET https://identitytoolkit.googleapis.com/v2/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -179,14 +217,14 @@ test "Go's identitytoolkit.projects.getConfig" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_7)
+  gv_compare(gv_log_of(f), GO_8)
 }
 
-const GO_8: List[Str] = [
+const GO_9: List[Str] = [
   "CALL identitytoolkit.projects.updateConfig",
   "REQ PATCH https://identitytoolkit.googleapis.com/v2/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"authorizedDomains\":[\"s-authorizeddomains\"],\"autodeleteAnonymousUsers\":true,\"blockingFunctions\":{\"forwardInboundCredentials\":{\"accessToken\":true,\"idToken\":true,\"refreshToken\":true},\"triggers\":{\"k1\":{\"functionUri\":\"s-functionuri\",\"updateTime\":\"s-updatetime\"}}},\"client\":{\"apiKey\":\"s-apikey\",\"firebaseSubdomain\":\"s-firebasesubdomain\",\"permissions\":{\"disabledUserDeletion\":true,\"disabledUserSignup\":true}},\"defaultHostingSite\":\"s-defaulthostingsite\",\"emailPrivacyConfig\":{\"enableImprovedEmailPrivacy\":true},\"mfa\":{\"enabledProviders\":[\"s-enabledproviders\"],\"providerConfigs\":[{\"state\":\"s-state\"}],\"state\":\"s-state\"},\"mobileLinksConfig\":{\"domain\":\"s-domain\"},\"monitoring\":{\"requestLogging\":{\"enabled\":true}},\"multiTenant\":{\"allowTenants\":true,\"defaultTenantLocation\":\"s-defaulttenantlocation\"},\"name\":\"s-name\",\"notification\":{\"defaultLocale\":\"s-defaultlocale\",\"sendEmail\":{\"callbackUri\":\"s-callbackuri\",\"method\":\"s-method\"},\"sendSms\":{\"useDeviceLocale\":true}},\"passwordPolicyConfig\":{\"forceUpgradeOnSignin\":true,\"lastUpdateTime\":\"s-lastupdatetime\",\"passwordPolicyEnforcementState\":\"s-passwordpolicyenforcementstate\",\"passwordPolicyVersions\":[{\"schemaVersion\":7}]},\"quota\":{\"signUpQuotaConfig\":{\"quota\":\"7\",\"quotaDuration\":\"s-quotaduration\",\"startTime\":\"s-starttime\"}},\"recaptchaConfig\":{\"emailPasswordEnforcementState\":\"s-emailpasswordenforcementstate\",\"managedRules\":[{\"action\":\"s-action\",\"endScore\":1.5}],\"phoneEnforcementState\":\"s-phoneenforcementstate\",\"recaptchaKeys\":[{\"key\":\"s-key\",\"type\":\"s-type\"}],\"tollFraudManagedRules\":[{\"action\":\"s-action\",\"startScore\":1.5}],\"useAccountDefender\":true,\"useSmsBotScore\":true,\"useSmsTollFraudProtection\":true},\"signIn\":{\"allowDuplicateEmails\":true,\"anonymous\":{\"enabled\":true},\"email\":{\"enabled\":true,\"passwordRequired\":true},\"hashConfig\":{\"algorithm\":\"s-algorithm\",\"memoryCost\":7,\"rounds\":7,\"saltSeparator\":\"s-saltseparator\",\"signerKey\":\"s-signerkey\"},\"phoneNumber\":{\"enabled\":true,\"testPhoneNumbers\":{\"k1\":\"s-testphonenumbers\"}}},\"smsRegionConfig\":{\"allowByDefault\":{\"disallowedRegions\":[\"s-disallowedregions\"]},\"allowlistOnly\":{\"allowedRegions\":[\"s-allowedregions\"]}},\"subtype\":\"s-subtype\"}",
+  "  B <2134 bytes> {\"authorizedDomains\":[\"s-authori...ions\"]}},\"subtype\":\"s-subtype\"}",
   "",
   "  SERVED 200 {\"authorizedDomains\":[\"s-authorizeddomains\"],\"autodeleteAnonymousUsers\":true,\"blockingFunctions\":{\"forwardInboundCredentials\":{\"accessToken\":true,\"idToken\":true,\"refreshToken\":true},\"triggers\":{\"k1\":{\"functionUri\":\"s-functionuri\",\"updateTime\":\"s-updatetime\"}}},\"client\":{\"apiKey\":\"s-apikey\",\"firebaseSubdomain\":\"s-firebasesubdomain\",\"permissions\":{\"disabledUserDeletion\":true,\"disabledUserSignup\":true}},\"defaultHostingSite\":\"s-defaulthostingsite\",\"emailPrivacyConfig\":{\"enableImprovedEmailPrivacy\":true},\"mfa\":{\"enabledProviders\":[\"s-enabledproviders\"],\"providerConfigs\":[{\"state\":\"s-state\"}],\"state\":\"s-state\"},\"mobileLinksConfig\":{\"domain\":\"s-domain\"},\"monitoring\":{\"requestLogging\":{\"enabled\":true}},\"multiTenant\":{\"allowTenants\":true,\"defaultTenantLocation\":\"s-defaulttenantlocation\"},\"name\":\"s-name\",\"notification\":{\"defaultLocale\":\"s-defaultlocale\",\"sendEmail\":{\"callbackUri\":\"s-callbackuri\",\"method\":\"s-method\"},\"sendSms\":{\"useDeviceLocale\":true}},\"passwordPolicyConfig\":{\"forceUpgradeOnSignin\":true,\"lastUpdateTime\":\"s-lastupdatetime\",\"passwordPolicyEnforcementState\":\"s-passwordpolicyenforcementstate\",\"passwordPolicyVersions\":[{\"schemaVersion\":7}]},\"quota\":{\"signUpQuotaConfig\":{\"quota\":\"7\",\"quotaDuration\":\"s-quotaduration\",\"startTime\":\"s-starttime\"}},\"recaptchaConfig\":{\"emailPasswordEnforcementState\":\"s-emailpasswordenforcementstate\",\"managedRules\":[{\"action\":\"s-action\",\"endScore\":1.5}],\"phoneEnforcementState\":\"s-phoneenforcementstate\",\"recaptchaKeys\":[{\"key\":\"s-key\",\"type\":\"s-type\"}],\"tollFraudManagedRules\":[{\"action\":\"s-action\",\"startScore\":1.5}],\"useAccountDefender\":true,\"useSmsBotScore\":true,\"useSmsTollFraudProtection\":true},\"signIn\":{\"allowDuplicateEmails\":true,\"anonymous\":{\"enabled\":true},\"email\":{\"enabled\":true,\"passwordRequired\":true},\"hashConfig\":{\"algorithm\":\"s-algorithm\",\"memoryCost\":7,\"rounds\":7,\"saltSeparator\":\"s-saltseparator\",\"signerKey\":\"s-signerkey\"},\"phoneNumber\":{\"enabled\":true,\"testPhoneNumbers\":{\"k1\":\"s-testphonenumbers\"}}},\"smsRegionConfig\":{\"allowByDefault\":{\"disallowedRegions\":[\"s-disallowedregions\"]},\"allowlistOnly\":{\"allowedRegions\":[\"s-allowedregions\"]}},\"subtype\":\"s-subtype\"}",
   "OUT: {\"authorizedDomains\":[\"s-authorizeddomains\"],\"autodeleteAnonymousUsers\":true,\"blockingFunctions\":{\"forwardInboundCredentials\":{\"accessToken\":true,\"idToken\":true,\"refreshToken\":true},\"triggers\":{\"k1\":{\"functionUri\":\"s-functionuri\",\"updateTime\":\"s-updatetime\"}}},\"client\":{\"apiKey\":\"s-apikey\",\"firebaseSubdomain\":\"s-firebasesubdomain\",\"permissions\":{\"disabledUserDeletion\":true,\"disabledUserSignup\":true}},\"defaultHostingSite\":\"s-defaulthostingsite\",\"emailPrivacyConfig\":{\"enableImprovedEmailPrivacy\":true},\"mfa\":{\"enabledProviders\":[\"s-enabledproviders\"],\"providerConfigs\":[{\"state\":\"s-state\"}],\"state\":\"s-state\"},\"mobileLinksConfig\":{\"domain\":\"s-domain\"},\"monitoring\":{\"requestLogging\":{\"enabled\":true}},\"multiTenant\":{\"allowTenants\":true,\"defaultTenantLocation\":\"s-defaulttenantlocation\"},\"name\":\"s-name\",\"notification\":{\"defaultLocale\":\"s-defaultlocale\",\"sendEmail\":{\"callbackUri\":\"s-callbackuri\",\"method\":\"s-method\"},\"sendSms\":{\"useDeviceLocale\":true}},\"passwordPolicyConfig\":{\"forceUpgradeOnSignin\":true,\"lastUpdateTime\":\"s-lastupdatetime\",\"passwordPolicyEnforcementState\":\"s-passwordpolicyenforcementstate\",\"passwordPolicyVersions\":[{\"schemaVersion\":7}]},\"quota\":{\"signUpQuotaConfig\":{\"quota\":\"7\",\"quotaDuration\":\"s-quotaduration\",\"startTime\":\"s-starttime\"}},\"recaptchaConfig\":{\"emailPasswordEnforcementState\":\"s-emailpasswordenforcementstate\",\"managedRules\":[{\"action\":\"s-action\",\"endScore\":1.5}],\"phoneEnforcementState\":\"s-phoneenforcementstate\",\"recaptchaKeys\":[{\"key\":\"s-key\",\"type\":\"s-type\"}],\"tollFraudManagedRules\":[{\"action\":\"s-action\",\"startScore\":1.5}],\"useAccountDefender\":true,\"useSmsBotScore\":true,\"useSmsTollFraudProtection\":true},\"signIn\":{\"allowDuplicateEmails\":true,\"anonymous\":{\"enabled\":true},\"email\":{\"enabled\":true,\"passwordRequired\":true},\"hashConfig\":{\"algorithm\":\"s-algorithm\",\"memoryCost\":7,\"rounds\":7,\"saltSeparator\":\"s-saltseparator\",\"signerKey\":\"s-signerkey\"},\"phoneNumber\":{\"enabled\":true,\"testPhoneNumbers\":{\"k1\":\"s-testphonenumbers\"}}},\"smsRegionConfig\":{\"allowByDefault\":{\"disallowedRegions\":[\"s-disallowedregions\"]},\"allowlistOnly\":{\"allowedRegions\":[\"s-allowedregions\"]}},\"subtype\":\"s-subtype\"}",
@@ -201,10 +239,10 @@ test "Go's identitytoolkit.projects.updateConfig" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_8)
+  gv_compare(gv_log_of(f), GO_9)
 }
 
-const GO_9: List[Str] = [
+const GO_10: List[Str] = [
   "CALL identitytoolkit.projects.defaultSupportedIdpConfigs.create",
   "REQ POST https://identitytoolkit.googleapis.com/v2/id1/%20x/defaultSupportedIdpConfigs?alt=json&fields=kind%2Cid&idpId=s-idpid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -223,10 +261,10 @@ test "Go's identitytoolkit.projects.defaultSupportedIdpConfigs.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_9)
+  gv_compare(gv_log_of(f), GO_10)
 }
 
-const GO_10: List[Str] = [
+const GO_11: List[Str] = [
   "CALL identitytoolkit.projects.defaultSupportedIdpConfigs.delete",
   "REQ DELETE https://identitytoolkit.googleapis.com/v2/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -244,10 +282,10 @@ test "Go's identitytoolkit.projects.defaultSupportedIdpConfigs.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_10)
+  gv_compare(gv_log_of(f), GO_11)
 }
 
-const GO_11: List[Str] = [
+const GO_12: List[Str] = [
   "CALL identitytoolkit.projects.defaultSupportedIdpConfigs.get",
   "REQ GET https://identitytoolkit.googleapis.com/v2/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -265,10 +303,10 @@ test "Go's identitytoolkit.projects.defaultSupportedIdpConfigs.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_11)
+  gv_compare(gv_log_of(f), GO_12)
 }
 
-const GO_12: List[Str] = [
+const GO_13: List[Str] = [
   "CALL identitytoolkit.projects.defaultSupportedIdpConfigs.list",
   "REQ GET https://identitytoolkit.googleapis.com/v2/id1/%20x/defaultSupportedIdpConfigs?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -286,10 +324,48 @@ test "Go's identitytoolkit.projects.defaultSupportedIdpConfigs.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_12)
+  gv_compare(gv_log_of(f), GO_13)
 }
 
-const GO_13: List[Str] = [
+const GO_14: List[Str] = [
+  "CALL identitytoolkit.projects.defaultSupportedIdpConfigs.list pages",
+  "REQ GET https://identitytoolkit.googleapis.com/v2/id1/%20x/defaultSupportedIdpConfigs?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"defaultSupportedIdpConfigs\":[{\"appleSignInConfig\":{},\"clientId\":\"s-clientid\",\"clientSecret\":\"s-clientsecret\",\"enabled\":true,\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"defaultSupportedIdpConfigs\":[{\"appleSignInConfig\":{},\"clientId\":\"s-clientid\",\"clientSecret\":\"s-clientsecret\",\"enabled\":true,\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://identitytoolkit.googleapis.com/v2/id1/%20x/defaultSupportedIdpConfigs?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"defaultSupportedIdpConfigs\":[{\"appleSignInConfig\":{},\"clientId\":\"s-clientid\",\"clientSecret\":\"s-clientsecret\",\"enabled\":true,\"name\":\"s-name\"}]}",
+  "OUT: {\"defaultSupportedIdpConfigs\":[{\"appleSignInConfig\":{},\"clientId\":\"s-clientid\",\"clientSecret\":\"s-clientsecret\",\"enabled\":true,\"name\":\"s-name\"}]}",
+  "OUT: ok",
+]
+
+test "Go's identitytoolkit.projects.defaultSupportedIdpConfigs.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"defaultSupportedIdpConfigs\":[{\"appleSignInConfig\":{},\"clientId\":\"s-clientid\",\"clientSecret\":\"s-clientsecret\",\"enabled\":true,\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"defaultSupportedIdpConfigs\":[{\"appleSignInConfig\":{},\"clientId\":\"s-clientid\",\"clientSecret\":\"s-clientsecret\",\"enabled\":true,\"name\":\"s-name\"}]}")
+  gv_note(f, "CALL identitytoolkit.projects.defaultSupportedIdpConfigs.list pages")
+  var p = svc.projects.default_supported_idp_configs.list_pages("id1/ x", options: ProjectsDefaultSupportedIdpConfigsListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_14)
+}
+
+const GO_15: List[Str] = [
   "CALL identitytoolkit.projects.defaultSupportedIdpConfigs.patch",
   "REQ PATCH https://identitytoolkit.googleapis.com/v2/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
@@ -308,10 +384,10 @@ test "Go's identitytoolkit.projects.defaultSupportedIdpConfigs.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_13)
+  gv_compare(gv_log_of(f), GO_15)
 }
 
-const GO_14: List[Str] = [
+const GO_16: List[Str] = [
   "CALL identitytoolkit.projects.identityPlatform.initializeAuth",
   "REQ POST https://identitytoolkit.googleapis.com/v2/id1/%20x/identityPlatform:initializeAuth?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -330,10 +406,10 @@ test "Go's identitytoolkit.projects.identityPlatform.initializeAuth" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_14)
+  gv_compare(gv_log_of(f), GO_16)
 }
 
-const GO_15: List[Str] = [
+const GO_17: List[Str] = [
   "CALL identitytoolkit.projects.inboundSamlConfigs.create",
   "REQ POST https://identitytoolkit.googleapis.com/v2/id1/%20x/inboundSamlConfigs?alt=json&fields=kind%2Cid&inboundSamlConfigId=s-inboundsamlconfigid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -352,10 +428,10 @@ test "Go's identitytoolkit.projects.inboundSamlConfigs.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_15)
+  gv_compare(gv_log_of(f), GO_17)
 }
 
-const GO_16: List[Str] = [
+const GO_18: List[Str] = [
   "CALL identitytoolkit.projects.inboundSamlConfigs.delete",
   "REQ DELETE https://identitytoolkit.googleapis.com/v2/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -373,10 +449,10 @@ test "Go's identitytoolkit.projects.inboundSamlConfigs.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_16)
+  gv_compare(gv_log_of(f), GO_18)
 }
 
-const GO_17: List[Str] = [
+const GO_19: List[Str] = [
   "CALL identitytoolkit.projects.inboundSamlConfigs.get",
   "REQ GET https://identitytoolkit.googleapis.com/v2/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -394,10 +470,10 @@ test "Go's identitytoolkit.projects.inboundSamlConfigs.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_17)
+  gv_compare(gv_log_of(f), GO_19)
 }
 
-const GO_18: List[Str] = [
+const GO_20: List[Str] = [
   "CALL identitytoolkit.projects.inboundSamlConfigs.list",
   "REQ GET https://identitytoolkit.googleapis.com/v2/id1/%20x/inboundSamlConfigs?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -415,10 +491,48 @@ test "Go's identitytoolkit.projects.inboundSamlConfigs.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_18)
+  gv_compare(gv_log_of(f), GO_20)
 }
 
-const GO_19: List[Str] = [
+const GO_21: List[Str] = [
+  "CALL identitytoolkit.projects.inboundSamlConfigs.list pages",
+  "REQ GET https://identitytoolkit.googleapis.com/v2/id1/%20x/inboundSamlConfigs?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"inboundSamlConfigs\":[{\"displayName\":\"s-displayname\",\"enabled\":true,\"idpConfig\":{\"idpEntityId\":\"s-idpentityid\",\"signRequest\":true,\"ssoUrl\":\"s-ssourl\"},\"name\":\"s-name\",\"spConfig\":{\"callbackUri\":\"s-callbackuri\",\"spEntityId\":\"s-spentityid\"}}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"inboundSamlConfigs\":[{\"displayName\":\"s-displayname\",\"enabled\":true,\"idpConfig\":{\"idpEntityId\":\"s-idpentityid\",\"signRequest\":true,\"ssoUrl\":\"s-ssourl\"},\"name\":\"s-name\",\"spConfig\":{\"callbackUri\":\"s-callbackuri\",\"spEntityId\":\"s-spentityid\"}}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://identitytoolkit.googleapis.com/v2/id1/%20x/inboundSamlConfigs?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"inboundSamlConfigs\":[{\"displayName\":\"s-displayname\",\"enabled\":true,\"idpConfig\":{\"idpEntityId\":\"s-idpentityid\",\"signRequest\":true,\"ssoUrl\":\"s-ssourl\"},\"name\":\"s-name\",\"spConfig\":{\"callbackUri\":\"s-callbackuri\",\"spEntityId\":\"s-spentityid\"}}]}",
+  "OUT: {\"inboundSamlConfigs\":[{\"displayName\":\"s-displayname\",\"enabled\":true,\"idpConfig\":{\"idpEntityId\":\"s-idpentityid\",\"signRequest\":true,\"ssoUrl\":\"s-ssourl\"},\"name\":\"s-name\",\"spConfig\":{\"callbackUri\":\"s-callbackuri\",\"spEntityId\":\"s-spentityid\"}}]}",
+  "OUT: ok",
+]
+
+test "Go's identitytoolkit.projects.inboundSamlConfigs.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"inboundSamlConfigs\":[{\"displayName\":\"s-displayname\",\"enabled\":true,\"idpConfig\":{\"idpEntityId\":\"s-idpentityid\",\"signRequest\":true,\"ssoUrl\":\"s-ssourl\"},\"name\":\"s-name\",\"spConfig\":{\"callbackUri\":\"s-callbackuri\",\"spEntityId\":\"s-spentityid\"}}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"inboundSamlConfigs\":[{\"displayName\":\"s-displayname\",\"enabled\":true,\"idpConfig\":{\"idpEntityId\":\"s-idpentityid\",\"signRequest\":true,\"ssoUrl\":\"s-ssourl\"},\"name\":\"s-name\",\"spConfig\":{\"callbackUri\":\"s-callbackuri\",\"spEntityId\":\"s-spentityid\"}}]}")
+  gv_note(f, "CALL identitytoolkit.projects.inboundSamlConfigs.list pages")
+  var p = svc.projects.inbound_saml_configs.list_pages("id1/ x", options: ProjectsInboundSamlConfigsListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_21)
+}
+
+const GO_22: List[Str] = [
   "CALL identitytoolkit.projects.inboundSamlConfigs.patch",
   "REQ PATCH https://identitytoolkit.googleapis.com/v2/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
@@ -437,10 +551,10 @@ test "Go's identitytoolkit.projects.inboundSamlConfigs.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_19)
+  gv_compare(gv_log_of(f), GO_22)
 }
 
-const GO_20: List[Str] = [
+const GO_23: List[Str] = [
   "CALL identitytoolkit.projects.oauthIdpConfigs.create",
   "REQ POST https://identitytoolkit.googleapis.com/v2/id1/%20x/oauthIdpConfigs?alt=json&fields=kind%2Cid&oauthIdpConfigId=s-oauthidpconfigid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -459,10 +573,10 @@ test "Go's identitytoolkit.projects.oauthIdpConfigs.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_20)
+  gv_compare(gv_log_of(f), GO_23)
 }
 
-const GO_21: List[Str] = [
+const GO_24: List[Str] = [
   "CALL identitytoolkit.projects.oauthIdpConfigs.delete",
   "REQ DELETE https://identitytoolkit.googleapis.com/v2/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -480,10 +594,10 @@ test "Go's identitytoolkit.projects.oauthIdpConfigs.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_21)
+  gv_compare(gv_log_of(f), GO_24)
 }
 
-const GO_22: List[Str] = [
+const GO_25: List[Str] = [
   "CALL identitytoolkit.projects.oauthIdpConfigs.get",
   "REQ GET https://identitytoolkit.googleapis.com/v2/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -501,10 +615,10 @@ test "Go's identitytoolkit.projects.oauthIdpConfigs.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_22)
+  gv_compare(gv_log_of(f), GO_25)
 }
 
-const GO_23: List[Str] = [
+const GO_26: List[Str] = [
   "CALL identitytoolkit.projects.oauthIdpConfigs.list",
   "REQ GET https://identitytoolkit.googleapis.com/v2/id1/%20x/oauthIdpConfigs?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -522,10 +636,48 @@ test "Go's identitytoolkit.projects.oauthIdpConfigs.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_23)
+  gv_compare(gv_log_of(f), GO_26)
 }
 
-const GO_24: List[Str] = [
+const GO_27: List[Str] = [
+  "CALL identitytoolkit.projects.oauthIdpConfigs.list pages",
+  "REQ GET https://identitytoolkit.googleapis.com/v2/id1/%20x/oauthIdpConfigs?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"oauthIdpConfigs\":[{\"clientId\":\"s-clientid\",\"clientSecret\":\"s-clientsecret\",\"displayName\":\"s-displayname\",\"enabled\":true,\"issuer\":\"s-issuer\",\"name\":\"s-name\",\"responseType\":{\"code\":true,\"idToken\":true,\"token\":true}}]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"oauthIdpConfigs\":[{\"clientId\":\"s-clientid\",\"clientSecret\":\"s-clientsecret\",\"displayName\":\"s-displayname\",\"enabled\":true,\"issuer\":\"s-issuer\",\"name\":\"s-name\",\"responseType\":{\"code\":true,\"idToken\":true,\"token\":true}}]}",
+  "REQ GET https://identitytoolkit.googleapis.com/v2/id1/%20x/oauthIdpConfigs?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"oauthIdpConfigs\":[{\"clientId\":\"s-clientid\",\"clientSecret\":\"s-clientsecret\",\"displayName\":\"s-displayname\",\"enabled\":true,\"issuer\":\"s-issuer\",\"name\":\"s-name\",\"responseType\":{\"code\":true,\"idToken\":true,\"token\":true}}]}",
+  "OUT: {\"oauthIdpConfigs\":[{\"clientId\":\"s-clientid\",\"clientSecret\":\"s-clientsecret\",\"displayName\":\"s-displayname\",\"enabled\":true,\"issuer\":\"s-issuer\",\"name\":\"s-name\",\"responseType\":{\"code\":true,\"idToken\":true,\"token\":true}}]}",
+  "OUT: ok",
+]
+
+test "Go's identitytoolkit.projects.oauthIdpConfigs.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"oauthIdpConfigs\":[{\"clientId\":\"s-clientid\",\"clientSecret\":\"s-clientsecret\",\"displayName\":\"s-displayname\",\"enabled\":true,\"issuer\":\"s-issuer\",\"name\":\"s-name\",\"responseType\":{\"code\":true,\"idToken\":true,\"token\":true}}]}")
+  gv_queue(f, "{\"oauthIdpConfigs\":[{\"clientId\":\"s-clientid\",\"clientSecret\":\"s-clientsecret\",\"displayName\":\"s-displayname\",\"enabled\":true,\"issuer\":\"s-issuer\",\"name\":\"s-name\",\"responseType\":{\"code\":true,\"idToken\":true,\"token\":true}}]}")
+  gv_note(f, "CALL identitytoolkit.projects.oauthIdpConfigs.list pages")
+  var p = svc.projects.oauth_idp_configs.list_pages("id1/ x", options: ProjectsOauthIdpConfigsListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_27)
+}
+
+const GO_28: List[Str] = [
   "CALL identitytoolkit.projects.oauthIdpConfigs.patch",
   "REQ PATCH https://identitytoolkit.googleapis.com/v2/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
@@ -544,14 +696,14 @@ test "Go's identitytoolkit.projects.oauthIdpConfigs.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_24)
+  gv_compare(gv_log_of(f), GO_28)
 }
 
-const GO_25: List[Str] = [
+const GO_29: List[Str] = [
   "CALL identitytoolkit.projects.tenants.create",
   "REQ POST https://identitytoolkit.googleapis.com/v2/id1/%20x/tenants?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"allowPasswordSignup\":true,\"autodeleteAnonymousUsers\":true,\"client\":{\"permissions\":{\"disabledUserDeletion\":true,\"disabledUserSignup\":true}},\"disableAuth\":true,\"displayName\":\"s-displayname\",\"emailPrivacyConfig\":{\"enableImprovedEmailPrivacy\":true},\"enableAnonymousUser\":true,\"enableEmailLinkSignin\":true,\"hashConfig\":{\"algorithm\":\"s-algorithm\",\"memoryCost\":7,\"rounds\":7,\"saltSeparator\":\"s-saltseparator\",\"signerKey\":\"s-signerkey\"},\"inheritance\":{\"emailSendingConfig\":true},\"mfaConfig\":{\"enabledProviders\":[\"s-enabledproviders\"],\"providerConfigs\":[{\"state\":\"s-state\"}],\"state\":\"s-state\"},\"mobileLinksConfig\":{\"domain\":\"s-domain\"},\"monitoring\":{\"requestLogging\":{\"enabled\":true}},\"name\":\"s-name\",\"passwordPolicyConfig\":{\"forceUpgradeOnSignin\":true,\"lastUpdateTime\":\"s-lastupdatetime\",\"passwordPolicyEnforcementState\":\"s-passwordpolicyenforcementstate\",\"passwordPolicyVersions\":[{\"schemaVersion\":7}]},\"recaptchaConfig\":{\"emailPasswordEnforcementState\":\"s-emailpasswordenforcementstate\",\"managedRules\":[{\"action\":\"s-action\",\"endScore\":1.5}],\"phoneEnforcementState\":\"s-phoneenforcementstate\",\"recaptchaKeys\":[{\"key\":\"s-key\",\"type\":\"s-type\"}],\"tollFraudManagedRules\":[{\"action\":\"s-action\",\"startScore\":1.5}],\"useAccountDefender\":true,\"useSmsBotScore\":true,\"useSmsTollFraudProtection\":true},\"smsRegionConfig\":{\"allowByDefault\":{\"disallowedRegions\":[\"s-disallowedregions\"]},\"allowlistOnly\":{\"allowedRegions\":[\"s-allowedregions\"]}},\"testPhoneNumbers\":{\"k1\":\"s-testphonenumbers\"}}",
+  "  B <1470 bytes> {\"allowPasswordSignup\":true,\"aut...s\":{\"k1\":\"s-testphonenumbers\"}}",
   "",
   "  SERVED 200 {\"allowPasswordSignup\":true,\"autodeleteAnonymousUsers\":true,\"client\":{\"permissions\":{\"disabledUserDeletion\":true,\"disabledUserSignup\":true}},\"disableAuth\":true,\"displayName\":\"s-displayname\",\"emailPrivacyConfig\":{\"enableImprovedEmailPrivacy\":true},\"enableAnonymousUser\":true,\"enableEmailLinkSignin\":true,\"hashConfig\":{\"algorithm\":\"s-algorithm\",\"memoryCost\":7,\"rounds\":7,\"saltSeparator\":\"s-saltseparator\",\"signerKey\":\"s-signerkey\"},\"inheritance\":{\"emailSendingConfig\":true},\"mfaConfig\":{\"enabledProviders\":[\"s-enabledproviders\"],\"providerConfigs\":[{\"state\":\"s-state\"}],\"state\":\"s-state\"},\"mobileLinksConfig\":{\"domain\":\"s-domain\"},\"monitoring\":{\"requestLogging\":{\"enabled\":true}},\"name\":\"s-name\",\"passwordPolicyConfig\":{\"forceUpgradeOnSignin\":true,\"lastUpdateTime\":\"s-lastupdatetime\",\"passwordPolicyEnforcementState\":\"s-passwordpolicyenforcementstate\",\"passwordPolicyVersions\":[{\"schemaVersion\":7}]},\"recaptchaConfig\":{\"emailPasswordEnforcementState\":\"s-emailpasswordenforcementstate\",\"managedRules\":[{\"action\":\"s-action\",\"endScore\":1.5}],\"phoneEnforcementState\":\"s-phoneenforcementstate\",\"recaptchaKeys\":[{\"key\":\"s-key\",\"type\":\"s-type\"}],\"tollFraudManagedRules\":[{\"action\":\"s-action\",\"startScore\":1.5}],\"useAccountDefender\":true,\"useSmsBotScore\":true,\"useSmsTollFraudProtection\":true},\"smsRegionConfig\":{\"allowByDefault\":{\"disallowedRegions\":[\"s-disallowedregions\"]},\"allowlistOnly\":{\"allowedRegions\":[\"s-allowedregions\"]}},\"testPhoneNumbers\":{\"k1\":\"s-testphonenumbers\"}}",
   "OUT: {\"allowPasswordSignup\":true,\"autodeleteAnonymousUsers\":true,\"client\":{\"permissions\":{\"disabledUserDeletion\":true,\"disabledUserSignup\":true}},\"disableAuth\":true,\"displayName\":\"s-displayname\",\"emailPrivacyConfig\":{\"enableImprovedEmailPrivacy\":true},\"enableAnonymousUser\":true,\"enableEmailLinkSignin\":true,\"hashConfig\":{\"algorithm\":\"s-algorithm\",\"memoryCost\":7,\"rounds\":7,\"saltSeparator\":\"s-saltseparator\",\"signerKey\":\"s-signerkey\"},\"inheritance\":{\"emailSendingConfig\":true},\"mfaConfig\":{\"enabledProviders\":[\"s-enabledproviders\"],\"providerConfigs\":[{\"state\":\"s-state\"}],\"state\":\"s-state\"},\"mobileLinksConfig\":{\"domain\":\"s-domain\"},\"monitoring\":{\"requestLogging\":{\"enabled\":true}},\"name\":\"s-name\",\"passwordPolicyConfig\":{\"forceUpgradeOnSignin\":true,\"lastUpdateTime\":\"s-lastupdatetime\",\"passwordPolicyEnforcementState\":\"s-passwordpolicyenforcementstate\",\"passwordPolicyVersions\":[{\"schemaVersion\":7}]},\"recaptchaConfig\":{\"emailPasswordEnforcementState\":\"s-emailpasswordenforcementstate\",\"managedRules\":[{\"action\":\"s-action\",\"endScore\":1.5}],\"phoneEnforcementState\":\"s-phoneenforcementstate\",\"recaptchaKeys\":[{\"key\":\"s-key\",\"type\":\"s-type\"}],\"tollFraudManagedRules\":[{\"action\":\"s-action\",\"startScore\":1.5}],\"useAccountDefender\":true,\"useSmsBotScore\":true,\"useSmsTollFraudProtection\":true},\"smsRegionConfig\":{\"allowByDefault\":{\"disallowedRegions\":[\"s-disallowedregions\"]},\"allowlistOnly\":{\"allowedRegions\":[\"s-allowedregions\"]}},\"testPhoneNumbers\":{\"k1\":\"s-testphonenumbers\"}}",
@@ -566,10 +718,10 @@ test "Go's identitytoolkit.projects.tenants.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_25)
+  gv_compare(gv_log_of(f), GO_29)
 }
 
-const GO_26: List[Str] = [
+const GO_30: List[Str] = [
   "CALL identitytoolkit.projects.tenants.delete",
   "REQ DELETE https://identitytoolkit.googleapis.com/v2/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -587,10 +739,10 @@ test "Go's identitytoolkit.projects.tenants.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_26)
+  gv_compare(gv_log_of(f), GO_30)
 }
 
-const GO_27: List[Str] = [
+const GO_31: List[Str] = [
   "CALL identitytoolkit.projects.tenants.get",
   "REQ GET https://identitytoolkit.googleapis.com/v2/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -608,10 +760,10 @@ test "Go's identitytoolkit.projects.tenants.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_27)
+  gv_compare(gv_log_of(f), GO_31)
 }
 
-const GO_28: List[Str] = [
+const GO_32: List[Str] = [
   "CALL identitytoolkit.projects.tenants.getIamPolicy",
   "REQ POST https://identitytoolkit.googleapis.com/v2/id1/%20x:getIamPolicy?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -630,10 +782,10 @@ test "Go's identitytoolkit.projects.tenants.getIamPolicy" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_28)
+  gv_compare(gv_log_of(f), GO_32)
 }
 
-const GO_29: List[Str] = [
+const GO_33: List[Str] = [
   "CALL identitytoolkit.projects.tenants.list",
   "REQ GET https://identitytoolkit.googleapis.com/v2/id1/%20x/tenants?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -651,14 +803,52 @@ test "Go's identitytoolkit.projects.tenants.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_29)
+  gv_compare(gv_log_of(f), GO_33)
 }
 
-const GO_30: List[Str] = [
+const GO_34: List[Str] = [
+  "CALL identitytoolkit.projects.tenants.list pages",
+  "REQ GET https://identitytoolkit.googleapis.com/v2/id1/%20x/tenants?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"tenants\":[{\"allowPasswordSignup\":true,\"autodeleteAnonymousUsers\":true,\"client\":{},\"disableAuth\":true,\"displayName\":\"s-displayname\",\"emailPrivacyConfig\":{\"enableImprovedEmailPrivacy\":true},\"enableAnonymousUser\":true,\"enableEmailLinkSignin\":true,\"hashConfig\":{\"algorithm\":\"s-algorithm\",\"memoryCost\":7,\"rounds\":7,\"saltSeparator\":\"s-saltseparator\",\"signerKey\":\"s-signerkey\"},\"inheritance\":{\"emailSendingConfig\":true},\"mfaConfig\":{\"state\":\"s-state\"},\"mobileLinksConfig\":{\"domain\":\"s-domain\"},\"monitoring\":{},\"name\":\"s-name\",\"passwordPolicyConfig\":{\"forceUpgradeOnSignin\":true,\"lastUpdateTime\":\"s-lastupdatetime\",\"passwordPolicyEnforcementState\":\"s-passwordpolicyenforcementstate\"},\"recaptchaConfig\":{\"emailPasswordEnforcementState\":\"s-emailpasswordenforcementstate\",\"phoneEnforcementState\":\"s-phoneenforcementstate\",\"useAccountDefender\":true,\"useSmsBotScore\":true,\"useSmsTollFraudProtection\":true},\"smsRegionConfig\":{},\"testPhoneNumbers\":{\"k1\":\"s-testphonenumbers\"}}]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"tenants\":[{\"allowPasswordSignup\":true,\"autodeleteAnonymousUsers\":true,\"client\":{},\"disableAuth\":true,\"displayName\":\"s-displayname\",\"emailPrivacyConfig\":{\"enableImprovedEmailPrivacy\":true},\"enableAnonymousUser\":true,\"enableEmailLinkSignin\":true,\"hashConfig\":{\"algorithm\":\"s-algorithm\",\"memoryCost\":7,\"rounds\":7,\"saltSeparator\":\"s-saltseparator\",\"signerKey\":\"s-signerkey\"},\"inheritance\":{\"emailSendingConfig\":true},\"mfaConfig\":{\"state\":\"s-state\"},\"mobileLinksConfig\":{\"domain\":\"s-domain\"},\"monitoring\":{},\"name\":\"s-name\",\"passwordPolicyConfig\":{\"forceUpgradeOnSignin\":true,\"lastUpdateTime\":\"s-lastupdatetime\",\"passwordPolicyEnforcementState\":\"s-passwordpolicyenforcementstate\"},\"recaptchaConfig\":{\"emailPasswordEnforcementState\":\"s-emailpasswordenforcementstate\",\"phoneEnforcementState\":\"s-phoneenforcementstate\",\"useAccountDefender\":true,\"useSmsBotScore\":true,\"useSmsTollFraudProtection\":true},\"smsRegionConfig\":{},\"testPhoneNumbers\":{\"k1\":\"s-testphonenumbers\"}}]}",
+  "REQ GET https://identitytoolkit.googleapis.com/v2/id1/%20x/tenants?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"tenants\":[{\"allowPasswordSignup\":true,\"autodeleteAnonymousUsers\":true,\"client\":{},\"disableAuth\":true,\"displayName\":\"s-displayname\",\"emailPrivacyConfig\":{\"enableImprovedEmailPrivacy\":true},\"enableAnonymousUser\":true,\"enableEmailLinkSignin\":true,\"hashConfig\":{\"algorithm\":\"s-algorithm\",\"memoryCost\":7,\"rounds\":7,\"saltSeparator\":\"s-saltseparator\",\"signerKey\":\"s-signerkey\"},\"inheritance\":{\"emailSendingConfig\":true},\"mfaConfig\":{\"state\":\"s-state\"},\"mobileLinksConfig\":{\"domain\":\"s-domain\"},\"monitoring\":{},\"name\":\"s-name\",\"passwordPolicyConfig\":{\"forceUpgradeOnSignin\":true,\"lastUpdateTime\":\"s-lastupdatetime\",\"passwordPolicyEnforcementState\":\"s-passwordpolicyenforcementstate\"},\"recaptchaConfig\":{\"emailPasswordEnforcementState\":\"s-emailpasswordenforcementstate\",\"phoneEnforcementState\":\"s-phoneenforcementstate\",\"useAccountDefender\":true,\"useSmsBotScore\":true,\"useSmsTollFraudProtection\":true},\"smsRegionConfig\":{},\"testPhoneNumbers\":{\"k1\":\"s-testphonenumbers\"}}]}",
+  "OUT: {\"tenants\":[{\"allowPasswordSignup\":true,\"autodeleteAnonymousUsers\":true,\"client\":{},\"disableAuth\":true,\"displayName\":\"s-displayname\",\"emailPrivacyConfig\":{\"enableImprovedEmailPrivacy\":true},\"enableAnonymousUser\":true,\"enableEmailLinkSignin\":true,\"hashConfig\":{\"algorithm\":\"s-algorithm\",\"memoryCost\":7,\"rounds\":7,\"saltSeparator\":\"s-saltseparator\",\"signerKey\":\"s-signerkey\"},\"inheritance\":{\"emailSendingConfig\":true},\"mfaConfig\":{\"state\":\"s-state\"},\"mobileLinksConfig\":{\"domain\":\"s-domain\"},\"monitoring\":{},\"name\":\"s-name\",\"passwordPolicyConfig\":{\"forceUpgradeOnSignin\":true,\"lastUpdateTime\":\"s-lastupdatetime\",\"passwordPolicyEnforcementState\":\"s-passwordpolicyenforcementstate\"},\"recaptchaConfig\":{\"emailPasswordEnforcementState\":\"s-emailpasswordenforcementstate\",\"phoneEnforcementState\":\"s-phoneenforcementstate\",\"useAccountDefender\":true,\"useSmsBotScore\":true,\"useSmsTollFraudProtection\":true},\"smsRegionConfig\":{},\"testPhoneNumbers\":{\"k1\":\"s-testphonenumbers\"}}]}",
+  "OUT: ok",
+]
+
+test "Go's identitytoolkit.projects.tenants.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"tenants\":[{\"allowPasswordSignup\":true,\"autodeleteAnonymousUsers\":true,\"client\":{},\"disableAuth\":true,\"displayName\":\"s-displayname\",\"emailPrivacyConfig\":{\"enableImprovedEmailPrivacy\":true},\"enableAnonymousUser\":true,\"enableEmailLinkSignin\":true,\"hashConfig\":{\"algorithm\":\"s-algorithm\",\"memoryCost\":7,\"rounds\":7,\"saltSeparator\":\"s-saltseparator\",\"signerKey\":\"s-signerkey\"},\"inheritance\":{\"emailSendingConfig\":true},\"mfaConfig\":{\"state\":\"s-state\"},\"mobileLinksConfig\":{\"domain\":\"s-domain\"},\"monitoring\":{},\"name\":\"s-name\",\"passwordPolicyConfig\":{\"forceUpgradeOnSignin\":true,\"lastUpdateTime\":\"s-lastupdatetime\",\"passwordPolicyEnforcementState\":\"s-passwordpolicyenforcementstate\"},\"recaptchaConfig\":{\"emailPasswordEnforcementState\":\"s-emailpasswordenforcementstate\",\"phoneEnforcementState\":\"s-phoneenforcementstate\",\"useAccountDefender\":true,\"useSmsBotScore\":true,\"useSmsTollFraudProtection\":true},\"smsRegionConfig\":{},\"testPhoneNumbers\":{\"k1\":\"s-testphonenumbers\"}}]}")
+  gv_queue(f, "{\"tenants\":[{\"allowPasswordSignup\":true,\"autodeleteAnonymousUsers\":true,\"client\":{},\"disableAuth\":true,\"displayName\":\"s-displayname\",\"emailPrivacyConfig\":{\"enableImprovedEmailPrivacy\":true},\"enableAnonymousUser\":true,\"enableEmailLinkSignin\":true,\"hashConfig\":{\"algorithm\":\"s-algorithm\",\"memoryCost\":7,\"rounds\":7,\"saltSeparator\":\"s-saltseparator\",\"signerKey\":\"s-signerkey\"},\"inheritance\":{\"emailSendingConfig\":true},\"mfaConfig\":{\"state\":\"s-state\"},\"mobileLinksConfig\":{\"domain\":\"s-domain\"},\"monitoring\":{},\"name\":\"s-name\",\"passwordPolicyConfig\":{\"forceUpgradeOnSignin\":true,\"lastUpdateTime\":\"s-lastupdatetime\",\"passwordPolicyEnforcementState\":\"s-passwordpolicyenforcementstate\"},\"recaptchaConfig\":{\"emailPasswordEnforcementState\":\"s-emailpasswordenforcementstate\",\"phoneEnforcementState\":\"s-phoneenforcementstate\",\"useAccountDefender\":true,\"useSmsBotScore\":true,\"useSmsTollFraudProtection\":true},\"smsRegionConfig\":{},\"testPhoneNumbers\":{\"k1\":\"s-testphonenumbers\"}}]}")
+  gv_note(f, "CALL identitytoolkit.projects.tenants.list pages")
+  var p = svc.projects.tenants.list_pages("id1/ x", options: ProjectsTenantsListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_34)
+}
+
+const GO_35: List[Str] = [
   "CALL identitytoolkit.projects.tenants.patch",
   "REQ PATCH https://identitytoolkit.googleapis.com/v2/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"allowPasswordSignup\":true,\"autodeleteAnonymousUsers\":true,\"client\":{\"permissions\":{\"disabledUserDeletion\":true,\"disabledUserSignup\":true}},\"disableAuth\":true,\"displayName\":\"s-displayname\",\"emailPrivacyConfig\":{\"enableImprovedEmailPrivacy\":true},\"enableAnonymousUser\":true,\"enableEmailLinkSignin\":true,\"hashConfig\":{\"algorithm\":\"s-algorithm\",\"memoryCost\":7,\"rounds\":7,\"saltSeparator\":\"s-saltseparator\",\"signerKey\":\"s-signerkey\"},\"inheritance\":{\"emailSendingConfig\":true},\"mfaConfig\":{\"enabledProviders\":[\"s-enabledproviders\"],\"providerConfigs\":[{\"state\":\"s-state\"}],\"state\":\"s-state\"},\"mobileLinksConfig\":{\"domain\":\"s-domain\"},\"monitoring\":{\"requestLogging\":{\"enabled\":true}},\"name\":\"s-name\",\"passwordPolicyConfig\":{\"forceUpgradeOnSignin\":true,\"lastUpdateTime\":\"s-lastupdatetime\",\"passwordPolicyEnforcementState\":\"s-passwordpolicyenforcementstate\",\"passwordPolicyVersions\":[{\"schemaVersion\":7}]},\"recaptchaConfig\":{\"emailPasswordEnforcementState\":\"s-emailpasswordenforcementstate\",\"managedRules\":[{\"action\":\"s-action\",\"endScore\":1.5}],\"phoneEnforcementState\":\"s-phoneenforcementstate\",\"recaptchaKeys\":[{\"key\":\"s-key\",\"type\":\"s-type\"}],\"tollFraudManagedRules\":[{\"action\":\"s-action\",\"startScore\":1.5}],\"useAccountDefender\":true,\"useSmsBotScore\":true,\"useSmsTollFraudProtection\":true},\"smsRegionConfig\":{\"allowByDefault\":{\"disallowedRegions\":[\"s-disallowedregions\"]},\"allowlistOnly\":{\"allowedRegions\":[\"s-allowedregions\"]}},\"testPhoneNumbers\":{\"k1\":\"s-testphonenumbers\"}}",
+  "  B <1470 bytes> {\"allowPasswordSignup\":true,\"aut...s\":{\"k1\":\"s-testphonenumbers\"}}",
   "",
   "  SERVED 200 {\"allowPasswordSignup\":true,\"autodeleteAnonymousUsers\":true,\"client\":{\"permissions\":{\"disabledUserDeletion\":true,\"disabledUserSignup\":true}},\"disableAuth\":true,\"displayName\":\"s-displayname\",\"emailPrivacyConfig\":{\"enableImprovedEmailPrivacy\":true},\"enableAnonymousUser\":true,\"enableEmailLinkSignin\":true,\"hashConfig\":{\"algorithm\":\"s-algorithm\",\"memoryCost\":7,\"rounds\":7,\"saltSeparator\":\"s-saltseparator\",\"signerKey\":\"s-signerkey\"},\"inheritance\":{\"emailSendingConfig\":true},\"mfaConfig\":{\"enabledProviders\":[\"s-enabledproviders\"],\"providerConfigs\":[{\"state\":\"s-state\"}],\"state\":\"s-state\"},\"mobileLinksConfig\":{\"domain\":\"s-domain\"},\"monitoring\":{\"requestLogging\":{\"enabled\":true}},\"name\":\"s-name\",\"passwordPolicyConfig\":{\"forceUpgradeOnSignin\":true,\"lastUpdateTime\":\"s-lastupdatetime\",\"passwordPolicyEnforcementState\":\"s-passwordpolicyenforcementstate\",\"passwordPolicyVersions\":[{\"schemaVersion\":7}]},\"recaptchaConfig\":{\"emailPasswordEnforcementState\":\"s-emailpasswordenforcementstate\",\"managedRules\":[{\"action\":\"s-action\",\"endScore\":1.5}],\"phoneEnforcementState\":\"s-phoneenforcementstate\",\"recaptchaKeys\":[{\"key\":\"s-key\",\"type\":\"s-type\"}],\"tollFraudManagedRules\":[{\"action\":\"s-action\",\"startScore\":1.5}],\"useAccountDefender\":true,\"useSmsBotScore\":true,\"useSmsTollFraudProtection\":true},\"smsRegionConfig\":{\"allowByDefault\":{\"disallowedRegions\":[\"s-disallowedregions\"]},\"allowlistOnly\":{\"allowedRegions\":[\"s-allowedregions\"]}},\"testPhoneNumbers\":{\"k1\":\"s-testphonenumbers\"}}",
   "OUT: {\"allowPasswordSignup\":true,\"autodeleteAnonymousUsers\":true,\"client\":{\"permissions\":{\"disabledUserDeletion\":true,\"disabledUserSignup\":true}},\"disableAuth\":true,\"displayName\":\"s-displayname\",\"emailPrivacyConfig\":{\"enableImprovedEmailPrivacy\":true},\"enableAnonymousUser\":true,\"enableEmailLinkSignin\":true,\"hashConfig\":{\"algorithm\":\"s-algorithm\",\"memoryCost\":7,\"rounds\":7,\"saltSeparator\":\"s-saltseparator\",\"signerKey\":\"s-signerkey\"},\"inheritance\":{\"emailSendingConfig\":true},\"mfaConfig\":{\"enabledProviders\":[\"s-enabledproviders\"],\"providerConfigs\":[{\"state\":\"s-state\"}],\"state\":\"s-state\"},\"mobileLinksConfig\":{\"domain\":\"s-domain\"},\"monitoring\":{\"requestLogging\":{\"enabled\":true}},\"name\":\"s-name\",\"passwordPolicyConfig\":{\"forceUpgradeOnSignin\":true,\"lastUpdateTime\":\"s-lastupdatetime\",\"passwordPolicyEnforcementState\":\"s-passwordpolicyenforcementstate\",\"passwordPolicyVersions\":[{\"schemaVersion\":7}]},\"recaptchaConfig\":{\"emailPasswordEnforcementState\":\"s-emailpasswordenforcementstate\",\"managedRules\":[{\"action\":\"s-action\",\"endScore\":1.5}],\"phoneEnforcementState\":\"s-phoneenforcementstate\",\"recaptchaKeys\":[{\"key\":\"s-key\",\"type\":\"s-type\"}],\"tollFraudManagedRules\":[{\"action\":\"s-action\",\"startScore\":1.5}],\"useAccountDefender\":true,\"useSmsBotScore\":true,\"useSmsTollFraudProtection\":true},\"smsRegionConfig\":{\"allowByDefault\":{\"disallowedRegions\":[\"s-disallowedregions\"]},\"allowlistOnly\":{\"allowedRegions\":[\"s-allowedregions\"]}},\"testPhoneNumbers\":{\"k1\":\"s-testphonenumbers\"}}",
@@ -673,10 +863,10 @@ test "Go's identitytoolkit.projects.tenants.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_30)
+  gv_compare(gv_log_of(f), GO_35)
 }
 
-const GO_31: List[Str] = [
+const GO_36: List[Str] = [
   "CALL identitytoolkit.projects.tenants.setIamPolicy",
   "REQ POST https://identitytoolkit.googleapis.com/v2/id1/%20x:setIamPolicy?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -695,10 +885,10 @@ test "Go's identitytoolkit.projects.tenants.setIamPolicy" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_31)
+  gv_compare(gv_log_of(f), GO_36)
 }
 
-const GO_32: List[Str] = [
+const GO_37: List[Str] = [
   "CALL identitytoolkit.projects.tenants.testIamPermissions",
   "REQ POST https://identitytoolkit.googleapis.com/v2/id1/%20x:testIamPermissions?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -717,10 +907,10 @@ test "Go's identitytoolkit.projects.tenants.testIamPermissions" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_32)
+  gv_compare(gv_log_of(f), GO_37)
 }
 
-const GO_33: List[Str] = [
+const GO_38: List[Str] = [
   "CALL identitytoolkit.projects.tenants.defaultSupportedIdpConfigs.create",
   "REQ POST https://identitytoolkit.googleapis.com/v2/id1/%20x/defaultSupportedIdpConfigs?alt=json&fields=kind%2Cid&idpId=s-idpid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -739,10 +929,10 @@ test "Go's identitytoolkit.projects.tenants.defaultSupportedIdpConfigs.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_33)
+  gv_compare(gv_log_of(f), GO_38)
 }
 
-const GO_34: List[Str] = [
+const GO_39: List[Str] = [
   "CALL identitytoolkit.projects.tenants.defaultSupportedIdpConfigs.delete",
   "REQ DELETE https://identitytoolkit.googleapis.com/v2/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -760,10 +950,10 @@ test "Go's identitytoolkit.projects.tenants.defaultSupportedIdpConfigs.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_34)
+  gv_compare(gv_log_of(f), GO_39)
 }
 
-const GO_35: List[Str] = [
+const GO_40: List[Str] = [
   "CALL identitytoolkit.projects.tenants.defaultSupportedIdpConfigs.get",
   "REQ GET https://identitytoolkit.googleapis.com/v2/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -781,10 +971,10 @@ test "Go's identitytoolkit.projects.tenants.defaultSupportedIdpConfigs.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_35)
+  gv_compare(gv_log_of(f), GO_40)
 }
 
-const GO_36: List[Str] = [
+const GO_41: List[Str] = [
   "CALL identitytoolkit.projects.tenants.defaultSupportedIdpConfigs.list",
   "REQ GET https://identitytoolkit.googleapis.com/v2/id1/%20x/defaultSupportedIdpConfigs?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -802,10 +992,48 @@ test "Go's identitytoolkit.projects.tenants.defaultSupportedIdpConfigs.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_36)
+  gv_compare(gv_log_of(f), GO_41)
 }
 
-const GO_37: List[Str] = [
+const GO_42: List[Str] = [
+  "CALL identitytoolkit.projects.tenants.defaultSupportedIdpConfigs.list pages",
+  "REQ GET https://identitytoolkit.googleapis.com/v2/id1/%20x/defaultSupportedIdpConfigs?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"defaultSupportedIdpConfigs\":[{\"appleSignInConfig\":{},\"clientId\":\"s-clientid\",\"clientSecret\":\"s-clientsecret\",\"enabled\":true,\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"defaultSupportedIdpConfigs\":[{\"appleSignInConfig\":{},\"clientId\":\"s-clientid\",\"clientSecret\":\"s-clientsecret\",\"enabled\":true,\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://identitytoolkit.googleapis.com/v2/id1/%20x/defaultSupportedIdpConfigs?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"defaultSupportedIdpConfigs\":[{\"appleSignInConfig\":{},\"clientId\":\"s-clientid\",\"clientSecret\":\"s-clientsecret\",\"enabled\":true,\"name\":\"s-name\"}]}",
+  "OUT: {\"defaultSupportedIdpConfigs\":[{\"appleSignInConfig\":{},\"clientId\":\"s-clientid\",\"clientSecret\":\"s-clientsecret\",\"enabled\":true,\"name\":\"s-name\"}]}",
+  "OUT: ok",
+]
+
+test "Go's identitytoolkit.projects.tenants.defaultSupportedIdpConfigs.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"defaultSupportedIdpConfigs\":[{\"appleSignInConfig\":{},\"clientId\":\"s-clientid\",\"clientSecret\":\"s-clientsecret\",\"enabled\":true,\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"defaultSupportedIdpConfigs\":[{\"appleSignInConfig\":{},\"clientId\":\"s-clientid\",\"clientSecret\":\"s-clientsecret\",\"enabled\":true,\"name\":\"s-name\"}]}")
+  gv_note(f, "CALL identitytoolkit.projects.tenants.defaultSupportedIdpConfigs.list pages")
+  var p = svc.projects.tenants.default_supported_idp_configs.list_pages("id1/ x", options: ProjectsTenantsDefaultSupportedIdpConfigsListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_42)
+}
+
+const GO_43: List[Str] = [
   "CALL identitytoolkit.projects.tenants.defaultSupportedIdpConfigs.patch",
   "REQ PATCH https://identitytoolkit.googleapis.com/v2/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
@@ -824,10 +1052,10 @@ test "Go's identitytoolkit.projects.tenants.defaultSupportedIdpConfigs.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_37)
+  gv_compare(gv_log_of(f), GO_43)
 }
 
-const GO_38: List[Str] = [
+const GO_44: List[Str] = [
   "CALL identitytoolkit.projects.tenants.inboundSamlConfigs.create",
   "REQ POST https://identitytoolkit.googleapis.com/v2/id1/%20x/inboundSamlConfigs?alt=json&fields=kind%2Cid&inboundSamlConfigId=s-inboundsamlconfigid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -846,10 +1074,10 @@ test "Go's identitytoolkit.projects.tenants.inboundSamlConfigs.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_38)
+  gv_compare(gv_log_of(f), GO_44)
 }
 
-const GO_39: List[Str] = [
+const GO_45: List[Str] = [
   "CALL identitytoolkit.projects.tenants.inboundSamlConfigs.delete",
   "REQ DELETE https://identitytoolkit.googleapis.com/v2/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -867,10 +1095,10 @@ test "Go's identitytoolkit.projects.tenants.inboundSamlConfigs.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_39)
+  gv_compare(gv_log_of(f), GO_45)
 }
 
-const GO_40: List[Str] = [
+const GO_46: List[Str] = [
   "CALL identitytoolkit.projects.tenants.inboundSamlConfigs.get",
   "REQ GET https://identitytoolkit.googleapis.com/v2/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -888,10 +1116,10 @@ test "Go's identitytoolkit.projects.tenants.inboundSamlConfigs.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_40)
+  gv_compare(gv_log_of(f), GO_46)
 }
 
-const GO_41: List[Str] = [
+const GO_47: List[Str] = [
   "CALL identitytoolkit.projects.tenants.inboundSamlConfigs.list",
   "REQ GET https://identitytoolkit.googleapis.com/v2/id1/%20x/inboundSamlConfigs?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -909,10 +1137,48 @@ test "Go's identitytoolkit.projects.tenants.inboundSamlConfigs.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_41)
+  gv_compare(gv_log_of(f), GO_47)
 }
 
-const GO_42: List[Str] = [
+const GO_48: List[Str] = [
+  "CALL identitytoolkit.projects.tenants.inboundSamlConfigs.list pages",
+  "REQ GET https://identitytoolkit.googleapis.com/v2/id1/%20x/inboundSamlConfigs?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"inboundSamlConfigs\":[{\"displayName\":\"s-displayname\",\"enabled\":true,\"idpConfig\":{\"idpEntityId\":\"s-idpentityid\",\"signRequest\":true,\"ssoUrl\":\"s-ssourl\"},\"name\":\"s-name\",\"spConfig\":{\"callbackUri\":\"s-callbackuri\",\"spEntityId\":\"s-spentityid\"}}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"inboundSamlConfigs\":[{\"displayName\":\"s-displayname\",\"enabled\":true,\"idpConfig\":{\"idpEntityId\":\"s-idpentityid\",\"signRequest\":true,\"ssoUrl\":\"s-ssourl\"},\"name\":\"s-name\",\"spConfig\":{\"callbackUri\":\"s-callbackuri\",\"spEntityId\":\"s-spentityid\"}}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://identitytoolkit.googleapis.com/v2/id1/%20x/inboundSamlConfigs?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"inboundSamlConfigs\":[{\"displayName\":\"s-displayname\",\"enabled\":true,\"idpConfig\":{\"idpEntityId\":\"s-idpentityid\",\"signRequest\":true,\"ssoUrl\":\"s-ssourl\"},\"name\":\"s-name\",\"spConfig\":{\"callbackUri\":\"s-callbackuri\",\"spEntityId\":\"s-spentityid\"}}]}",
+  "OUT: {\"inboundSamlConfigs\":[{\"displayName\":\"s-displayname\",\"enabled\":true,\"idpConfig\":{\"idpEntityId\":\"s-idpentityid\",\"signRequest\":true,\"ssoUrl\":\"s-ssourl\"},\"name\":\"s-name\",\"spConfig\":{\"callbackUri\":\"s-callbackuri\",\"spEntityId\":\"s-spentityid\"}}]}",
+  "OUT: ok",
+]
+
+test "Go's identitytoolkit.projects.tenants.inboundSamlConfigs.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"inboundSamlConfigs\":[{\"displayName\":\"s-displayname\",\"enabled\":true,\"idpConfig\":{\"idpEntityId\":\"s-idpentityid\",\"signRequest\":true,\"ssoUrl\":\"s-ssourl\"},\"name\":\"s-name\",\"spConfig\":{\"callbackUri\":\"s-callbackuri\",\"spEntityId\":\"s-spentityid\"}}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"inboundSamlConfigs\":[{\"displayName\":\"s-displayname\",\"enabled\":true,\"idpConfig\":{\"idpEntityId\":\"s-idpentityid\",\"signRequest\":true,\"ssoUrl\":\"s-ssourl\"},\"name\":\"s-name\",\"spConfig\":{\"callbackUri\":\"s-callbackuri\",\"spEntityId\":\"s-spentityid\"}}]}")
+  gv_note(f, "CALL identitytoolkit.projects.tenants.inboundSamlConfigs.list pages")
+  var p = svc.projects.tenants.inbound_saml_configs.list_pages("id1/ x", options: ProjectsTenantsInboundSamlConfigsListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_48)
+}
+
+const GO_49: List[Str] = [
   "CALL identitytoolkit.projects.tenants.inboundSamlConfigs.patch",
   "REQ PATCH https://identitytoolkit.googleapis.com/v2/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
@@ -931,10 +1197,10 @@ test "Go's identitytoolkit.projects.tenants.inboundSamlConfigs.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_42)
+  gv_compare(gv_log_of(f), GO_49)
 }
 
-const GO_43: List[Str] = [
+const GO_50: List[Str] = [
   "CALL identitytoolkit.projects.tenants.oauthIdpConfigs.create",
   "REQ POST https://identitytoolkit.googleapis.com/v2/id1/%20x/oauthIdpConfigs?alt=json&fields=kind%2Cid&oauthIdpConfigId=s-oauthidpconfigid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -953,10 +1219,10 @@ test "Go's identitytoolkit.projects.tenants.oauthIdpConfigs.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_43)
+  gv_compare(gv_log_of(f), GO_50)
 }
 
-const GO_44: List[Str] = [
+const GO_51: List[Str] = [
   "CALL identitytoolkit.projects.tenants.oauthIdpConfigs.delete",
   "REQ DELETE https://identitytoolkit.googleapis.com/v2/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -974,10 +1240,10 @@ test "Go's identitytoolkit.projects.tenants.oauthIdpConfigs.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_44)
+  gv_compare(gv_log_of(f), GO_51)
 }
 
-const GO_45: List[Str] = [
+const GO_52: List[Str] = [
   "CALL identitytoolkit.projects.tenants.oauthIdpConfigs.get",
   "REQ GET https://identitytoolkit.googleapis.com/v2/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -995,10 +1261,10 @@ test "Go's identitytoolkit.projects.tenants.oauthIdpConfigs.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_45)
+  gv_compare(gv_log_of(f), GO_52)
 }
 
-const GO_46: List[Str] = [
+const GO_53: List[Str] = [
   "CALL identitytoolkit.projects.tenants.oauthIdpConfigs.list",
   "REQ GET https://identitytoolkit.googleapis.com/v2/id1/%20x/oauthIdpConfigs?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1016,10 +1282,48 @@ test "Go's identitytoolkit.projects.tenants.oauthIdpConfigs.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_46)
+  gv_compare(gv_log_of(f), GO_53)
 }
 
-const GO_47: List[Str] = [
+const GO_54: List[Str] = [
+  "CALL identitytoolkit.projects.tenants.oauthIdpConfigs.list pages",
+  "REQ GET https://identitytoolkit.googleapis.com/v2/id1/%20x/oauthIdpConfigs?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"oauthIdpConfigs\":[{\"clientId\":\"s-clientid\",\"clientSecret\":\"s-clientsecret\",\"displayName\":\"s-displayname\",\"enabled\":true,\"issuer\":\"s-issuer\",\"name\":\"s-name\",\"responseType\":{\"code\":true,\"idToken\":true,\"token\":true}}]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"oauthIdpConfigs\":[{\"clientId\":\"s-clientid\",\"clientSecret\":\"s-clientsecret\",\"displayName\":\"s-displayname\",\"enabled\":true,\"issuer\":\"s-issuer\",\"name\":\"s-name\",\"responseType\":{\"code\":true,\"idToken\":true,\"token\":true}}]}",
+  "REQ GET https://identitytoolkit.googleapis.com/v2/id1/%20x/oauthIdpConfigs?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"oauthIdpConfigs\":[{\"clientId\":\"s-clientid\",\"clientSecret\":\"s-clientsecret\",\"displayName\":\"s-displayname\",\"enabled\":true,\"issuer\":\"s-issuer\",\"name\":\"s-name\",\"responseType\":{\"code\":true,\"idToken\":true,\"token\":true}}]}",
+  "OUT: {\"oauthIdpConfigs\":[{\"clientId\":\"s-clientid\",\"clientSecret\":\"s-clientsecret\",\"displayName\":\"s-displayname\",\"enabled\":true,\"issuer\":\"s-issuer\",\"name\":\"s-name\",\"responseType\":{\"code\":true,\"idToken\":true,\"token\":true}}]}",
+  "OUT: ok",
+]
+
+test "Go's identitytoolkit.projects.tenants.oauthIdpConfigs.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"oauthIdpConfigs\":[{\"clientId\":\"s-clientid\",\"clientSecret\":\"s-clientsecret\",\"displayName\":\"s-displayname\",\"enabled\":true,\"issuer\":\"s-issuer\",\"name\":\"s-name\",\"responseType\":{\"code\":true,\"idToken\":true,\"token\":true}}]}")
+  gv_queue(f, "{\"oauthIdpConfigs\":[{\"clientId\":\"s-clientid\",\"clientSecret\":\"s-clientsecret\",\"displayName\":\"s-displayname\",\"enabled\":true,\"issuer\":\"s-issuer\",\"name\":\"s-name\",\"responseType\":{\"code\":true,\"idToken\":true,\"token\":true}}]}")
+  gv_note(f, "CALL identitytoolkit.projects.tenants.oauthIdpConfigs.list pages")
+  var p = svc.projects.tenants.oauth_idp_configs.list_pages("id1/ x", options: ProjectsTenantsOauthIdpConfigsListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_54)
+}
+
+const GO_55: List[Str] = [
   "CALL identitytoolkit.projects.tenants.oauthIdpConfigs.patch",
   "REQ PATCH https://identitytoolkit.googleapis.com/v2/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
@@ -1038,10 +1342,10 @@ test "Go's identitytoolkit.projects.tenants.oauthIdpConfigs.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_47)
+  gv_compare(gv_log_of(f), GO_55)
 }
 
-const GO_48: List[Str] = [
+const GO_56: List[Str] = [
   "CALL identitytoolkit.getPasswordPolicy",
   "REQ GET https://identitytoolkit.googleapis.com/v2/passwordPolicy?alt=json&fields=kind%2Cid&prettyPrint=false&tenantId=s-tenantid",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1059,10 +1363,10 @@ test "Go's identitytoolkit.getPasswordPolicy" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_48)
+  gv_compare(gv_log_of(f), GO_56)
 }
 
-const GO_49: List[Str] = [
+const GO_57: List[Str] = [
   "CALL identitytoolkit.getRecaptchaConfig",
   "REQ GET https://identitytoolkit.googleapis.com/v2/recaptchaConfig?alt=json&clientType=s-clienttype&fields=kind%2Cid&prettyPrint=false&tenantId=s-tenantid&version=s-version",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1080,5 +1384,5 @@ test "Go's identitytoolkit.getRecaptchaConfig" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_49)
+  gv_compare(gv_log_of(f), GO_57)
 }

@@ -94,3 +94,41 @@ test "Go's realtimebidding.bidders.biddingFunctions.list" {
   }
   gv_compare(gv_log_of(f), GO_3)
 }
+
+const GO_4: List[Str] = [
+  "CALL realtimebidding.bidders.biddingFunctions.list pages",
+  "REQ GET https://realtimebidding.googleapis.com/v1alpha/id1/%20x/biddingFunctions?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"biddingFunctions\":[{\"biddingFunction\":\"s-biddingfunction\",\"name\":\"s-name\",\"state\":\"s-state\",\"type\":\"s-type\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"biddingFunctions\":[{\"biddingFunction\":\"s-biddingfunction\",\"name\":\"s-name\",\"state\":\"s-state\",\"type\":\"s-type\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://realtimebidding.googleapis.com/v1alpha/id1/%20x/biddingFunctions?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"biddingFunctions\":[{\"biddingFunction\":\"s-biddingfunction\",\"name\":\"s-name\",\"state\":\"s-state\",\"type\":\"s-type\"}]}",
+  "OUT: {\"biddingFunctions\":[{\"biddingFunction\":\"s-biddingfunction\",\"name\":\"s-name\",\"state\":\"s-state\",\"type\":\"s-type\"}]}",
+  "OUT: ok",
+]
+
+test "Go's realtimebidding.bidders.biddingFunctions.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"biddingFunctions\":[{\"biddingFunction\":\"s-biddingfunction\",\"name\":\"s-name\",\"state\":\"s-state\",\"type\":\"s-type\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"biddingFunctions\":[{\"biddingFunction\":\"s-biddingfunction\",\"name\":\"s-name\",\"state\":\"s-state\",\"type\":\"s-type\"}]}")
+  gv_note(f, "CALL realtimebidding.bidders.biddingFunctions.list pages")
+  var p = svc.bidders.bidding_functions.list_pages("id1/ x", options: BiddersBiddingFunctionsListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_4)
+}

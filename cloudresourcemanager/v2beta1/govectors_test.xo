@@ -116,6 +116,44 @@ test "Go's cloudresourcemanager.folders.list" {
 }
 
 const GO_5: List[Str] = [
+  "CALL cloudresourcemanager.folders.list pages",
+  "REQ GET https://cloudresourcemanager.googleapis.com/v2/folders?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&parent=s-parent&prettyPrint=false&showDeleted=true",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"folders\":[{\"configuredCapabilities\":[\"s-configuredcapabilities\"],\"createTime\":\"s-createtime\",\"displayName\":\"s-displayname\",\"lifecycleState\":\"s-lifecyclestate\",\"managementProject\":\"s-managementproject\",\"name\":\"s-name\",\"parent\":\"s-parent\",\"tags\":{\"k1\":\"s-tags\"}}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"folders\":[{\"configuredCapabilities\":[\"s-configuredcapabilities\"],\"createTime\":\"s-createtime\",\"displayName\":\"s-displayname\",\"lifecycleState\":\"s-lifecyclestate\",\"managementProject\":\"s-managementproject\",\"name\":\"s-name\",\"parent\":\"s-parent\",\"tags\":{\"k1\":\"s-tags\"}}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://cloudresourcemanager.googleapis.com/v2/folders?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&parent=s-parent&prettyPrint=false&showDeleted=true",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"folders\":[{\"configuredCapabilities\":[\"s-configuredcapabilities\"],\"createTime\":\"s-createtime\",\"displayName\":\"s-displayname\",\"lifecycleState\":\"s-lifecyclestate\",\"managementProject\":\"s-managementproject\",\"name\":\"s-name\",\"parent\":\"s-parent\",\"tags\":{\"k1\":\"s-tags\"}}]}",
+  "OUT: {\"folders\":[{\"configuredCapabilities\":[\"s-configuredcapabilities\"],\"createTime\":\"s-createtime\",\"displayName\":\"s-displayname\",\"lifecycleState\":\"s-lifecyclestate\",\"managementProject\":\"s-managementproject\",\"name\":\"s-name\",\"parent\":\"s-parent\",\"tags\":{\"k1\":\"s-tags\"}}]}",
+  "OUT: ok",
+]
+
+test "Go's cloudresourcemanager.folders.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"folders\":[{\"configuredCapabilities\":[\"s-configuredcapabilities\"],\"createTime\":\"s-createtime\",\"displayName\":\"s-displayname\",\"lifecycleState\":\"s-lifecyclestate\",\"managementProject\":\"s-managementproject\",\"name\":\"s-name\",\"parent\":\"s-parent\",\"tags\":{\"k1\":\"s-tags\"}}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"folders\":[{\"configuredCapabilities\":[\"s-configuredcapabilities\"],\"createTime\":\"s-createtime\",\"displayName\":\"s-displayname\",\"lifecycleState\":\"s-lifecyclestate\",\"managementProject\":\"s-managementproject\",\"name\":\"s-name\",\"parent\":\"s-parent\",\"tags\":{\"k1\":\"s-tags\"}}]}")
+  gv_note(f, "CALL cloudresourcemanager.folders.list pages")
+  var p = svc.folders.list_pages(options: FoldersListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), parent: Some("s-parent"), show_deleted: Some(true), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_5)
+}
+
+const GO_6: List[Str] = [
   "CALL cloudresourcemanager.folders.move",
   "REQ POST https://cloudresourcemanager.googleapis.com/v2/id1/%20x:move?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -134,10 +172,10 @@ test "Go's cloudresourcemanager.folders.move" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_5)
+  gv_compare(gv_log_of(f), GO_6)
 }
 
-const GO_6: List[Str] = [
+const GO_7: List[Str] = [
   "CALL cloudresourcemanager.folders.patch",
   "REQ PATCH https://cloudresourcemanager.googleapis.com/v2/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
@@ -156,10 +194,10 @@ test "Go's cloudresourcemanager.folders.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_6)
+  gv_compare(gv_log_of(f), GO_7)
 }
 
-const GO_7: List[Str] = [
+const GO_8: List[Str] = [
   "CALL cloudresourcemanager.folders.search",
   "REQ POST https://cloudresourcemanager.googleapis.com/v2/folders:search?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -178,10 +216,50 @@ test "Go's cloudresourcemanager.folders.search" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_7)
+  gv_compare(gv_log_of(f), GO_8)
 }
 
-const GO_8: List[Str] = [
+const GO_9: List[Str] = [
+  "CALL cloudresourcemanager.folders.search pages",
+  "REQ POST https://cloudresourcemanager.googleapis.com/v2/folders:search?alt=json&fields=kind%2Cid&prettyPrint=false",
+  "  H content-type=application/json | x-extra=v1",
+  "  B {\"pageSize\":7,\"pageToken\":\"s-pagetoken\",\"query\":\"s-query\"}",
+  "",
+  "  SERVED 200 {\"folders\":[{\"configuredCapabilities\":[\"s-configuredcapabilities\"],\"createTime\":\"s-createtime\",\"displayName\":\"s-displayname\",\"lifecycleState\":\"s-lifecyclestate\",\"managementProject\":\"s-managementproject\",\"name\":\"s-name\",\"parent\":\"s-parent\",\"tags\":{\"k1\":\"s-tags\"}}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"folders\":[{\"configuredCapabilities\":[\"s-configuredcapabilities\"],\"createTime\":\"s-createtime\",\"displayName\":\"s-displayname\",\"lifecycleState\":\"s-lifecyclestate\",\"managementProject\":\"s-managementproject\",\"name\":\"s-name\",\"parent\":\"s-parent\",\"tags\":{\"k1\":\"s-tags\"}}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ POST https://cloudresourcemanager.googleapis.com/v2/folders:search?alt=json&fields=kind%2Cid&prettyPrint=false",
+  "  H content-type=application/json | x-extra=v1",
+  "  B {\"pageSize\":7,\"pageToken\":\"s-nextpagetoken\",\"query\":\"s-query\"}",
+  "",
+  "  SERVED 200 {\"folders\":[{\"configuredCapabilities\":[\"s-configuredcapabilities\"],\"createTime\":\"s-createtime\",\"displayName\":\"s-displayname\",\"lifecycleState\":\"s-lifecyclestate\",\"managementProject\":\"s-managementproject\",\"name\":\"s-name\",\"parent\":\"s-parent\",\"tags\":{\"k1\":\"s-tags\"}}]}",
+  "OUT: {\"folders\":[{\"configuredCapabilities\":[\"s-configuredcapabilities\"],\"createTime\":\"s-createtime\",\"displayName\":\"s-displayname\",\"lifecycleState\":\"s-lifecyclestate\",\"managementProject\":\"s-managementproject\",\"name\":\"s-name\",\"parent\":\"s-parent\",\"tags\":{\"k1\":\"s-tags\"}}]}",
+  "OUT: ok",
+]
+
+test "Go's cloudresourcemanager.folders.search pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"folders\":[{\"configuredCapabilities\":[\"s-configuredcapabilities\"],\"createTime\":\"s-createtime\",\"displayName\":\"s-displayname\",\"lifecycleState\":\"s-lifecyclestate\",\"managementProject\":\"s-managementproject\",\"name\":\"s-name\",\"parent\":\"s-parent\",\"tags\":{\"k1\":\"s-tags\"}}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"folders\":[{\"configuredCapabilities\":[\"s-configuredcapabilities\"],\"createTime\":\"s-createtime\",\"displayName\":\"s-displayname\",\"lifecycleState\":\"s-lifecyclestate\",\"managementProject\":\"s-managementproject\",\"name\":\"s-name\",\"parent\":\"s-parent\",\"tags\":{\"k1\":\"s-tags\"}}]}")
+  gv_note(f, "CALL cloudresourcemanager.folders.search pages")
+  var p = svc.folders.search_pages(json.decode_str[SearchFoldersRequest]("{\"pageSize\":7,\"pageToken\":\"s-pagetoken\",\"query\":\"s-query\"}") ?? e => fault(e.display()), options: FoldersSearchOptions{fields: ["kind", "id"], headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_9)
+}
+
+const GO_10: List[Str] = [
   "CALL cloudresourcemanager.folders.setIamPolicy",
   "REQ POST https://cloudresourcemanager.googleapis.com/v2/id1/%20x:setIamPolicy?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -200,10 +278,10 @@ test "Go's cloudresourcemanager.folders.setIamPolicy" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_8)
+  gv_compare(gv_log_of(f), GO_10)
 }
 
-const GO_9: List[Str] = [
+const GO_11: List[Str] = [
   "CALL cloudresourcemanager.folders.testIamPermissions",
   "REQ POST https://cloudresourcemanager.googleapis.com/v2/id1/%20x:testIamPermissions?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -222,10 +300,10 @@ test "Go's cloudresourcemanager.folders.testIamPermissions" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_9)
+  gv_compare(gv_log_of(f), GO_11)
 }
 
-const GO_10: List[Str] = [
+const GO_12: List[Str] = [
   "CALL cloudresourcemanager.folders.undelete",
   "REQ POST https://cloudresourcemanager.googleapis.com/v2/id1/%20x:undelete?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -244,10 +322,10 @@ test "Go's cloudresourcemanager.folders.undelete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_10)
+  gv_compare(gv_log_of(f), GO_12)
 }
 
-const GO_11: List[Str] = [
+const GO_13: List[Str] = [
   "CALL cloudresourcemanager.operations.get",
   "REQ GET https://cloudresourcemanager.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -265,5 +343,5 @@ test "Go's cloudresourcemanager.operations.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_11)
+  gv_compare(gv_log_of(f), GO_13)
 }

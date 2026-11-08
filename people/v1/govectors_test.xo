@@ -115,6 +115,44 @@ test "Go's people.contactGroups.list" {
 }
 
 const GO_5: List[Str] = [
+  "CALL people.contactGroups.list pages",
+  "REQ GET https://people.googleapis.com/v1/contactGroups?alt=json&fields=kind%2Cid&groupFields=s-groupfields&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&syncToken=s-synctoken",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"contactGroups\":[{\"etag\":\"s-etag\",\"formattedName\":\"s-formattedname\",\"groupType\":\"s-grouptype\",\"memberCount\":7,\"memberResourceNames\":[\"s-memberresourcenames\"],\"metadata\":{\"deleted\":true,\"updateTime\":\"s-updatetime\"},\"name\":\"s-name\",\"resourceName\":\"s-resourcename\"}],\"nextPageToken\":\"s-nextpagetoken\",\"nextSyncToken\":\"s-nextsynctoken\",\"totalItems\":7}",
+  "OUT: {\"contactGroups\":[{\"etag\":\"s-etag\",\"formattedName\":\"s-formattedname\",\"groupType\":\"s-grouptype\",\"memberCount\":7,\"memberResourceNames\":[\"s-memberresourcenames\"],\"metadata\":{\"deleted\":true,\"updateTime\":\"s-updatetime\"},\"name\":\"s-name\",\"resourceName\":\"s-resourcename\"}],\"nextPageToken\":\"s-nextpagetoken\",\"nextSyncToken\":\"s-nextsynctoken\",\"totalItems\":7}",
+  "REQ GET https://people.googleapis.com/v1/contactGroups?alt=json&fields=kind%2Cid&groupFields=s-groupfields&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false&syncToken=s-synctoken",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"contactGroups\":[{\"etag\":\"s-etag\",\"formattedName\":\"s-formattedname\",\"groupType\":\"s-grouptype\",\"memberCount\":7,\"memberResourceNames\":[\"s-memberresourcenames\"],\"metadata\":{\"deleted\":true,\"updateTime\":\"s-updatetime\"},\"name\":\"s-name\",\"resourceName\":\"s-resourcename\"}],\"nextSyncToken\":\"s-nextsynctoken\",\"totalItems\":7}",
+  "OUT: {\"contactGroups\":[{\"etag\":\"s-etag\",\"formattedName\":\"s-formattedname\",\"groupType\":\"s-grouptype\",\"memberCount\":7,\"memberResourceNames\":[\"s-memberresourcenames\"],\"metadata\":{\"deleted\":true,\"updateTime\":\"s-updatetime\"},\"name\":\"s-name\",\"resourceName\":\"s-resourcename\"}],\"nextSyncToken\":\"s-nextsynctoken\",\"totalItems\":7}",
+  "OUT: ok",
+]
+
+test "Go's people.contactGroups.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"contactGroups\":[{\"etag\":\"s-etag\",\"formattedName\":\"s-formattedname\",\"groupType\":\"s-grouptype\",\"memberCount\":7,\"memberResourceNames\":[\"s-memberresourcenames\"],\"metadata\":{\"deleted\":true,\"updateTime\":\"s-updatetime\"},\"name\":\"s-name\",\"resourceName\":\"s-resourcename\"}],\"nextPageToken\":\"s-nextpagetoken\",\"nextSyncToken\":\"s-nextsynctoken\",\"totalItems\":7}")
+  gv_queue(f, "{\"contactGroups\":[{\"etag\":\"s-etag\",\"formattedName\":\"s-formattedname\",\"groupType\":\"s-grouptype\",\"memberCount\":7,\"memberResourceNames\":[\"s-memberresourcenames\"],\"metadata\":{\"deleted\":true,\"updateTime\":\"s-updatetime\"},\"name\":\"s-name\",\"resourceName\":\"s-resourcename\"}],\"nextSyncToken\":\"s-nextsynctoken\",\"totalItems\":7}")
+  gv_note(f, "CALL people.contactGroups.list pages")
+  var p = svc.contact_groups.list_pages(options: ContactGroupsListOptions{group_fields: Some("s-groupfields"), page_size: Some(7), page_token: Some("s-pagetoken"), sync_token: Some("s-synctoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_5)
+}
+
+const GO_6: List[Str] = [
   "CALL people.contactGroups.update",
   "REQ PUT https://people.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -133,10 +171,10 @@ test "Go's people.contactGroups.update" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_5)
+  gv_compare(gv_log_of(f), GO_6)
 }
 
-const GO_6: List[Str] = [
+const GO_7: List[Str] = [
   "CALL people.contactGroups.members.modify",
   "REQ POST https://people.googleapis.com/v1/id1/%20x/members:modify?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -155,10 +193,10 @@ test "Go's people.contactGroups.members.modify" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_6)
+  gv_compare(gv_log_of(f), GO_7)
 }
 
-const GO_7: List[Str] = [
+const GO_8: List[Str] = [
   "CALL people.otherContacts.copyOtherContactToMyContactsGroup",
   "REQ POST https://people.googleapis.com/v1/id1/%20x:copyOtherContactToMyContactsGroup?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -177,10 +215,10 @@ test "Go's people.otherContacts.copyOtherContactToMyContactsGroup" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_7)
+  gv_compare(gv_log_of(f), GO_8)
 }
 
-const GO_8: List[Str] = [
+const GO_9: List[Str] = [
   "CALL people.otherContacts.list",
   "REQ GET https://people.googleapis.com/v1/otherContacts?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&readMask=s-readmask&requestSyncToken=true&sources=s-sources&syncToken=s-synctoken",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -198,10 +236,48 @@ test "Go's people.otherContacts.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_8)
+  gv_compare(gv_log_of(f), GO_9)
 }
 
-const GO_9: List[Str] = [
+const GO_10: List[Str] = [
+  "CALL people.otherContacts.list pages",
+  "REQ GET https://people.googleapis.com/v1/otherContacts?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&readMask=s-readmask&requestSyncToken=true&sources=s-sources&syncToken=s-synctoken",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"nextSyncToken\":\"s-nextsynctoken\",\"otherContacts\":[{\"ageRange\":\"s-agerange\",\"etag\":\"s-etag\",\"metadata\":{\"deleted\":true,\"objectType\":\"s-objecttype\"},\"resourceName\":\"s-resourcename\"}],\"totalSize\":7}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"nextSyncToken\":\"s-nextsynctoken\",\"otherContacts\":[{\"ageRange\":\"s-agerange\",\"etag\":\"s-etag\",\"metadata\":{\"deleted\":true,\"objectType\":\"s-objecttype\"},\"resourceName\":\"s-resourcename\"}],\"totalSize\":7}",
+  "REQ GET https://people.googleapis.com/v1/otherContacts?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false&readMask=s-readmask&requestSyncToken=true&sources=s-sources&syncToken=s-synctoken",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextSyncToken\":\"s-nextsynctoken\",\"otherContacts\":[{\"ageRange\":\"s-agerange\",\"etag\":\"s-etag\",\"metadata\":{\"deleted\":true,\"objectType\":\"s-objecttype\"},\"resourceName\":\"s-resourcename\"}],\"totalSize\":7}",
+  "OUT: {\"nextSyncToken\":\"s-nextsynctoken\",\"otherContacts\":[{\"ageRange\":\"s-agerange\",\"etag\":\"s-etag\",\"metadata\":{\"deleted\":true,\"objectType\":\"s-objecttype\"},\"resourceName\":\"s-resourcename\"}],\"totalSize\":7}",
+  "OUT: ok",
+]
+
+test "Go's people.otherContacts.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"nextSyncToken\":\"s-nextsynctoken\",\"otherContacts\":[{\"ageRange\":\"s-agerange\",\"etag\":\"s-etag\",\"metadata\":{\"deleted\":true,\"objectType\":\"s-objecttype\"},\"resourceName\":\"s-resourcename\"}],\"totalSize\":7}")
+  gv_queue(f, "{\"nextSyncToken\":\"s-nextsynctoken\",\"otherContacts\":[{\"ageRange\":\"s-agerange\",\"etag\":\"s-etag\",\"metadata\":{\"deleted\":true,\"objectType\":\"s-objecttype\"},\"resourceName\":\"s-resourcename\"}],\"totalSize\":7}")
+  gv_note(f, "CALL people.otherContacts.list pages")
+  var p = svc.other_contacts.list_pages(options: OtherContactsListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), read_mask: Some("s-readmask"), request_sync_token: Some(true), sources: ["s-sources"], sync_token: Some("s-synctoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_10)
+}
+
+const GO_11: List[Str] = [
   "CALL people.otherContacts.search",
   "REQ GET https://people.googleapis.com/v1/otherContacts:search?alt=json&fields=kind%2Cid&pageSize=7&prettyPrint=false&query=s-query&readMask=s-readmask",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -219,10 +295,10 @@ test "Go's people.otherContacts.search" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_9)
+  gv_compare(gv_log_of(f), GO_11)
 }
 
-const GO_10: List[Str] = [
+const GO_12: List[Str] = [
   "CALL people.people.batchCreateContacts",
   "REQ POST https://people.googleapis.com/v1/people:batchCreateContacts?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -241,10 +317,10 @@ test "Go's people.people.batchCreateContacts" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_10)
+  gv_compare(gv_log_of(f), GO_12)
 }
 
-const GO_11: List[Str] = [
+const GO_13: List[Str] = [
   "CALL people.people.batchDeleteContacts",
   "REQ POST https://people.googleapis.com/v1/people:batchDeleteContacts?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -263,10 +339,10 @@ test "Go's people.people.batchDeleteContacts" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_11)
+  gv_compare(gv_log_of(f), GO_13)
 }
 
-const GO_12: List[Str] = [
+const GO_14: List[Str] = [
   "CALL people.people.batchUpdateContacts",
   "REQ POST https://people.googleapis.com/v1/people:batchUpdateContacts?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -285,14 +361,14 @@ test "Go's people.people.batchUpdateContacts" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_12)
+  gv_compare(gv_log_of(f), GO_14)
 }
 
-const GO_13: List[Str] = [
+const GO_15: List[Str] = [
   "CALL people.people.createContact",
   "REQ POST https://people.googleapis.com/v1/people:createContact?alt=json&fields=kind%2Cid&personFields=s-personfields&prettyPrint=false&sources=s-sources",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"addresses\":[{\"city\":\"s-city\",\"country\":\"s-country\",\"countryCode\":\"s-countrycode\",\"extendedAddress\":\"s-extendedaddress\",\"formattedType\":\"s-formattedtype\",\"formattedValue\":\"s-formattedvalue\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"poBox\":\"s-pobox\",\"postalCode\":\"s-postalcode\",\"region\":\"s-region\",\"streetAddress\":\"s-streetaddress\",\"type\":\"s-type\"}],\"ageRange\":\"s-agerange\",\"ageRanges\":[{\"ageRange\":\"s-agerange\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true}}],\"biographies\":[{\"contentType\":\"s-contenttype\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"value\":\"s-value\"}],\"birthdays\":[{\"date\":{\"day\":7,\"month\":7,\"year\":7},\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"text\":\"s-text\"}],\"braggingRights\":[{\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"value\":\"s-value\"}],\"calendarUrls\":[{\"formattedType\":\"s-formattedtype\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"type\":\"s-type\",\"url\":\"s-url\"}],\"clientData\":[{\"key\":\"s-key\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"value\":\"s-value\"}],\"coverPhotos\":[{\"default\":true,\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"url\":\"s-url\"}],\"emailAddresses\":[{\"displayName\":\"s-displayname\",\"formattedType\":\"s-formattedtype\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"type\":\"s-type\",\"value\":\"s-value\"}],\"etag\":\"s-etag\",\"events\":[{\"date\":{\"day\":7,\"month\":7,\"year\":7},\"formattedType\":\"s-formattedtype\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"type\":\"s-type\"}],\"externalIds\":[{\"formattedType\":\"s-formattedtype\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"type\":\"s-type\",\"value\":\"s-value\"}],\"fileAses\":[{\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"value\":\"s-value\"}],\"genders\":[{\"addressMeAs\":\"s-addressmeas\",\"formattedValue\":\"s-formattedvalue\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"value\":\"s-value\"}],\"imClients\":[{\"formattedProtocol\":\"s-formattedprotocol\",\"formattedType\":\"s-formattedtype\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"protocol\":\"s-protocol\",\"type\":\"s-type\",\"username\":\"s-username\"}],\"interests\":[{\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"value\":\"s-value\"}],\"locales\":[{\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"value\":\"s-value\"}],\"locations\":[{\"buildingId\":\"s-buildingid\",\"current\":true,\"deskCode\":\"s-deskcode\",\"floor\":\"s-floor\",\"floorSection\":\"s-floorsection\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"type\":\"s-type\",\"value\":\"s-value\"}],\"memberships\":[{\"contactGroupMembership\":{\"contactGroupId\":\"s-contactgroupid\",\"contactGroupResourceName\":\"s-contactgroupresourcename\"},\"domainMembership\":{\"inViewerDomain\":true},\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true}}],\"metadata\":{\"deleted\":true,\"linkedPeopleResourceNames\":[\"s-linkedpeopleresourcenames\"],\"objectType\":\"s-objecttype\",\"previousResourceNames\":[\"s-previousresourcenames\"],\"sources\":[{\"etag\":\"s-etag\",\"id\":\"s-id\",\"type\":\"s-type\",\"updateTime\":\"s-updatetime\"}]},\"miscKeywords\":[{\"formattedType\":\"s-formattedtype\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"type\":\"s-type\",\"value\":\"s-value\"}],\"names\":[{\"displayName\":\"s-displayname\",\"displayNameLastFirst\":\"s-displaynamelastfirst\",\"familyName\":\"s-familyname\",\"givenName\":\"s-givenname\",\"honorificPrefix\":\"s-honorificprefix\",\"honorificSuffix\":\"s-honorificsuffix\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"middleName\":\"s-middlename\",\"phoneticFamilyName\":\"s-phoneticfamilyname\",\"phoneticFullName\":\"s-phoneticfullname\",\"phoneticGivenName\":\"s-phoneticgivenname\",\"phoneticHonorificPrefix\":\"s-phonetichonorificprefix\",\"phoneticHonorificSuffix\":\"s-phonetichonorificsuffix\",\"phoneticMiddleName\":\"s-phoneticmiddlename\",\"unstructuredName\":\"s-unstructuredname\"}],\"nicknames\":[{\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"type\":\"s-type\",\"value\":\"s-value\"}],\"occupations\":[{\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"value\":\"s-value\"}],\"organizations\":[{\"costCenter\":\"s-costcenter\",\"current\":true,\"department\":\"s-department\",\"domain\":\"s-domain\",\"endDate\":{\"day\":7,\"month\":7,\"year\":7},\"formattedType\":\"s-formattedtype\",\"fullTimeEquivalentMillipercent\":7,\"jobDescription\":\"s-jobdescription\",\"location\":\"s-location\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"name\":\"s-name\",\"phoneticName\":\"s-phoneticname\",\"startDate\":{\"day\":7,\"month\":7,\"year\":7},\"symbol\":\"s-symbol\",\"title\":\"s-title\",\"type\":\"s-type\"}],\"phoneNumbers\":[{\"canonicalForm\":\"s-canonicalform\",\"formattedType\":\"s-formattedtype\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"type\":\"s-type\",\"value\":\"s-value\"}],\"photos\":[{\"default\":true,\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"url\":\"s-url\"}],\"relations\":[{\"formattedType\":\"s-formattedtype\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"person\":\"s-person\",\"type\":\"s-type\"}],\"relationshipInterests\":[{\"formattedValue\":\"s-formattedvalue\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"value\":\"s-value\"}],\"relationshipStatuses\":[{\"formattedValue\":\"s-formattedvalue\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"value\":\"s-value\"}],\"residences\":[{\"current\":true,\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"value\":\"s-value\"}],\"resourceName\":\"s-resourcename\",\"sipAddresses\":[{\"formattedType\":\"s-formattedtype\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"type\":\"s-type\",\"value\":\"s-value\"}],\"skills\":[{\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"value\":\"s-value\"}],\"taglines\":[{\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"value\":\"s-value\"}],\"urls\":[{\"formattedType\":\"s-formattedtype\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"type\":\"s-type\",\"value\":\"s-value\"}],\"userDefined\":[{\"key\":\"s-key\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"value\":\"s-value\"}]}",
+  "  B <6145 bytes> {\"addresses\":[{\"city\":\"s-city\",\"...ied\":true},\"value\":\"s-value\"}]}",
   "",
   "  SERVED 200 {\"addresses\":[{\"city\":\"s-city\",\"country\":\"s-country\",\"countryCode\":\"s-countrycode\",\"extendedAddress\":\"s-extendedaddress\",\"formattedType\":\"s-formattedtype\",\"formattedValue\":\"s-formattedvalue\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"poBox\":\"s-pobox\",\"postalCode\":\"s-postalcode\",\"region\":\"s-region\",\"streetAddress\":\"s-streetaddress\",\"type\":\"s-type\"}],\"ageRange\":\"s-agerange\",\"ageRanges\":[{\"ageRange\":\"s-agerange\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true}}],\"biographies\":[{\"contentType\":\"s-contenttype\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"value\":\"s-value\"}],\"birthdays\":[{\"date\":{\"day\":7,\"month\":7,\"year\":7},\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"text\":\"s-text\"}],\"braggingRights\":[{\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"value\":\"s-value\"}],\"calendarUrls\":[{\"formattedType\":\"s-formattedtype\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"type\":\"s-type\",\"url\":\"s-url\"}],\"clientData\":[{\"key\":\"s-key\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"value\":\"s-value\"}],\"coverPhotos\":[{\"default\":true,\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"url\":\"s-url\"}],\"emailAddresses\":[{\"displayName\":\"s-displayname\",\"formattedType\":\"s-formattedtype\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"type\":\"s-type\",\"value\":\"s-value\"}],\"etag\":\"s-etag\",\"events\":[{\"date\":{\"day\":7,\"month\":7,\"year\":7},\"formattedType\":\"s-formattedtype\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"type\":\"s-type\"}],\"externalIds\":[{\"formattedType\":\"s-formattedtype\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"type\":\"s-type\",\"value\":\"s-value\"}],\"fileAses\":[{\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"value\":\"s-value\"}],\"genders\":[{\"addressMeAs\":\"s-addressmeas\",\"formattedValue\":\"s-formattedvalue\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"value\":\"s-value\"}],\"imClients\":[{\"formattedProtocol\":\"s-formattedprotocol\",\"formattedType\":\"s-formattedtype\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"protocol\":\"s-protocol\",\"type\":\"s-type\",\"username\":\"s-username\"}],\"interests\":[{\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"value\":\"s-value\"}],\"locales\":[{\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"value\":\"s-value\"}],\"locations\":[{\"buildingId\":\"s-buildingid\",\"current\":true,\"deskCode\":\"s-deskcode\",\"floor\":\"s-floor\",\"floorSection\":\"s-floorsection\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"type\":\"s-type\",\"value\":\"s-value\"}],\"memberships\":[{\"contactGroupMembership\":{\"contactGroupId\":\"s-contactgroupid\",\"contactGroupResourceName\":\"s-contactgroupresourcename\"},\"domainMembership\":{\"inViewerDomain\":true},\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true}}],\"metadata\":{\"deleted\":true,\"linkedPeopleResourceNames\":[\"s-linkedpeopleresourcenames\"],\"objectType\":\"s-objecttype\",\"previousResourceNames\":[\"s-previousresourcenames\"],\"sources\":[{\"etag\":\"s-etag\",\"id\":\"s-id\",\"type\":\"s-type\",\"updateTime\":\"s-updatetime\"}]},\"miscKeywords\":[{\"formattedType\":\"s-formattedtype\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"type\":\"s-type\",\"value\":\"s-value\"}],\"names\":[{\"displayName\":\"s-displayname\",\"displayNameLastFirst\":\"s-displaynamelastfirst\",\"familyName\":\"s-familyname\",\"givenName\":\"s-givenname\",\"honorificPrefix\":\"s-honorificprefix\",\"honorificSuffix\":\"s-honorificsuffix\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"middleName\":\"s-middlename\",\"phoneticFamilyName\":\"s-phoneticfamilyname\",\"phoneticFullName\":\"s-phoneticfullname\",\"phoneticGivenName\":\"s-phoneticgivenname\",\"phoneticHonorificPrefix\":\"s-phonetichonorificprefix\",\"phoneticHonorificSuffix\":\"s-phonetichonorificsuffix\",\"phoneticMiddleName\":\"s-phoneticmiddlename\",\"unstructuredName\":\"s-unstructuredname\"}],\"nicknames\":[{\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"type\":\"s-type\",\"value\":\"s-value\"}],\"occupations\":[{\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"value\":\"s-value\"}],\"organizations\":[{\"costCenter\":\"s-costcenter\",\"current\":true,\"department\":\"s-department\",\"domain\":\"s-domain\",\"endDate\":{\"day\":7,\"month\":7,\"year\":7},\"formattedType\":\"s-formattedtype\",\"fullTimeEquivalentMillipercent\":7,\"jobDescription\":\"s-jobdescription\",\"location\":\"s-location\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"name\":\"s-name\",\"phoneticName\":\"s-phoneticname\",\"startDate\":{\"day\":7,\"month\":7,\"year\":7},\"symbol\":\"s-symbol\",\"title\":\"s-title\",\"type\":\"s-type\"}],\"phoneNumbers\":[{\"canonicalForm\":\"s-canonicalform\",\"formattedType\":\"s-formattedtype\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"type\":\"s-type\",\"value\":\"s-value\"}],\"photos\":[{\"default\":true,\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"url\":\"s-url\"}],\"relations\":[{\"formattedType\":\"s-formattedtype\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"person\":\"s-person\",\"type\":\"s-type\"}],\"relationshipInterests\":[{\"formattedValue\":\"s-formattedvalue\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"value\":\"s-value\"}],\"relationshipStatuses\":[{\"formattedValue\":\"s-formattedvalue\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"value\":\"s-value\"}],\"residences\":[{\"current\":true,\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"value\":\"s-value\"}],\"resourceName\":\"s-resourcename\",\"sipAddresses\":[{\"formattedType\":\"s-formattedtype\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"type\":\"s-type\",\"value\":\"s-value\"}],\"skills\":[{\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"value\":\"s-value\"}],\"taglines\":[{\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"value\":\"s-value\"}],\"urls\":[{\"formattedType\":\"s-formattedtype\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"type\":\"s-type\",\"value\":\"s-value\"}],\"userDefined\":[{\"key\":\"s-key\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"value\":\"s-value\"}]}",
   "OUT: {\"addresses\":[{\"city\":\"s-city\",\"country\":\"s-country\",\"countryCode\":\"s-countrycode\",\"extendedAddress\":\"s-extendedaddress\",\"formattedType\":\"s-formattedtype\",\"formattedValue\":\"s-formattedvalue\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"poBox\":\"s-pobox\",\"postalCode\":\"s-postalcode\",\"region\":\"s-region\",\"streetAddress\":\"s-streetaddress\",\"type\":\"s-type\"}],\"ageRange\":\"s-agerange\",\"ageRanges\":[{\"ageRange\":\"s-agerange\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true}}],\"biographies\":[{\"contentType\":\"s-contenttype\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"value\":\"s-value\"}],\"birthdays\":[{\"date\":{\"day\":7,\"month\":7,\"year\":7},\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"text\":\"s-text\"}],\"braggingRights\":[{\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"value\":\"s-value\"}],\"calendarUrls\":[{\"formattedType\":\"s-formattedtype\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"type\":\"s-type\",\"url\":\"s-url\"}],\"clientData\":[{\"key\":\"s-key\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"value\":\"s-value\"}],\"coverPhotos\":[{\"default\":true,\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"url\":\"s-url\"}],\"emailAddresses\":[{\"displayName\":\"s-displayname\",\"formattedType\":\"s-formattedtype\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"type\":\"s-type\",\"value\":\"s-value\"}],\"etag\":\"s-etag\",\"events\":[{\"date\":{\"day\":7,\"month\":7,\"year\":7},\"formattedType\":\"s-formattedtype\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"type\":\"s-type\"}],\"externalIds\":[{\"formattedType\":\"s-formattedtype\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"type\":\"s-type\",\"value\":\"s-value\"}],\"fileAses\":[{\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"value\":\"s-value\"}],\"genders\":[{\"addressMeAs\":\"s-addressmeas\",\"formattedValue\":\"s-formattedvalue\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"value\":\"s-value\"}],\"imClients\":[{\"formattedProtocol\":\"s-formattedprotocol\",\"formattedType\":\"s-formattedtype\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"protocol\":\"s-protocol\",\"type\":\"s-type\",\"username\":\"s-username\"}],\"interests\":[{\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"value\":\"s-value\"}],\"locales\":[{\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"value\":\"s-value\"}],\"locations\":[{\"buildingId\":\"s-buildingid\",\"current\":true,\"deskCode\":\"s-deskcode\",\"floor\":\"s-floor\",\"floorSection\":\"s-floorsection\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"type\":\"s-type\",\"value\":\"s-value\"}],\"memberships\":[{\"contactGroupMembership\":{\"contactGroupId\":\"s-contactgroupid\",\"contactGroupResourceName\":\"s-contactgroupresourcename\"},\"domainMembership\":{\"inViewerDomain\":true},\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true}}],\"metadata\":{\"deleted\":true,\"linkedPeopleResourceNames\":[\"s-linkedpeopleresourcenames\"],\"objectType\":\"s-objecttype\",\"previousResourceNames\":[\"s-previousresourcenames\"],\"sources\":[{\"etag\":\"s-etag\",\"id\":\"s-id\",\"type\":\"s-type\",\"updateTime\":\"s-updatetime\"}]},\"miscKeywords\":[{\"formattedType\":\"s-formattedtype\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"type\":\"s-type\",\"value\":\"s-value\"}],\"names\":[{\"displayName\":\"s-displayname\",\"displayNameLastFirst\":\"s-displaynamelastfirst\",\"familyName\":\"s-familyname\",\"givenName\":\"s-givenname\",\"honorificPrefix\":\"s-honorificprefix\",\"honorificSuffix\":\"s-honorificsuffix\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"middleName\":\"s-middlename\",\"phoneticFamilyName\":\"s-phoneticfamilyname\",\"phoneticFullName\":\"s-phoneticfullname\",\"phoneticGivenName\":\"s-phoneticgivenname\",\"phoneticHonorificPrefix\":\"s-phonetichonorificprefix\",\"phoneticHonorificSuffix\":\"s-phonetichonorificsuffix\",\"phoneticMiddleName\":\"s-phoneticmiddlename\",\"unstructuredName\":\"s-unstructuredname\"}],\"nicknames\":[{\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"type\":\"s-type\",\"value\":\"s-value\"}],\"occupations\":[{\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"value\":\"s-value\"}],\"organizations\":[{\"costCenter\":\"s-costcenter\",\"current\":true,\"department\":\"s-department\",\"domain\":\"s-domain\",\"endDate\":{\"day\":7,\"month\":7,\"year\":7},\"formattedType\":\"s-formattedtype\",\"fullTimeEquivalentMillipercent\":7,\"jobDescription\":\"s-jobdescription\",\"location\":\"s-location\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"name\":\"s-name\",\"phoneticName\":\"s-phoneticname\",\"startDate\":{\"day\":7,\"month\":7,\"year\":7},\"symbol\":\"s-symbol\",\"title\":\"s-title\",\"type\":\"s-type\"}],\"phoneNumbers\":[{\"canonicalForm\":\"s-canonicalform\",\"formattedType\":\"s-formattedtype\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"type\":\"s-type\",\"value\":\"s-value\"}],\"photos\":[{\"default\":true,\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"url\":\"s-url\"}],\"relations\":[{\"formattedType\":\"s-formattedtype\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"person\":\"s-person\",\"type\":\"s-type\"}],\"relationshipInterests\":[{\"formattedValue\":\"s-formattedvalue\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"value\":\"s-value\"}],\"relationshipStatuses\":[{\"formattedValue\":\"s-formattedvalue\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"value\":\"s-value\"}],\"residences\":[{\"current\":true,\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"value\":\"s-value\"}],\"resourceName\":\"s-resourcename\",\"sipAddresses\":[{\"formattedType\":\"s-formattedtype\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"type\":\"s-type\",\"value\":\"s-value\"}],\"skills\":[{\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"value\":\"s-value\"}],\"taglines\":[{\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"value\":\"s-value\"}],\"urls\":[{\"formattedType\":\"s-formattedtype\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"type\":\"s-type\",\"value\":\"s-value\"}],\"userDefined\":[{\"key\":\"s-key\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"value\":\"s-value\"}]}",
@@ -307,10 +383,10 @@ test "Go's people.people.createContact" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_13)
+  gv_compare(gv_log_of(f), GO_15)
 }
 
-const GO_14: List[Str] = [
+const GO_16: List[Str] = [
   "CALL people.people.deleteContact",
   "REQ DELETE https://people.googleapis.com/v1/id1/%20x:deleteContact?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -328,10 +404,10 @@ test "Go's people.people.deleteContact" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_14)
+  gv_compare(gv_log_of(f), GO_16)
 }
 
-const GO_15: List[Str] = [
+const GO_17: List[Str] = [
   "CALL people.people.deleteContactPhoto",
   "REQ DELETE https://people.googleapis.com/v1/id1/%20x:deleteContactPhoto?alt=json&fields=kind%2Cid&personFields=s-personfields&prettyPrint=false&sources=s-sources",
   "  H x-extra=v1",
@@ -349,10 +425,10 @@ test "Go's people.people.deleteContactPhoto" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_15)
+  gv_compare(gv_log_of(f), GO_17)
 }
 
-const GO_16: List[Str] = [
+const GO_18: List[Str] = [
   "CALL people.people.get",
   "REQ GET https://people.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&personFields=s-personfields&prettyPrint=false&requestMask.includeField=s-requestmask.includefield&sources=s-sources",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -370,10 +446,10 @@ test "Go's people.people.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_16)
+  gv_compare(gv_log_of(f), GO_18)
 }
 
-const GO_17: List[Str] = [
+const GO_19: List[Str] = [
   "CALL people.people.getBatchGet",
   "REQ GET https://people.googleapis.com/v1/people:batchGet?alt=json&fields=kind%2Cid&personFields=s-personfields&prettyPrint=false&requestMask.includeField=s-requestmask.includefield&resourceNames=s-resourcenames&sources=s-sources",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -391,10 +467,10 @@ test "Go's people.people.getBatchGet" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_17)
+  gv_compare(gv_log_of(f), GO_19)
 }
 
-const GO_18: List[Str] = [
+const GO_20: List[Str] = [
   "CALL people.people.listDirectoryPeople",
   "REQ GET https://people.googleapis.com/v1/people:listDirectoryPeople?alt=json&fields=kind%2Cid&mergeSources=s-mergesources&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&readMask=s-readmask&requestSyncToken=true&sources=s-sources&syncToken=s-synctoken",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -412,10 +488,48 @@ test "Go's people.people.listDirectoryPeople" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_18)
+  gv_compare(gv_log_of(f), GO_20)
 }
 
-const GO_19: List[Str] = [
+const GO_21: List[Str] = [
+  "CALL people.people.listDirectoryPeople pages",
+  "REQ GET https://people.googleapis.com/v1/people:listDirectoryPeople?alt=json&fields=kind%2Cid&mergeSources=s-mergesources&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&readMask=s-readmask&requestSyncToken=true&sources=s-sources&syncToken=s-synctoken",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"nextSyncToken\":\"s-nextsynctoken\",\"people\":[{\"ageRange\":\"s-agerange\",\"etag\":\"s-etag\",\"metadata\":{\"deleted\":true,\"objectType\":\"s-objecttype\"},\"resourceName\":\"s-resourcename\"}]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"nextSyncToken\":\"s-nextsynctoken\",\"people\":[{\"ageRange\":\"s-agerange\",\"etag\":\"s-etag\",\"metadata\":{\"deleted\":true,\"objectType\":\"s-objecttype\"},\"resourceName\":\"s-resourcename\"}]}",
+  "REQ GET https://people.googleapis.com/v1/people:listDirectoryPeople?alt=json&fields=kind%2Cid&mergeSources=s-mergesources&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false&readMask=s-readmask&requestSyncToken=true&sources=s-sources&syncToken=s-synctoken",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextSyncToken\":\"s-nextsynctoken\",\"people\":[{\"ageRange\":\"s-agerange\",\"etag\":\"s-etag\",\"metadata\":{\"deleted\":true,\"objectType\":\"s-objecttype\"},\"resourceName\":\"s-resourcename\"}]}",
+  "OUT: {\"nextSyncToken\":\"s-nextsynctoken\",\"people\":[{\"ageRange\":\"s-agerange\",\"etag\":\"s-etag\",\"metadata\":{\"deleted\":true,\"objectType\":\"s-objecttype\"},\"resourceName\":\"s-resourcename\"}]}",
+  "OUT: ok",
+]
+
+test "Go's people.people.listDirectoryPeople pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"nextSyncToken\":\"s-nextsynctoken\",\"people\":[{\"ageRange\":\"s-agerange\",\"etag\":\"s-etag\",\"metadata\":{\"deleted\":true,\"objectType\":\"s-objecttype\"},\"resourceName\":\"s-resourcename\"}]}")
+  gv_queue(f, "{\"nextSyncToken\":\"s-nextsynctoken\",\"people\":[{\"ageRange\":\"s-agerange\",\"etag\":\"s-etag\",\"metadata\":{\"deleted\":true,\"objectType\":\"s-objecttype\"},\"resourceName\":\"s-resourcename\"}]}")
+  gv_note(f, "CALL people.people.listDirectoryPeople pages")
+  var p = svc.people.list_directory_people_pages(options: PeopleListDirectoryPeopleOptions{merge_sources: ["s-mergesources"], page_size: Some(7), page_token: Some("s-pagetoken"), read_mask: Some("s-readmask"), request_sync_token: Some(true), sources: ["s-sources"], sync_token: Some("s-synctoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_21)
+}
+
+const GO_22: List[Str] = [
   "CALL people.people.searchContacts",
   "REQ GET https://people.googleapis.com/v1/people:searchContacts?alt=json&fields=kind%2Cid&pageSize=7&prettyPrint=false&query=s-query&readMask=s-readmask&sources=s-sources",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -433,10 +547,10 @@ test "Go's people.people.searchContacts" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_19)
+  gv_compare(gv_log_of(f), GO_22)
 }
 
-const GO_20: List[Str] = [
+const GO_23: List[Str] = [
   "CALL people.people.searchDirectoryPeople",
   "REQ GET https://people.googleapis.com/v1/people:searchDirectoryPeople?alt=json&fields=kind%2Cid&mergeSources=s-mergesources&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&query=s-query&readMask=s-readmask&sources=s-sources",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -454,14 +568,52 @@ test "Go's people.people.searchDirectoryPeople" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_20)
+  gv_compare(gv_log_of(f), GO_23)
 }
 
-const GO_21: List[Str] = [
+const GO_24: List[Str] = [
+  "CALL people.people.searchDirectoryPeople pages",
+  "REQ GET https://people.googleapis.com/v1/people:searchDirectoryPeople?alt=json&fields=kind%2Cid&mergeSources=s-mergesources&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&query=s-query&readMask=s-readmask&sources=s-sources",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"people\":[{\"ageRange\":\"s-agerange\",\"etag\":\"s-etag\",\"metadata\":{\"deleted\":true,\"objectType\":\"s-objecttype\"},\"resourceName\":\"s-resourcename\"}],\"totalSize\":7}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"people\":[{\"ageRange\":\"s-agerange\",\"etag\":\"s-etag\",\"metadata\":{\"deleted\":true,\"objectType\":\"s-objecttype\"},\"resourceName\":\"s-resourcename\"}],\"totalSize\":7}",
+  "REQ GET https://people.googleapis.com/v1/people:searchDirectoryPeople?alt=json&fields=kind%2Cid&mergeSources=s-mergesources&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false&query=s-query&readMask=s-readmask&sources=s-sources",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"people\":[{\"ageRange\":\"s-agerange\",\"etag\":\"s-etag\",\"metadata\":{\"deleted\":true,\"objectType\":\"s-objecttype\"},\"resourceName\":\"s-resourcename\"}],\"totalSize\":7}",
+  "OUT: {\"people\":[{\"ageRange\":\"s-agerange\",\"etag\":\"s-etag\",\"metadata\":{\"deleted\":true,\"objectType\":\"s-objecttype\"},\"resourceName\":\"s-resourcename\"}],\"totalSize\":7}",
+  "OUT: ok",
+]
+
+test "Go's people.people.searchDirectoryPeople pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"people\":[{\"ageRange\":\"s-agerange\",\"etag\":\"s-etag\",\"metadata\":{\"deleted\":true,\"objectType\":\"s-objecttype\"},\"resourceName\":\"s-resourcename\"}],\"totalSize\":7}")
+  gv_queue(f, "{\"people\":[{\"ageRange\":\"s-agerange\",\"etag\":\"s-etag\",\"metadata\":{\"deleted\":true,\"objectType\":\"s-objecttype\"},\"resourceName\":\"s-resourcename\"}],\"totalSize\":7}")
+  gv_note(f, "CALL people.people.searchDirectoryPeople pages")
+  var p = svc.people.search_directory_people_pages(options: PeopleSearchDirectoryPeopleOptions{merge_sources: ["s-mergesources"], page_size: Some(7), page_token: Some("s-pagetoken"), query: Some("s-query"), read_mask: Some("s-readmask"), sources: ["s-sources"], fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_24)
+}
+
+const GO_25: List[Str] = [
   "CALL people.people.updateContact",
   "REQ PATCH https://people.googleapis.com/v1/id1/%20x:updateContact?alt=json&fields=kind%2Cid&personFields=s-personfields&prettyPrint=false&sources=s-sources&updatePersonFields=s-updatepersonfields",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"addresses\":[{\"city\":\"s-city\",\"country\":\"s-country\",\"countryCode\":\"s-countrycode\",\"extendedAddress\":\"s-extendedaddress\",\"formattedType\":\"s-formattedtype\",\"formattedValue\":\"s-formattedvalue\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"poBox\":\"s-pobox\",\"postalCode\":\"s-postalcode\",\"region\":\"s-region\",\"streetAddress\":\"s-streetaddress\",\"type\":\"s-type\"}],\"ageRange\":\"s-agerange\",\"ageRanges\":[{\"ageRange\":\"s-agerange\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true}}],\"biographies\":[{\"contentType\":\"s-contenttype\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"value\":\"s-value\"}],\"birthdays\":[{\"date\":{\"day\":7,\"month\":7,\"year\":7},\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"text\":\"s-text\"}],\"braggingRights\":[{\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"value\":\"s-value\"}],\"calendarUrls\":[{\"formattedType\":\"s-formattedtype\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"type\":\"s-type\",\"url\":\"s-url\"}],\"clientData\":[{\"key\":\"s-key\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"value\":\"s-value\"}],\"coverPhotos\":[{\"default\":true,\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"url\":\"s-url\"}],\"emailAddresses\":[{\"displayName\":\"s-displayname\",\"formattedType\":\"s-formattedtype\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"type\":\"s-type\",\"value\":\"s-value\"}],\"etag\":\"s-etag\",\"events\":[{\"date\":{\"day\":7,\"month\":7,\"year\":7},\"formattedType\":\"s-formattedtype\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"type\":\"s-type\"}],\"externalIds\":[{\"formattedType\":\"s-formattedtype\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"type\":\"s-type\",\"value\":\"s-value\"}],\"fileAses\":[{\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"value\":\"s-value\"}],\"genders\":[{\"addressMeAs\":\"s-addressmeas\",\"formattedValue\":\"s-formattedvalue\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"value\":\"s-value\"}],\"imClients\":[{\"formattedProtocol\":\"s-formattedprotocol\",\"formattedType\":\"s-formattedtype\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"protocol\":\"s-protocol\",\"type\":\"s-type\",\"username\":\"s-username\"}],\"interests\":[{\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"value\":\"s-value\"}],\"locales\":[{\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"value\":\"s-value\"}],\"locations\":[{\"buildingId\":\"s-buildingid\",\"current\":true,\"deskCode\":\"s-deskcode\",\"floor\":\"s-floor\",\"floorSection\":\"s-floorsection\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"type\":\"s-type\",\"value\":\"s-value\"}],\"memberships\":[{\"contactGroupMembership\":{\"contactGroupId\":\"s-contactgroupid\",\"contactGroupResourceName\":\"s-contactgroupresourcename\"},\"domainMembership\":{\"inViewerDomain\":true},\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true}}],\"metadata\":{\"deleted\":true,\"linkedPeopleResourceNames\":[\"s-linkedpeopleresourcenames\"],\"objectType\":\"s-objecttype\",\"previousResourceNames\":[\"s-previousresourcenames\"],\"sources\":[{\"etag\":\"s-etag\",\"id\":\"s-id\",\"type\":\"s-type\",\"updateTime\":\"s-updatetime\"}]},\"miscKeywords\":[{\"formattedType\":\"s-formattedtype\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"type\":\"s-type\",\"value\":\"s-value\"}],\"names\":[{\"displayName\":\"s-displayname\",\"displayNameLastFirst\":\"s-displaynamelastfirst\",\"familyName\":\"s-familyname\",\"givenName\":\"s-givenname\",\"honorificPrefix\":\"s-honorificprefix\",\"honorificSuffix\":\"s-honorificsuffix\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"middleName\":\"s-middlename\",\"phoneticFamilyName\":\"s-phoneticfamilyname\",\"phoneticFullName\":\"s-phoneticfullname\",\"phoneticGivenName\":\"s-phoneticgivenname\",\"phoneticHonorificPrefix\":\"s-phonetichonorificprefix\",\"phoneticHonorificSuffix\":\"s-phonetichonorificsuffix\",\"phoneticMiddleName\":\"s-phoneticmiddlename\",\"unstructuredName\":\"s-unstructuredname\"}],\"nicknames\":[{\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"type\":\"s-type\",\"value\":\"s-value\"}],\"occupations\":[{\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"value\":\"s-value\"}],\"organizations\":[{\"costCenter\":\"s-costcenter\",\"current\":true,\"department\":\"s-department\",\"domain\":\"s-domain\",\"endDate\":{\"day\":7,\"month\":7,\"year\":7},\"formattedType\":\"s-formattedtype\",\"fullTimeEquivalentMillipercent\":7,\"jobDescription\":\"s-jobdescription\",\"location\":\"s-location\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"name\":\"s-name\",\"phoneticName\":\"s-phoneticname\",\"startDate\":{\"day\":7,\"month\":7,\"year\":7},\"symbol\":\"s-symbol\",\"title\":\"s-title\",\"type\":\"s-type\"}],\"phoneNumbers\":[{\"canonicalForm\":\"s-canonicalform\",\"formattedType\":\"s-formattedtype\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"type\":\"s-type\",\"value\":\"s-value\"}],\"photos\":[{\"default\":true,\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"url\":\"s-url\"}],\"relations\":[{\"formattedType\":\"s-formattedtype\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"person\":\"s-person\",\"type\":\"s-type\"}],\"relationshipInterests\":[{\"formattedValue\":\"s-formattedvalue\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"value\":\"s-value\"}],\"relationshipStatuses\":[{\"formattedValue\":\"s-formattedvalue\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"value\":\"s-value\"}],\"residences\":[{\"current\":true,\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"value\":\"s-value\"}],\"resourceName\":\"s-resourcename\",\"sipAddresses\":[{\"formattedType\":\"s-formattedtype\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"type\":\"s-type\",\"value\":\"s-value\"}],\"skills\":[{\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"value\":\"s-value\"}],\"taglines\":[{\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"value\":\"s-value\"}],\"urls\":[{\"formattedType\":\"s-formattedtype\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"type\":\"s-type\",\"value\":\"s-value\"}],\"userDefined\":[{\"key\":\"s-key\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"value\":\"s-value\"}]}",
+  "  B <6145 bytes> {\"addresses\":[{\"city\":\"s-city\",\"...ied\":true},\"value\":\"s-value\"}]}",
   "",
   "  SERVED 200 {\"addresses\":[{\"city\":\"s-city\",\"country\":\"s-country\",\"countryCode\":\"s-countrycode\",\"extendedAddress\":\"s-extendedaddress\",\"formattedType\":\"s-formattedtype\",\"formattedValue\":\"s-formattedvalue\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"poBox\":\"s-pobox\",\"postalCode\":\"s-postalcode\",\"region\":\"s-region\",\"streetAddress\":\"s-streetaddress\",\"type\":\"s-type\"}],\"ageRange\":\"s-agerange\",\"ageRanges\":[{\"ageRange\":\"s-agerange\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true}}],\"biographies\":[{\"contentType\":\"s-contenttype\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"value\":\"s-value\"}],\"birthdays\":[{\"date\":{\"day\":7,\"month\":7,\"year\":7},\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"text\":\"s-text\"}],\"braggingRights\":[{\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"value\":\"s-value\"}],\"calendarUrls\":[{\"formattedType\":\"s-formattedtype\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"type\":\"s-type\",\"url\":\"s-url\"}],\"clientData\":[{\"key\":\"s-key\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"value\":\"s-value\"}],\"coverPhotos\":[{\"default\":true,\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"url\":\"s-url\"}],\"emailAddresses\":[{\"displayName\":\"s-displayname\",\"formattedType\":\"s-formattedtype\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"type\":\"s-type\",\"value\":\"s-value\"}],\"etag\":\"s-etag\",\"events\":[{\"date\":{\"day\":7,\"month\":7,\"year\":7},\"formattedType\":\"s-formattedtype\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"type\":\"s-type\"}],\"externalIds\":[{\"formattedType\":\"s-formattedtype\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"type\":\"s-type\",\"value\":\"s-value\"}],\"fileAses\":[{\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"value\":\"s-value\"}],\"genders\":[{\"addressMeAs\":\"s-addressmeas\",\"formattedValue\":\"s-formattedvalue\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"value\":\"s-value\"}],\"imClients\":[{\"formattedProtocol\":\"s-formattedprotocol\",\"formattedType\":\"s-formattedtype\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"protocol\":\"s-protocol\",\"type\":\"s-type\",\"username\":\"s-username\"}],\"interests\":[{\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"value\":\"s-value\"}],\"locales\":[{\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"value\":\"s-value\"}],\"locations\":[{\"buildingId\":\"s-buildingid\",\"current\":true,\"deskCode\":\"s-deskcode\",\"floor\":\"s-floor\",\"floorSection\":\"s-floorsection\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"type\":\"s-type\",\"value\":\"s-value\"}],\"memberships\":[{\"contactGroupMembership\":{\"contactGroupId\":\"s-contactgroupid\",\"contactGroupResourceName\":\"s-contactgroupresourcename\"},\"domainMembership\":{\"inViewerDomain\":true},\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true}}],\"metadata\":{\"deleted\":true,\"linkedPeopleResourceNames\":[\"s-linkedpeopleresourcenames\"],\"objectType\":\"s-objecttype\",\"previousResourceNames\":[\"s-previousresourcenames\"],\"sources\":[{\"etag\":\"s-etag\",\"id\":\"s-id\",\"type\":\"s-type\",\"updateTime\":\"s-updatetime\"}]},\"miscKeywords\":[{\"formattedType\":\"s-formattedtype\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"type\":\"s-type\",\"value\":\"s-value\"}],\"names\":[{\"displayName\":\"s-displayname\",\"displayNameLastFirst\":\"s-displaynamelastfirst\",\"familyName\":\"s-familyname\",\"givenName\":\"s-givenname\",\"honorificPrefix\":\"s-honorificprefix\",\"honorificSuffix\":\"s-honorificsuffix\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"middleName\":\"s-middlename\",\"phoneticFamilyName\":\"s-phoneticfamilyname\",\"phoneticFullName\":\"s-phoneticfullname\",\"phoneticGivenName\":\"s-phoneticgivenname\",\"phoneticHonorificPrefix\":\"s-phonetichonorificprefix\",\"phoneticHonorificSuffix\":\"s-phonetichonorificsuffix\",\"phoneticMiddleName\":\"s-phoneticmiddlename\",\"unstructuredName\":\"s-unstructuredname\"}],\"nicknames\":[{\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"type\":\"s-type\",\"value\":\"s-value\"}],\"occupations\":[{\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"value\":\"s-value\"}],\"organizations\":[{\"costCenter\":\"s-costcenter\",\"current\":true,\"department\":\"s-department\",\"domain\":\"s-domain\",\"endDate\":{\"day\":7,\"month\":7,\"year\":7},\"formattedType\":\"s-formattedtype\",\"fullTimeEquivalentMillipercent\":7,\"jobDescription\":\"s-jobdescription\",\"location\":\"s-location\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"name\":\"s-name\",\"phoneticName\":\"s-phoneticname\",\"startDate\":{\"day\":7,\"month\":7,\"year\":7},\"symbol\":\"s-symbol\",\"title\":\"s-title\",\"type\":\"s-type\"}],\"phoneNumbers\":[{\"canonicalForm\":\"s-canonicalform\",\"formattedType\":\"s-formattedtype\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"type\":\"s-type\",\"value\":\"s-value\"}],\"photos\":[{\"default\":true,\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"url\":\"s-url\"}],\"relations\":[{\"formattedType\":\"s-formattedtype\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"person\":\"s-person\",\"type\":\"s-type\"}],\"relationshipInterests\":[{\"formattedValue\":\"s-formattedvalue\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"value\":\"s-value\"}],\"relationshipStatuses\":[{\"formattedValue\":\"s-formattedvalue\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"value\":\"s-value\"}],\"residences\":[{\"current\":true,\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"value\":\"s-value\"}],\"resourceName\":\"s-resourcename\",\"sipAddresses\":[{\"formattedType\":\"s-formattedtype\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"type\":\"s-type\",\"value\":\"s-value\"}],\"skills\":[{\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"value\":\"s-value\"}],\"taglines\":[{\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"value\":\"s-value\"}],\"urls\":[{\"formattedType\":\"s-formattedtype\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"type\":\"s-type\",\"value\":\"s-value\"}],\"userDefined\":[{\"key\":\"s-key\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"value\":\"s-value\"}]}",
   "OUT: {\"addresses\":[{\"city\":\"s-city\",\"country\":\"s-country\",\"countryCode\":\"s-countrycode\",\"extendedAddress\":\"s-extendedaddress\",\"formattedType\":\"s-formattedtype\",\"formattedValue\":\"s-formattedvalue\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"poBox\":\"s-pobox\",\"postalCode\":\"s-postalcode\",\"region\":\"s-region\",\"streetAddress\":\"s-streetaddress\",\"type\":\"s-type\"}],\"ageRange\":\"s-agerange\",\"ageRanges\":[{\"ageRange\":\"s-agerange\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true}}],\"biographies\":[{\"contentType\":\"s-contenttype\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"value\":\"s-value\"}],\"birthdays\":[{\"date\":{\"day\":7,\"month\":7,\"year\":7},\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"text\":\"s-text\"}],\"braggingRights\":[{\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"value\":\"s-value\"}],\"calendarUrls\":[{\"formattedType\":\"s-formattedtype\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"type\":\"s-type\",\"url\":\"s-url\"}],\"clientData\":[{\"key\":\"s-key\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"value\":\"s-value\"}],\"coverPhotos\":[{\"default\":true,\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"url\":\"s-url\"}],\"emailAddresses\":[{\"displayName\":\"s-displayname\",\"formattedType\":\"s-formattedtype\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"type\":\"s-type\",\"value\":\"s-value\"}],\"etag\":\"s-etag\",\"events\":[{\"date\":{\"day\":7,\"month\":7,\"year\":7},\"formattedType\":\"s-formattedtype\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"type\":\"s-type\"}],\"externalIds\":[{\"formattedType\":\"s-formattedtype\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"type\":\"s-type\",\"value\":\"s-value\"}],\"fileAses\":[{\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"value\":\"s-value\"}],\"genders\":[{\"addressMeAs\":\"s-addressmeas\",\"formattedValue\":\"s-formattedvalue\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"value\":\"s-value\"}],\"imClients\":[{\"formattedProtocol\":\"s-formattedprotocol\",\"formattedType\":\"s-formattedtype\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"protocol\":\"s-protocol\",\"type\":\"s-type\",\"username\":\"s-username\"}],\"interests\":[{\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"value\":\"s-value\"}],\"locales\":[{\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"value\":\"s-value\"}],\"locations\":[{\"buildingId\":\"s-buildingid\",\"current\":true,\"deskCode\":\"s-deskcode\",\"floor\":\"s-floor\",\"floorSection\":\"s-floorsection\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"type\":\"s-type\",\"value\":\"s-value\"}],\"memberships\":[{\"contactGroupMembership\":{\"contactGroupId\":\"s-contactgroupid\",\"contactGroupResourceName\":\"s-contactgroupresourcename\"},\"domainMembership\":{\"inViewerDomain\":true},\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true}}],\"metadata\":{\"deleted\":true,\"linkedPeopleResourceNames\":[\"s-linkedpeopleresourcenames\"],\"objectType\":\"s-objecttype\",\"previousResourceNames\":[\"s-previousresourcenames\"],\"sources\":[{\"etag\":\"s-etag\",\"id\":\"s-id\",\"type\":\"s-type\",\"updateTime\":\"s-updatetime\"}]},\"miscKeywords\":[{\"formattedType\":\"s-formattedtype\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"type\":\"s-type\",\"value\":\"s-value\"}],\"names\":[{\"displayName\":\"s-displayname\",\"displayNameLastFirst\":\"s-displaynamelastfirst\",\"familyName\":\"s-familyname\",\"givenName\":\"s-givenname\",\"honorificPrefix\":\"s-honorificprefix\",\"honorificSuffix\":\"s-honorificsuffix\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"middleName\":\"s-middlename\",\"phoneticFamilyName\":\"s-phoneticfamilyname\",\"phoneticFullName\":\"s-phoneticfullname\",\"phoneticGivenName\":\"s-phoneticgivenname\",\"phoneticHonorificPrefix\":\"s-phonetichonorificprefix\",\"phoneticHonorificSuffix\":\"s-phonetichonorificsuffix\",\"phoneticMiddleName\":\"s-phoneticmiddlename\",\"unstructuredName\":\"s-unstructuredname\"}],\"nicknames\":[{\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"type\":\"s-type\",\"value\":\"s-value\"}],\"occupations\":[{\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"value\":\"s-value\"}],\"organizations\":[{\"costCenter\":\"s-costcenter\",\"current\":true,\"department\":\"s-department\",\"domain\":\"s-domain\",\"endDate\":{\"day\":7,\"month\":7,\"year\":7},\"formattedType\":\"s-formattedtype\",\"fullTimeEquivalentMillipercent\":7,\"jobDescription\":\"s-jobdescription\",\"location\":\"s-location\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"name\":\"s-name\",\"phoneticName\":\"s-phoneticname\",\"startDate\":{\"day\":7,\"month\":7,\"year\":7},\"symbol\":\"s-symbol\",\"title\":\"s-title\",\"type\":\"s-type\"}],\"phoneNumbers\":[{\"canonicalForm\":\"s-canonicalform\",\"formattedType\":\"s-formattedtype\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"type\":\"s-type\",\"value\":\"s-value\"}],\"photos\":[{\"default\":true,\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"url\":\"s-url\"}],\"relations\":[{\"formattedType\":\"s-formattedtype\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"person\":\"s-person\",\"type\":\"s-type\"}],\"relationshipInterests\":[{\"formattedValue\":\"s-formattedvalue\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"value\":\"s-value\"}],\"relationshipStatuses\":[{\"formattedValue\":\"s-formattedvalue\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"value\":\"s-value\"}],\"residences\":[{\"current\":true,\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"value\":\"s-value\"}],\"resourceName\":\"s-resourcename\",\"sipAddresses\":[{\"formattedType\":\"s-formattedtype\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"type\":\"s-type\",\"value\":\"s-value\"}],\"skills\":[{\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"value\":\"s-value\"}],\"taglines\":[{\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"value\":\"s-value\"}],\"urls\":[{\"formattedType\":\"s-formattedtype\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"type\":\"s-type\",\"value\":\"s-value\"}],\"userDefined\":[{\"key\":\"s-key\",\"metadata\":{\"primary\":true,\"sourcePrimary\":true,\"verified\":true},\"value\":\"s-value\"}]}",
@@ -476,10 +628,10 @@ test "Go's people.people.updateContact" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_21)
+  gv_compare(gv_log_of(f), GO_25)
 }
 
-const GO_22: List[Str] = [
+const GO_26: List[Str] = [
   "CALL people.people.updateContactPhoto",
   "REQ PATCH https://people.googleapis.com/v1/id1/%20x:updateContactPhoto?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -498,10 +650,10 @@ test "Go's people.people.updateContactPhoto" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_22)
+  gv_compare(gv_log_of(f), GO_26)
 }
 
-const GO_23: List[Str] = [
+const GO_27: List[Str] = [
   "CALL people.people.connections.list",
   "REQ GET https://people.googleapis.com/v1/id1/%20x/connections?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&personFields=s-personfields&prettyPrint=false&requestMask.includeField=s-requestmask.includefield&requestSyncToken=true&sortOrder=s-sortorder&sources=s-sources&syncToken=s-synctoken",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -519,5 +671,43 @@ test "Go's people.people.connections.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_23)
+  gv_compare(gv_log_of(f), GO_27)
+}
+
+const GO_28: List[Str] = [
+  "CALL people.people.connections.list pages",
+  "REQ GET https://people.googleapis.com/v1/id1/%20x/connections?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&personFields=s-personfields&prettyPrint=false&requestMask.includeField=s-requestmask.includefield&requestSyncToken=true&sortOrder=s-sortorder&sources=s-sources&syncToken=s-synctoken",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"connections\":[{\"ageRange\":\"s-agerange\",\"etag\":\"s-etag\",\"metadata\":{\"deleted\":true,\"objectType\":\"s-objecttype\"},\"resourceName\":\"s-resourcename\"}],\"nextPageToken\":\"s-nextpagetoken\",\"nextSyncToken\":\"s-nextsynctoken\",\"totalItems\":7,\"totalPeople\":7}",
+  "OUT: {\"connections\":[{\"ageRange\":\"s-agerange\",\"etag\":\"s-etag\",\"metadata\":{\"deleted\":true,\"objectType\":\"s-objecttype\"},\"resourceName\":\"s-resourcename\"}],\"nextPageToken\":\"s-nextpagetoken\",\"nextSyncToken\":\"s-nextsynctoken\",\"totalItems\":7,\"totalPeople\":7}",
+  "REQ GET https://people.googleapis.com/v1/id1/%20x/connections?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&personFields=s-personfields&prettyPrint=false&requestMask.includeField=s-requestmask.includefield&requestSyncToken=true&sortOrder=s-sortorder&sources=s-sources&syncToken=s-synctoken",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"connections\":[{\"ageRange\":\"s-agerange\",\"etag\":\"s-etag\",\"metadata\":{\"deleted\":true,\"objectType\":\"s-objecttype\"},\"resourceName\":\"s-resourcename\"}],\"nextSyncToken\":\"s-nextsynctoken\",\"totalItems\":7,\"totalPeople\":7}",
+  "OUT: {\"connections\":[{\"ageRange\":\"s-agerange\",\"etag\":\"s-etag\",\"metadata\":{\"deleted\":true,\"objectType\":\"s-objecttype\"},\"resourceName\":\"s-resourcename\"}],\"nextSyncToken\":\"s-nextsynctoken\",\"totalItems\":7,\"totalPeople\":7}",
+  "OUT: ok",
+]
+
+test "Go's people.people.connections.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"connections\":[{\"ageRange\":\"s-agerange\",\"etag\":\"s-etag\",\"metadata\":{\"deleted\":true,\"objectType\":\"s-objecttype\"},\"resourceName\":\"s-resourcename\"}],\"nextPageToken\":\"s-nextpagetoken\",\"nextSyncToken\":\"s-nextsynctoken\",\"totalItems\":7,\"totalPeople\":7}")
+  gv_queue(f, "{\"connections\":[{\"ageRange\":\"s-agerange\",\"etag\":\"s-etag\",\"metadata\":{\"deleted\":true,\"objectType\":\"s-objecttype\"},\"resourceName\":\"s-resourcename\"}],\"nextSyncToken\":\"s-nextsynctoken\",\"totalItems\":7,\"totalPeople\":7}")
+  gv_note(f, "CALL people.people.connections.list pages")
+  var p = svc.people.connections.list_pages("id1/ x", options: PeopleConnectionsListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), person_fields: Some("s-personfields"), request_mask_include_field: Some("s-requestmask.includefield"), request_sync_token: Some(true), sort_order: Some("s-sortorder"), sources: ["s-sources"], sync_token: Some("s-synctoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_28)
 }

@@ -94,6 +94,44 @@ test "Go's serviceusage.operations.list" {
 }
 
 const GO_4: List[Str] = [
+  "CALL serviceusage.operations.list pages",
+  "REQ GET https://serviceusage.googleapis.com/v1/operations?alt=json&fields=kind%2Cid&filter=s-filter&name=s-name&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&returnPartialSuccess=true",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "REQ GET https://serviceusage.googleapis.com/v1/operations?alt=json&fields=kind%2Cid&filter=s-filter&name=s-name&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false&returnPartialSuccess=true",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: ok",
+]
+
+test "Go's serviceusage.operations.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_queue(f, "{\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_note(f, "CALL serviceusage.operations.list pages")
+  var p = svc.operations.list_pages(options: OperationsListOptions{filter: Some("s-filter"), name: Some("s-name"), page_size: Some(7), page_token: Some("s-pagetoken"), return_partial_success: Some(true), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_4)
+}
+
+const GO_5: List[Str] = [
   "CALL serviceusage.services.batchEnable",
   "REQ POST https://serviceusage.googleapis.com/v1/id1/%20x/services:batchEnable?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -112,10 +150,10 @@ test "Go's serviceusage.services.batchEnable" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_4)
+  gv_compare(gv_log_of(f), GO_5)
 }
 
-const GO_5: List[Str] = [
+const GO_6: List[Str] = [
   "CALL serviceusage.services.batchGet",
   "REQ GET https://serviceusage.googleapis.com/v1/id1/%20x/services:batchGet?alt=json&fields=kind%2Cid&names=s-names&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -133,10 +171,10 @@ test "Go's serviceusage.services.batchGet" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_5)
+  gv_compare(gv_log_of(f), GO_6)
 }
 
-const GO_6: List[Str] = [
+const GO_7: List[Str] = [
   "CALL serviceusage.services.disable",
   "REQ POST https://serviceusage.googleapis.com/v1/id1/%20x:disable?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -155,10 +193,10 @@ test "Go's serviceusage.services.disable" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_6)
+  gv_compare(gv_log_of(f), GO_7)
 }
 
-const GO_7: List[Str] = [
+const GO_8: List[Str] = [
   "CALL serviceusage.services.enable",
   "REQ POST https://serviceusage.googleapis.com/v1/id1/%20x:enable?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -177,10 +215,10 @@ test "Go's serviceusage.services.enable" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_7)
+  gv_compare(gv_log_of(f), GO_8)
 }
 
-const GO_8: List[Str] = [
+const GO_9: List[Str] = [
   "CALL serviceusage.services.get",
   "REQ GET https://serviceusage.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -198,10 +236,10 @@ test "Go's serviceusage.services.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_8)
+  gv_compare(gv_log_of(f), GO_9)
 }
 
-const GO_9: List[Str] = [
+const GO_10: List[Str] = [
   "CALL serviceusage.services.list",
   "REQ GET https://serviceusage.googleapis.com/v1/id1/%20x/services?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -219,5 +257,43 @@ test "Go's serviceusage.services.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_9)
+  gv_compare(gv_log_of(f), GO_10)
+}
+
+const GO_11: List[Str] = [
+  "CALL serviceusage.services.list pages",
+  "REQ GET https://serviceusage.googleapis.com/v1/id1/%20x/services?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"services\":[{\"config\":{\"name\":\"s-name\",\"title\":\"s-title\"},\"name\":\"s-name\",\"parent\":\"s-parent\",\"state\":\"s-state\"}]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"services\":[{\"config\":{\"name\":\"s-name\",\"title\":\"s-title\"},\"name\":\"s-name\",\"parent\":\"s-parent\",\"state\":\"s-state\"}]}",
+  "REQ GET https://serviceusage.googleapis.com/v1/id1/%20x/services?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"services\":[{\"config\":{\"name\":\"s-name\",\"title\":\"s-title\"},\"name\":\"s-name\",\"parent\":\"s-parent\",\"state\":\"s-state\"}]}",
+  "OUT: {\"services\":[{\"config\":{\"name\":\"s-name\",\"title\":\"s-title\"},\"name\":\"s-name\",\"parent\":\"s-parent\",\"state\":\"s-state\"}]}",
+  "OUT: ok",
+]
+
+test "Go's serviceusage.services.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"services\":[{\"config\":{\"name\":\"s-name\",\"title\":\"s-title\"},\"name\":\"s-name\",\"parent\":\"s-parent\",\"state\":\"s-state\"}]}")
+  gv_queue(f, "{\"services\":[{\"config\":{\"name\":\"s-name\",\"title\":\"s-title\"},\"name\":\"s-name\",\"parent\":\"s-parent\",\"state\":\"s-state\"}]}")
+  gv_note(f, "CALL serviceusage.services.list pages")
+  var p = svc.services.list_pages("id1/ x", options: ServicesListOptions{filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_11)
 }

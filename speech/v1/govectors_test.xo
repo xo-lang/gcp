@@ -51,6 +51,44 @@ test "Go's speech.operations.list" {
 }
 
 const GO_2: List[Str] = [
+  "CALL speech.operations.list pages",
+  "REQ GET https://speech.googleapis.com/v1/operations?alt=json&fields=kind%2Cid&filter=s-filter&name=s-name&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&returnPartialSuccess=true",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "REQ GET https://speech.googleapis.com/v1/operations?alt=json&fields=kind%2Cid&filter=s-filter&name=s-name&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false&returnPartialSuccess=true",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: ok",
+]
+
+test "Go's speech.operations.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_queue(f, "{\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_note(f, "CALL speech.operations.list pages")
+  var p = svc.operations.list_pages(options: OperationsListOptions{filter: Some("s-filter"), name: Some("s-name"), page_size: Some(7), page_token: Some("s-pagetoken"), return_partial_success: Some(true), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_2)
+}
+
+const GO_3: List[Str] = [
   "CALL speech.projects.locations.customClasses.create",
   "REQ POST https://speech.googleapis.com/v1/id1/%20x/customClasses?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -69,10 +107,10 @@ test "Go's speech.projects.locations.customClasses.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_2)
+  gv_compare(gv_log_of(f), GO_3)
 }
 
-const GO_3: List[Str] = [
+const GO_4: List[Str] = [
   "CALL speech.projects.locations.customClasses.delete",
   "REQ DELETE https://speech.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -90,10 +128,10 @@ test "Go's speech.projects.locations.customClasses.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_3)
+  gv_compare(gv_log_of(f), GO_4)
 }
 
-const GO_4: List[Str] = [
+const GO_5: List[Str] = [
   "CALL speech.projects.locations.customClasses.get",
   "REQ GET https://speech.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -111,10 +149,10 @@ test "Go's speech.projects.locations.customClasses.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_4)
+  gv_compare(gv_log_of(f), GO_5)
 }
 
-const GO_5: List[Str] = [
+const GO_6: List[Str] = [
   "CALL speech.projects.locations.customClasses.list",
   "REQ GET https://speech.googleapis.com/v1/id1/%20x/customClasses?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -132,10 +170,48 @@ test "Go's speech.projects.locations.customClasses.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_5)
+  gv_compare(gv_log_of(f), GO_6)
 }
 
-const GO_6: List[Str] = [
+const GO_7: List[Str] = [
+  "CALL speech.projects.locations.customClasses.list pages",
+  "REQ GET https://speech.googleapis.com/v1/id1/%20x/customClasses?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"customClasses\":[{\"annotations\":{\"k1\":\"s-annotations\"},\"customClassId\":\"s-customclassid\",\"deleteTime\":\"s-deletetime\",\"displayName\":\"s-displayname\",\"etag\":\"s-etag\",\"expireTime\":\"s-expiretime\",\"kmsKeyName\":\"s-kmskeyname\",\"kmsKeyVersionName\":\"s-kmskeyversionname\",\"name\":\"s-name\",\"reconciling\":true,\"state\":\"s-state\",\"uid\":\"s-uid\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"customClasses\":[{\"annotations\":{\"k1\":\"s-annotations\"},\"customClassId\":\"s-customclassid\",\"deleteTime\":\"s-deletetime\",\"displayName\":\"s-displayname\",\"etag\":\"s-etag\",\"expireTime\":\"s-expiretime\",\"kmsKeyName\":\"s-kmskeyname\",\"kmsKeyVersionName\":\"s-kmskeyversionname\",\"name\":\"s-name\",\"reconciling\":true,\"state\":\"s-state\",\"uid\":\"s-uid\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://speech.googleapis.com/v1/id1/%20x/customClasses?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"customClasses\":[{\"annotations\":{\"k1\":\"s-annotations\"},\"customClassId\":\"s-customclassid\",\"deleteTime\":\"s-deletetime\",\"displayName\":\"s-displayname\",\"etag\":\"s-etag\",\"expireTime\":\"s-expiretime\",\"kmsKeyName\":\"s-kmskeyname\",\"kmsKeyVersionName\":\"s-kmskeyversionname\",\"name\":\"s-name\",\"reconciling\":true,\"state\":\"s-state\",\"uid\":\"s-uid\"}]}",
+  "OUT: {\"customClasses\":[{\"annotations\":{\"k1\":\"s-annotations\"},\"customClassId\":\"s-customclassid\",\"deleteTime\":\"s-deletetime\",\"displayName\":\"s-displayname\",\"etag\":\"s-etag\",\"expireTime\":\"s-expiretime\",\"kmsKeyName\":\"s-kmskeyname\",\"kmsKeyVersionName\":\"s-kmskeyversionname\",\"name\":\"s-name\",\"reconciling\":true,\"state\":\"s-state\",\"uid\":\"s-uid\"}]}",
+  "OUT: ok",
+]
+
+test "Go's speech.projects.locations.customClasses.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"customClasses\":[{\"annotations\":{\"k1\":\"s-annotations\"},\"customClassId\":\"s-customclassid\",\"deleteTime\":\"s-deletetime\",\"displayName\":\"s-displayname\",\"etag\":\"s-etag\",\"expireTime\":\"s-expiretime\",\"kmsKeyName\":\"s-kmskeyname\",\"kmsKeyVersionName\":\"s-kmskeyversionname\",\"name\":\"s-name\",\"reconciling\":true,\"state\":\"s-state\",\"uid\":\"s-uid\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"customClasses\":[{\"annotations\":{\"k1\":\"s-annotations\"},\"customClassId\":\"s-customclassid\",\"deleteTime\":\"s-deletetime\",\"displayName\":\"s-displayname\",\"etag\":\"s-etag\",\"expireTime\":\"s-expiretime\",\"kmsKeyName\":\"s-kmskeyname\",\"kmsKeyVersionName\":\"s-kmskeyversionname\",\"name\":\"s-name\",\"reconciling\":true,\"state\":\"s-state\",\"uid\":\"s-uid\"}]}")
+  gv_note(f, "CALL speech.projects.locations.customClasses.list pages")
+  var p = svc.projects.locations.custom_classes.list_pages("id1/ x", options: ProjectsLocationsCustomClassesListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_7)
+}
+
+const GO_8: List[Str] = [
   "CALL speech.projects.locations.customClasses.patch",
   "REQ PATCH https://speech.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
@@ -154,10 +230,10 @@ test "Go's speech.projects.locations.customClasses.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_6)
+  gv_compare(gv_log_of(f), GO_8)
 }
 
-const GO_7: List[Str] = [
+const GO_9: List[Str] = [
   "CALL speech.projects.locations.phraseSets.create",
   "REQ POST https://speech.googleapis.com/v1/id1/%20x/phraseSets?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -176,10 +252,10 @@ test "Go's speech.projects.locations.phraseSets.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_7)
+  gv_compare(gv_log_of(f), GO_9)
 }
 
-const GO_8: List[Str] = [
+const GO_10: List[Str] = [
   "CALL speech.projects.locations.phraseSets.delete",
   "REQ DELETE https://speech.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -197,10 +273,10 @@ test "Go's speech.projects.locations.phraseSets.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_8)
+  gv_compare(gv_log_of(f), GO_10)
 }
 
-const GO_9: List[Str] = [
+const GO_11: List[Str] = [
   "CALL speech.projects.locations.phraseSets.get",
   "REQ GET https://speech.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -218,10 +294,10 @@ test "Go's speech.projects.locations.phraseSets.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_9)
+  gv_compare(gv_log_of(f), GO_11)
 }
 
-const GO_10: List[Str] = [
+const GO_12: List[Str] = [
   "CALL speech.projects.locations.phraseSets.list",
   "REQ GET https://speech.googleapis.com/v1/id1/%20x/phraseSets?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -239,10 +315,48 @@ test "Go's speech.projects.locations.phraseSets.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_10)
+  gv_compare(gv_log_of(f), GO_12)
 }
 
-const GO_11: List[Str] = [
+const GO_13: List[Str] = [
+  "CALL speech.projects.locations.phraseSets.list pages",
+  "REQ GET https://speech.googleapis.com/v1/id1/%20x/phraseSets?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"phraseSets\":[{\"annotations\":{\"k1\":\"s-annotations\"},\"boost\":1.5,\"deleteTime\":\"s-deletetime\",\"displayName\":\"s-displayname\",\"etag\":\"s-etag\",\"expireTime\":\"s-expiretime\",\"kmsKeyName\":\"s-kmskeyname\",\"kmsKeyVersionName\":\"s-kmskeyversionname\",\"name\":\"s-name\",\"reconciling\":true,\"state\":\"s-state\",\"uid\":\"s-uid\"}]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"phraseSets\":[{\"annotations\":{\"k1\":\"s-annotations\"},\"boost\":1.5,\"deleteTime\":\"s-deletetime\",\"displayName\":\"s-displayname\",\"etag\":\"s-etag\",\"expireTime\":\"s-expiretime\",\"kmsKeyName\":\"s-kmskeyname\",\"kmsKeyVersionName\":\"s-kmskeyversionname\",\"name\":\"s-name\",\"reconciling\":true,\"state\":\"s-state\",\"uid\":\"s-uid\"}]}",
+  "REQ GET https://speech.googleapis.com/v1/id1/%20x/phraseSets?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"phraseSets\":[{\"annotations\":{\"k1\":\"s-annotations\"},\"boost\":1.5,\"deleteTime\":\"s-deletetime\",\"displayName\":\"s-displayname\",\"etag\":\"s-etag\",\"expireTime\":\"s-expiretime\",\"kmsKeyName\":\"s-kmskeyname\",\"kmsKeyVersionName\":\"s-kmskeyversionname\",\"name\":\"s-name\",\"reconciling\":true,\"state\":\"s-state\",\"uid\":\"s-uid\"}]}",
+  "OUT: {\"phraseSets\":[{\"annotations\":{\"k1\":\"s-annotations\"},\"boost\":1.5,\"deleteTime\":\"s-deletetime\",\"displayName\":\"s-displayname\",\"etag\":\"s-etag\",\"expireTime\":\"s-expiretime\",\"kmsKeyName\":\"s-kmskeyname\",\"kmsKeyVersionName\":\"s-kmskeyversionname\",\"name\":\"s-name\",\"reconciling\":true,\"state\":\"s-state\",\"uid\":\"s-uid\"}]}",
+  "OUT: ok",
+]
+
+test "Go's speech.projects.locations.phraseSets.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"phraseSets\":[{\"annotations\":{\"k1\":\"s-annotations\"},\"boost\":1.5,\"deleteTime\":\"s-deletetime\",\"displayName\":\"s-displayname\",\"etag\":\"s-etag\",\"expireTime\":\"s-expiretime\",\"kmsKeyName\":\"s-kmskeyname\",\"kmsKeyVersionName\":\"s-kmskeyversionname\",\"name\":\"s-name\",\"reconciling\":true,\"state\":\"s-state\",\"uid\":\"s-uid\"}]}")
+  gv_queue(f, "{\"phraseSets\":[{\"annotations\":{\"k1\":\"s-annotations\"},\"boost\":1.5,\"deleteTime\":\"s-deletetime\",\"displayName\":\"s-displayname\",\"etag\":\"s-etag\",\"expireTime\":\"s-expiretime\",\"kmsKeyName\":\"s-kmskeyname\",\"kmsKeyVersionName\":\"s-kmskeyversionname\",\"name\":\"s-name\",\"reconciling\":true,\"state\":\"s-state\",\"uid\":\"s-uid\"}]}")
+  gv_note(f, "CALL speech.projects.locations.phraseSets.list pages")
+  var p = svc.projects.locations.phrase_sets.list_pages("id1/ x", options: ProjectsLocationsPhraseSetsListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_13)
+}
+
+const GO_14: List[Str] = [
   "CALL speech.projects.locations.phraseSets.patch",
   "REQ PATCH https://speech.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
@@ -261,14 +375,14 @@ test "Go's speech.projects.locations.phraseSets.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_11)
+  gv_compare(gv_log_of(f), GO_14)
 }
 
-const GO_12: List[Str] = [
+const GO_15: List[Str] = [
   "CALL speech.speech.longrunningrecognize",
   "REQ POST https://speech.googleapis.com/v1/speech:longrunningrecognize?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"audio\":{\"content\":\"YWI=\",\"uri\":\"s-uri\"},\"config\":{\"adaptation\":{\"phraseSetReferences\":[\"s-phrasesetreferences\"]},\"alternativeLanguageCodes\":[\"s-alternativelanguagecodes\"],\"audioChannelCount\":7,\"diarizationConfig\":{\"enableSpeakerDiarization\":true,\"maxSpeakerCount\":7,\"minSpeakerCount\":7,\"speakerTag\":7},\"enableAutomaticPunctuation\":true,\"enableSeparateRecognitionPerChannel\":true,\"enableSpokenEmojis\":true,\"enableSpokenPunctuation\":true,\"enableWordConfidence\":true,\"enableWordTimeOffsets\":true,\"encoding\":\"s-encoding\",\"languageCode\":\"s-languagecode\",\"maxAlternatives\":7,\"metadata\":{\"audioTopic\":\"s-audiotopic\",\"industryNaicsCodeOfAudio\":7,\"interactionType\":\"s-interactiontype\",\"microphoneDistance\":\"s-microphonedistance\",\"originalMediaType\":\"s-originalmediatype\",\"originalMimeType\":\"s-originalmimetype\",\"recordingDeviceName\":\"s-recordingdevicename\",\"recordingDeviceType\":\"s-recordingdevicetype\"},\"model\":\"s-model\",\"profanityFilter\":true,\"sampleRateHertz\":7,\"speechContexts\":[{\"boost\":1.5}],\"transcriptNormalization\":{},\"useEnhanced\":true},\"outputConfig\":{\"gcsUri\":\"s-gcsuri\"}}",
+  "  B <1078 bytes> {\"audio\":{\"content\":\"YWI=\",\"uri\"...tConfig\":{\"gcsUri\":\"s-gcsuri\"}}",
   "",
   "  SERVED 200 {\"done\":true,\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}",
   "OUT: {\"done\":true,\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}",
@@ -283,14 +397,14 @@ test "Go's speech.speech.longrunningrecognize" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_12)
+  gv_compare(gv_log_of(f), GO_15)
 }
 
-const GO_13: List[Str] = [
+const GO_16: List[Str] = [
   "CALL speech.speech.recognize",
   "REQ POST https://speech.googleapis.com/v1/speech:recognize?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"audio\":{\"content\":\"YWI=\",\"uri\":\"s-uri\"},\"config\":{\"adaptation\":{\"phraseSetReferences\":[\"s-phrasesetreferences\"]},\"alternativeLanguageCodes\":[\"s-alternativelanguagecodes\"],\"audioChannelCount\":7,\"diarizationConfig\":{\"enableSpeakerDiarization\":true,\"maxSpeakerCount\":7,\"minSpeakerCount\":7,\"speakerTag\":7},\"enableAutomaticPunctuation\":true,\"enableSeparateRecognitionPerChannel\":true,\"enableSpokenEmojis\":true,\"enableSpokenPunctuation\":true,\"enableWordConfidence\":true,\"enableWordTimeOffsets\":true,\"encoding\":\"s-encoding\",\"languageCode\":\"s-languagecode\",\"maxAlternatives\":7,\"metadata\":{\"audioTopic\":\"s-audiotopic\",\"industryNaicsCodeOfAudio\":7,\"interactionType\":\"s-interactiontype\",\"microphoneDistance\":\"s-microphonedistance\",\"originalMediaType\":\"s-originalmediatype\",\"originalMimeType\":\"s-originalmimetype\",\"recordingDeviceName\":\"s-recordingdevicename\",\"recordingDeviceType\":\"s-recordingdevicetype\"},\"model\":\"s-model\",\"profanityFilter\":true,\"sampleRateHertz\":7,\"speechContexts\":[{\"boost\":1.5}],\"transcriptNormalization\":{},\"useEnhanced\":true}}",
+  "  B <1041 bytes> {\"audio\":{\"content\":\"YWI=\",\"uri\"...zation\":{},\"useEnhanced\":true}}",
   "",
   "  SERVED 200 {\"requestId\":\"7\",\"results\":[{\"channelTag\":7,\"languageCode\":\"s-languagecode\",\"resultEndTime\":\"s-resultendtime\"}],\"speechAdaptationInfo\":{\"adaptationTimeout\":true,\"timeoutMessage\":\"s-timeoutmessage\"},\"totalBilledTime\":\"s-totalbilledtime\",\"usingLegacyModels\":true}",
   "OUT: {\"requestId\":\"7\",\"results\":[{\"channelTag\":7,\"languageCode\":\"s-languagecode\",\"resultEndTime\":\"s-resultendtime\"}],\"speechAdaptationInfo\":{\"adaptationTimeout\":true,\"timeoutMessage\":\"s-timeoutmessage\"},\"totalBilledTime\":\"s-totalbilledtime\",\"usingLegacyModels\":true}",
@@ -305,5 +419,5 @@ test "Go's speech.speech.recognize" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_13)
+  gv_compare(gv_log_of(f), GO_16)
 }

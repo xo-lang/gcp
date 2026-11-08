@@ -51,3 +51,43 @@ test "Go's analyticsreporting.userActivity.search" {
   }
   gv_compare(gv_log_of(f), GO_1)
 }
+
+const GO_2: List[Str] = [
+  "CALL analyticsreporting.userActivity.search pages",
+  "REQ POST https://analyticsreporting.googleapis.com/v4/userActivity:search?alt=json&fields=kind%2Cid&prettyPrint=false",
+  "  H content-type=application/json | x-extra=v1",
+  "  B {\"activityTypes\":[\"s-activitytypes\"],\"dateRange\":{\"endDate\":\"s-enddate\",\"startDate\":\"s-startdate\"},\"pageSize\":7,\"pageToken\":\"s-pagetoken\",\"user\":{\"type\":\"s-type\",\"userId\":\"s-userid\"},\"viewId\":\"s-viewid\"}",
+  "",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"sampleRate\":1.5,\"sessions\":[{\"dataSource\":\"s-datasource\",\"deviceCategory\":\"s-devicecategory\",\"platform\":\"s-platform\",\"sessionDate\":\"s-sessiondate\",\"sessionId\":\"s-sessionid\"}],\"totalRows\":7}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"sampleRate\":1.5,\"sessions\":[{\"dataSource\":\"s-datasource\",\"deviceCategory\":\"s-devicecategory\",\"platform\":\"s-platform\",\"sessionDate\":\"s-sessiondate\",\"sessionId\":\"s-sessionid\"}],\"totalRows\":7}",
+  "REQ POST https://analyticsreporting.googleapis.com/v4/userActivity:search?alt=json&fields=kind%2Cid&prettyPrint=false",
+  "  H content-type=application/json | x-extra=v1",
+  "  B {\"activityTypes\":[\"s-activitytypes\"],\"dateRange\":{\"endDate\":\"s-enddate\",\"startDate\":\"s-startdate\"},\"pageSize\":7,\"pageToken\":\"s-nextpagetoken\",\"user\":{\"type\":\"s-type\",\"userId\":\"s-userid\"},\"viewId\":\"s-viewid\"}",
+  "",
+  "  SERVED 200 {\"sampleRate\":1.5,\"sessions\":[{\"dataSource\":\"s-datasource\",\"deviceCategory\":\"s-devicecategory\",\"platform\":\"s-platform\",\"sessionDate\":\"s-sessiondate\",\"sessionId\":\"s-sessionid\"}],\"totalRows\":7}",
+  "OUT: {\"sampleRate\":1.5,\"sessions\":[{\"dataSource\":\"s-datasource\",\"deviceCategory\":\"s-devicecategory\",\"platform\":\"s-platform\",\"sessionDate\":\"s-sessiondate\",\"sessionId\":\"s-sessionid\"}],\"totalRows\":7}",
+  "OUT: ok",
+]
+
+test "Go's analyticsreporting.userActivity.search pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"sampleRate\":1.5,\"sessions\":[{\"dataSource\":\"s-datasource\",\"deviceCategory\":\"s-devicecategory\",\"platform\":\"s-platform\",\"sessionDate\":\"s-sessiondate\",\"sessionId\":\"s-sessionid\"}],\"totalRows\":7}")
+  gv_queue(f, "{\"sampleRate\":1.5,\"sessions\":[{\"dataSource\":\"s-datasource\",\"deviceCategory\":\"s-devicecategory\",\"platform\":\"s-platform\",\"sessionDate\":\"s-sessiondate\",\"sessionId\":\"s-sessionid\"}],\"totalRows\":7}")
+  gv_note(f, "CALL analyticsreporting.userActivity.search pages")
+  var p = svc.user_activity.search_pages(json.decode_str[SearchUserActivityRequest]("{\"activityTypes\":[\"s-activitytypes\"],\"dateRange\":{\"endDate\":\"s-enddate\",\"startDate\":\"s-startdate\"},\"pageSize\":7,\"pageToken\":\"s-pagetoken\",\"user\":{\"type\":\"s-type\",\"userId\":\"s-userid\"},\"viewId\":\"s-viewid\"}") ?? e => fault(e.display()), options: UserActivitySearchOptions{fields: ["kind", "id"], headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_2)
+}

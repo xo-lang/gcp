@@ -304,6 +304,44 @@ test "Go's books.layers.annotationData.list" {
 }
 
 const GO_14: List[Str] = [
+  "CALL books.layers.annotationData.list pages",
+  "REQ GET https://books.googleapis.com/books/v1/volumes/id1%2F%20x/layers/id2%2F%20x/data?alt=json&annotationDataId=s-annotationdataid&contentVersion=s-contentversion&fields=kind%2Cid&h=7&locale=s-locale&maxResults=7&pageToken=s-pagetoken&prettyPrint=false&scale=7&source=s-source&updatedMax=s-updatedmax&updatedMin=s-updatedmin&w=7",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"items\":[{\"annotationType\":\"s-annotationtype\",\"data\":{\"kind\":\"s-kind\"},\"encodedData\":\"YWI=\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"layerId\":\"s-layerid\",\"selfLink\":\"s-selflink\",\"updated\":\"s-updated\",\"volumeId\":\"s-volumeid\"}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\",\"totalItems\":7}",
+  "OUT: {\"items\":[{\"annotationType\":\"s-annotationtype\",\"data\":{\"kind\":\"s-kind\"},\"encodedData\":\"YWI=\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"layerId\":\"s-layerid\",\"selfLink\":\"s-selflink\",\"updated\":\"s-updated\",\"volumeId\":\"s-volumeid\"}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\",\"totalItems\":7}",
+  "REQ GET https://books.googleapis.com/books/v1/volumes/id1%2F%20x/layers/id2%2F%20x/data?alt=json&annotationDataId=s-annotationdataid&contentVersion=s-contentversion&fields=kind%2Cid&h=7&locale=s-locale&maxResults=7&pageToken=s-nextpagetoken&prettyPrint=false&scale=7&source=s-source&updatedMax=s-updatedmax&updatedMin=s-updatedmin&w=7",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"items\":[{\"annotationType\":\"s-annotationtype\",\"data\":{\"kind\":\"s-kind\"},\"encodedData\":\"YWI=\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"layerId\":\"s-layerid\",\"selfLink\":\"s-selflink\",\"updated\":\"s-updated\",\"volumeId\":\"s-volumeid\"}],\"kind\":\"s-kind\",\"totalItems\":7}",
+  "OUT: {\"items\":[{\"annotationType\":\"s-annotationtype\",\"data\":{\"kind\":\"s-kind\"},\"encodedData\":\"YWI=\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"layerId\":\"s-layerid\",\"selfLink\":\"s-selflink\",\"updated\":\"s-updated\",\"volumeId\":\"s-volumeid\"}],\"kind\":\"s-kind\",\"totalItems\":7}",
+  "OUT: ok",
+]
+
+test "Go's books.layers.annotationData.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"items\":[{\"annotationType\":\"s-annotationtype\",\"data\":{\"kind\":\"s-kind\"},\"encodedData\":\"YWI=\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"layerId\":\"s-layerid\",\"selfLink\":\"s-selflink\",\"updated\":\"s-updated\",\"volumeId\":\"s-volumeid\"}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\",\"totalItems\":7}")
+  gv_queue(f, "{\"items\":[{\"annotationType\":\"s-annotationtype\",\"data\":{\"kind\":\"s-kind\"},\"encodedData\":\"YWI=\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"layerId\":\"s-layerid\",\"selfLink\":\"s-selflink\",\"updated\":\"s-updated\",\"volumeId\":\"s-volumeid\"}],\"kind\":\"s-kind\",\"totalItems\":7}")
+  gv_note(f, "CALL books.layers.annotationData.list pages")
+  var p = svc.layers.annotation_data.list_pages("id1/ x", "id2/ x", "s-contentversion", options: LayersAnnotationDataListOptions{annotation_data_id: ["s-annotationdataid"], h: Some(7), locale: Some("s-locale"), max_results: Some(7), page_token: Some("s-pagetoken"), scale: Some(7), source: Some("s-source"), updated_max: Some("s-updatedmax"), updated_min: Some("s-updatedmin"), w: Some(7), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_14)
+}
+
+const GO_15: List[Str] = [
   "CALL books.layers.volumeAnnotations.get",
   "REQ GET https://books.googleapis.com/books/v1/volumes/id1%2F%20x/layers/id2%2F%20x/annotations/id3%2F%20x?alt=json&fields=kind%2Cid&locale=s-locale&prettyPrint=false&source=s-source",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -321,10 +359,10 @@ test "Go's books.layers.volumeAnnotations.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_14)
+  gv_compare(gv_log_of(f), GO_15)
 }
 
-const GO_15: List[Str] = [
+const GO_16: List[Str] = [
   "CALL books.layers.volumeAnnotations.list",
   "REQ GET https://books.googleapis.com/books/v1/volumes/id1%2F%20x/layers/id2%2F%20x?alt=json&contentVersion=s-contentversion&endOffset=s-endoffset&endPosition=s-endposition&fields=kind%2Cid&locale=s-locale&maxResults=7&pageToken=s-pagetoken&prettyPrint=false&showDeleted=true&source=s-source&startOffset=s-startoffset&startPosition=s-startposition&updatedMax=s-updatedmax&updatedMin=s-updatedmin&volumeAnnotationsVersion=s-volumeannotationsversion",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -342,10 +380,48 @@ test "Go's books.layers.volumeAnnotations.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_15)
+  gv_compare(gv_log_of(f), GO_16)
 }
 
-const GO_16: List[Str] = [
+const GO_17: List[Str] = [
+  "CALL books.layers.volumeAnnotations.list pages",
+  "REQ GET https://books.googleapis.com/books/v1/volumes/id1%2F%20x/layers/id2%2F%20x?alt=json&contentVersion=s-contentversion&endOffset=s-endoffset&endPosition=s-endposition&fields=kind%2Cid&locale=s-locale&maxResults=7&pageToken=s-pagetoken&prettyPrint=false&showDeleted=true&source=s-source&startOffset=s-startoffset&startPosition=s-startposition&updatedMax=s-updatedmax&updatedMin=s-updatedmin&volumeAnnotationsVersion=s-volumeannotationsversion",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"items\":[{\"annotationDataId\":\"s-annotationdataid\",\"annotationDataLink\":\"s-annotationdatalink\",\"annotationType\":\"s-annotationtype\",\"contentRanges\":{\"contentVersion\":\"s-contentversion\"},\"data\":\"s-data\",\"deleted\":true,\"id\":\"s-id\",\"kind\":\"s-kind\",\"layerId\":\"s-layerid\",\"pageIds\":[\"s-pageids\"],\"selectedText\":\"s-selectedtext\",\"selfLink\":\"s-selflink\",\"updated\":\"s-updated\",\"volumeId\":\"s-volumeid\"}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\",\"totalItems\":7,\"version\":\"s-version\"}",
+  "OUT: {\"items\":[{\"annotationDataId\":\"s-annotationdataid\",\"annotationDataLink\":\"s-annotationdatalink\",\"annotationType\":\"s-annotationtype\",\"contentRanges\":{\"contentVersion\":\"s-contentversion\"},\"data\":\"s-data\",\"deleted\":true,\"id\":\"s-id\",\"kind\":\"s-kind\",\"layerId\":\"s-layerid\",\"pageIds\":[\"s-pageids\"],\"selectedText\":\"s-selectedtext\",\"selfLink\":\"s-selflink\",\"updated\":\"s-updated\",\"volumeId\":\"s-volumeid\"}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\",\"totalItems\":7,\"version\":\"s-version\"}",
+  "REQ GET https://books.googleapis.com/books/v1/volumes/id1%2F%20x/layers/id2%2F%20x?alt=json&contentVersion=s-contentversion&endOffset=s-endoffset&endPosition=s-endposition&fields=kind%2Cid&locale=s-locale&maxResults=7&pageToken=s-nextpagetoken&prettyPrint=false&showDeleted=true&source=s-source&startOffset=s-startoffset&startPosition=s-startposition&updatedMax=s-updatedmax&updatedMin=s-updatedmin&volumeAnnotationsVersion=s-volumeannotationsversion",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"items\":[{\"annotationDataId\":\"s-annotationdataid\",\"annotationDataLink\":\"s-annotationdatalink\",\"annotationType\":\"s-annotationtype\",\"contentRanges\":{\"contentVersion\":\"s-contentversion\"},\"data\":\"s-data\",\"deleted\":true,\"id\":\"s-id\",\"kind\":\"s-kind\",\"layerId\":\"s-layerid\",\"pageIds\":[\"s-pageids\"],\"selectedText\":\"s-selectedtext\",\"selfLink\":\"s-selflink\",\"updated\":\"s-updated\",\"volumeId\":\"s-volumeid\"}],\"kind\":\"s-kind\",\"totalItems\":7,\"version\":\"s-version\"}",
+  "OUT: {\"items\":[{\"annotationDataId\":\"s-annotationdataid\",\"annotationDataLink\":\"s-annotationdatalink\",\"annotationType\":\"s-annotationtype\",\"contentRanges\":{\"contentVersion\":\"s-contentversion\"},\"data\":\"s-data\",\"deleted\":true,\"id\":\"s-id\",\"kind\":\"s-kind\",\"layerId\":\"s-layerid\",\"pageIds\":[\"s-pageids\"],\"selectedText\":\"s-selectedtext\",\"selfLink\":\"s-selflink\",\"updated\":\"s-updated\",\"volumeId\":\"s-volumeid\"}],\"kind\":\"s-kind\",\"totalItems\":7,\"version\":\"s-version\"}",
+  "OUT: ok",
+]
+
+test "Go's books.layers.volumeAnnotations.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"items\":[{\"annotationDataId\":\"s-annotationdataid\",\"annotationDataLink\":\"s-annotationdatalink\",\"annotationType\":\"s-annotationtype\",\"contentRanges\":{\"contentVersion\":\"s-contentversion\"},\"data\":\"s-data\",\"deleted\":true,\"id\":\"s-id\",\"kind\":\"s-kind\",\"layerId\":\"s-layerid\",\"pageIds\":[\"s-pageids\"],\"selectedText\":\"s-selectedtext\",\"selfLink\":\"s-selflink\",\"updated\":\"s-updated\",\"volumeId\":\"s-volumeid\"}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\",\"totalItems\":7,\"version\":\"s-version\"}")
+  gv_queue(f, "{\"items\":[{\"annotationDataId\":\"s-annotationdataid\",\"annotationDataLink\":\"s-annotationdatalink\",\"annotationType\":\"s-annotationtype\",\"contentRanges\":{\"contentVersion\":\"s-contentversion\"},\"data\":\"s-data\",\"deleted\":true,\"id\":\"s-id\",\"kind\":\"s-kind\",\"layerId\":\"s-layerid\",\"pageIds\":[\"s-pageids\"],\"selectedText\":\"s-selectedtext\",\"selfLink\":\"s-selflink\",\"updated\":\"s-updated\",\"volumeId\":\"s-volumeid\"}],\"kind\":\"s-kind\",\"totalItems\":7,\"version\":\"s-version\"}")
+  gv_note(f, "CALL books.layers.volumeAnnotations.list pages")
+  var p = svc.layers.volume_annotations.list_pages("id1/ x", "id2/ x", "s-contentversion", options: LayersVolumeAnnotationsListOptions{end_offset: Some("s-endoffset"), end_position: Some("s-endposition"), locale: Some("s-locale"), max_results: Some(7), page_token: Some("s-pagetoken"), show_deleted: Some(true), source: Some("s-source"), start_offset: Some("s-startoffset"), start_position: Some("s-startposition"), updated_max: Some("s-updatedmax"), updated_min: Some("s-updatedmin"), volume_annotations_version: Some("s-volumeannotationsversion"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_17)
+}
+
+const GO_18: List[Str] = [
   "CALL books.myconfig.getUserSettings",
   "REQ GET https://books.googleapis.com/books/v1/myconfig/getUserSettings?alt=json&country=s-country&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -363,10 +439,10 @@ test "Go's books.myconfig.getUserSettings" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_16)
+  gv_compare(gv_log_of(f), GO_18)
 }
 
-const GO_17: List[Str] = [
+const GO_19: List[Str] = [
   "CALL books.myconfig.releaseDownloadAccess",
   "REQ POST https://books.googleapis.com/books/v1/myconfig/releaseDownloadAccess?alt=json&cpksver=s-cpksver&fields=kind%2Cid&locale=s-locale&prettyPrint=false&source=s-source&volumeIds=s-volumeids",
   "  H x-extra=v1",
@@ -384,10 +460,10 @@ test "Go's books.myconfig.releaseDownloadAccess" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_17)
+  gv_compare(gv_log_of(f), GO_19)
 }
 
-const GO_18: List[Str] = [
+const GO_20: List[Str] = [
   "CALL books.myconfig.requestAccess",
   "REQ POST https://books.googleapis.com/books/v1/myconfig/requestAccess?alt=json&cpksver=s-cpksver&fields=kind%2Cid&licenseTypes=s-licensetypes&locale=s-locale&nonce=s-nonce&prettyPrint=false&source=s-source&volumeId=s-volumeid",
   "  H x-extra=v1",
@@ -405,10 +481,10 @@ test "Go's books.myconfig.requestAccess" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_18)
+  gv_compare(gv_log_of(f), GO_20)
 }
 
-const GO_19: List[Str] = [
+const GO_21: List[Str] = [
   "CALL books.myconfig.syncVolumeLicenses",
   "REQ POST https://books.googleapis.com/books/v1/myconfig/syncVolumeLicenses?alt=json&cpksver=s-cpksver&features=s-features&fields=kind%2Cid&includeNonComicsSeries=true&locale=s-locale&nonce=s-nonce&prettyPrint=false&showPreorders=true&source=s-source&volumeIds=s-volumeids",
   "  H x-extra=v1",
@@ -426,10 +502,10 @@ test "Go's books.myconfig.syncVolumeLicenses" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_19)
+  gv_compare(gv_log_of(f), GO_21)
 }
 
-const GO_20: List[Str] = [
+const GO_22: List[Str] = [
   "CALL books.myconfig.updateUserSettings",
   "REQ POST https://books.googleapis.com/books/v1/myconfig/updateUserSettings?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -448,10 +524,10 @@ test "Go's books.myconfig.updateUserSettings" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_20)
+  gv_compare(gv_log_of(f), GO_22)
 }
 
-const GO_21: List[Str] = [
+const GO_23: List[Str] = [
   "CALL books.mylibrary.annotations.delete",
   "REQ DELETE https://books.googleapis.com/books/v1/mylibrary/annotations/id1%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false&source=s-source",
   "  H x-extra=v1",
@@ -469,14 +545,14 @@ test "Go's books.mylibrary.annotations.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_21)
+  gv_compare(gv_log_of(f), GO_23)
 }
 
-const GO_22: List[Str] = [
+const GO_24: List[Str] = [
   "CALL books.mylibrary.annotations.insert",
   "REQ POST https://books.googleapis.com/books/v1/mylibrary/annotations?alt=json&annotationId=s-annotationid&country=s-country&fields=kind%2Cid&prettyPrint=false&showOnlySummaryInResponse=true&source=s-source",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"afterSelectedText\":\"s-afterselectedtext\",\"beforeSelectedText\":\"s-beforeselectedtext\",\"clientVersionRanges\":{\"cfiRange\":{\"endOffset\":\"s-endoffset\",\"endPosition\":\"s-endposition\",\"startOffset\":\"s-startoffset\",\"startPosition\":\"s-startposition\"},\"contentVersion\":\"s-contentversion\",\"gbImageRange\":{\"endOffset\":\"s-endoffset\",\"endPosition\":\"s-endposition\",\"startOffset\":\"s-startoffset\",\"startPosition\":\"s-startposition\"},\"gbTextRange\":{\"endOffset\":\"s-endoffset\",\"endPosition\":\"s-endposition\",\"startOffset\":\"s-startoffset\",\"startPosition\":\"s-startposition\"},\"imageCfiRange\":{\"endOffset\":\"s-endoffset\",\"endPosition\":\"s-endposition\",\"startOffset\":\"s-startoffset\",\"startPosition\":\"s-startposition\"}},\"created\":\"s-created\",\"currentVersionRanges\":{\"cfiRange\":{\"endOffset\":\"s-endoffset\",\"endPosition\":\"s-endposition\",\"startOffset\":\"s-startoffset\",\"startPosition\":\"s-startposition\"},\"contentVersion\":\"s-contentversion\",\"gbImageRange\":{\"endOffset\":\"s-endoffset\",\"endPosition\":\"s-endposition\",\"startOffset\":\"s-startoffset\",\"startPosition\":\"s-startposition\"},\"gbTextRange\":{\"endOffset\":\"s-endoffset\",\"endPosition\":\"s-endposition\",\"startOffset\":\"s-startoffset\",\"startPosition\":\"s-startposition\"},\"imageCfiRange\":{\"endOffset\":\"s-endoffset\",\"endPosition\":\"s-endposition\",\"startOffset\":\"s-startoffset\",\"startPosition\":\"s-startposition\"}},\"data\":\"s-data\",\"deleted\":true,\"highlightStyle\":\"s-highlightstyle\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"layerId\":\"s-layerid\",\"layerSummary\":{\"allowedCharacterCount\":7,\"limitType\":\"s-limittype\",\"remainingCharacterCount\":7},\"pageIds\":[\"s-pageids\"],\"selectedText\":\"s-selectedtext\",\"selfLink\":\"s-selflink\",\"updated\":\"s-updated\",\"volumeId\":\"s-volumeid\"}",
+  "  B <1659 bytes> {\"afterSelectedText\":\"s-aftersel...dated\",\"volumeId\":\"s-volumeid\"}",
   "",
   "  SERVED 200 {\"afterSelectedText\":\"s-afterselectedtext\",\"beforeSelectedText\":\"s-beforeselectedtext\",\"clientVersionRanges\":{\"cfiRange\":{\"endOffset\":\"s-endoffset\",\"endPosition\":\"s-endposition\",\"startOffset\":\"s-startoffset\",\"startPosition\":\"s-startposition\"},\"contentVersion\":\"s-contentversion\",\"gbImageRange\":{\"endOffset\":\"s-endoffset\",\"endPosition\":\"s-endposition\",\"startOffset\":\"s-startoffset\",\"startPosition\":\"s-startposition\"},\"gbTextRange\":{\"endOffset\":\"s-endoffset\",\"endPosition\":\"s-endposition\",\"startOffset\":\"s-startoffset\",\"startPosition\":\"s-startposition\"},\"imageCfiRange\":{\"endOffset\":\"s-endoffset\",\"endPosition\":\"s-endposition\",\"startOffset\":\"s-startoffset\",\"startPosition\":\"s-startposition\"}},\"created\":\"s-created\",\"currentVersionRanges\":{\"cfiRange\":{\"endOffset\":\"s-endoffset\",\"endPosition\":\"s-endposition\",\"startOffset\":\"s-startoffset\",\"startPosition\":\"s-startposition\"},\"contentVersion\":\"s-contentversion\",\"gbImageRange\":{\"endOffset\":\"s-endoffset\",\"endPosition\":\"s-endposition\",\"startOffset\":\"s-startoffset\",\"startPosition\":\"s-startposition\"},\"gbTextRange\":{\"endOffset\":\"s-endoffset\",\"endPosition\":\"s-endposition\",\"startOffset\":\"s-startoffset\",\"startPosition\":\"s-startposition\"},\"imageCfiRange\":{\"endOffset\":\"s-endoffset\",\"endPosition\":\"s-endposition\",\"startOffset\":\"s-startoffset\",\"startPosition\":\"s-startposition\"}},\"data\":\"s-data\",\"deleted\":true,\"highlightStyle\":\"s-highlightstyle\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"layerId\":\"s-layerid\",\"layerSummary\":{\"allowedCharacterCount\":7,\"limitType\":\"s-limittype\",\"remainingCharacterCount\":7},\"pageIds\":[\"s-pageids\"],\"selectedText\":\"s-selectedtext\",\"selfLink\":\"s-selflink\",\"updated\":\"s-updated\",\"volumeId\":\"s-volumeid\"}",
   "OUT: {\"afterSelectedText\":\"s-afterselectedtext\",\"beforeSelectedText\":\"s-beforeselectedtext\",\"clientVersionRanges\":{\"cfiRange\":{\"endOffset\":\"s-endoffset\",\"endPosition\":\"s-endposition\",\"startOffset\":\"s-startoffset\",\"startPosition\":\"s-startposition\"},\"contentVersion\":\"s-contentversion\",\"gbImageRange\":{\"endOffset\":\"s-endoffset\",\"endPosition\":\"s-endposition\",\"startOffset\":\"s-startoffset\",\"startPosition\":\"s-startposition\"},\"gbTextRange\":{\"endOffset\":\"s-endoffset\",\"endPosition\":\"s-endposition\",\"startOffset\":\"s-startoffset\",\"startPosition\":\"s-startposition\"},\"imageCfiRange\":{\"endOffset\":\"s-endoffset\",\"endPosition\":\"s-endposition\",\"startOffset\":\"s-startoffset\",\"startPosition\":\"s-startposition\"}},\"created\":\"s-created\",\"currentVersionRanges\":{\"cfiRange\":{\"endOffset\":\"s-endoffset\",\"endPosition\":\"s-endposition\",\"startOffset\":\"s-startoffset\",\"startPosition\":\"s-startposition\"},\"contentVersion\":\"s-contentversion\",\"gbImageRange\":{\"endOffset\":\"s-endoffset\",\"endPosition\":\"s-endposition\",\"startOffset\":\"s-startoffset\",\"startPosition\":\"s-startposition\"},\"gbTextRange\":{\"endOffset\":\"s-endoffset\",\"endPosition\":\"s-endposition\",\"startOffset\":\"s-startoffset\",\"startPosition\":\"s-startposition\"},\"imageCfiRange\":{\"endOffset\":\"s-endoffset\",\"endPosition\":\"s-endposition\",\"startOffset\":\"s-startoffset\",\"startPosition\":\"s-startposition\"}},\"data\":\"s-data\",\"deleted\":true,\"highlightStyle\":\"s-highlightstyle\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"layerId\":\"s-layerid\",\"layerSummary\":{\"allowedCharacterCount\":7,\"limitType\":\"s-limittype\",\"remainingCharacterCount\":7},\"pageIds\":[\"s-pageids\"],\"selectedText\":\"s-selectedtext\",\"selfLink\":\"s-selflink\",\"updated\":\"s-updated\",\"volumeId\":\"s-volumeid\"}",
@@ -491,10 +567,10 @@ test "Go's books.mylibrary.annotations.insert" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_22)
+  gv_compare(gv_log_of(f), GO_24)
 }
 
-const GO_23: List[Str] = [
+const GO_25: List[Str] = [
   "CALL books.mylibrary.annotations.list",
   "REQ GET https://books.googleapis.com/books/v1/mylibrary/annotations?alt=json&contentVersion=s-contentversion&fields=kind%2Cid&layerId=s-layerid&layerIds=s-layerids&maxResults=7&pageToken=s-pagetoken&prettyPrint=false&showDeleted=true&source=s-source&updatedMax=s-updatedmax&updatedMin=s-updatedmin&volumeId=s-volumeid",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -512,10 +588,48 @@ test "Go's books.mylibrary.annotations.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_23)
+  gv_compare(gv_log_of(f), GO_25)
 }
 
-const GO_24: List[Str] = [
+const GO_26: List[Str] = [
+  "CALL books.mylibrary.annotations.list pages",
+  "REQ GET https://books.googleapis.com/books/v1/mylibrary/annotations?alt=json&contentVersion=s-contentversion&fields=kind%2Cid&layerId=s-layerid&layerIds=s-layerids&maxResults=7&pageToken=s-pagetoken&prettyPrint=false&showDeleted=true&source=s-source&updatedMax=s-updatedmax&updatedMin=s-updatedmin&volumeId=s-volumeid",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"items\":[{\"afterSelectedText\":\"s-afterselectedtext\",\"beforeSelectedText\":\"s-beforeselectedtext\",\"clientVersionRanges\":{\"contentVersion\":\"s-contentversion\"},\"created\":\"s-created\",\"currentVersionRanges\":{\"contentVersion\":\"s-contentversion\"},\"data\":\"s-data\",\"deleted\":true,\"highlightStyle\":\"s-highlightstyle\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"layerId\":\"s-layerid\",\"layerSummary\":{\"allowedCharacterCount\":7,\"limitType\":\"s-limittype\",\"remainingCharacterCount\":7},\"pageIds\":[\"s-pageids\"],\"selectedText\":\"s-selectedtext\",\"selfLink\":\"s-selflink\",\"updated\":\"s-updated\",\"volumeId\":\"s-volumeid\"}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\",\"totalItems\":7}",
+  "OUT: {\"items\":[{\"afterSelectedText\":\"s-afterselectedtext\",\"beforeSelectedText\":\"s-beforeselectedtext\",\"clientVersionRanges\":{\"contentVersion\":\"s-contentversion\"},\"created\":\"s-created\",\"currentVersionRanges\":{\"contentVersion\":\"s-contentversion\"},\"data\":\"s-data\",\"deleted\":true,\"highlightStyle\":\"s-highlightstyle\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"layerId\":\"s-layerid\",\"layerSummary\":{\"allowedCharacterCount\":7,\"limitType\":\"s-limittype\",\"remainingCharacterCount\":7},\"pageIds\":[\"s-pageids\"],\"selectedText\":\"s-selectedtext\",\"selfLink\":\"s-selflink\",\"updated\":\"s-updated\",\"volumeId\":\"s-volumeid\"}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\",\"totalItems\":7}",
+  "REQ GET https://books.googleapis.com/books/v1/mylibrary/annotations?alt=json&contentVersion=s-contentversion&fields=kind%2Cid&layerId=s-layerid&layerIds=s-layerids&maxResults=7&pageToken=s-nextpagetoken&prettyPrint=false&showDeleted=true&source=s-source&updatedMax=s-updatedmax&updatedMin=s-updatedmin&volumeId=s-volumeid",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"items\":[{\"afterSelectedText\":\"s-afterselectedtext\",\"beforeSelectedText\":\"s-beforeselectedtext\",\"clientVersionRanges\":{\"contentVersion\":\"s-contentversion\"},\"created\":\"s-created\",\"currentVersionRanges\":{\"contentVersion\":\"s-contentversion\"},\"data\":\"s-data\",\"deleted\":true,\"highlightStyle\":\"s-highlightstyle\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"layerId\":\"s-layerid\",\"layerSummary\":{\"allowedCharacterCount\":7,\"limitType\":\"s-limittype\",\"remainingCharacterCount\":7},\"pageIds\":[\"s-pageids\"],\"selectedText\":\"s-selectedtext\",\"selfLink\":\"s-selflink\",\"updated\":\"s-updated\",\"volumeId\":\"s-volumeid\"}],\"kind\":\"s-kind\",\"totalItems\":7}",
+  "OUT: {\"items\":[{\"afterSelectedText\":\"s-afterselectedtext\",\"beforeSelectedText\":\"s-beforeselectedtext\",\"clientVersionRanges\":{\"contentVersion\":\"s-contentversion\"},\"created\":\"s-created\",\"currentVersionRanges\":{\"contentVersion\":\"s-contentversion\"},\"data\":\"s-data\",\"deleted\":true,\"highlightStyle\":\"s-highlightstyle\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"layerId\":\"s-layerid\",\"layerSummary\":{\"allowedCharacterCount\":7,\"limitType\":\"s-limittype\",\"remainingCharacterCount\":7},\"pageIds\":[\"s-pageids\"],\"selectedText\":\"s-selectedtext\",\"selfLink\":\"s-selflink\",\"updated\":\"s-updated\",\"volumeId\":\"s-volumeid\"}],\"kind\":\"s-kind\",\"totalItems\":7}",
+  "OUT: ok",
+]
+
+test "Go's books.mylibrary.annotations.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"items\":[{\"afterSelectedText\":\"s-afterselectedtext\",\"beforeSelectedText\":\"s-beforeselectedtext\",\"clientVersionRanges\":{\"contentVersion\":\"s-contentversion\"},\"created\":\"s-created\",\"currentVersionRanges\":{\"contentVersion\":\"s-contentversion\"},\"data\":\"s-data\",\"deleted\":true,\"highlightStyle\":\"s-highlightstyle\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"layerId\":\"s-layerid\",\"layerSummary\":{\"allowedCharacterCount\":7,\"limitType\":\"s-limittype\",\"remainingCharacterCount\":7},\"pageIds\":[\"s-pageids\"],\"selectedText\":\"s-selectedtext\",\"selfLink\":\"s-selflink\",\"updated\":\"s-updated\",\"volumeId\":\"s-volumeid\"}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\",\"totalItems\":7}")
+  gv_queue(f, "{\"items\":[{\"afterSelectedText\":\"s-afterselectedtext\",\"beforeSelectedText\":\"s-beforeselectedtext\",\"clientVersionRanges\":{\"contentVersion\":\"s-contentversion\"},\"created\":\"s-created\",\"currentVersionRanges\":{\"contentVersion\":\"s-contentversion\"},\"data\":\"s-data\",\"deleted\":true,\"highlightStyle\":\"s-highlightstyle\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"layerId\":\"s-layerid\",\"layerSummary\":{\"allowedCharacterCount\":7,\"limitType\":\"s-limittype\",\"remainingCharacterCount\":7},\"pageIds\":[\"s-pageids\"],\"selectedText\":\"s-selectedtext\",\"selfLink\":\"s-selflink\",\"updated\":\"s-updated\",\"volumeId\":\"s-volumeid\"}],\"kind\":\"s-kind\",\"totalItems\":7}")
+  gv_note(f, "CALL books.mylibrary.annotations.list pages")
+  var p = svc.mylibrary.annotations.list_pages(options: MylibraryAnnotationsListOptions{content_version: Some("s-contentversion"), layer_id: Some("s-layerid"), layer_ids: ["s-layerids"], max_results: Some(7), page_token: Some("s-pagetoken"), show_deleted: Some(true), source: Some("s-source"), updated_max: Some("s-updatedmax"), updated_min: Some("s-updatedmin"), volume_id: Some("s-volumeid"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_26)
+}
+
+const GO_27: List[Str] = [
   "CALL books.mylibrary.annotations.summary",
   "REQ POST https://books.googleapis.com/books/v1/mylibrary/annotations/summary?alt=json&fields=kind%2Cid&layerIds=s-layerids&prettyPrint=false&source=s-source&volumeId=s-volumeid",
   "  H x-extra=v1",
@@ -533,14 +647,14 @@ test "Go's books.mylibrary.annotations.summary" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_24)
+  gv_compare(gv_log_of(f), GO_27)
 }
 
-const GO_25: List[Str] = [
+const GO_28: List[Str] = [
   "CALL books.mylibrary.annotations.update",
   "REQ PUT https://books.googleapis.com/books/v1/mylibrary/annotations/id1%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false&source=s-source",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"afterSelectedText\":\"s-afterselectedtext\",\"beforeSelectedText\":\"s-beforeselectedtext\",\"clientVersionRanges\":{\"cfiRange\":{\"endOffset\":\"s-endoffset\",\"endPosition\":\"s-endposition\",\"startOffset\":\"s-startoffset\",\"startPosition\":\"s-startposition\"},\"contentVersion\":\"s-contentversion\",\"gbImageRange\":{\"endOffset\":\"s-endoffset\",\"endPosition\":\"s-endposition\",\"startOffset\":\"s-startoffset\",\"startPosition\":\"s-startposition\"},\"gbTextRange\":{\"endOffset\":\"s-endoffset\",\"endPosition\":\"s-endposition\",\"startOffset\":\"s-startoffset\",\"startPosition\":\"s-startposition\"},\"imageCfiRange\":{\"endOffset\":\"s-endoffset\",\"endPosition\":\"s-endposition\",\"startOffset\":\"s-startoffset\",\"startPosition\":\"s-startposition\"}},\"created\":\"s-created\",\"currentVersionRanges\":{\"cfiRange\":{\"endOffset\":\"s-endoffset\",\"endPosition\":\"s-endposition\",\"startOffset\":\"s-startoffset\",\"startPosition\":\"s-startposition\"},\"contentVersion\":\"s-contentversion\",\"gbImageRange\":{\"endOffset\":\"s-endoffset\",\"endPosition\":\"s-endposition\",\"startOffset\":\"s-startoffset\",\"startPosition\":\"s-startposition\"},\"gbTextRange\":{\"endOffset\":\"s-endoffset\",\"endPosition\":\"s-endposition\",\"startOffset\":\"s-startoffset\",\"startPosition\":\"s-startposition\"},\"imageCfiRange\":{\"endOffset\":\"s-endoffset\",\"endPosition\":\"s-endposition\",\"startOffset\":\"s-startoffset\",\"startPosition\":\"s-startposition\"}},\"data\":\"s-data\",\"deleted\":true,\"highlightStyle\":\"s-highlightstyle\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"layerId\":\"s-layerid\",\"layerSummary\":{\"allowedCharacterCount\":7,\"limitType\":\"s-limittype\",\"remainingCharacterCount\":7},\"pageIds\":[\"s-pageids\"],\"selectedText\":\"s-selectedtext\",\"selfLink\":\"s-selflink\",\"updated\":\"s-updated\",\"volumeId\":\"s-volumeid\"}",
+  "  B <1659 bytes> {\"afterSelectedText\":\"s-aftersel...dated\",\"volumeId\":\"s-volumeid\"}",
   "",
   "  SERVED 200 {\"afterSelectedText\":\"s-afterselectedtext\",\"beforeSelectedText\":\"s-beforeselectedtext\",\"clientVersionRanges\":{\"cfiRange\":{\"endOffset\":\"s-endoffset\",\"endPosition\":\"s-endposition\",\"startOffset\":\"s-startoffset\",\"startPosition\":\"s-startposition\"},\"contentVersion\":\"s-contentversion\",\"gbImageRange\":{\"endOffset\":\"s-endoffset\",\"endPosition\":\"s-endposition\",\"startOffset\":\"s-startoffset\",\"startPosition\":\"s-startposition\"},\"gbTextRange\":{\"endOffset\":\"s-endoffset\",\"endPosition\":\"s-endposition\",\"startOffset\":\"s-startoffset\",\"startPosition\":\"s-startposition\"},\"imageCfiRange\":{\"endOffset\":\"s-endoffset\",\"endPosition\":\"s-endposition\",\"startOffset\":\"s-startoffset\",\"startPosition\":\"s-startposition\"}},\"created\":\"s-created\",\"currentVersionRanges\":{\"cfiRange\":{\"endOffset\":\"s-endoffset\",\"endPosition\":\"s-endposition\",\"startOffset\":\"s-startoffset\",\"startPosition\":\"s-startposition\"},\"contentVersion\":\"s-contentversion\",\"gbImageRange\":{\"endOffset\":\"s-endoffset\",\"endPosition\":\"s-endposition\",\"startOffset\":\"s-startoffset\",\"startPosition\":\"s-startposition\"},\"gbTextRange\":{\"endOffset\":\"s-endoffset\",\"endPosition\":\"s-endposition\",\"startOffset\":\"s-startoffset\",\"startPosition\":\"s-startposition\"},\"imageCfiRange\":{\"endOffset\":\"s-endoffset\",\"endPosition\":\"s-endposition\",\"startOffset\":\"s-startoffset\",\"startPosition\":\"s-startposition\"}},\"data\":\"s-data\",\"deleted\":true,\"highlightStyle\":\"s-highlightstyle\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"layerId\":\"s-layerid\",\"layerSummary\":{\"allowedCharacterCount\":7,\"limitType\":\"s-limittype\",\"remainingCharacterCount\":7},\"pageIds\":[\"s-pageids\"],\"selectedText\":\"s-selectedtext\",\"selfLink\":\"s-selflink\",\"updated\":\"s-updated\",\"volumeId\":\"s-volumeid\"}",
   "OUT: {\"afterSelectedText\":\"s-afterselectedtext\",\"beforeSelectedText\":\"s-beforeselectedtext\",\"clientVersionRanges\":{\"cfiRange\":{\"endOffset\":\"s-endoffset\",\"endPosition\":\"s-endposition\",\"startOffset\":\"s-startoffset\",\"startPosition\":\"s-startposition\"},\"contentVersion\":\"s-contentversion\",\"gbImageRange\":{\"endOffset\":\"s-endoffset\",\"endPosition\":\"s-endposition\",\"startOffset\":\"s-startoffset\",\"startPosition\":\"s-startposition\"},\"gbTextRange\":{\"endOffset\":\"s-endoffset\",\"endPosition\":\"s-endposition\",\"startOffset\":\"s-startoffset\",\"startPosition\":\"s-startposition\"},\"imageCfiRange\":{\"endOffset\":\"s-endoffset\",\"endPosition\":\"s-endposition\",\"startOffset\":\"s-startoffset\",\"startPosition\":\"s-startposition\"}},\"created\":\"s-created\",\"currentVersionRanges\":{\"cfiRange\":{\"endOffset\":\"s-endoffset\",\"endPosition\":\"s-endposition\",\"startOffset\":\"s-startoffset\",\"startPosition\":\"s-startposition\"},\"contentVersion\":\"s-contentversion\",\"gbImageRange\":{\"endOffset\":\"s-endoffset\",\"endPosition\":\"s-endposition\",\"startOffset\":\"s-startoffset\",\"startPosition\":\"s-startposition\"},\"gbTextRange\":{\"endOffset\":\"s-endoffset\",\"endPosition\":\"s-endposition\",\"startOffset\":\"s-startoffset\",\"startPosition\":\"s-startposition\"},\"imageCfiRange\":{\"endOffset\":\"s-endoffset\",\"endPosition\":\"s-endposition\",\"startOffset\":\"s-startoffset\",\"startPosition\":\"s-startposition\"}},\"data\":\"s-data\",\"deleted\":true,\"highlightStyle\":\"s-highlightstyle\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"layerId\":\"s-layerid\",\"layerSummary\":{\"allowedCharacterCount\":7,\"limitType\":\"s-limittype\",\"remainingCharacterCount\":7},\"pageIds\":[\"s-pageids\"],\"selectedText\":\"s-selectedtext\",\"selfLink\":\"s-selflink\",\"updated\":\"s-updated\",\"volumeId\":\"s-volumeid\"}",
@@ -555,10 +669,10 @@ test "Go's books.mylibrary.annotations.update" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_25)
+  gv_compare(gv_log_of(f), GO_28)
 }
 
-const GO_26: List[Str] = [
+const GO_29: List[Str] = [
   "CALL books.mylibrary.bookshelves.addVolume",
   "REQ POST https://books.googleapis.com/books/v1/mylibrary/bookshelves/id1%2F%20x/addVolume?alt=json&fields=kind%2Cid&prettyPrint=false&reason=s-reason&source=s-source&volumeId=s-volumeid",
   "  H x-extra=v1",
@@ -576,10 +690,10 @@ test "Go's books.mylibrary.bookshelves.addVolume" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_26)
+  gv_compare(gv_log_of(f), GO_29)
 }
 
-const GO_27: List[Str] = [
+const GO_30: List[Str] = [
   "CALL books.mylibrary.bookshelves.clearVolumes",
   "REQ POST https://books.googleapis.com/books/v1/mylibrary/bookshelves/id1%2F%20x/clearVolumes?alt=json&fields=kind%2Cid&prettyPrint=false&source=s-source",
   "  H x-extra=v1",
@@ -597,10 +711,10 @@ test "Go's books.mylibrary.bookshelves.clearVolumes" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_27)
+  gv_compare(gv_log_of(f), GO_30)
 }
 
-const GO_28: List[Str] = [
+const GO_31: List[Str] = [
   "CALL books.mylibrary.bookshelves.get",
   "REQ GET https://books.googleapis.com/books/v1/mylibrary/bookshelves/id1%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false&source=s-source",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -618,10 +732,10 @@ test "Go's books.mylibrary.bookshelves.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_28)
+  gv_compare(gv_log_of(f), GO_31)
 }
 
-const GO_29: List[Str] = [
+const GO_32: List[Str] = [
   "CALL books.mylibrary.bookshelves.list",
   "REQ GET https://books.googleapis.com/books/v1/mylibrary/bookshelves?alt=json&fields=kind%2Cid&prettyPrint=false&source=s-source",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -639,10 +753,10 @@ test "Go's books.mylibrary.bookshelves.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_29)
+  gv_compare(gv_log_of(f), GO_32)
 }
 
-const GO_30: List[Str] = [
+const GO_33: List[Str] = [
   "CALL books.mylibrary.bookshelves.moveVolume",
   "REQ POST https://books.googleapis.com/books/v1/mylibrary/bookshelves/id1%2F%20x/moveVolume?alt=json&fields=kind%2Cid&prettyPrint=false&source=s-source&volumeId=s-volumeid&volumePosition=7",
   "  H x-extra=v1",
@@ -660,10 +774,10 @@ test "Go's books.mylibrary.bookshelves.moveVolume" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_30)
+  gv_compare(gv_log_of(f), GO_33)
 }
 
-const GO_31: List[Str] = [
+const GO_34: List[Str] = [
   "CALL books.mylibrary.bookshelves.removeVolume",
   "REQ POST https://books.googleapis.com/books/v1/mylibrary/bookshelves/id1%2F%20x/removeVolume?alt=json&fields=kind%2Cid&prettyPrint=false&reason=s-reason&source=s-source&volumeId=s-volumeid",
   "  H x-extra=v1",
@@ -681,10 +795,10 @@ test "Go's books.mylibrary.bookshelves.removeVolume" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_31)
+  gv_compare(gv_log_of(f), GO_34)
 }
 
-const GO_32: List[Str] = [
+const GO_35: List[Str] = [
   "CALL books.mylibrary.bookshelves.volumes.list",
   "REQ GET https://books.googleapis.com/books/v1/mylibrary/bookshelves/id1%2F%20x/volumes?alt=json&country=s-country&fields=kind%2Cid&maxResults=7&prettyPrint=false&projection=s-projection&q=s-q&showPreorders=true&source=s-source&startIndex=7",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -702,10 +816,10 @@ test "Go's books.mylibrary.bookshelves.volumes.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_32)
+  gv_compare(gv_log_of(f), GO_35)
 }
 
-const GO_33: List[Str] = [
+const GO_36: List[Str] = [
   "CALL books.mylibrary.readingpositions.get",
   "REQ GET https://books.googleapis.com/books/v1/mylibrary/readingpositions/id1%2F%20x?alt=json&contentVersion=s-contentversion&fields=kind%2Cid&prettyPrint=false&source=s-source",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -723,10 +837,10 @@ test "Go's books.mylibrary.readingpositions.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_33)
+  gv_compare(gv_log_of(f), GO_36)
 }
 
-const GO_34: List[Str] = [
+const GO_37: List[Str] = [
   "CALL books.mylibrary.readingpositions.setPosition",
   "REQ POST https://books.googleapis.com/books/v1/mylibrary/readingpositions/id1%2F%20x/setPosition?action=s-action&alt=json&contentVersion=s-contentversion&deviceCookie=s-devicecookie&fields=kind%2Cid&position=s-position&prettyPrint=false&source=s-source&timestamp=s-timestamp",
   "  H x-extra=v1",
@@ -744,10 +858,10 @@ test "Go's books.mylibrary.readingpositions.setPosition" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_34)
+  gv_compare(gv_log_of(f), GO_37)
 }
 
-const GO_35: List[Str] = [
+const GO_38: List[Str] = [
   "CALL books.notification.get",
   "REQ GET https://books.googleapis.com/books/v1/notification/get?alt=json&fields=kind%2Cid&locale=s-locale&notification_id=s-notification_id&prettyPrint=false&source=s-source",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -765,10 +879,10 @@ test "Go's books.notification.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_35)
+  gv_compare(gv_log_of(f), GO_38)
 }
 
-const GO_36: List[Str] = [
+const GO_39: List[Str] = [
   "CALL books.onboarding.listCategories",
   "REQ GET https://books.googleapis.com/books/v1/onboarding/listCategories?alt=json&fields=kind%2Cid&locale=s-locale&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -786,10 +900,10 @@ test "Go's books.onboarding.listCategories" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_36)
+  gv_compare(gv_log_of(f), GO_39)
 }
 
-const GO_37: List[Str] = [
+const GO_40: List[Str] = [
   "CALL books.onboarding.listCategoryVolumes",
   "REQ GET https://books.googleapis.com/books/v1/onboarding/listCategoryVolumes?alt=json&categoryId=s-categoryid&fields=kind%2Cid&locale=s-locale&maxAllowedMaturityRating=s-maxallowedmaturityrating&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -807,10 +921,48 @@ test "Go's books.onboarding.listCategoryVolumes" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_37)
+  gv_compare(gv_log_of(f), GO_40)
 }
 
-const GO_38: List[Str] = [
+const GO_41: List[Str] = [
+  "CALL books.onboarding.listCategoryVolumes pages",
+  "REQ GET https://books.googleapis.com/books/v1/onboarding/listCategoryVolumes?alt=json&categoryId=s-categoryid&fields=kind%2Cid&locale=s-locale&maxAllowedMaturityRating=s-maxallowedmaturityrating&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"items\":[{\"accessInfo\":{\"accessViewStatus\":\"s-accessviewstatus\",\"country\":\"s-country\",\"driveImportedContentLink\":\"s-driveimportedcontentlink\",\"embeddable\":true,\"epub\":{\"acsTokenLink\":\"s-acstokenlink\",\"downloadLink\":\"s-downloadlink\",\"isAvailable\":true},\"explicitOfflineLicenseManagement\":true,\"pdf\":{\"acsTokenLink\":\"s-acstokenlink\",\"downloadLink\":\"s-downloadlink\",\"isAvailable\":true},\"publicDomain\":true,\"quoteSharingAllowed\":true,\"textToSpeechPermission\":\"s-texttospeechpermission\",\"viewOrderUrl\":\"s-vieworderurl\",\"viewability\":\"s-viewability\",\"webReaderLink\":\"s-webreaderlink\"},\"etag\":\"s-etag\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"layerInfo\":{},\"recommendedInfo\":{\"explanation\":\"s-explanation\"},\"saleInfo\":{\"buyLink\":\"s-buylink\",\"country\":\"s-country\",\"isEbook\":true,\"listPrice\":{\"amount\":1.5,\"currencyCode\":\"s-currencycode\"},\"onSaleDate\":\"s-onsaledate\",\"retailPrice\":{\"amount\":1.5,\"currencyCode\":\"s-currencycode\"},\"saleability\":\"s-saleability\"},\"searchInfo\":{\"textSnippet\":\"s-textsnippet\"},\"selfLink\":\"s-selflink\",\"userInfo\":{\"acquiredTime\":\"s-acquiredtime\",\"acquisitionType\":7,\"copy\":{\"allowedCharacterCount\":7,\"limitType\":\"s-limittype\",\"remainingCharacterCount\":7,\"updated\":\"s-updated\"},\"entitlementType\":7,\"familySharing\":{\"familyRole\":\"s-familyrole\",\"isSharingAllowed\":true,\"isSharingDisabledByFop\":true},\"isFamilySharedFromUser\":true,\"isFamilySharedToUser\":true,\"isFamilySharingAllowed\":true,\"isFamilySharingDisabledByFop\":true,\"isInMyBooks\":true,\"isPreordered\":true,\"isPurchased\":true,\"isUploaded\":true,\"rentalPeriod\":{\"endUtcSec\":\"7\",\"startUtcSec\":\"7\"},\"rentalState\":\"s-rentalstate\",\"updated\":\"s-updated\",\"userUploadedVolumeInfo\":{\"processingState\":\"s-processingstate\"}},\"volumeInfo\":{\"allowAnonLogging\":true,\"authors\":[\"s-authors\"],\"averageRating\":1.5,\"canonicalVolumeLink\":\"s-canonicalvolumelink\",\"categories\":[\"s-categories\"],\"comicsContent\":true,\"contentVersion\":\"s-contentversion\",\"description\":\"s-description\",\"dimensions\":{\"height\":\"s-height\",\"thickness\":\"s-thickness\",\"width\":\"s-width\"},\"imageLinks\":{\"extraLarge\":\"s-extralarge\",\"large\":\"s-large\",\"medium\":\"s-medium\",\"small\":\"s-small\",\"smallThumbnail\":\"s-smallthumbnail\",\"thumbnail\":\"s-thumbnail\"},\"infoLink\":\"s-infolink\",\"language\":\"s-language\",\"mainCategory\":\"s-maincategory\",\"maturityRating\":\"s-maturityrating\",\"pageCount\":7,\"panelizationSummary\":{\"containsEpubBubbles\":true,\"containsImageBubbles\":true,\"epubBubbleVersion\":\"s-epubbubbleversion\",\"imageBubbleVersion\":\"s-imagebubbleversion\"},\"previewLink\":\"s-previewlink\",\"printType\":\"s-printtype\",\"printedPageCount\":7,\"publishedDate\":\"s-publisheddate\",\"publisher\":\"s-publisher\",\"ratingsCount\":7,\"readingModes\":{\"image\":true,\"text\":true},\"samplePageCount\":7,\"subtitle\":\"s-subtitle\",\"title\":\"s-title\"}}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"items\":[{\"accessInfo\":{\"accessViewStatus\":\"s-accessviewstatus\",\"country\":\"s-country\",\"driveImportedContentLink\":\"s-driveimportedcontentlink\",\"embeddable\":true,\"epub\":{\"acsTokenLink\":\"s-acstokenlink\",\"downloadLink\":\"s-downloadlink\",\"isAvailable\":true},\"explicitOfflineLicenseManagement\":true,\"pdf\":{\"acsTokenLink\":\"s-acstokenlink\",\"downloadLink\":\"s-downloadlink\",\"isAvailable\":true},\"publicDomain\":true,\"quoteSharingAllowed\":true,\"textToSpeechPermission\":\"s-texttospeechpermission\",\"viewOrderUrl\":\"s-vieworderurl\",\"viewability\":\"s-viewability\",\"webReaderLink\":\"s-webreaderlink\"},\"etag\":\"s-etag\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"layerInfo\":{},\"recommendedInfo\":{\"explanation\":\"s-explanation\"},\"saleInfo\":{\"buyLink\":\"s-buylink\",\"country\":\"s-country\",\"isEbook\":true,\"listPrice\":{\"amount\":1.5,\"currencyCode\":\"s-currencycode\"},\"onSaleDate\":\"s-onsaledate\",\"retailPrice\":{\"amount\":1.5,\"currencyCode\":\"s-currencycode\"},\"saleability\":\"s-saleability\"},\"searchInfo\":{\"textSnippet\":\"s-textsnippet\"},\"selfLink\":\"s-selflink\",\"userInfo\":{\"acquiredTime\":\"s-acquiredtime\",\"acquisitionType\":7,\"copy\":{\"allowedCharacterCount\":7,\"limitType\":\"s-limittype\",\"remainingCharacterCount\":7,\"updated\":\"s-updated\"},\"entitlementType\":7,\"familySharing\":{\"familyRole\":\"s-familyrole\",\"isSharingAllowed\":true,\"isSharingDisabledByFop\":true},\"isFamilySharedFromUser\":true,\"isFamilySharedToUser\":true,\"isFamilySharingAllowed\":true,\"isFamilySharingDisabledByFop\":true,\"isInMyBooks\":true,\"isPreordered\":true,\"isPurchased\":true,\"isUploaded\":true,\"rentalPeriod\":{\"endUtcSec\":\"7\",\"startUtcSec\":\"7\"},\"rentalState\":\"s-rentalstate\",\"updated\":\"s-updated\",\"userUploadedVolumeInfo\":{\"processingState\":\"s-processingstate\"}},\"volumeInfo\":{\"allowAnonLogging\":true,\"authors\":[\"s-authors\"],\"averageRating\":1.5,\"canonicalVolumeLink\":\"s-canonicalvolumelink\",\"categories\":[\"s-categories\"],\"comicsContent\":true,\"contentVersion\":\"s-contentversion\",\"description\":\"s-description\",\"dimensions\":{\"height\":\"s-height\",\"thickness\":\"s-thickness\",\"width\":\"s-width\"},\"imageLinks\":{\"extraLarge\":\"s-extralarge\",\"large\":\"s-large\",\"medium\":\"s-medium\",\"small\":\"s-small\",\"smallThumbnail\":\"s-smallthumbnail\",\"thumbnail\":\"s-thumbnail\"},\"infoLink\":\"s-infolink\",\"language\":\"s-language\",\"mainCategory\":\"s-maincategory\",\"maturityRating\":\"s-maturityrating\",\"pageCount\":7,\"panelizationSummary\":{\"containsEpubBubbles\":true,\"containsImageBubbles\":true,\"epubBubbleVersion\":\"s-epubbubbleversion\",\"imageBubbleVersion\":\"s-imagebubbleversion\"},\"previewLink\":\"s-previewlink\",\"printType\":\"s-printtype\",\"printedPageCount\":7,\"publishedDate\":\"s-publisheddate\",\"publisher\":\"s-publisher\",\"ratingsCount\":7,\"readingModes\":{\"image\":true,\"text\":true},\"samplePageCount\":7,\"subtitle\":\"s-subtitle\",\"title\":\"s-title\"}}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://books.googleapis.com/books/v1/onboarding/listCategoryVolumes?alt=json&categoryId=s-categoryid&fields=kind%2Cid&locale=s-locale&maxAllowedMaturityRating=s-maxallowedmaturityrating&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"items\":[{\"accessInfo\":{\"accessViewStatus\":\"s-accessviewstatus\",\"country\":\"s-country\",\"driveImportedContentLink\":\"s-driveimportedcontentlink\",\"embeddable\":true,\"epub\":{\"acsTokenLink\":\"s-acstokenlink\",\"downloadLink\":\"s-downloadlink\",\"isAvailable\":true},\"explicitOfflineLicenseManagement\":true,\"pdf\":{\"acsTokenLink\":\"s-acstokenlink\",\"downloadLink\":\"s-downloadlink\",\"isAvailable\":true},\"publicDomain\":true,\"quoteSharingAllowed\":true,\"textToSpeechPermission\":\"s-texttospeechpermission\",\"viewOrderUrl\":\"s-vieworderurl\",\"viewability\":\"s-viewability\",\"webReaderLink\":\"s-webreaderlink\"},\"etag\":\"s-etag\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"layerInfo\":{},\"recommendedInfo\":{\"explanation\":\"s-explanation\"},\"saleInfo\":{\"buyLink\":\"s-buylink\",\"country\":\"s-country\",\"isEbook\":true,\"listPrice\":{\"amount\":1.5,\"currencyCode\":\"s-currencycode\"},\"onSaleDate\":\"s-onsaledate\",\"retailPrice\":{\"amount\":1.5,\"currencyCode\":\"s-currencycode\"},\"saleability\":\"s-saleability\"},\"searchInfo\":{\"textSnippet\":\"s-textsnippet\"},\"selfLink\":\"s-selflink\",\"userInfo\":{\"acquiredTime\":\"s-acquiredtime\",\"acquisitionType\":7,\"copy\":{\"allowedCharacterCount\":7,\"limitType\":\"s-limittype\",\"remainingCharacterCount\":7,\"updated\":\"s-updated\"},\"entitlementType\":7,\"familySharing\":{\"familyRole\":\"s-familyrole\",\"isSharingAllowed\":true,\"isSharingDisabledByFop\":true},\"isFamilySharedFromUser\":true,\"isFamilySharedToUser\":true,\"isFamilySharingAllowed\":true,\"isFamilySharingDisabledByFop\":true,\"isInMyBooks\":true,\"isPreordered\":true,\"isPurchased\":true,\"isUploaded\":true,\"rentalPeriod\":{\"endUtcSec\":\"7\",\"startUtcSec\":\"7\"},\"rentalState\":\"s-rentalstate\",\"updated\":\"s-updated\",\"userUploadedVolumeInfo\":{\"processingState\":\"s-processingstate\"}},\"volumeInfo\":{\"allowAnonLogging\":true,\"authors\":[\"s-authors\"],\"averageRating\":1.5,\"canonicalVolumeLink\":\"s-canonicalvolumelink\",\"categories\":[\"s-categories\"],\"comicsContent\":true,\"contentVersion\":\"s-contentversion\",\"description\":\"s-description\",\"dimensions\":{\"height\":\"s-height\",\"thickness\":\"s-thickness\",\"width\":\"s-width\"},\"imageLinks\":{\"extraLarge\":\"s-extralarge\",\"large\":\"s-large\",\"medium\":\"s-medium\",\"small\":\"s-small\",\"smallThumbnail\":\"s-smallthumbnail\",\"thumbnail\":\"s-thumbnail\"},\"infoLink\":\"s-infolink\",\"language\":\"s-language\",\"mainCategory\":\"s-maincategory\",\"maturityRating\":\"s-maturityrating\",\"pageCount\":7,\"panelizationSummary\":{\"containsEpubBubbles\":true,\"containsImageBubbles\":true,\"epubBubbleVersion\":\"s-epubbubbleversion\",\"imageBubbleVersion\":\"s-imagebubbleversion\"},\"previewLink\":\"s-previewlink\",\"printType\":\"s-printtype\",\"printedPageCount\":7,\"publishedDate\":\"s-publisheddate\",\"publisher\":\"s-publisher\",\"ratingsCount\":7,\"readingModes\":{\"image\":true,\"text\":true},\"samplePageCount\":7,\"subtitle\":\"s-subtitle\",\"title\":\"s-title\"}}],\"kind\":\"s-kind\"}",
+  "OUT: {\"items\":[{\"accessInfo\":{\"accessViewStatus\":\"s-accessviewstatus\",\"country\":\"s-country\",\"driveImportedContentLink\":\"s-driveimportedcontentlink\",\"embeddable\":true,\"epub\":{\"acsTokenLink\":\"s-acstokenlink\",\"downloadLink\":\"s-downloadlink\",\"isAvailable\":true},\"explicitOfflineLicenseManagement\":true,\"pdf\":{\"acsTokenLink\":\"s-acstokenlink\",\"downloadLink\":\"s-downloadlink\",\"isAvailable\":true},\"publicDomain\":true,\"quoteSharingAllowed\":true,\"textToSpeechPermission\":\"s-texttospeechpermission\",\"viewOrderUrl\":\"s-vieworderurl\",\"viewability\":\"s-viewability\",\"webReaderLink\":\"s-webreaderlink\"},\"etag\":\"s-etag\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"layerInfo\":{},\"recommendedInfo\":{\"explanation\":\"s-explanation\"},\"saleInfo\":{\"buyLink\":\"s-buylink\",\"country\":\"s-country\",\"isEbook\":true,\"listPrice\":{\"amount\":1.5,\"currencyCode\":\"s-currencycode\"},\"onSaleDate\":\"s-onsaledate\",\"retailPrice\":{\"amount\":1.5,\"currencyCode\":\"s-currencycode\"},\"saleability\":\"s-saleability\"},\"searchInfo\":{\"textSnippet\":\"s-textsnippet\"},\"selfLink\":\"s-selflink\",\"userInfo\":{\"acquiredTime\":\"s-acquiredtime\",\"acquisitionType\":7,\"copy\":{\"allowedCharacterCount\":7,\"limitType\":\"s-limittype\",\"remainingCharacterCount\":7,\"updated\":\"s-updated\"},\"entitlementType\":7,\"familySharing\":{\"familyRole\":\"s-familyrole\",\"isSharingAllowed\":true,\"isSharingDisabledByFop\":true},\"isFamilySharedFromUser\":true,\"isFamilySharedToUser\":true,\"isFamilySharingAllowed\":true,\"isFamilySharingDisabledByFop\":true,\"isInMyBooks\":true,\"isPreordered\":true,\"isPurchased\":true,\"isUploaded\":true,\"rentalPeriod\":{\"endUtcSec\":\"7\",\"startUtcSec\":\"7\"},\"rentalState\":\"s-rentalstate\",\"updated\":\"s-updated\",\"userUploadedVolumeInfo\":{\"processingState\":\"s-processingstate\"}},\"volumeInfo\":{\"allowAnonLogging\":true,\"authors\":[\"s-authors\"],\"averageRating\":1.5,\"canonicalVolumeLink\":\"s-canonicalvolumelink\",\"categories\":[\"s-categories\"],\"comicsContent\":true,\"contentVersion\":\"s-contentversion\",\"description\":\"s-description\",\"dimensions\":{\"height\":\"s-height\",\"thickness\":\"s-thickness\",\"width\":\"s-width\"},\"imageLinks\":{\"extraLarge\":\"s-extralarge\",\"large\":\"s-large\",\"medium\":\"s-medium\",\"small\":\"s-small\",\"smallThumbnail\":\"s-smallthumbnail\",\"thumbnail\":\"s-thumbnail\"},\"infoLink\":\"s-infolink\",\"language\":\"s-language\",\"mainCategory\":\"s-maincategory\",\"maturityRating\":\"s-maturityrating\",\"pageCount\":7,\"panelizationSummary\":{\"containsEpubBubbles\":true,\"containsImageBubbles\":true,\"epubBubbleVersion\":\"s-epubbubbleversion\",\"imageBubbleVersion\":\"s-imagebubbleversion\"},\"previewLink\":\"s-previewlink\",\"printType\":\"s-printtype\",\"printedPageCount\":7,\"publishedDate\":\"s-publisheddate\",\"publisher\":\"s-publisher\",\"ratingsCount\":7,\"readingModes\":{\"image\":true,\"text\":true},\"samplePageCount\":7,\"subtitle\":\"s-subtitle\",\"title\":\"s-title\"}}],\"kind\":\"s-kind\"}",
+  "OUT: ok",
+]
+
+test "Go's books.onboarding.listCategoryVolumes pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"items\":[{\"accessInfo\":{\"accessViewStatus\":\"s-accessviewstatus\",\"country\":\"s-country\",\"driveImportedContentLink\":\"s-driveimportedcontentlink\",\"embeddable\":true,\"epub\":{\"acsTokenLink\":\"s-acstokenlink\",\"downloadLink\":\"s-downloadlink\",\"isAvailable\":true},\"explicitOfflineLicenseManagement\":true,\"pdf\":{\"acsTokenLink\":\"s-acstokenlink\",\"downloadLink\":\"s-downloadlink\",\"isAvailable\":true},\"publicDomain\":true,\"quoteSharingAllowed\":true,\"textToSpeechPermission\":\"s-texttospeechpermission\",\"viewOrderUrl\":\"s-vieworderurl\",\"viewability\":\"s-viewability\",\"webReaderLink\":\"s-webreaderlink\"},\"etag\":\"s-etag\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"layerInfo\":{},\"recommendedInfo\":{\"explanation\":\"s-explanation\"},\"saleInfo\":{\"buyLink\":\"s-buylink\",\"country\":\"s-country\",\"isEbook\":true,\"listPrice\":{\"amount\":1.5,\"currencyCode\":\"s-currencycode\"},\"onSaleDate\":\"s-onsaledate\",\"retailPrice\":{\"amount\":1.5,\"currencyCode\":\"s-currencycode\"},\"saleability\":\"s-saleability\"},\"searchInfo\":{\"textSnippet\":\"s-textsnippet\"},\"selfLink\":\"s-selflink\",\"userInfo\":{\"acquiredTime\":\"s-acquiredtime\",\"acquisitionType\":7,\"copy\":{\"allowedCharacterCount\":7,\"limitType\":\"s-limittype\",\"remainingCharacterCount\":7,\"updated\":\"s-updated\"},\"entitlementType\":7,\"familySharing\":{\"familyRole\":\"s-familyrole\",\"isSharingAllowed\":true,\"isSharingDisabledByFop\":true},\"isFamilySharedFromUser\":true,\"isFamilySharedToUser\":true,\"isFamilySharingAllowed\":true,\"isFamilySharingDisabledByFop\":true,\"isInMyBooks\":true,\"isPreordered\":true,\"isPurchased\":true,\"isUploaded\":true,\"rentalPeriod\":{\"endUtcSec\":\"7\",\"startUtcSec\":\"7\"},\"rentalState\":\"s-rentalstate\",\"updated\":\"s-updated\",\"userUploadedVolumeInfo\":{\"processingState\":\"s-processingstate\"}},\"volumeInfo\":{\"allowAnonLogging\":true,\"authors\":[\"s-authors\"],\"averageRating\":1.5,\"canonicalVolumeLink\":\"s-canonicalvolumelink\",\"categories\":[\"s-categories\"],\"comicsContent\":true,\"contentVersion\":\"s-contentversion\",\"description\":\"s-description\",\"dimensions\":{\"height\":\"s-height\",\"thickness\":\"s-thickness\",\"width\":\"s-width\"},\"imageLinks\":{\"extraLarge\":\"s-extralarge\",\"large\":\"s-large\",\"medium\":\"s-medium\",\"small\":\"s-small\",\"smallThumbnail\":\"s-smallthumbnail\",\"thumbnail\":\"s-thumbnail\"},\"infoLink\":\"s-infolink\",\"language\":\"s-language\",\"mainCategory\":\"s-maincategory\",\"maturityRating\":\"s-maturityrating\",\"pageCount\":7,\"panelizationSummary\":{\"containsEpubBubbles\":true,\"containsImageBubbles\":true,\"epubBubbleVersion\":\"s-epubbubbleversion\",\"imageBubbleVersion\":\"s-imagebubbleversion\"},\"previewLink\":\"s-previewlink\",\"printType\":\"s-printtype\",\"printedPageCount\":7,\"publishedDate\":\"s-publisheddate\",\"publisher\":\"s-publisher\",\"ratingsCount\":7,\"readingModes\":{\"image\":true,\"text\":true},\"samplePageCount\":7,\"subtitle\":\"s-subtitle\",\"title\":\"s-title\"}}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"items\":[{\"accessInfo\":{\"accessViewStatus\":\"s-accessviewstatus\",\"country\":\"s-country\",\"driveImportedContentLink\":\"s-driveimportedcontentlink\",\"embeddable\":true,\"epub\":{\"acsTokenLink\":\"s-acstokenlink\",\"downloadLink\":\"s-downloadlink\",\"isAvailable\":true},\"explicitOfflineLicenseManagement\":true,\"pdf\":{\"acsTokenLink\":\"s-acstokenlink\",\"downloadLink\":\"s-downloadlink\",\"isAvailable\":true},\"publicDomain\":true,\"quoteSharingAllowed\":true,\"textToSpeechPermission\":\"s-texttospeechpermission\",\"viewOrderUrl\":\"s-vieworderurl\",\"viewability\":\"s-viewability\",\"webReaderLink\":\"s-webreaderlink\"},\"etag\":\"s-etag\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"layerInfo\":{},\"recommendedInfo\":{\"explanation\":\"s-explanation\"},\"saleInfo\":{\"buyLink\":\"s-buylink\",\"country\":\"s-country\",\"isEbook\":true,\"listPrice\":{\"amount\":1.5,\"currencyCode\":\"s-currencycode\"},\"onSaleDate\":\"s-onsaledate\",\"retailPrice\":{\"amount\":1.5,\"currencyCode\":\"s-currencycode\"},\"saleability\":\"s-saleability\"},\"searchInfo\":{\"textSnippet\":\"s-textsnippet\"},\"selfLink\":\"s-selflink\",\"userInfo\":{\"acquiredTime\":\"s-acquiredtime\",\"acquisitionType\":7,\"copy\":{\"allowedCharacterCount\":7,\"limitType\":\"s-limittype\",\"remainingCharacterCount\":7,\"updated\":\"s-updated\"},\"entitlementType\":7,\"familySharing\":{\"familyRole\":\"s-familyrole\",\"isSharingAllowed\":true,\"isSharingDisabledByFop\":true},\"isFamilySharedFromUser\":true,\"isFamilySharedToUser\":true,\"isFamilySharingAllowed\":true,\"isFamilySharingDisabledByFop\":true,\"isInMyBooks\":true,\"isPreordered\":true,\"isPurchased\":true,\"isUploaded\":true,\"rentalPeriod\":{\"endUtcSec\":\"7\",\"startUtcSec\":\"7\"},\"rentalState\":\"s-rentalstate\",\"updated\":\"s-updated\",\"userUploadedVolumeInfo\":{\"processingState\":\"s-processingstate\"}},\"volumeInfo\":{\"allowAnonLogging\":true,\"authors\":[\"s-authors\"],\"averageRating\":1.5,\"canonicalVolumeLink\":\"s-canonicalvolumelink\",\"categories\":[\"s-categories\"],\"comicsContent\":true,\"contentVersion\":\"s-contentversion\",\"description\":\"s-description\",\"dimensions\":{\"height\":\"s-height\",\"thickness\":\"s-thickness\",\"width\":\"s-width\"},\"imageLinks\":{\"extraLarge\":\"s-extralarge\",\"large\":\"s-large\",\"medium\":\"s-medium\",\"small\":\"s-small\",\"smallThumbnail\":\"s-smallthumbnail\",\"thumbnail\":\"s-thumbnail\"},\"infoLink\":\"s-infolink\",\"language\":\"s-language\",\"mainCategory\":\"s-maincategory\",\"maturityRating\":\"s-maturityrating\",\"pageCount\":7,\"panelizationSummary\":{\"containsEpubBubbles\":true,\"containsImageBubbles\":true,\"epubBubbleVersion\":\"s-epubbubbleversion\",\"imageBubbleVersion\":\"s-imagebubbleversion\"},\"previewLink\":\"s-previewlink\",\"printType\":\"s-printtype\",\"printedPageCount\":7,\"publishedDate\":\"s-publisheddate\",\"publisher\":\"s-publisher\",\"ratingsCount\":7,\"readingModes\":{\"image\":true,\"text\":true},\"samplePageCount\":7,\"subtitle\":\"s-subtitle\",\"title\":\"s-title\"}}],\"kind\":\"s-kind\"}")
+  gv_note(f, "CALL books.onboarding.listCategoryVolumes pages")
+  var p = svc.onboarding.list_category_volumes_pages(options: OnboardingListCategoryVolumesOptions{category_id: ["s-categoryid"], locale: Some("s-locale"), max_allowed_maturity_rating: Some("s-maxallowedmaturityrating"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_41)
+}
+
+const GO_42: List[Str] = [
   "CALL books.personalizedstream.get",
   "REQ GET https://books.googleapis.com/books/v1/personalizedstream/get?alt=json&fields=kind%2Cid&locale=s-locale&maxAllowedMaturityRating=s-maxallowedmaturityrating&prettyPrint=false&source=s-source",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -828,10 +980,10 @@ test "Go's books.personalizedstream.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_38)
+  gv_compare(gv_log_of(f), GO_42)
 }
 
-const GO_39: List[Str] = [
+const GO_43: List[Str] = [
   "CALL books.promooffer.accept",
   "REQ POST https://books.googleapis.com/books/v1/promooffer/accept?alt=json&androidId=s-androidid&device=s-device&fields=kind%2Cid&manufacturer=s-manufacturer&model=s-model&offerId=s-offerid&prettyPrint=false&product=s-product&serial=s-serial&volumeId=s-volumeid",
   "  H x-extra=v1",
@@ -849,10 +1001,10 @@ test "Go's books.promooffer.accept" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_39)
+  gv_compare(gv_log_of(f), GO_43)
 }
 
-const GO_40: List[Str] = [
+const GO_44: List[Str] = [
   "CALL books.promooffer.dismiss",
   "REQ POST https://books.googleapis.com/books/v1/promooffer/dismiss?alt=json&androidId=s-androidid&device=s-device&fields=kind%2Cid&manufacturer=s-manufacturer&model=s-model&offerId=s-offerid&prettyPrint=false&product=s-product&serial=s-serial",
   "  H x-extra=v1",
@@ -870,10 +1022,10 @@ test "Go's books.promooffer.dismiss" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_40)
+  gv_compare(gv_log_of(f), GO_44)
 }
 
-const GO_41: List[Str] = [
+const GO_45: List[Str] = [
   "CALL books.promooffer.get",
   "REQ GET https://books.googleapis.com/books/v1/promooffer/get?alt=json&androidId=s-androidid&device=s-device&fields=kind%2Cid&manufacturer=s-manufacturer&model=s-model&prettyPrint=false&product=s-product&serial=s-serial",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -891,10 +1043,10 @@ test "Go's books.promooffer.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_41)
+  gv_compare(gv_log_of(f), GO_45)
 }
 
-const GO_42: List[Str] = [
+const GO_46: List[Str] = [
   "CALL books.series.get",
   "REQ GET https://books.googleapis.com/books/v1/series/get?alt=json&fields=kind%2Cid&prettyPrint=false&series_id=s-series_id",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -912,10 +1064,10 @@ test "Go's books.series.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_42)
+  gv_compare(gv_log_of(f), GO_46)
 }
 
-const GO_43: List[Str] = [
+const GO_47: List[Str] = [
   "CALL books.series.membership.get",
   "REQ GET https://books.googleapis.com/books/v1/series/membership/get?alt=json&fields=kind%2Cid&page_size=7&page_token=s-page_token&prettyPrint=false&series_id=s-series_id",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -933,10 +1085,10 @@ test "Go's books.series.membership.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_43)
+  gv_compare(gv_log_of(f), GO_47)
 }
 
-const GO_44: List[Str] = [
+const GO_48: List[Str] = [
   "CALL books.volumes.get",
   "REQ GET https://books.googleapis.com/books/v1/volumes/id1%2F%20x?alt=json&country=s-country&fields=kind%2Cid&includeNonComicsSeries=true&partner=s-partner&prettyPrint=false&projection=s-projection&source=s-source&user_library_consistent_read=true",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -954,10 +1106,10 @@ test "Go's books.volumes.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_44)
+  gv_compare(gv_log_of(f), GO_48)
 }
 
-const GO_45: List[Str] = [
+const GO_49: List[Str] = [
   "CALL books.volumes.list",
   "REQ GET https://books.googleapis.com/books/v1/volumes?alt=json&download=s-download&fields=kind%2Cid&filter=s-filter&langRestrict=s-langrestrict&libraryRestrict=s-libraryrestrict&maxAllowedMaturityRating=s-maxallowedmaturityrating&maxResults=7&orderBy=s-orderby&partner=s-partner&prettyPrint=false&printType=s-printtype&projection=s-projection&q=s-q&showPreorders=true&source=s-source&startIndex=7",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -975,10 +1127,10 @@ test "Go's books.volumes.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_45)
+  gv_compare(gv_log_of(f), GO_49)
 }
 
-const GO_46: List[Str] = [
+const GO_50: List[Str] = [
   "CALL books.volumes.associated.list",
   "REQ GET https://books.googleapis.com/books/v1/volumes/id1%2F%20x/associated?alt=json&association=s-association&fields=kind%2Cid&locale=s-locale&maxAllowedMaturityRating=s-maxallowedmaturityrating&prettyPrint=false&source=s-source",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -996,10 +1148,10 @@ test "Go's books.volumes.associated.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_46)
+  gv_compare(gv_log_of(f), GO_50)
 }
 
-const GO_47: List[Str] = [
+const GO_51: List[Str] = [
   "CALL books.volumes.mybooks.list",
   "REQ GET https://books.googleapis.com/books/v1/volumes/mybooks?acquireMethod=s-acquiremethod&alt=json&country=s-country&fields=kind%2Cid&locale=s-locale&maxResults=7&prettyPrint=false&processingState=s-processingstate&source=s-source&startIndex=7",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1017,10 +1169,10 @@ test "Go's books.volumes.mybooks.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_47)
+  gv_compare(gv_log_of(f), GO_51)
 }
 
-const GO_48: List[Str] = [
+const GO_52: List[Str] = [
   "CALL books.volumes.recommended.list",
   "REQ GET https://books.googleapis.com/books/v1/volumes/recommended?alt=json&fields=kind%2Cid&locale=s-locale&maxAllowedMaturityRating=s-maxallowedmaturityrating&prettyPrint=false&source=s-source",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1038,10 +1190,10 @@ test "Go's books.volumes.recommended.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_48)
+  gv_compare(gv_log_of(f), GO_52)
 }
 
-const GO_49: List[Str] = [
+const GO_53: List[Str] = [
   "CALL books.volumes.recommended.rate",
   "REQ POST https://books.googleapis.com/books/v1/volumes/recommended/rate?alt=json&fields=kind%2Cid&locale=s-locale&prettyPrint=false&rating=s-rating&source=s-source&volumeId=s-volumeid",
   "  H x-extra=v1",
@@ -1059,10 +1211,10 @@ test "Go's books.volumes.recommended.rate" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_49)
+  gv_compare(gv_log_of(f), GO_53)
 }
 
-const GO_50: List[Str] = [
+const GO_54: List[Str] = [
   "CALL books.volumes.useruploaded.list",
   "REQ GET https://books.googleapis.com/books/v1/volumes/useruploaded?alt=json&fields=kind%2Cid&locale=s-locale&maxResults=7&prettyPrint=false&processingState=s-processingstate&source=s-source&startIndex=7&volumeId=s-volumeid",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1080,5 +1232,5 @@ test "Go's books.volumes.useruploaded.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_50)
+  gv_compare(gv_log_of(f), GO_54)
 }

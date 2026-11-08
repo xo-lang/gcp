@@ -51,6 +51,44 @@ test "Go's adsense.accounts.list" {
 }
 
 const GO_2: List[Str] = [
+  "CALL adsense.accounts.list pages",
+  "REQ GET https://www.googleapis.com/adsense/v1.3/accounts?alt=json&fields=kind%2Cid&maxResults=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"etag\":\"s-etag\",\"items\":[{\"id\":\"s-id\",\"kind\":\"s-kind\",\"name\":\"s-name\",\"premium\":true}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"etag\":\"s-etag\",\"items\":[{\"id\":\"s-id\",\"kind\":\"s-kind\",\"name\":\"s-name\",\"premium\":true}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://www.googleapis.com/adsense/v1.3/accounts?alt=json&fields=kind%2Cid&maxResults=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"etag\":\"s-etag\",\"items\":[{\"id\":\"s-id\",\"kind\":\"s-kind\",\"name\":\"s-name\",\"premium\":true}],\"kind\":\"s-kind\"}",
+  "OUT: {\"etag\":\"s-etag\",\"items\":[{\"id\":\"s-id\",\"kind\":\"s-kind\",\"name\":\"s-name\",\"premium\":true}],\"kind\":\"s-kind\"}",
+  "OUT: ok",
+]
+
+test "Go's adsense.accounts.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"etag\":\"s-etag\",\"items\":[{\"id\":\"s-id\",\"kind\":\"s-kind\",\"name\":\"s-name\",\"premium\":true}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"etag\":\"s-etag\",\"items\":[{\"id\":\"s-id\",\"kind\":\"s-kind\",\"name\":\"s-name\",\"premium\":true}],\"kind\":\"s-kind\"}")
+  gv_note(f, "CALL adsense.accounts.list pages")
+  var p = svc.accounts.list_pages(options: AccountsListOptions{max_results: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_2)
+}
+
+const GO_3: List[Str] = [
   "CALL adsense.accounts.adclients.list",
   "REQ GET https://www.googleapis.com/adsense/v1.3/accounts/id1%2F%20x/adclients?alt=json&fields=kind%2Cid&maxResults=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -68,10 +106,48 @@ test "Go's adsense.accounts.adclients.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_2)
+  gv_compare(gv_log_of(f), GO_3)
 }
 
-const GO_3: List[Str] = [
+const GO_4: List[Str] = [
+  "CALL adsense.accounts.adclients.list pages",
+  "REQ GET https://www.googleapis.com/adsense/v1.3/accounts/id1%2F%20x/adclients?alt=json&fields=kind%2Cid&maxResults=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"etag\":\"s-etag\",\"items\":[{\"arcOptIn\":true,\"id\":\"s-id\",\"kind\":\"s-kind\",\"productCode\":\"s-productcode\",\"supportsReporting\":true}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"etag\":\"s-etag\",\"items\":[{\"arcOptIn\":true,\"id\":\"s-id\",\"kind\":\"s-kind\",\"productCode\":\"s-productcode\",\"supportsReporting\":true}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://www.googleapis.com/adsense/v1.3/accounts/id1%2F%20x/adclients?alt=json&fields=kind%2Cid&maxResults=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"etag\":\"s-etag\",\"items\":[{\"arcOptIn\":true,\"id\":\"s-id\",\"kind\":\"s-kind\",\"productCode\":\"s-productcode\",\"supportsReporting\":true}],\"kind\":\"s-kind\"}",
+  "OUT: {\"etag\":\"s-etag\",\"items\":[{\"arcOptIn\":true,\"id\":\"s-id\",\"kind\":\"s-kind\",\"productCode\":\"s-productcode\",\"supportsReporting\":true}],\"kind\":\"s-kind\"}",
+  "OUT: ok",
+]
+
+test "Go's adsense.accounts.adclients.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"etag\":\"s-etag\",\"items\":[{\"arcOptIn\":true,\"id\":\"s-id\",\"kind\":\"s-kind\",\"productCode\":\"s-productcode\",\"supportsReporting\":true}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"etag\":\"s-etag\",\"items\":[{\"arcOptIn\":true,\"id\":\"s-id\",\"kind\":\"s-kind\",\"productCode\":\"s-productcode\",\"supportsReporting\":true}],\"kind\":\"s-kind\"}")
+  gv_note(f, "CALL adsense.accounts.adclients.list pages")
+  var p = svc.accounts.adclients.list_pages("id1/ x", options: AccountsAdclientsListOptions{max_results: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_4)
+}
+
+const GO_5: List[Str] = [
   "CALL adsense.accounts.adunits.get",
   "REQ GET https://www.googleapis.com/adsense/v1.3/accounts/id1%2F%20x/adclients/id2%2F%20x/adunits/id3%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -89,10 +165,10 @@ test "Go's adsense.accounts.adunits.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_3)
+  gv_compare(gv_log_of(f), GO_5)
 }
 
-const GO_4: List[Str] = [
+const GO_6: List[Str] = [
   "CALL adsense.accounts.adunits.getAdCode",
   "REQ GET https://www.googleapis.com/adsense/v1.3/accounts/id1%2F%20x/adclients/id2%2F%20x/adunits/id3%2F%20x/adcode?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -110,10 +186,10 @@ test "Go's adsense.accounts.adunits.getAdCode" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_4)
+  gv_compare(gv_log_of(f), GO_6)
 }
 
-const GO_5: List[Str] = [
+const GO_7: List[Str] = [
   "CALL adsense.accounts.adunits.list",
   "REQ GET https://www.googleapis.com/adsense/v1.3/accounts/id1%2F%20x/adclients/id2%2F%20x/adunits?alt=json&fields=kind%2Cid&includeInactive=true&maxResults=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -131,10 +207,48 @@ test "Go's adsense.accounts.adunits.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_5)
+  gv_compare(gv_log_of(f), GO_7)
 }
 
-const GO_6: List[Str] = [
+const GO_8: List[Str] = [
+  "CALL adsense.accounts.adunits.list pages",
+  "REQ GET https://www.googleapis.com/adsense/v1.3/accounts/id1%2F%20x/adclients/id2%2F%20x/adunits?alt=json&fields=kind%2Cid&includeInactive=true&maxResults=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"etag\":\"s-etag\",\"items\":[{\"code\":\"s-code\",\"contentAdsSettings\":{\"backupOption\":{\"color\":\"s-color\",\"type\":\"s-type\",\"url\":\"s-url\"},\"size\":\"s-size\",\"type\":\"s-type\"},\"customStyle\":{\"corners\":\"s-corners\",\"kind\":\"s-kind\"},\"feedAdsSettings\":{\"adPosition\":\"s-adposition\",\"frequency\":7,\"minimumWordCount\":7,\"type\":\"s-type\"},\"id\":\"s-id\",\"kind\":\"s-kind\",\"mobileContentAdsSettings\":{\"markupLanguage\":\"s-markuplanguage\",\"scriptingLanguage\":\"s-scriptinglanguage\",\"size\":\"s-size\",\"type\":\"s-type\"},\"name\":\"s-name\",\"savedStyleId\":\"s-savedstyleid\",\"status\":\"s-status\"}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"etag\":\"s-etag\",\"items\":[{\"code\":\"s-code\",\"contentAdsSettings\":{\"backupOption\":{\"color\":\"s-color\",\"type\":\"s-type\",\"url\":\"s-url\"},\"size\":\"s-size\",\"type\":\"s-type\"},\"customStyle\":{\"corners\":\"s-corners\",\"kind\":\"s-kind\"},\"feedAdsSettings\":{\"adPosition\":\"s-adposition\",\"frequency\":7,\"minimumWordCount\":7,\"type\":\"s-type\"},\"id\":\"s-id\",\"kind\":\"s-kind\",\"mobileContentAdsSettings\":{\"markupLanguage\":\"s-markuplanguage\",\"scriptingLanguage\":\"s-scriptinglanguage\",\"size\":\"s-size\",\"type\":\"s-type\"},\"name\":\"s-name\",\"savedStyleId\":\"s-savedstyleid\",\"status\":\"s-status\"}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://www.googleapis.com/adsense/v1.3/accounts/id1%2F%20x/adclients/id2%2F%20x/adunits?alt=json&fields=kind%2Cid&includeInactive=true&maxResults=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"etag\":\"s-etag\",\"items\":[{\"code\":\"s-code\",\"contentAdsSettings\":{\"backupOption\":{\"color\":\"s-color\",\"type\":\"s-type\",\"url\":\"s-url\"},\"size\":\"s-size\",\"type\":\"s-type\"},\"customStyle\":{\"corners\":\"s-corners\",\"kind\":\"s-kind\"},\"feedAdsSettings\":{\"adPosition\":\"s-adposition\",\"frequency\":7,\"minimumWordCount\":7,\"type\":\"s-type\"},\"id\":\"s-id\",\"kind\":\"s-kind\",\"mobileContentAdsSettings\":{\"markupLanguage\":\"s-markuplanguage\",\"scriptingLanguage\":\"s-scriptinglanguage\",\"size\":\"s-size\",\"type\":\"s-type\"},\"name\":\"s-name\",\"savedStyleId\":\"s-savedstyleid\",\"status\":\"s-status\"}],\"kind\":\"s-kind\"}",
+  "OUT: {\"etag\":\"s-etag\",\"items\":[{\"code\":\"s-code\",\"contentAdsSettings\":{\"backupOption\":{\"color\":\"s-color\",\"type\":\"s-type\",\"url\":\"s-url\"},\"size\":\"s-size\",\"type\":\"s-type\"},\"customStyle\":{\"corners\":\"s-corners\",\"kind\":\"s-kind\"},\"feedAdsSettings\":{\"adPosition\":\"s-adposition\",\"frequency\":7,\"minimumWordCount\":7,\"type\":\"s-type\"},\"id\":\"s-id\",\"kind\":\"s-kind\",\"mobileContentAdsSettings\":{\"markupLanguage\":\"s-markuplanguage\",\"scriptingLanguage\":\"s-scriptinglanguage\",\"size\":\"s-size\",\"type\":\"s-type\"},\"name\":\"s-name\",\"savedStyleId\":\"s-savedstyleid\",\"status\":\"s-status\"}],\"kind\":\"s-kind\"}",
+  "OUT: ok",
+]
+
+test "Go's adsense.accounts.adunits.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"etag\":\"s-etag\",\"items\":[{\"code\":\"s-code\",\"contentAdsSettings\":{\"backupOption\":{\"color\":\"s-color\",\"type\":\"s-type\",\"url\":\"s-url\"},\"size\":\"s-size\",\"type\":\"s-type\"},\"customStyle\":{\"corners\":\"s-corners\",\"kind\":\"s-kind\"},\"feedAdsSettings\":{\"adPosition\":\"s-adposition\",\"frequency\":7,\"minimumWordCount\":7,\"type\":\"s-type\"},\"id\":\"s-id\",\"kind\":\"s-kind\",\"mobileContentAdsSettings\":{\"markupLanguage\":\"s-markuplanguage\",\"scriptingLanguage\":\"s-scriptinglanguage\",\"size\":\"s-size\",\"type\":\"s-type\"},\"name\":\"s-name\",\"savedStyleId\":\"s-savedstyleid\",\"status\":\"s-status\"}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"etag\":\"s-etag\",\"items\":[{\"code\":\"s-code\",\"contentAdsSettings\":{\"backupOption\":{\"color\":\"s-color\",\"type\":\"s-type\",\"url\":\"s-url\"},\"size\":\"s-size\",\"type\":\"s-type\"},\"customStyle\":{\"corners\":\"s-corners\",\"kind\":\"s-kind\"},\"feedAdsSettings\":{\"adPosition\":\"s-adposition\",\"frequency\":7,\"minimumWordCount\":7,\"type\":\"s-type\"},\"id\":\"s-id\",\"kind\":\"s-kind\",\"mobileContentAdsSettings\":{\"markupLanguage\":\"s-markuplanguage\",\"scriptingLanguage\":\"s-scriptinglanguage\",\"size\":\"s-size\",\"type\":\"s-type\"},\"name\":\"s-name\",\"savedStyleId\":\"s-savedstyleid\",\"status\":\"s-status\"}],\"kind\":\"s-kind\"}")
+  gv_note(f, "CALL adsense.accounts.adunits.list pages")
+  var p = svc.accounts.adunits.list_pages("id1/ x", "id2/ x", options: AccountsAdunitsListOptions{include_inactive: Some(true), max_results: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_8)
+}
+
+const GO_9: List[Str] = [
   "CALL adsense.accounts.adunits.customchannels.list",
   "REQ GET https://www.googleapis.com/adsense/v1.3/accounts/id1%2F%20x/adclients/id2%2F%20x/adunits/id3%2F%20x/customchannels?alt=json&fields=kind%2Cid&maxResults=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -152,10 +266,48 @@ test "Go's adsense.accounts.adunits.customchannels.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_6)
+  gv_compare(gv_log_of(f), GO_9)
 }
 
-const GO_7: List[Str] = [
+const GO_10: List[Str] = [
+  "CALL adsense.accounts.adunits.customchannels.list pages",
+  "REQ GET https://www.googleapis.com/adsense/v1.3/accounts/id1%2F%20x/adclients/id2%2F%20x/adunits/id3%2F%20x/customchannels?alt=json&fields=kind%2Cid&maxResults=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"etag\":\"s-etag\",\"items\":[{\"code\":\"s-code\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"name\":\"s-name\",\"targetingInfo\":{\"adsAppearOn\":\"s-adsappearon\",\"description\":\"s-description\",\"location\":\"s-location\",\"siteLanguage\":\"s-sitelanguage\"}}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"etag\":\"s-etag\",\"items\":[{\"code\":\"s-code\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"name\":\"s-name\",\"targetingInfo\":{\"adsAppearOn\":\"s-adsappearon\",\"description\":\"s-description\",\"location\":\"s-location\",\"siteLanguage\":\"s-sitelanguage\"}}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://www.googleapis.com/adsense/v1.3/accounts/id1%2F%20x/adclients/id2%2F%20x/adunits/id3%2F%20x/customchannels?alt=json&fields=kind%2Cid&maxResults=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"etag\":\"s-etag\",\"items\":[{\"code\":\"s-code\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"name\":\"s-name\",\"targetingInfo\":{\"adsAppearOn\":\"s-adsappearon\",\"description\":\"s-description\",\"location\":\"s-location\",\"siteLanguage\":\"s-sitelanguage\"}}],\"kind\":\"s-kind\"}",
+  "OUT: {\"etag\":\"s-etag\",\"items\":[{\"code\":\"s-code\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"name\":\"s-name\",\"targetingInfo\":{\"adsAppearOn\":\"s-adsappearon\",\"description\":\"s-description\",\"location\":\"s-location\",\"siteLanguage\":\"s-sitelanguage\"}}],\"kind\":\"s-kind\"}",
+  "OUT: ok",
+]
+
+test "Go's adsense.accounts.adunits.customchannels.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"etag\":\"s-etag\",\"items\":[{\"code\":\"s-code\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"name\":\"s-name\",\"targetingInfo\":{\"adsAppearOn\":\"s-adsappearon\",\"description\":\"s-description\",\"location\":\"s-location\",\"siteLanguage\":\"s-sitelanguage\"}}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"etag\":\"s-etag\",\"items\":[{\"code\":\"s-code\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"name\":\"s-name\",\"targetingInfo\":{\"adsAppearOn\":\"s-adsappearon\",\"description\":\"s-description\",\"location\":\"s-location\",\"siteLanguage\":\"s-sitelanguage\"}}],\"kind\":\"s-kind\"}")
+  gv_note(f, "CALL adsense.accounts.adunits.customchannels.list pages")
+  var p = svc.accounts.adunits.customchannels.list_pages("id1/ x", "id2/ x", "id3/ x", options: AccountsAdunitsCustomchannelsListOptions{max_results: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_10)
+}
+
+const GO_11: List[Str] = [
   "CALL adsense.accounts.alerts.list",
   "REQ GET https://www.googleapis.com/adsense/v1.3/accounts/id1%2F%20x/alerts?alt=json&fields=kind%2Cid&locale=s-locale&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -173,10 +325,10 @@ test "Go's adsense.accounts.alerts.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_7)
+  gv_compare(gv_log_of(f), GO_11)
 }
 
-const GO_8: List[Str] = [
+const GO_12: List[Str] = [
   "CALL adsense.accounts.customchannels.get",
   "REQ GET https://www.googleapis.com/adsense/v1.3/accounts/id1%2F%20x/adclients/id2%2F%20x/customchannels/id3%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -194,10 +346,10 @@ test "Go's adsense.accounts.customchannels.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_8)
+  gv_compare(gv_log_of(f), GO_12)
 }
 
-const GO_9: List[Str] = [
+const GO_13: List[Str] = [
   "CALL adsense.accounts.customchannels.list",
   "REQ GET https://www.googleapis.com/adsense/v1.3/accounts/id1%2F%20x/adclients/id2%2F%20x/customchannels?alt=json&fields=kind%2Cid&maxResults=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -215,10 +367,48 @@ test "Go's adsense.accounts.customchannels.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_9)
+  gv_compare(gv_log_of(f), GO_13)
 }
 
-const GO_10: List[Str] = [
+const GO_14: List[Str] = [
+  "CALL adsense.accounts.customchannels.list pages",
+  "REQ GET https://www.googleapis.com/adsense/v1.3/accounts/id1%2F%20x/adclients/id2%2F%20x/customchannels?alt=json&fields=kind%2Cid&maxResults=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"etag\":\"s-etag\",\"items\":[{\"code\":\"s-code\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"name\":\"s-name\",\"targetingInfo\":{\"adsAppearOn\":\"s-adsappearon\",\"description\":\"s-description\",\"location\":\"s-location\",\"siteLanguage\":\"s-sitelanguage\"}}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"etag\":\"s-etag\",\"items\":[{\"code\":\"s-code\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"name\":\"s-name\",\"targetingInfo\":{\"adsAppearOn\":\"s-adsappearon\",\"description\":\"s-description\",\"location\":\"s-location\",\"siteLanguage\":\"s-sitelanguage\"}}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://www.googleapis.com/adsense/v1.3/accounts/id1%2F%20x/adclients/id2%2F%20x/customchannels?alt=json&fields=kind%2Cid&maxResults=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"etag\":\"s-etag\",\"items\":[{\"code\":\"s-code\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"name\":\"s-name\",\"targetingInfo\":{\"adsAppearOn\":\"s-adsappearon\",\"description\":\"s-description\",\"location\":\"s-location\",\"siteLanguage\":\"s-sitelanguage\"}}],\"kind\":\"s-kind\"}",
+  "OUT: {\"etag\":\"s-etag\",\"items\":[{\"code\":\"s-code\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"name\":\"s-name\",\"targetingInfo\":{\"adsAppearOn\":\"s-adsappearon\",\"description\":\"s-description\",\"location\":\"s-location\",\"siteLanguage\":\"s-sitelanguage\"}}],\"kind\":\"s-kind\"}",
+  "OUT: ok",
+]
+
+test "Go's adsense.accounts.customchannels.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"etag\":\"s-etag\",\"items\":[{\"code\":\"s-code\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"name\":\"s-name\",\"targetingInfo\":{\"adsAppearOn\":\"s-adsappearon\",\"description\":\"s-description\",\"location\":\"s-location\",\"siteLanguage\":\"s-sitelanguage\"}}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"etag\":\"s-etag\",\"items\":[{\"code\":\"s-code\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"name\":\"s-name\",\"targetingInfo\":{\"adsAppearOn\":\"s-adsappearon\",\"description\":\"s-description\",\"location\":\"s-location\",\"siteLanguage\":\"s-sitelanguage\"}}],\"kind\":\"s-kind\"}")
+  gv_note(f, "CALL adsense.accounts.customchannels.list pages")
+  var p = svc.accounts.customchannels.list_pages("id1/ x", "id2/ x", options: AccountsCustomchannelsListOptions{max_results: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_14)
+}
+
+const GO_15: List[Str] = [
   "CALL adsense.accounts.customchannels.adunits.list",
   "REQ GET https://www.googleapis.com/adsense/v1.3/accounts/id1%2F%20x/adclients/id2%2F%20x/customchannels/id3%2F%20x/adunits?alt=json&fields=kind%2Cid&includeInactive=true&maxResults=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -236,10 +426,48 @@ test "Go's adsense.accounts.customchannels.adunits.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_10)
+  gv_compare(gv_log_of(f), GO_15)
 }
 
-const GO_11: List[Str] = [
+const GO_16: List[Str] = [
+  "CALL adsense.accounts.customchannels.adunits.list pages",
+  "REQ GET https://www.googleapis.com/adsense/v1.3/accounts/id1%2F%20x/adclients/id2%2F%20x/customchannels/id3%2F%20x/adunits?alt=json&fields=kind%2Cid&includeInactive=true&maxResults=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"etag\":\"s-etag\",\"items\":[{\"code\":\"s-code\",\"contentAdsSettings\":{\"backupOption\":{\"color\":\"s-color\",\"type\":\"s-type\",\"url\":\"s-url\"},\"size\":\"s-size\",\"type\":\"s-type\"},\"customStyle\":{\"corners\":\"s-corners\",\"kind\":\"s-kind\"},\"feedAdsSettings\":{\"adPosition\":\"s-adposition\",\"frequency\":7,\"minimumWordCount\":7,\"type\":\"s-type\"},\"id\":\"s-id\",\"kind\":\"s-kind\",\"mobileContentAdsSettings\":{\"markupLanguage\":\"s-markuplanguage\",\"scriptingLanguage\":\"s-scriptinglanguage\",\"size\":\"s-size\",\"type\":\"s-type\"},\"name\":\"s-name\",\"savedStyleId\":\"s-savedstyleid\",\"status\":\"s-status\"}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"etag\":\"s-etag\",\"items\":[{\"code\":\"s-code\",\"contentAdsSettings\":{\"backupOption\":{\"color\":\"s-color\",\"type\":\"s-type\",\"url\":\"s-url\"},\"size\":\"s-size\",\"type\":\"s-type\"},\"customStyle\":{\"corners\":\"s-corners\",\"kind\":\"s-kind\"},\"feedAdsSettings\":{\"adPosition\":\"s-adposition\",\"frequency\":7,\"minimumWordCount\":7,\"type\":\"s-type\"},\"id\":\"s-id\",\"kind\":\"s-kind\",\"mobileContentAdsSettings\":{\"markupLanguage\":\"s-markuplanguage\",\"scriptingLanguage\":\"s-scriptinglanguage\",\"size\":\"s-size\",\"type\":\"s-type\"},\"name\":\"s-name\",\"savedStyleId\":\"s-savedstyleid\",\"status\":\"s-status\"}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://www.googleapis.com/adsense/v1.3/accounts/id1%2F%20x/adclients/id2%2F%20x/customchannels/id3%2F%20x/adunits?alt=json&fields=kind%2Cid&includeInactive=true&maxResults=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"etag\":\"s-etag\",\"items\":[{\"code\":\"s-code\",\"contentAdsSettings\":{\"backupOption\":{\"color\":\"s-color\",\"type\":\"s-type\",\"url\":\"s-url\"},\"size\":\"s-size\",\"type\":\"s-type\"},\"customStyle\":{\"corners\":\"s-corners\",\"kind\":\"s-kind\"},\"feedAdsSettings\":{\"adPosition\":\"s-adposition\",\"frequency\":7,\"minimumWordCount\":7,\"type\":\"s-type\"},\"id\":\"s-id\",\"kind\":\"s-kind\",\"mobileContentAdsSettings\":{\"markupLanguage\":\"s-markuplanguage\",\"scriptingLanguage\":\"s-scriptinglanguage\",\"size\":\"s-size\",\"type\":\"s-type\"},\"name\":\"s-name\",\"savedStyleId\":\"s-savedstyleid\",\"status\":\"s-status\"}],\"kind\":\"s-kind\"}",
+  "OUT: {\"etag\":\"s-etag\",\"items\":[{\"code\":\"s-code\",\"contentAdsSettings\":{\"backupOption\":{\"color\":\"s-color\",\"type\":\"s-type\",\"url\":\"s-url\"},\"size\":\"s-size\",\"type\":\"s-type\"},\"customStyle\":{\"corners\":\"s-corners\",\"kind\":\"s-kind\"},\"feedAdsSettings\":{\"adPosition\":\"s-adposition\",\"frequency\":7,\"minimumWordCount\":7,\"type\":\"s-type\"},\"id\":\"s-id\",\"kind\":\"s-kind\",\"mobileContentAdsSettings\":{\"markupLanguage\":\"s-markuplanguage\",\"scriptingLanguage\":\"s-scriptinglanguage\",\"size\":\"s-size\",\"type\":\"s-type\"},\"name\":\"s-name\",\"savedStyleId\":\"s-savedstyleid\",\"status\":\"s-status\"}],\"kind\":\"s-kind\"}",
+  "OUT: ok",
+]
+
+test "Go's adsense.accounts.customchannels.adunits.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"etag\":\"s-etag\",\"items\":[{\"code\":\"s-code\",\"contentAdsSettings\":{\"backupOption\":{\"color\":\"s-color\",\"type\":\"s-type\",\"url\":\"s-url\"},\"size\":\"s-size\",\"type\":\"s-type\"},\"customStyle\":{\"corners\":\"s-corners\",\"kind\":\"s-kind\"},\"feedAdsSettings\":{\"adPosition\":\"s-adposition\",\"frequency\":7,\"minimumWordCount\":7,\"type\":\"s-type\"},\"id\":\"s-id\",\"kind\":\"s-kind\",\"mobileContentAdsSettings\":{\"markupLanguage\":\"s-markuplanguage\",\"scriptingLanguage\":\"s-scriptinglanguage\",\"size\":\"s-size\",\"type\":\"s-type\"},\"name\":\"s-name\",\"savedStyleId\":\"s-savedstyleid\",\"status\":\"s-status\"}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"etag\":\"s-etag\",\"items\":[{\"code\":\"s-code\",\"contentAdsSettings\":{\"backupOption\":{\"color\":\"s-color\",\"type\":\"s-type\",\"url\":\"s-url\"},\"size\":\"s-size\",\"type\":\"s-type\"},\"customStyle\":{\"corners\":\"s-corners\",\"kind\":\"s-kind\"},\"feedAdsSettings\":{\"adPosition\":\"s-adposition\",\"frequency\":7,\"minimumWordCount\":7,\"type\":\"s-type\"},\"id\":\"s-id\",\"kind\":\"s-kind\",\"mobileContentAdsSettings\":{\"markupLanguage\":\"s-markuplanguage\",\"scriptingLanguage\":\"s-scriptinglanguage\",\"size\":\"s-size\",\"type\":\"s-type\"},\"name\":\"s-name\",\"savedStyleId\":\"s-savedstyleid\",\"status\":\"s-status\"}],\"kind\":\"s-kind\"}")
+  gv_note(f, "CALL adsense.accounts.customchannels.adunits.list pages")
+  var p = svc.accounts.customchannels.adunits.list_pages("id1/ x", "id2/ x", "id3/ x", options: AccountsCustomchannelsAdunitsListOptions{include_inactive: Some(true), max_results: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_16)
+}
+
+const GO_17: List[Str] = [
   "CALL adsense.accounts.reports.generate",
   "REQ GET https://www.googleapis.com/adsense/v1.3/accounts/id1%2F%20x/reports?alt=json&currency=s-currency&dimension=s-dimension&endDate=s-enddate&fields=kind%2Cid&filter=s-filter&locale=s-locale&maxResults=7&metric=s-metric&prettyPrint=false&sort=s-sort&startDate=s-startdate&startIndex=7&useTimezoneReporting=true",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -257,10 +485,31 @@ test "Go's adsense.accounts.reports.generate" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_11)
+  gv_compare(gv_log_of(f), GO_17)
 }
 
-const GO_12: List[Str] = [
+const GO_18: List[Str] = [
+  "CALL adsense.accounts.reports.generate download",
+  "REQ GET https://www.googleapis.com/adsense/v1.3/accounts/id1%2F%20x/reports?alt=media&currency=s-currency&dimension=s-dimension&endDate=s-enddate&fields=kind%2Cid&filter=s-filter&locale=s-locale&maxResults=7&metric=s-metric&prettyPrint=false&sort=s-sort&startDate=s-startdate&startIndex=7&useTimezoneReporting=true",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 media-bytes \u{0001}ÿ",
+  "OUT: media 200 media-bytes \u{0001}ÿ",
+]
+
+test "Go's adsense.accounts.reports.generate download" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "media-bytes \u{0001}ÿ")
+  gv_note(f, "CALL adsense.accounts.reports.generate download")
+  match svc.accounts.reports.generate_download("id1/ x", "s-startdate", "s-enddate", options: AccountsReportsGenerateOptions{currency: Some("s-currency"), dimension: ["s-dimension"], filter: ["s-filter"], locale: Some("s-locale"), max_results: Some(7), metric: ["s-metric"], sort: ["s-sort"], start_index: Some(7), use_timezone_reporting: Some(true), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]}) {
+    Ok(r) => gv_note(f, "OUT: media ${r.status} ${r.body.to_str_lossy()}")
+    Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+  }
+  gv_compare(gv_log_of(f), GO_18)
+}
+
+const GO_19: List[Str] = [
   "CALL adsense.accounts.reports.saved.generate",
   "REQ GET https://www.googleapis.com/adsense/v1.3/accounts/id1%2F%20x/reports/id2%2F%20x?alt=json&fields=kind%2Cid&locale=s-locale&maxResults=7&prettyPrint=false&startIndex=7",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -278,10 +527,10 @@ test "Go's adsense.accounts.reports.saved.generate" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_12)
+  gv_compare(gv_log_of(f), GO_19)
 }
 
-const GO_13: List[Str] = [
+const GO_20: List[Str] = [
   "CALL adsense.accounts.reports.saved.list",
   "REQ GET https://www.googleapis.com/adsense/v1.3/accounts/id1%2F%20x/reports/saved?alt=json&fields=kind%2Cid&maxResults=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -299,10 +548,48 @@ test "Go's adsense.accounts.reports.saved.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_13)
+  gv_compare(gv_log_of(f), GO_20)
 }
 
-const GO_14: List[Str] = [
+const GO_21: List[Str] = [
+  "CALL adsense.accounts.reports.saved.list pages",
+  "REQ GET https://www.googleapis.com/adsense/v1.3/accounts/id1%2F%20x/reports/saved?alt=json&fields=kind%2Cid&maxResults=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"etag\":\"s-etag\",\"items\":[{\"id\":\"s-id\",\"kind\":\"s-kind\",\"name\":\"s-name\"}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"etag\":\"s-etag\",\"items\":[{\"id\":\"s-id\",\"kind\":\"s-kind\",\"name\":\"s-name\"}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://www.googleapis.com/adsense/v1.3/accounts/id1%2F%20x/reports/saved?alt=json&fields=kind%2Cid&maxResults=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"etag\":\"s-etag\",\"items\":[{\"id\":\"s-id\",\"kind\":\"s-kind\",\"name\":\"s-name\"}],\"kind\":\"s-kind\"}",
+  "OUT: {\"etag\":\"s-etag\",\"items\":[{\"id\":\"s-id\",\"kind\":\"s-kind\",\"name\":\"s-name\"}],\"kind\":\"s-kind\"}",
+  "OUT: ok",
+]
+
+test "Go's adsense.accounts.reports.saved.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"etag\":\"s-etag\",\"items\":[{\"id\":\"s-id\",\"kind\":\"s-kind\",\"name\":\"s-name\"}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"etag\":\"s-etag\",\"items\":[{\"id\":\"s-id\",\"kind\":\"s-kind\",\"name\":\"s-name\"}],\"kind\":\"s-kind\"}")
+  gv_note(f, "CALL adsense.accounts.reports.saved.list pages")
+  var p = svc.accounts.reports.saved.list_pages("id1/ x", options: AccountsReportsSavedListOptions{max_results: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_21)
+}
+
+const GO_22: List[Str] = [
   "CALL adsense.accounts.savedadstyles.get",
   "REQ GET https://www.googleapis.com/adsense/v1.3/accounts/id1%2F%20x/savedadstyles/id2%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -320,10 +607,10 @@ test "Go's adsense.accounts.savedadstyles.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_14)
+  gv_compare(gv_log_of(f), GO_22)
 }
 
-const GO_15: List[Str] = [
+const GO_23: List[Str] = [
   "CALL adsense.accounts.savedadstyles.list",
   "REQ GET https://www.googleapis.com/adsense/v1.3/accounts/id1%2F%20x/savedadstyles?alt=json&fields=kind%2Cid&maxResults=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -341,10 +628,48 @@ test "Go's adsense.accounts.savedadstyles.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_15)
+  gv_compare(gv_log_of(f), GO_23)
 }
 
-const GO_16: List[Str] = [
+const GO_24: List[Str] = [
+  "CALL adsense.accounts.savedadstyles.list pages",
+  "REQ GET https://www.googleapis.com/adsense/v1.3/accounts/id1%2F%20x/savedadstyles?alt=json&fields=kind%2Cid&maxResults=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"etag\":\"s-etag\",\"items\":[{\"adStyle\":{\"corners\":\"s-corners\",\"kind\":\"s-kind\"},\"id\":\"s-id\",\"kind\":\"s-kind\",\"name\":\"s-name\"}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"etag\":\"s-etag\",\"items\":[{\"adStyle\":{\"corners\":\"s-corners\",\"kind\":\"s-kind\"},\"id\":\"s-id\",\"kind\":\"s-kind\",\"name\":\"s-name\"}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://www.googleapis.com/adsense/v1.3/accounts/id1%2F%20x/savedadstyles?alt=json&fields=kind%2Cid&maxResults=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"etag\":\"s-etag\",\"items\":[{\"adStyle\":{\"corners\":\"s-corners\",\"kind\":\"s-kind\"},\"id\":\"s-id\",\"kind\":\"s-kind\",\"name\":\"s-name\"}],\"kind\":\"s-kind\"}",
+  "OUT: {\"etag\":\"s-etag\",\"items\":[{\"adStyle\":{\"corners\":\"s-corners\",\"kind\":\"s-kind\"},\"id\":\"s-id\",\"kind\":\"s-kind\",\"name\":\"s-name\"}],\"kind\":\"s-kind\"}",
+  "OUT: ok",
+]
+
+test "Go's adsense.accounts.savedadstyles.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"etag\":\"s-etag\",\"items\":[{\"adStyle\":{\"corners\":\"s-corners\",\"kind\":\"s-kind\"},\"id\":\"s-id\",\"kind\":\"s-kind\",\"name\":\"s-name\"}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"etag\":\"s-etag\",\"items\":[{\"adStyle\":{\"corners\":\"s-corners\",\"kind\":\"s-kind\"},\"id\":\"s-id\",\"kind\":\"s-kind\",\"name\":\"s-name\"}],\"kind\":\"s-kind\"}")
+  gv_note(f, "CALL adsense.accounts.savedadstyles.list pages")
+  var p = svc.accounts.savedadstyles.list_pages("id1/ x", options: AccountsSavedadstylesListOptions{max_results: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_24)
+}
+
+const GO_25: List[Str] = [
   "CALL adsense.accounts.urlchannels.list",
   "REQ GET https://www.googleapis.com/adsense/v1.3/accounts/id1%2F%20x/adclients/id2%2F%20x/urlchannels?alt=json&fields=kind%2Cid&maxResults=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -362,10 +687,48 @@ test "Go's adsense.accounts.urlchannels.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_16)
+  gv_compare(gv_log_of(f), GO_25)
 }
 
-const GO_17: List[Str] = [
+const GO_26: List[Str] = [
+  "CALL adsense.accounts.urlchannels.list pages",
+  "REQ GET https://www.googleapis.com/adsense/v1.3/accounts/id1%2F%20x/adclients/id2%2F%20x/urlchannels?alt=json&fields=kind%2Cid&maxResults=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"etag\":\"s-etag\",\"items\":[{\"id\":\"s-id\",\"kind\":\"s-kind\",\"urlPattern\":\"s-urlpattern\"}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"etag\":\"s-etag\",\"items\":[{\"id\":\"s-id\",\"kind\":\"s-kind\",\"urlPattern\":\"s-urlpattern\"}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://www.googleapis.com/adsense/v1.3/accounts/id1%2F%20x/adclients/id2%2F%20x/urlchannels?alt=json&fields=kind%2Cid&maxResults=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"etag\":\"s-etag\",\"items\":[{\"id\":\"s-id\",\"kind\":\"s-kind\",\"urlPattern\":\"s-urlpattern\"}],\"kind\":\"s-kind\"}",
+  "OUT: {\"etag\":\"s-etag\",\"items\":[{\"id\":\"s-id\",\"kind\":\"s-kind\",\"urlPattern\":\"s-urlpattern\"}],\"kind\":\"s-kind\"}",
+  "OUT: ok",
+]
+
+test "Go's adsense.accounts.urlchannels.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"etag\":\"s-etag\",\"items\":[{\"id\":\"s-id\",\"kind\":\"s-kind\",\"urlPattern\":\"s-urlpattern\"}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"etag\":\"s-etag\",\"items\":[{\"id\":\"s-id\",\"kind\":\"s-kind\",\"urlPattern\":\"s-urlpattern\"}],\"kind\":\"s-kind\"}")
+  gv_note(f, "CALL adsense.accounts.urlchannels.list pages")
+  var p = svc.accounts.urlchannels.list_pages("id1/ x", "id2/ x", options: AccountsUrlchannelsListOptions{max_results: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_26)
+}
+
+const GO_27: List[Str] = [
   "CALL adsense.adclients.list",
   "REQ GET https://www.googleapis.com/adsense/v1.3/adclients?alt=json&fields=kind%2Cid&maxResults=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -383,10 +746,48 @@ test "Go's adsense.adclients.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_17)
+  gv_compare(gv_log_of(f), GO_27)
 }
 
-const GO_18: List[Str] = [
+const GO_28: List[Str] = [
+  "CALL adsense.adclients.list pages",
+  "REQ GET https://www.googleapis.com/adsense/v1.3/adclients?alt=json&fields=kind%2Cid&maxResults=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"etag\":\"s-etag\",\"items\":[{\"arcOptIn\":true,\"id\":\"s-id\",\"kind\":\"s-kind\",\"productCode\":\"s-productcode\",\"supportsReporting\":true}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"etag\":\"s-etag\",\"items\":[{\"arcOptIn\":true,\"id\":\"s-id\",\"kind\":\"s-kind\",\"productCode\":\"s-productcode\",\"supportsReporting\":true}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://www.googleapis.com/adsense/v1.3/adclients?alt=json&fields=kind%2Cid&maxResults=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"etag\":\"s-etag\",\"items\":[{\"arcOptIn\":true,\"id\":\"s-id\",\"kind\":\"s-kind\",\"productCode\":\"s-productcode\",\"supportsReporting\":true}],\"kind\":\"s-kind\"}",
+  "OUT: {\"etag\":\"s-etag\",\"items\":[{\"arcOptIn\":true,\"id\":\"s-id\",\"kind\":\"s-kind\",\"productCode\":\"s-productcode\",\"supportsReporting\":true}],\"kind\":\"s-kind\"}",
+  "OUT: ok",
+]
+
+test "Go's adsense.adclients.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"etag\":\"s-etag\",\"items\":[{\"arcOptIn\":true,\"id\":\"s-id\",\"kind\":\"s-kind\",\"productCode\":\"s-productcode\",\"supportsReporting\":true}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"etag\":\"s-etag\",\"items\":[{\"arcOptIn\":true,\"id\":\"s-id\",\"kind\":\"s-kind\",\"productCode\":\"s-productcode\",\"supportsReporting\":true}],\"kind\":\"s-kind\"}")
+  gv_note(f, "CALL adsense.adclients.list pages")
+  var p = svc.adclients.list_pages(options: AdclientsListOptions{max_results: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_28)
+}
+
+const GO_29: List[Str] = [
   "CALL adsense.adunits.get",
   "REQ GET https://www.googleapis.com/adsense/v1.3/adclients/id1%2F%20x/adunits/id2%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -404,10 +805,10 @@ test "Go's adsense.adunits.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_18)
+  gv_compare(gv_log_of(f), GO_29)
 }
 
-const GO_19: List[Str] = [
+const GO_30: List[Str] = [
   "CALL adsense.adunits.getAdCode",
   "REQ GET https://www.googleapis.com/adsense/v1.3/adclients/id1%2F%20x/adunits/id2%2F%20x/adcode?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -425,10 +826,10 @@ test "Go's adsense.adunits.getAdCode" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_19)
+  gv_compare(gv_log_of(f), GO_30)
 }
 
-const GO_20: List[Str] = [
+const GO_31: List[Str] = [
   "CALL adsense.adunits.list",
   "REQ GET https://www.googleapis.com/adsense/v1.3/adclients/id1%2F%20x/adunits?alt=json&fields=kind%2Cid&includeInactive=true&maxResults=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -446,10 +847,48 @@ test "Go's adsense.adunits.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_20)
+  gv_compare(gv_log_of(f), GO_31)
 }
 
-const GO_21: List[Str] = [
+const GO_32: List[Str] = [
+  "CALL adsense.adunits.list pages",
+  "REQ GET https://www.googleapis.com/adsense/v1.3/adclients/id1%2F%20x/adunits?alt=json&fields=kind%2Cid&includeInactive=true&maxResults=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"etag\":\"s-etag\",\"items\":[{\"code\":\"s-code\",\"contentAdsSettings\":{\"backupOption\":{\"color\":\"s-color\",\"type\":\"s-type\",\"url\":\"s-url\"},\"size\":\"s-size\",\"type\":\"s-type\"},\"customStyle\":{\"corners\":\"s-corners\",\"kind\":\"s-kind\"},\"feedAdsSettings\":{\"adPosition\":\"s-adposition\",\"frequency\":7,\"minimumWordCount\":7,\"type\":\"s-type\"},\"id\":\"s-id\",\"kind\":\"s-kind\",\"mobileContentAdsSettings\":{\"markupLanguage\":\"s-markuplanguage\",\"scriptingLanguage\":\"s-scriptinglanguage\",\"size\":\"s-size\",\"type\":\"s-type\"},\"name\":\"s-name\",\"savedStyleId\":\"s-savedstyleid\",\"status\":\"s-status\"}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"etag\":\"s-etag\",\"items\":[{\"code\":\"s-code\",\"contentAdsSettings\":{\"backupOption\":{\"color\":\"s-color\",\"type\":\"s-type\",\"url\":\"s-url\"},\"size\":\"s-size\",\"type\":\"s-type\"},\"customStyle\":{\"corners\":\"s-corners\",\"kind\":\"s-kind\"},\"feedAdsSettings\":{\"adPosition\":\"s-adposition\",\"frequency\":7,\"minimumWordCount\":7,\"type\":\"s-type\"},\"id\":\"s-id\",\"kind\":\"s-kind\",\"mobileContentAdsSettings\":{\"markupLanguage\":\"s-markuplanguage\",\"scriptingLanguage\":\"s-scriptinglanguage\",\"size\":\"s-size\",\"type\":\"s-type\"},\"name\":\"s-name\",\"savedStyleId\":\"s-savedstyleid\",\"status\":\"s-status\"}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://www.googleapis.com/adsense/v1.3/adclients/id1%2F%20x/adunits?alt=json&fields=kind%2Cid&includeInactive=true&maxResults=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"etag\":\"s-etag\",\"items\":[{\"code\":\"s-code\",\"contentAdsSettings\":{\"backupOption\":{\"color\":\"s-color\",\"type\":\"s-type\",\"url\":\"s-url\"},\"size\":\"s-size\",\"type\":\"s-type\"},\"customStyle\":{\"corners\":\"s-corners\",\"kind\":\"s-kind\"},\"feedAdsSettings\":{\"adPosition\":\"s-adposition\",\"frequency\":7,\"minimumWordCount\":7,\"type\":\"s-type\"},\"id\":\"s-id\",\"kind\":\"s-kind\",\"mobileContentAdsSettings\":{\"markupLanguage\":\"s-markuplanguage\",\"scriptingLanguage\":\"s-scriptinglanguage\",\"size\":\"s-size\",\"type\":\"s-type\"},\"name\":\"s-name\",\"savedStyleId\":\"s-savedstyleid\",\"status\":\"s-status\"}],\"kind\":\"s-kind\"}",
+  "OUT: {\"etag\":\"s-etag\",\"items\":[{\"code\":\"s-code\",\"contentAdsSettings\":{\"backupOption\":{\"color\":\"s-color\",\"type\":\"s-type\",\"url\":\"s-url\"},\"size\":\"s-size\",\"type\":\"s-type\"},\"customStyle\":{\"corners\":\"s-corners\",\"kind\":\"s-kind\"},\"feedAdsSettings\":{\"adPosition\":\"s-adposition\",\"frequency\":7,\"minimumWordCount\":7,\"type\":\"s-type\"},\"id\":\"s-id\",\"kind\":\"s-kind\",\"mobileContentAdsSettings\":{\"markupLanguage\":\"s-markuplanguage\",\"scriptingLanguage\":\"s-scriptinglanguage\",\"size\":\"s-size\",\"type\":\"s-type\"},\"name\":\"s-name\",\"savedStyleId\":\"s-savedstyleid\",\"status\":\"s-status\"}],\"kind\":\"s-kind\"}",
+  "OUT: ok",
+]
+
+test "Go's adsense.adunits.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"etag\":\"s-etag\",\"items\":[{\"code\":\"s-code\",\"contentAdsSettings\":{\"backupOption\":{\"color\":\"s-color\",\"type\":\"s-type\",\"url\":\"s-url\"},\"size\":\"s-size\",\"type\":\"s-type\"},\"customStyle\":{\"corners\":\"s-corners\",\"kind\":\"s-kind\"},\"feedAdsSettings\":{\"adPosition\":\"s-adposition\",\"frequency\":7,\"minimumWordCount\":7,\"type\":\"s-type\"},\"id\":\"s-id\",\"kind\":\"s-kind\",\"mobileContentAdsSettings\":{\"markupLanguage\":\"s-markuplanguage\",\"scriptingLanguage\":\"s-scriptinglanguage\",\"size\":\"s-size\",\"type\":\"s-type\"},\"name\":\"s-name\",\"savedStyleId\":\"s-savedstyleid\",\"status\":\"s-status\"}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"etag\":\"s-etag\",\"items\":[{\"code\":\"s-code\",\"contentAdsSettings\":{\"backupOption\":{\"color\":\"s-color\",\"type\":\"s-type\",\"url\":\"s-url\"},\"size\":\"s-size\",\"type\":\"s-type\"},\"customStyle\":{\"corners\":\"s-corners\",\"kind\":\"s-kind\"},\"feedAdsSettings\":{\"adPosition\":\"s-adposition\",\"frequency\":7,\"minimumWordCount\":7,\"type\":\"s-type\"},\"id\":\"s-id\",\"kind\":\"s-kind\",\"mobileContentAdsSettings\":{\"markupLanguage\":\"s-markuplanguage\",\"scriptingLanguage\":\"s-scriptinglanguage\",\"size\":\"s-size\",\"type\":\"s-type\"},\"name\":\"s-name\",\"savedStyleId\":\"s-savedstyleid\",\"status\":\"s-status\"}],\"kind\":\"s-kind\"}")
+  gv_note(f, "CALL adsense.adunits.list pages")
+  var p = svc.adunits.list_pages("id1/ x", options: AdunitsListOptions{include_inactive: Some(true), max_results: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_32)
+}
+
+const GO_33: List[Str] = [
   "CALL adsense.adunits.customchannels.list",
   "REQ GET https://www.googleapis.com/adsense/v1.3/adclients/id1%2F%20x/adunits/id2%2F%20x/customchannels?alt=json&fields=kind%2Cid&maxResults=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -467,10 +906,48 @@ test "Go's adsense.adunits.customchannels.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_21)
+  gv_compare(gv_log_of(f), GO_33)
 }
 
-const GO_22: List[Str] = [
+const GO_34: List[Str] = [
+  "CALL adsense.adunits.customchannels.list pages",
+  "REQ GET https://www.googleapis.com/adsense/v1.3/adclients/id1%2F%20x/adunits/id2%2F%20x/customchannels?alt=json&fields=kind%2Cid&maxResults=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"etag\":\"s-etag\",\"items\":[{\"code\":\"s-code\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"name\":\"s-name\",\"targetingInfo\":{\"adsAppearOn\":\"s-adsappearon\",\"description\":\"s-description\",\"location\":\"s-location\",\"siteLanguage\":\"s-sitelanguage\"}}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"etag\":\"s-etag\",\"items\":[{\"code\":\"s-code\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"name\":\"s-name\",\"targetingInfo\":{\"adsAppearOn\":\"s-adsappearon\",\"description\":\"s-description\",\"location\":\"s-location\",\"siteLanguage\":\"s-sitelanguage\"}}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://www.googleapis.com/adsense/v1.3/adclients/id1%2F%20x/adunits/id2%2F%20x/customchannels?alt=json&fields=kind%2Cid&maxResults=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"etag\":\"s-etag\",\"items\":[{\"code\":\"s-code\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"name\":\"s-name\",\"targetingInfo\":{\"adsAppearOn\":\"s-adsappearon\",\"description\":\"s-description\",\"location\":\"s-location\",\"siteLanguage\":\"s-sitelanguage\"}}],\"kind\":\"s-kind\"}",
+  "OUT: {\"etag\":\"s-etag\",\"items\":[{\"code\":\"s-code\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"name\":\"s-name\",\"targetingInfo\":{\"adsAppearOn\":\"s-adsappearon\",\"description\":\"s-description\",\"location\":\"s-location\",\"siteLanguage\":\"s-sitelanguage\"}}],\"kind\":\"s-kind\"}",
+  "OUT: ok",
+]
+
+test "Go's adsense.adunits.customchannels.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"etag\":\"s-etag\",\"items\":[{\"code\":\"s-code\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"name\":\"s-name\",\"targetingInfo\":{\"adsAppearOn\":\"s-adsappearon\",\"description\":\"s-description\",\"location\":\"s-location\",\"siteLanguage\":\"s-sitelanguage\"}}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"etag\":\"s-etag\",\"items\":[{\"code\":\"s-code\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"name\":\"s-name\",\"targetingInfo\":{\"adsAppearOn\":\"s-adsappearon\",\"description\":\"s-description\",\"location\":\"s-location\",\"siteLanguage\":\"s-sitelanguage\"}}],\"kind\":\"s-kind\"}")
+  gv_note(f, "CALL adsense.adunits.customchannels.list pages")
+  var p = svc.adunits.customchannels.list_pages("id1/ x", "id2/ x", options: AdunitsCustomchannelsListOptions{max_results: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_34)
+}
+
+const GO_35: List[Str] = [
   "CALL adsense.alerts.list",
   "REQ GET https://www.googleapis.com/adsense/v1.3/alerts?alt=json&fields=kind%2Cid&locale=s-locale&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -488,10 +965,10 @@ test "Go's adsense.alerts.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_22)
+  gv_compare(gv_log_of(f), GO_35)
 }
 
-const GO_23: List[Str] = [
+const GO_36: List[Str] = [
   "CALL adsense.customchannels.get",
   "REQ GET https://www.googleapis.com/adsense/v1.3/adclients/id1%2F%20x/customchannels/id2%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -509,10 +986,10 @@ test "Go's adsense.customchannels.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_23)
+  gv_compare(gv_log_of(f), GO_36)
 }
 
-const GO_24: List[Str] = [
+const GO_37: List[Str] = [
   "CALL adsense.customchannels.list",
   "REQ GET https://www.googleapis.com/adsense/v1.3/adclients/id1%2F%20x/customchannels?alt=json&fields=kind%2Cid&maxResults=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -530,10 +1007,48 @@ test "Go's adsense.customchannels.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_24)
+  gv_compare(gv_log_of(f), GO_37)
 }
 
-const GO_25: List[Str] = [
+const GO_38: List[Str] = [
+  "CALL adsense.customchannels.list pages",
+  "REQ GET https://www.googleapis.com/adsense/v1.3/adclients/id1%2F%20x/customchannels?alt=json&fields=kind%2Cid&maxResults=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"etag\":\"s-etag\",\"items\":[{\"code\":\"s-code\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"name\":\"s-name\",\"targetingInfo\":{\"adsAppearOn\":\"s-adsappearon\",\"description\":\"s-description\",\"location\":\"s-location\",\"siteLanguage\":\"s-sitelanguage\"}}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"etag\":\"s-etag\",\"items\":[{\"code\":\"s-code\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"name\":\"s-name\",\"targetingInfo\":{\"adsAppearOn\":\"s-adsappearon\",\"description\":\"s-description\",\"location\":\"s-location\",\"siteLanguage\":\"s-sitelanguage\"}}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://www.googleapis.com/adsense/v1.3/adclients/id1%2F%20x/customchannels?alt=json&fields=kind%2Cid&maxResults=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"etag\":\"s-etag\",\"items\":[{\"code\":\"s-code\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"name\":\"s-name\",\"targetingInfo\":{\"adsAppearOn\":\"s-adsappearon\",\"description\":\"s-description\",\"location\":\"s-location\",\"siteLanguage\":\"s-sitelanguage\"}}],\"kind\":\"s-kind\"}",
+  "OUT: {\"etag\":\"s-etag\",\"items\":[{\"code\":\"s-code\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"name\":\"s-name\",\"targetingInfo\":{\"adsAppearOn\":\"s-adsappearon\",\"description\":\"s-description\",\"location\":\"s-location\",\"siteLanguage\":\"s-sitelanguage\"}}],\"kind\":\"s-kind\"}",
+  "OUT: ok",
+]
+
+test "Go's adsense.customchannels.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"etag\":\"s-etag\",\"items\":[{\"code\":\"s-code\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"name\":\"s-name\",\"targetingInfo\":{\"adsAppearOn\":\"s-adsappearon\",\"description\":\"s-description\",\"location\":\"s-location\",\"siteLanguage\":\"s-sitelanguage\"}}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"etag\":\"s-etag\",\"items\":[{\"code\":\"s-code\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"name\":\"s-name\",\"targetingInfo\":{\"adsAppearOn\":\"s-adsappearon\",\"description\":\"s-description\",\"location\":\"s-location\",\"siteLanguage\":\"s-sitelanguage\"}}],\"kind\":\"s-kind\"}")
+  gv_note(f, "CALL adsense.customchannels.list pages")
+  var p = svc.customchannels.list_pages("id1/ x", options: CustomchannelsListOptions{max_results: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_38)
+}
+
+const GO_39: List[Str] = [
   "CALL adsense.customchannels.adunits.list",
   "REQ GET https://www.googleapis.com/adsense/v1.3/adclients/id1%2F%20x/customchannels/id2%2F%20x/adunits?alt=json&fields=kind%2Cid&includeInactive=true&maxResults=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -551,10 +1066,48 @@ test "Go's adsense.customchannels.adunits.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_25)
+  gv_compare(gv_log_of(f), GO_39)
 }
 
-const GO_26: List[Str] = [
+const GO_40: List[Str] = [
+  "CALL adsense.customchannels.adunits.list pages",
+  "REQ GET https://www.googleapis.com/adsense/v1.3/adclients/id1%2F%20x/customchannels/id2%2F%20x/adunits?alt=json&fields=kind%2Cid&includeInactive=true&maxResults=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"etag\":\"s-etag\",\"items\":[{\"code\":\"s-code\",\"contentAdsSettings\":{\"backupOption\":{\"color\":\"s-color\",\"type\":\"s-type\",\"url\":\"s-url\"},\"size\":\"s-size\",\"type\":\"s-type\"},\"customStyle\":{\"corners\":\"s-corners\",\"kind\":\"s-kind\"},\"feedAdsSettings\":{\"adPosition\":\"s-adposition\",\"frequency\":7,\"minimumWordCount\":7,\"type\":\"s-type\"},\"id\":\"s-id\",\"kind\":\"s-kind\",\"mobileContentAdsSettings\":{\"markupLanguage\":\"s-markuplanguage\",\"scriptingLanguage\":\"s-scriptinglanguage\",\"size\":\"s-size\",\"type\":\"s-type\"},\"name\":\"s-name\",\"savedStyleId\":\"s-savedstyleid\",\"status\":\"s-status\"}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"etag\":\"s-etag\",\"items\":[{\"code\":\"s-code\",\"contentAdsSettings\":{\"backupOption\":{\"color\":\"s-color\",\"type\":\"s-type\",\"url\":\"s-url\"},\"size\":\"s-size\",\"type\":\"s-type\"},\"customStyle\":{\"corners\":\"s-corners\",\"kind\":\"s-kind\"},\"feedAdsSettings\":{\"adPosition\":\"s-adposition\",\"frequency\":7,\"minimumWordCount\":7,\"type\":\"s-type\"},\"id\":\"s-id\",\"kind\":\"s-kind\",\"mobileContentAdsSettings\":{\"markupLanguage\":\"s-markuplanguage\",\"scriptingLanguage\":\"s-scriptinglanguage\",\"size\":\"s-size\",\"type\":\"s-type\"},\"name\":\"s-name\",\"savedStyleId\":\"s-savedstyleid\",\"status\":\"s-status\"}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://www.googleapis.com/adsense/v1.3/adclients/id1%2F%20x/customchannels/id2%2F%20x/adunits?alt=json&fields=kind%2Cid&includeInactive=true&maxResults=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"etag\":\"s-etag\",\"items\":[{\"code\":\"s-code\",\"contentAdsSettings\":{\"backupOption\":{\"color\":\"s-color\",\"type\":\"s-type\",\"url\":\"s-url\"},\"size\":\"s-size\",\"type\":\"s-type\"},\"customStyle\":{\"corners\":\"s-corners\",\"kind\":\"s-kind\"},\"feedAdsSettings\":{\"adPosition\":\"s-adposition\",\"frequency\":7,\"minimumWordCount\":7,\"type\":\"s-type\"},\"id\":\"s-id\",\"kind\":\"s-kind\",\"mobileContentAdsSettings\":{\"markupLanguage\":\"s-markuplanguage\",\"scriptingLanguage\":\"s-scriptinglanguage\",\"size\":\"s-size\",\"type\":\"s-type\"},\"name\":\"s-name\",\"savedStyleId\":\"s-savedstyleid\",\"status\":\"s-status\"}],\"kind\":\"s-kind\"}",
+  "OUT: {\"etag\":\"s-etag\",\"items\":[{\"code\":\"s-code\",\"contentAdsSettings\":{\"backupOption\":{\"color\":\"s-color\",\"type\":\"s-type\",\"url\":\"s-url\"},\"size\":\"s-size\",\"type\":\"s-type\"},\"customStyle\":{\"corners\":\"s-corners\",\"kind\":\"s-kind\"},\"feedAdsSettings\":{\"adPosition\":\"s-adposition\",\"frequency\":7,\"minimumWordCount\":7,\"type\":\"s-type\"},\"id\":\"s-id\",\"kind\":\"s-kind\",\"mobileContentAdsSettings\":{\"markupLanguage\":\"s-markuplanguage\",\"scriptingLanguage\":\"s-scriptinglanguage\",\"size\":\"s-size\",\"type\":\"s-type\"},\"name\":\"s-name\",\"savedStyleId\":\"s-savedstyleid\",\"status\":\"s-status\"}],\"kind\":\"s-kind\"}",
+  "OUT: ok",
+]
+
+test "Go's adsense.customchannels.adunits.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"etag\":\"s-etag\",\"items\":[{\"code\":\"s-code\",\"contentAdsSettings\":{\"backupOption\":{\"color\":\"s-color\",\"type\":\"s-type\",\"url\":\"s-url\"},\"size\":\"s-size\",\"type\":\"s-type\"},\"customStyle\":{\"corners\":\"s-corners\",\"kind\":\"s-kind\"},\"feedAdsSettings\":{\"adPosition\":\"s-adposition\",\"frequency\":7,\"minimumWordCount\":7,\"type\":\"s-type\"},\"id\":\"s-id\",\"kind\":\"s-kind\",\"mobileContentAdsSettings\":{\"markupLanguage\":\"s-markuplanguage\",\"scriptingLanguage\":\"s-scriptinglanguage\",\"size\":\"s-size\",\"type\":\"s-type\"},\"name\":\"s-name\",\"savedStyleId\":\"s-savedstyleid\",\"status\":\"s-status\"}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"etag\":\"s-etag\",\"items\":[{\"code\":\"s-code\",\"contentAdsSettings\":{\"backupOption\":{\"color\":\"s-color\",\"type\":\"s-type\",\"url\":\"s-url\"},\"size\":\"s-size\",\"type\":\"s-type\"},\"customStyle\":{\"corners\":\"s-corners\",\"kind\":\"s-kind\"},\"feedAdsSettings\":{\"adPosition\":\"s-adposition\",\"frequency\":7,\"minimumWordCount\":7,\"type\":\"s-type\"},\"id\":\"s-id\",\"kind\":\"s-kind\",\"mobileContentAdsSettings\":{\"markupLanguage\":\"s-markuplanguage\",\"scriptingLanguage\":\"s-scriptinglanguage\",\"size\":\"s-size\",\"type\":\"s-type\"},\"name\":\"s-name\",\"savedStyleId\":\"s-savedstyleid\",\"status\":\"s-status\"}],\"kind\":\"s-kind\"}")
+  gv_note(f, "CALL adsense.customchannels.adunits.list pages")
+  var p = svc.customchannels.adunits.list_pages("id1/ x", "id2/ x", options: CustomchannelsAdunitsListOptions{include_inactive: Some(true), max_results: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_40)
+}
+
+const GO_41: List[Str] = [
   "CALL adsense.metadata.dimensions.list",
   "REQ GET https://www.googleapis.com/adsense/v1.3/metadata/dimensions?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -572,10 +1125,10 @@ test "Go's adsense.metadata.dimensions.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_26)
+  gv_compare(gv_log_of(f), GO_41)
 }
 
-const GO_27: List[Str] = [
+const GO_42: List[Str] = [
   "CALL adsense.metadata.metrics.list",
   "REQ GET https://www.googleapis.com/adsense/v1.3/metadata/metrics?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -593,10 +1146,10 @@ test "Go's adsense.metadata.metrics.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_27)
+  gv_compare(gv_log_of(f), GO_42)
 }
 
-const GO_28: List[Str] = [
+const GO_43: List[Str] = [
   "CALL adsense.reports.generate",
   "REQ GET https://www.googleapis.com/adsense/v1.3/reports?accountId=s-accountid&alt=json&currency=s-currency&dimension=s-dimension&endDate=s-enddate&fields=kind%2Cid&filter=s-filter&locale=s-locale&maxResults=7&metric=s-metric&prettyPrint=false&sort=s-sort&startDate=s-startdate&startIndex=7&useTimezoneReporting=true",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -614,10 +1167,31 @@ test "Go's adsense.reports.generate" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_28)
+  gv_compare(gv_log_of(f), GO_43)
 }
 
-const GO_29: List[Str] = [
+const GO_44: List[Str] = [
+  "CALL adsense.reports.generate download",
+  "REQ GET https://www.googleapis.com/adsense/v1.3/reports?accountId=s-accountid&alt=media&currency=s-currency&dimension=s-dimension&endDate=s-enddate&fields=kind%2Cid&filter=s-filter&locale=s-locale&maxResults=7&metric=s-metric&prettyPrint=false&sort=s-sort&startDate=s-startdate&startIndex=7&useTimezoneReporting=true",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 media-bytes \u{0001}ÿ",
+  "OUT: media 200 media-bytes \u{0001}ÿ",
+]
+
+test "Go's adsense.reports.generate download" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "media-bytes \u{0001}ÿ")
+  gv_note(f, "CALL adsense.reports.generate download")
+  match svc.reports.generate_download("s-startdate", "s-enddate", options: ReportsGenerateOptions{account_id: ["s-accountid"], currency: Some("s-currency"), dimension: ["s-dimension"], filter: ["s-filter"], locale: Some("s-locale"), max_results: Some(7), metric: ["s-metric"], sort: ["s-sort"], start_index: Some(7), use_timezone_reporting: Some(true), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]}) {
+    Ok(r) => gv_note(f, "OUT: media ${r.status} ${r.body.to_str_lossy()}")
+    Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+  }
+  gv_compare(gv_log_of(f), GO_44)
+}
+
+const GO_45: List[Str] = [
   "CALL adsense.reports.saved.generate",
   "REQ GET https://www.googleapis.com/adsense/v1.3/reports/id1%2F%20x?alt=json&fields=kind%2Cid&locale=s-locale&maxResults=7&prettyPrint=false&startIndex=7",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -635,10 +1209,10 @@ test "Go's adsense.reports.saved.generate" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_29)
+  gv_compare(gv_log_of(f), GO_45)
 }
 
-const GO_30: List[Str] = [
+const GO_46: List[Str] = [
   "CALL adsense.reports.saved.list",
   "REQ GET https://www.googleapis.com/adsense/v1.3/reports/saved?alt=json&fields=kind%2Cid&maxResults=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -656,10 +1230,48 @@ test "Go's adsense.reports.saved.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_30)
+  gv_compare(gv_log_of(f), GO_46)
 }
 
-const GO_31: List[Str] = [
+const GO_47: List[Str] = [
+  "CALL adsense.reports.saved.list pages",
+  "REQ GET https://www.googleapis.com/adsense/v1.3/reports/saved?alt=json&fields=kind%2Cid&maxResults=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"etag\":\"s-etag\",\"items\":[{\"id\":\"s-id\",\"kind\":\"s-kind\",\"name\":\"s-name\"}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"etag\":\"s-etag\",\"items\":[{\"id\":\"s-id\",\"kind\":\"s-kind\",\"name\":\"s-name\"}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://www.googleapis.com/adsense/v1.3/reports/saved?alt=json&fields=kind%2Cid&maxResults=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"etag\":\"s-etag\",\"items\":[{\"id\":\"s-id\",\"kind\":\"s-kind\",\"name\":\"s-name\"}],\"kind\":\"s-kind\"}",
+  "OUT: {\"etag\":\"s-etag\",\"items\":[{\"id\":\"s-id\",\"kind\":\"s-kind\",\"name\":\"s-name\"}],\"kind\":\"s-kind\"}",
+  "OUT: ok",
+]
+
+test "Go's adsense.reports.saved.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"etag\":\"s-etag\",\"items\":[{\"id\":\"s-id\",\"kind\":\"s-kind\",\"name\":\"s-name\"}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"etag\":\"s-etag\",\"items\":[{\"id\":\"s-id\",\"kind\":\"s-kind\",\"name\":\"s-name\"}],\"kind\":\"s-kind\"}")
+  gv_note(f, "CALL adsense.reports.saved.list pages")
+  var p = svc.reports.saved.list_pages(options: ReportsSavedListOptions{max_results: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_47)
+}
+
+const GO_48: List[Str] = [
   "CALL adsense.savedadstyles.get",
   "REQ GET https://www.googleapis.com/adsense/v1.3/savedadstyles/id1%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -677,10 +1289,10 @@ test "Go's adsense.savedadstyles.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_31)
+  gv_compare(gv_log_of(f), GO_48)
 }
 
-const GO_32: List[Str] = [
+const GO_49: List[Str] = [
   "CALL adsense.savedadstyles.list",
   "REQ GET https://www.googleapis.com/adsense/v1.3/savedadstyles?alt=json&fields=kind%2Cid&maxResults=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -698,10 +1310,48 @@ test "Go's adsense.savedadstyles.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_32)
+  gv_compare(gv_log_of(f), GO_49)
 }
 
-const GO_33: List[Str] = [
+const GO_50: List[Str] = [
+  "CALL adsense.savedadstyles.list pages",
+  "REQ GET https://www.googleapis.com/adsense/v1.3/savedadstyles?alt=json&fields=kind%2Cid&maxResults=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"etag\":\"s-etag\",\"items\":[{\"adStyle\":{\"corners\":\"s-corners\",\"kind\":\"s-kind\"},\"id\":\"s-id\",\"kind\":\"s-kind\",\"name\":\"s-name\"}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"etag\":\"s-etag\",\"items\":[{\"adStyle\":{\"corners\":\"s-corners\",\"kind\":\"s-kind\"},\"id\":\"s-id\",\"kind\":\"s-kind\",\"name\":\"s-name\"}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://www.googleapis.com/adsense/v1.3/savedadstyles?alt=json&fields=kind%2Cid&maxResults=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"etag\":\"s-etag\",\"items\":[{\"adStyle\":{\"corners\":\"s-corners\",\"kind\":\"s-kind\"},\"id\":\"s-id\",\"kind\":\"s-kind\",\"name\":\"s-name\"}],\"kind\":\"s-kind\"}",
+  "OUT: {\"etag\":\"s-etag\",\"items\":[{\"adStyle\":{\"corners\":\"s-corners\",\"kind\":\"s-kind\"},\"id\":\"s-id\",\"kind\":\"s-kind\",\"name\":\"s-name\"}],\"kind\":\"s-kind\"}",
+  "OUT: ok",
+]
+
+test "Go's adsense.savedadstyles.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"etag\":\"s-etag\",\"items\":[{\"adStyle\":{\"corners\":\"s-corners\",\"kind\":\"s-kind\"},\"id\":\"s-id\",\"kind\":\"s-kind\",\"name\":\"s-name\"}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"etag\":\"s-etag\",\"items\":[{\"adStyle\":{\"corners\":\"s-corners\",\"kind\":\"s-kind\"},\"id\":\"s-id\",\"kind\":\"s-kind\",\"name\":\"s-name\"}],\"kind\":\"s-kind\"}")
+  gv_note(f, "CALL adsense.savedadstyles.list pages")
+  var p = svc.savedadstyles.list_pages(options: SavedadstylesListOptions{max_results: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_50)
+}
+
+const GO_51: List[Str] = [
   "CALL adsense.urlchannels.list",
   "REQ GET https://www.googleapis.com/adsense/v1.3/adclients/id1%2F%20x/urlchannels?alt=json&fields=kind%2Cid&maxResults=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -719,5 +1369,43 @@ test "Go's adsense.urlchannels.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_33)
+  gv_compare(gv_log_of(f), GO_51)
+}
+
+const GO_52: List[Str] = [
+  "CALL adsense.urlchannels.list pages",
+  "REQ GET https://www.googleapis.com/adsense/v1.3/adclients/id1%2F%20x/urlchannels?alt=json&fields=kind%2Cid&maxResults=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"etag\":\"s-etag\",\"items\":[{\"id\":\"s-id\",\"kind\":\"s-kind\",\"urlPattern\":\"s-urlpattern\"}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"etag\":\"s-etag\",\"items\":[{\"id\":\"s-id\",\"kind\":\"s-kind\",\"urlPattern\":\"s-urlpattern\"}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://www.googleapis.com/adsense/v1.3/adclients/id1%2F%20x/urlchannels?alt=json&fields=kind%2Cid&maxResults=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"etag\":\"s-etag\",\"items\":[{\"id\":\"s-id\",\"kind\":\"s-kind\",\"urlPattern\":\"s-urlpattern\"}],\"kind\":\"s-kind\"}",
+  "OUT: {\"etag\":\"s-etag\",\"items\":[{\"id\":\"s-id\",\"kind\":\"s-kind\",\"urlPattern\":\"s-urlpattern\"}],\"kind\":\"s-kind\"}",
+  "OUT: ok",
+]
+
+test "Go's adsense.urlchannels.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"etag\":\"s-etag\",\"items\":[{\"id\":\"s-id\",\"kind\":\"s-kind\",\"urlPattern\":\"s-urlpattern\"}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"etag\":\"s-etag\",\"items\":[{\"id\":\"s-id\",\"kind\":\"s-kind\",\"urlPattern\":\"s-urlpattern\"}],\"kind\":\"s-kind\"}")
+  gv_note(f, "CALL adsense.urlchannels.list pages")
+  var p = svc.urlchannels.list_pages("id1/ x", options: UrlchannelsListOptions{max_results: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_52)
 }

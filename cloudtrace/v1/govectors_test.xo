@@ -71,3 +71,41 @@ test "Go's cloudtrace.projects.traces.list" {
   }
   gv_compare(gv_log_of(f), GO_2)
 }
+
+const GO_3: List[Str] = [
+  "CALL cloudtrace.projects.traces.list pages",
+  "REQ GET https://cloudtrace.googleapis.com/v1/projects/id1%2F%20x/traces?alt=json&endTime=s-endtime&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&startTime=s-starttime&view=s-view",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"traces\":[{\"projectId\":\"s-projectid\",\"traceId\":\"s-traceid\"}]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"traces\":[{\"projectId\":\"s-projectid\",\"traceId\":\"s-traceid\"}]}",
+  "REQ GET https://cloudtrace.googleapis.com/v1/projects/id1%2F%20x/traces?alt=json&endTime=s-endtime&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false&startTime=s-starttime&view=s-view",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"traces\":[{\"projectId\":\"s-projectid\",\"traceId\":\"s-traceid\"}]}",
+  "OUT: {\"traces\":[{\"projectId\":\"s-projectid\",\"traceId\":\"s-traceid\"}]}",
+  "OUT: ok",
+]
+
+test "Go's cloudtrace.projects.traces.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"traces\":[{\"projectId\":\"s-projectid\",\"traceId\":\"s-traceid\"}]}")
+  gv_queue(f, "{\"traces\":[{\"projectId\":\"s-projectid\",\"traceId\":\"s-traceid\"}]}")
+  gv_note(f, "CALL cloudtrace.projects.traces.list pages")
+  var p = svc.projects.traces.list_pages("id1/ x", options: ProjectsTracesListOptions{end_time: Some("s-endtime"), filter: Some("s-filter"), order_by: Some("s-orderby"), page_size: Some(7), page_token: Some("s-pagetoken"), start_time: Some("s-starttime"), view: Some("s-view"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_3)
+}

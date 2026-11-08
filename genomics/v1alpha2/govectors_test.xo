@@ -73,6 +73,44 @@ test "Go's genomics.operations.list" {
 }
 
 const GO_3: List[Str] = [
+  "CALL genomics.operations.list pages",
+  "REQ GET https://genomics.googleapis.com/v1alpha2/id1/%20x?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}]}",
+  "REQ GET https://genomics.googleapis.com/v1alpha2/id1/%20x?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}]}",
+  "OUT: {\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}]}",
+  "OUT: ok",
+]
+
+test "Go's genomics.operations.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}]}")
+  gv_queue(f, "{\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}]}")
+  gv_note(f, "CALL genomics.operations.list pages")
+  var p = svc.operations.list_pages("id1/ x", options: OperationsListOptions{filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_3)
+}
+
+const GO_4: List[Str] = [
   "CALL genomics.pipelines.create",
   "REQ POST https://genomics.googleapis.com/v1alpha2/pipelines?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -91,10 +129,10 @@ test "Go's genomics.pipelines.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_3)
+  gv_compare(gv_log_of(f), GO_4)
 }
 
-const GO_4: List[Str] = [
+const GO_5: List[Str] = [
   "CALL genomics.pipelines.delete",
   "REQ DELETE https://genomics.googleapis.com/v1alpha2/pipelines/id1%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -112,10 +150,10 @@ test "Go's genomics.pipelines.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_4)
+  gv_compare(gv_log_of(f), GO_5)
 }
 
-const GO_5: List[Str] = [
+const GO_6: List[Str] = [
   "CALL genomics.pipelines.get",
   "REQ GET https://genomics.googleapis.com/v1alpha2/pipelines/id1%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -133,10 +171,10 @@ test "Go's genomics.pipelines.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_5)
+  gv_compare(gv_log_of(f), GO_6)
 }
 
-const GO_6: List[Str] = [
+const GO_7: List[Str] = [
   "CALL genomics.pipelines.getControllerConfig",
   "REQ GET https://genomics.googleapis.com/v1alpha2/pipelines:getControllerConfig?alt=json&fields=kind%2Cid&operationId=s-operationid&prettyPrint=false&validationToken=7",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -150,14 +188,14 @@ test "Go's genomics.pipelines.getControllerConfig" {
   let svc = new_service(os.net, gv_opts())
   gv_set(f, "{\"cmd\":\"s-cmd\",\"disks\":{\"k1\":\"s-disks\"},\"gcsLogPath\":\"s-gcslogpath\",\"gcsSinks\":{\"k1\":{\"values\":[\"s-values\"]}},\"gcsSources\":{\"k1\":{\"values\":[\"s-values\"]}},\"image\":\"s-image\",\"machineType\":\"s-machinetype\",\"vars\":{\"k1\":\"s-vars\"}}")
   gv_note(f, "CALL genomics.pipelines.getControllerConfig")
-  match svc.pipelines.get_controller_config(options: PipelinesGetControllerConfigOptions{operation_id: Some("s-operationid"), validation_token: Some("7"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]}) {
+  match svc.pipelines.get_controller_config(options: PipelinesGetControllerConfigOptions{operation_id: Some("s-operationid"), validation_token: Some(7), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]}) {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_6)
+  gv_compare(gv_log_of(f), GO_7)
 }
 
-const GO_7: List[Str] = [
+const GO_8: List[Str] = [
   "CALL genomics.pipelines.list",
   "REQ GET https://genomics.googleapis.com/v1alpha2/pipelines?alt=json&fields=kind%2Cid&namePrefix=s-nameprefix&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&projectId=s-projectid",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -175,14 +213,52 @@ test "Go's genomics.pipelines.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_7)
+  gv_compare(gv_log_of(f), GO_8)
 }
 
-const GO_8: List[Str] = [
+const GO_9: List[Str] = [
+  "CALL genomics.pipelines.list pages",
+  "REQ GET https://genomics.googleapis.com/v1alpha2/pipelines?alt=json&fields=kind%2Cid&namePrefix=s-nameprefix&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&projectId=s-projectid",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"pipelines\":[{\"description\":\"s-description\",\"docker\":{\"cmd\":\"s-cmd\",\"imageName\":\"s-imagename\"},\"name\":\"s-name\",\"pipelineId\":\"s-pipelineid\",\"projectId\":\"s-projectid\",\"resources\":{\"acceleratorCount\":\"7\",\"acceleratorType\":\"s-acceleratortype\",\"bootDiskSizeGb\":7,\"minimumCpuCores\":7,\"minimumRamGb\":1.5,\"noAddress\":true,\"preemptible\":true}}]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"pipelines\":[{\"description\":\"s-description\",\"docker\":{\"cmd\":\"s-cmd\",\"imageName\":\"s-imagename\"},\"name\":\"s-name\",\"pipelineId\":\"s-pipelineid\",\"projectId\":\"s-projectid\",\"resources\":{\"acceleratorCount\":\"7\",\"acceleratorType\":\"s-acceleratortype\",\"bootDiskSizeGb\":7,\"minimumCpuCores\":7,\"minimumRamGb\":1.5,\"noAddress\":true,\"preemptible\":true}}]}",
+  "REQ GET https://genomics.googleapis.com/v1alpha2/pipelines?alt=json&fields=kind%2Cid&namePrefix=s-nameprefix&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false&projectId=s-projectid",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"pipelines\":[{\"description\":\"s-description\",\"docker\":{\"cmd\":\"s-cmd\",\"imageName\":\"s-imagename\"},\"name\":\"s-name\",\"pipelineId\":\"s-pipelineid\",\"projectId\":\"s-projectid\",\"resources\":{\"acceleratorCount\":\"7\",\"acceleratorType\":\"s-acceleratortype\",\"bootDiskSizeGb\":7,\"minimumCpuCores\":7,\"minimumRamGb\":1.5,\"noAddress\":true,\"preemptible\":true}}]}",
+  "OUT: {\"pipelines\":[{\"description\":\"s-description\",\"docker\":{\"cmd\":\"s-cmd\",\"imageName\":\"s-imagename\"},\"name\":\"s-name\",\"pipelineId\":\"s-pipelineid\",\"projectId\":\"s-projectid\",\"resources\":{\"acceleratorCount\":\"7\",\"acceleratorType\":\"s-acceleratortype\",\"bootDiskSizeGb\":7,\"minimumCpuCores\":7,\"minimumRamGb\":1.5,\"noAddress\":true,\"preemptible\":true}}]}",
+  "OUT: ok",
+]
+
+test "Go's genomics.pipelines.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"pipelines\":[{\"description\":\"s-description\",\"docker\":{\"cmd\":\"s-cmd\",\"imageName\":\"s-imagename\"},\"name\":\"s-name\",\"pipelineId\":\"s-pipelineid\",\"projectId\":\"s-projectid\",\"resources\":{\"acceleratorCount\":\"7\",\"acceleratorType\":\"s-acceleratortype\",\"bootDiskSizeGb\":7,\"minimumCpuCores\":7,\"minimumRamGb\":1.5,\"noAddress\":true,\"preemptible\":true}}]}")
+  gv_queue(f, "{\"pipelines\":[{\"description\":\"s-description\",\"docker\":{\"cmd\":\"s-cmd\",\"imageName\":\"s-imagename\"},\"name\":\"s-name\",\"pipelineId\":\"s-pipelineid\",\"projectId\":\"s-projectid\",\"resources\":{\"acceleratorCount\":\"7\",\"acceleratorType\":\"s-acceleratortype\",\"bootDiskSizeGb\":7,\"minimumCpuCores\":7,\"minimumRamGb\":1.5,\"noAddress\":true,\"preemptible\":true}}]}")
+  gv_note(f, "CALL genomics.pipelines.list pages")
+  var p = svc.pipelines.list_pages(options: PipelinesListOptions{name_prefix: Some("s-nameprefix"), page_size: Some(7), page_token: Some("s-pagetoken"), project_id: Some("s-projectid"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_9)
+}
+
+const GO_10: List[Str] = [
   "CALL genomics.pipelines.run",
   "REQ POST https://genomics.googleapis.com/v1alpha2/pipelines:run?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"ephemeralPipeline\":{\"description\":\"s-description\",\"docker\":{\"cmd\":\"s-cmd\",\"imageName\":\"s-imagename\"},\"inputParameters\":[{\"defaultValue\":\"s-defaultvalue\",\"description\":\"s-description\",\"name\":\"s-name\"}],\"name\":\"s-name\",\"outputParameters\":[{\"defaultValue\":\"s-defaultvalue\",\"description\":\"s-description\",\"name\":\"s-name\"}],\"pipelineId\":\"s-pipelineid\",\"projectId\":\"s-projectid\",\"resources\":{\"acceleratorCount\":\"7\",\"acceleratorType\":\"s-acceleratortype\",\"bootDiskSizeGb\":7,\"minimumCpuCores\":7,\"minimumRamGb\":1.5,\"noAddress\":true,\"preemptible\":true,\"zones\":[\"s-zones\"]}},\"pipelineArgs\":{\"clientId\":\"s-clientid\",\"inputs\":{\"k1\":\"s-inputs\"},\"keepVmAliveOnFailureDuration\":\"s-keepvmaliveonfailureduration\",\"labels\":{\"k1\":\"s-labels\"},\"logging\":{\"gcsPath\":\"s-gcspath\"},\"outputs\":{\"k1\":\"s-outputs\"},\"projectId\":\"s-projectid\",\"resources\":{\"acceleratorCount\":\"7\",\"acceleratorType\":\"s-acceleratortype\",\"bootDiskSizeGb\":7,\"minimumCpuCores\":7,\"minimumRamGb\":1.5,\"noAddress\":true,\"preemptible\":true,\"zones\":[\"s-zones\"]},\"serviceAccount\":{\"email\":\"s-email\",\"scopes\":[\"s-scopes\"]}},\"pipelineId\":\"s-pipelineid\"}",
+  "  B <1089 bytes> {\"ephemeralPipeline\":{\"descripti...}},\"pipelineId\":\"s-pipelineid\"}",
   "",
   "  SERVED 200 {\"done\":true,\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}",
   "OUT: {\"done\":true,\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}",
@@ -197,10 +273,10 @@ test "Go's genomics.pipelines.run" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_8)
+  gv_compare(gv_log_of(f), GO_10)
 }
 
-const GO_9: List[Str] = [
+const GO_11: List[Str] = [
   "CALL genomics.pipelines.setOperationStatus",
   "REQ PUT https://genomics.googleapis.com/v1alpha2/pipelines:setOperationStatus?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -219,5 +295,5 @@ test "Go's genomics.pipelines.setOperationStatus" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_9)
+  gv_compare(gv_log_of(f), GO_11)
 }

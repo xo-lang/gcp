@@ -51,6 +51,44 @@ test "Go's securesourcemanager.projects.locations.list" {
 }
 
 const GO_2: List[Str] = [
+  "CALL securesourcemanager.projects.locations.list pages",
+  "REQ GET https://securesourcemanager.googleapis.com/v1/id1/%20x/locations?alt=json&extraLocationTypes=s-extralocationtypes&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://securesourcemanager.googleapis.com/v1/id1/%20x/locations?alt=json&extraLocationTypes=s-extralocationtypes&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}]}",
+  "OUT: {\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}]}",
+  "OUT: ok",
+]
+
+test "Go's securesourcemanager.projects.locations.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}]}")
+  gv_note(f, "CALL securesourcemanager.projects.locations.list pages")
+  var p = svc.projects.locations.list_pages("id1/ x", options: ProjectsLocationsListOptions{extra_location_types: ["s-extralocationtypes"], filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_2)
+}
+
+const GO_3: List[Str] = [
   "CALL securesourcemanager.projects.locations.instances.create",
   "REQ POST https://securesourcemanager.googleapis.com/v1/id1/%20x/instances?alt=json&fields=kind%2Cid&instanceId=s-instanceid&prettyPrint=false&requestId=s-requestid",
   "  H content-type=application/json | x-extra=v1",
@@ -69,10 +107,10 @@ test "Go's securesourcemanager.projects.locations.instances.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_2)
+  gv_compare(gv_log_of(f), GO_3)
 }
 
-const GO_3: List[Str] = [
+const GO_4: List[Str] = [
   "CALL securesourcemanager.projects.locations.instances.delete",
   "REQ DELETE https://securesourcemanager.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&requestId=s-requestid",
   "  H x-extra=v1",
@@ -90,10 +128,10 @@ test "Go's securesourcemanager.projects.locations.instances.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_3)
+  gv_compare(gv_log_of(f), GO_4)
 }
 
-const GO_4: List[Str] = [
+const GO_5: List[Str] = [
   "CALL securesourcemanager.projects.locations.instances.get",
   "REQ GET https://securesourcemanager.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -111,10 +149,10 @@ test "Go's securesourcemanager.projects.locations.instances.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_4)
+  gv_compare(gv_log_of(f), GO_5)
 }
 
-const GO_5: List[Str] = [
+const GO_6: List[Str] = [
   "CALL securesourcemanager.projects.locations.instances.getIamPolicy",
   "REQ GET https://securesourcemanager.googleapis.com/v1/id1/%20x:getIamPolicy?alt=json&fields=kind%2Cid&options.requestedPolicyVersion=7&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -132,10 +170,10 @@ test "Go's securesourcemanager.projects.locations.instances.getIamPolicy" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_5)
+  gv_compare(gv_log_of(f), GO_6)
 }
 
-const GO_6: List[Str] = [
+const GO_7: List[Str] = [
   "CALL securesourcemanager.projects.locations.instances.list",
   "REQ GET https://securesourcemanager.googleapis.com/v1/id1/%20x/instances?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -153,10 +191,48 @@ test "Go's securesourcemanager.projects.locations.instances.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_6)
+  gv_compare(gv_log_of(f), GO_7)
 }
 
-const GO_7: List[Str] = [
+const GO_8: List[Str] = [
+  "CALL securesourcemanager.projects.locations.instances.list pages",
+  "REQ GET https://securesourcemanager.googleapis.com/v1/id1/%20x/instances?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"instances\":[{\"createTime\":\"s-createtime\",\"hostConfig\":{\"api\":\"s-api\",\"gitHttp\":\"s-githttp\",\"gitSsh\":\"s-gitssh\",\"html\":\"s-html\"},\"kmsKey\":\"s-kmskey\",\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"privateConfig\":{\"caPool\":\"s-capool\",\"httpServiceAttachment\":\"s-httpserviceattachment\",\"isPrivate\":true,\"sshServiceAttachment\":\"s-sshserviceattachment\"},\"state\":\"s-state\",\"stateNote\":\"s-statenote\",\"updateTime\":\"s-updatetime\",\"workforceIdentityFederationConfig\":{\"enabled\":true}}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"instances\":[{\"createTime\":\"s-createtime\",\"hostConfig\":{\"api\":\"s-api\",\"gitHttp\":\"s-githttp\",\"gitSsh\":\"s-gitssh\",\"html\":\"s-html\"},\"kmsKey\":\"s-kmskey\",\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"privateConfig\":{\"caPool\":\"s-capool\",\"httpServiceAttachment\":\"s-httpserviceattachment\",\"isPrivate\":true,\"sshServiceAttachment\":\"s-sshserviceattachment\"},\"state\":\"s-state\",\"stateNote\":\"s-statenote\",\"updateTime\":\"s-updatetime\",\"workforceIdentityFederationConfig\":{\"enabled\":true}}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}",
+  "REQ GET https://securesourcemanager.googleapis.com/v1/id1/%20x/instances?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"instances\":[{\"createTime\":\"s-createtime\",\"hostConfig\":{\"api\":\"s-api\",\"gitHttp\":\"s-githttp\",\"gitSsh\":\"s-gitssh\",\"html\":\"s-html\"},\"kmsKey\":\"s-kmskey\",\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"privateConfig\":{\"caPool\":\"s-capool\",\"httpServiceAttachment\":\"s-httpserviceattachment\",\"isPrivate\":true,\"sshServiceAttachment\":\"s-sshserviceattachment\"},\"state\":\"s-state\",\"stateNote\":\"s-statenote\",\"updateTime\":\"s-updatetime\",\"workforceIdentityFederationConfig\":{\"enabled\":true}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"instances\":[{\"createTime\":\"s-createtime\",\"hostConfig\":{\"api\":\"s-api\",\"gitHttp\":\"s-githttp\",\"gitSsh\":\"s-gitssh\",\"html\":\"s-html\"},\"kmsKey\":\"s-kmskey\",\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"privateConfig\":{\"caPool\":\"s-capool\",\"httpServiceAttachment\":\"s-httpserviceattachment\",\"isPrivate\":true,\"sshServiceAttachment\":\"s-sshserviceattachment\"},\"state\":\"s-state\",\"stateNote\":\"s-statenote\",\"updateTime\":\"s-updatetime\",\"workforceIdentityFederationConfig\":{\"enabled\":true}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: ok",
+]
+
+test "Go's securesourcemanager.projects.locations.instances.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"instances\":[{\"createTime\":\"s-createtime\",\"hostConfig\":{\"api\":\"s-api\",\"gitHttp\":\"s-githttp\",\"gitSsh\":\"s-gitssh\",\"html\":\"s-html\"},\"kmsKey\":\"s-kmskey\",\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"privateConfig\":{\"caPool\":\"s-capool\",\"httpServiceAttachment\":\"s-httpserviceattachment\",\"isPrivate\":true,\"sshServiceAttachment\":\"s-sshserviceattachment\"},\"state\":\"s-state\",\"stateNote\":\"s-statenote\",\"updateTime\":\"s-updatetime\",\"workforceIdentityFederationConfig\":{\"enabled\":true}}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}")
+  gv_queue(f, "{\"instances\":[{\"createTime\":\"s-createtime\",\"hostConfig\":{\"api\":\"s-api\",\"gitHttp\":\"s-githttp\",\"gitSsh\":\"s-gitssh\",\"html\":\"s-html\"},\"kmsKey\":\"s-kmskey\",\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"privateConfig\":{\"caPool\":\"s-capool\",\"httpServiceAttachment\":\"s-httpserviceattachment\",\"isPrivate\":true,\"sshServiceAttachment\":\"s-sshserviceattachment\"},\"state\":\"s-state\",\"stateNote\":\"s-statenote\",\"updateTime\":\"s-updatetime\",\"workforceIdentityFederationConfig\":{\"enabled\":true}}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_note(f, "CALL securesourcemanager.projects.locations.instances.list pages")
+  var p = svc.projects.locations.instances.list_pages("id1/ x", options: ProjectsLocationsInstancesListOptions{filter: Some("s-filter"), order_by: Some("s-orderby"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_8)
+}
+
+const GO_9: List[Str] = [
   "CALL securesourcemanager.projects.locations.instances.setIamPolicy",
   "REQ POST https://securesourcemanager.googleapis.com/v1/id1/%20x:setIamPolicy?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -175,10 +251,10 @@ test "Go's securesourcemanager.projects.locations.instances.setIamPolicy" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_7)
+  gv_compare(gv_log_of(f), GO_9)
 }
 
-const GO_8: List[Str] = [
+const GO_10: List[Str] = [
   "CALL securesourcemanager.projects.locations.instances.testIamPermissions",
   "REQ POST https://securesourcemanager.googleapis.com/v1/id1/%20x:testIamPermissions?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -197,10 +273,10 @@ test "Go's securesourcemanager.projects.locations.instances.testIamPermissions" 
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_8)
+  gv_compare(gv_log_of(f), GO_10)
 }
 
-const GO_9: List[Str] = [
+const GO_11: List[Str] = [
   "CALL securesourcemanager.projects.locations.operations.cancel",
   "REQ POST https://securesourcemanager.googleapis.com/v1/id1/%20x:cancel?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -219,10 +295,10 @@ test "Go's securesourcemanager.projects.locations.operations.cancel" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_9)
+  gv_compare(gv_log_of(f), GO_11)
 }
 
-const GO_10: List[Str] = [
+const GO_12: List[Str] = [
   "CALL securesourcemanager.projects.locations.operations.delete",
   "REQ DELETE https://securesourcemanager.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -240,10 +316,10 @@ test "Go's securesourcemanager.projects.locations.operations.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_10)
+  gv_compare(gv_log_of(f), GO_12)
 }
 
-const GO_11: List[Str] = [
+const GO_13: List[Str] = [
   "CALL securesourcemanager.projects.locations.operations.get",
   "REQ GET https://securesourcemanager.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -261,10 +337,10 @@ test "Go's securesourcemanager.projects.locations.operations.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_11)
+  gv_compare(gv_log_of(f), GO_13)
 }
 
-const GO_12: List[Str] = [
+const GO_14: List[Str] = [
   "CALL securesourcemanager.projects.locations.operations.list",
   "REQ GET https://securesourcemanager.googleapis.com/v1/id1/%20x/operations?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -282,10 +358,48 @@ test "Go's securesourcemanager.projects.locations.operations.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_12)
+  gv_compare(gv_log_of(f), GO_14)
 }
 
-const GO_13: List[Str] = [
+const GO_15: List[Str] = [
+  "CALL securesourcemanager.projects.locations.operations.list pages",
+  "REQ GET https://securesourcemanager.googleapis.com/v1/id1/%20x/operations?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}]}",
+  "REQ GET https://securesourcemanager.googleapis.com/v1/id1/%20x/operations?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}]}",
+  "OUT: {\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}]}",
+  "OUT: ok",
+]
+
+test "Go's securesourcemanager.projects.locations.operations.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}]}")
+  gv_queue(f, "{\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}]}")
+  gv_note(f, "CALL securesourcemanager.projects.locations.operations.list pages")
+  var p = svc.projects.locations.operations.list_pages("id1/ x", options: ProjectsLocationsOperationsListOptions{filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_15)
+}
+
+const GO_16: List[Str] = [
   "CALL securesourcemanager.projects.locations.repositories.create",
   "REQ POST https://securesourcemanager.googleapis.com/v1/id1/%20x/repositories?alt=json&fields=kind%2Cid&prettyPrint=false&repositoryId=s-repositoryid",
   "  H content-type=application/json | x-extra=v1",
@@ -304,10 +418,10 @@ test "Go's securesourcemanager.projects.locations.repositories.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_13)
+  gv_compare(gv_log_of(f), GO_16)
 }
 
-const GO_14: List[Str] = [
+const GO_17: List[Str] = [
   "CALL securesourcemanager.projects.locations.repositories.delete",
   "REQ DELETE https://securesourcemanager.googleapis.com/v1/id1/%20x?allowMissing=true&alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -325,10 +439,10 @@ test "Go's securesourcemanager.projects.locations.repositories.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_14)
+  gv_compare(gv_log_of(f), GO_17)
 }
 
-const GO_15: List[Str] = [
+const GO_18: List[Str] = [
   "CALL securesourcemanager.projects.locations.repositories.fetchBlob",
   "REQ GET https://securesourcemanager.googleapis.com/v1/id1/%20x:fetchBlob?alt=json&fields=kind%2Cid&prettyPrint=false&sha=s-sha",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -346,10 +460,10 @@ test "Go's securesourcemanager.projects.locations.repositories.fetchBlob" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_15)
+  gv_compare(gv_log_of(f), GO_18)
 }
 
-const GO_16: List[Str] = [
+const GO_19: List[Str] = [
   "CALL securesourcemanager.projects.locations.repositories.fetchTree",
   "REQ GET https://securesourcemanager.googleapis.com/v1/id1/%20x:fetchTree?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&recursive=true&ref=s-ref",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -367,10 +481,48 @@ test "Go's securesourcemanager.projects.locations.repositories.fetchTree" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_16)
+  gv_compare(gv_log_of(f), GO_19)
 }
 
-const GO_17: List[Str] = [
+const GO_20: List[Str] = [
+  "CALL securesourcemanager.projects.locations.repositories.fetchTree pages",
+  "REQ GET https://securesourcemanager.googleapis.com/v1/id1/%20x:fetchTree?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&recursive=true&ref=s-ref",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"treeEntries\":[{\"mode\":\"s-mode\",\"path\":\"s-path\",\"sha\":\"s-sha\",\"size\":\"7\",\"type\":\"s-type\"}]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"treeEntries\":[{\"mode\":\"s-mode\",\"path\":\"s-path\",\"sha\":\"s-sha\",\"size\":\"7\",\"type\":\"s-type\"}]}",
+  "REQ GET https://securesourcemanager.googleapis.com/v1/id1/%20x:fetchTree?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false&recursive=true&ref=s-ref",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"treeEntries\":[{\"mode\":\"s-mode\",\"path\":\"s-path\",\"sha\":\"s-sha\",\"size\":\"7\",\"type\":\"s-type\"}]}",
+  "OUT: {\"treeEntries\":[{\"mode\":\"s-mode\",\"path\":\"s-path\",\"sha\":\"s-sha\",\"size\":\"7\",\"type\":\"s-type\"}]}",
+  "OUT: ok",
+]
+
+test "Go's securesourcemanager.projects.locations.repositories.fetchTree pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"treeEntries\":[{\"mode\":\"s-mode\",\"path\":\"s-path\",\"sha\":\"s-sha\",\"size\":\"7\",\"type\":\"s-type\"}]}")
+  gv_queue(f, "{\"treeEntries\":[{\"mode\":\"s-mode\",\"path\":\"s-path\",\"sha\":\"s-sha\",\"size\":\"7\",\"type\":\"s-type\"}]}")
+  gv_note(f, "CALL securesourcemanager.projects.locations.repositories.fetchTree pages")
+  var p = svc.projects.locations.repositories.fetch_tree_pages("id1/ x", options: ProjectsLocationsRepositoriesFetchTreeOptions{page_size: Some(7), page_token: Some("s-pagetoken"), recursive: Some(true), ref: Some("s-ref"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_20)
+}
+
+const GO_21: List[Str] = [
   "CALL securesourcemanager.projects.locations.repositories.get",
   "REQ GET https://securesourcemanager.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -388,10 +540,10 @@ test "Go's securesourcemanager.projects.locations.repositories.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_17)
+  gv_compare(gv_log_of(f), GO_21)
 }
 
-const GO_18: List[Str] = [
+const GO_22: List[Str] = [
   "CALL securesourcemanager.projects.locations.repositories.getIamPolicy",
   "REQ GET https://securesourcemanager.googleapis.com/v1/id1/%20x:getIamPolicy?alt=json&fields=kind%2Cid&options.requestedPolicyVersion=7&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -409,10 +561,10 @@ test "Go's securesourcemanager.projects.locations.repositories.getIamPolicy" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_18)
+  gv_compare(gv_log_of(f), GO_22)
 }
 
-const GO_19: List[Str] = [
+const GO_23: List[Str] = [
   "CALL securesourcemanager.projects.locations.repositories.list",
   "REQ GET https://securesourcemanager.googleapis.com/v1/id1/%20x/repositories?alt=json&fields=kind%2Cid&filter=s-filter&instance=s-instance&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -430,10 +582,48 @@ test "Go's securesourcemanager.projects.locations.repositories.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_19)
+  gv_compare(gv_log_of(f), GO_23)
 }
 
-const GO_20: List[Str] = [
+const GO_24: List[Str] = [
+  "CALL securesourcemanager.projects.locations.repositories.list pages",
+  "REQ GET https://securesourcemanager.googleapis.com/v1/id1/%20x/repositories?alt=json&fields=kind%2Cid&filter=s-filter&instance=s-instance&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"repositories\":[{\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"etag\":\"s-etag\",\"initialConfig\":{\"defaultBranch\":\"s-defaultbranch\",\"license\":\"s-license\",\"readme\":\"s-readme\"},\"instance\":\"s-instance\",\"name\":\"s-name\",\"uid\":\"s-uid\",\"updateTime\":\"s-updatetime\",\"uris\":{\"api\":\"s-api\",\"gitHttps\":\"s-githttps\",\"html\":\"s-html\"}}]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"repositories\":[{\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"etag\":\"s-etag\",\"initialConfig\":{\"defaultBranch\":\"s-defaultbranch\",\"license\":\"s-license\",\"readme\":\"s-readme\"},\"instance\":\"s-instance\",\"name\":\"s-name\",\"uid\":\"s-uid\",\"updateTime\":\"s-updatetime\",\"uris\":{\"api\":\"s-api\",\"gitHttps\":\"s-githttps\",\"html\":\"s-html\"}}]}",
+  "REQ GET https://securesourcemanager.googleapis.com/v1/id1/%20x/repositories?alt=json&fields=kind%2Cid&filter=s-filter&instance=s-instance&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"repositories\":[{\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"etag\":\"s-etag\",\"initialConfig\":{\"defaultBranch\":\"s-defaultbranch\",\"license\":\"s-license\",\"readme\":\"s-readme\"},\"instance\":\"s-instance\",\"name\":\"s-name\",\"uid\":\"s-uid\",\"updateTime\":\"s-updatetime\",\"uris\":{\"api\":\"s-api\",\"gitHttps\":\"s-githttps\",\"html\":\"s-html\"}}]}",
+  "OUT: {\"repositories\":[{\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"etag\":\"s-etag\",\"initialConfig\":{\"defaultBranch\":\"s-defaultbranch\",\"license\":\"s-license\",\"readme\":\"s-readme\"},\"instance\":\"s-instance\",\"name\":\"s-name\",\"uid\":\"s-uid\",\"updateTime\":\"s-updatetime\",\"uris\":{\"api\":\"s-api\",\"gitHttps\":\"s-githttps\",\"html\":\"s-html\"}}]}",
+  "OUT: ok",
+]
+
+test "Go's securesourcemanager.projects.locations.repositories.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"repositories\":[{\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"etag\":\"s-etag\",\"initialConfig\":{\"defaultBranch\":\"s-defaultbranch\",\"license\":\"s-license\",\"readme\":\"s-readme\"},\"instance\":\"s-instance\",\"name\":\"s-name\",\"uid\":\"s-uid\",\"updateTime\":\"s-updatetime\",\"uris\":{\"api\":\"s-api\",\"gitHttps\":\"s-githttps\",\"html\":\"s-html\"}}]}")
+  gv_queue(f, "{\"repositories\":[{\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"etag\":\"s-etag\",\"initialConfig\":{\"defaultBranch\":\"s-defaultbranch\",\"license\":\"s-license\",\"readme\":\"s-readme\"},\"instance\":\"s-instance\",\"name\":\"s-name\",\"uid\":\"s-uid\",\"updateTime\":\"s-updatetime\",\"uris\":{\"api\":\"s-api\",\"gitHttps\":\"s-githttps\",\"html\":\"s-html\"}}]}")
+  gv_note(f, "CALL securesourcemanager.projects.locations.repositories.list pages")
+  var p = svc.projects.locations.repositories.list_pages("id1/ x", options: ProjectsLocationsRepositoriesListOptions{filter: Some("s-filter"), instance: Some("s-instance"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_24)
+}
+
+const GO_25: List[Str] = [
   "CALL securesourcemanager.projects.locations.repositories.patch",
   "REQ PATCH https://securesourcemanager.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask&validateOnly=true",
   "  H content-type=application/json | x-extra=v1",
@@ -452,10 +642,10 @@ test "Go's securesourcemanager.projects.locations.repositories.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_20)
+  gv_compare(gv_log_of(f), GO_25)
 }
 
-const GO_21: List[Str] = [
+const GO_26: List[Str] = [
   "CALL securesourcemanager.projects.locations.repositories.setIamPolicy",
   "REQ POST https://securesourcemanager.googleapis.com/v1/id1/%20x:setIamPolicy?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -474,10 +664,10 @@ test "Go's securesourcemanager.projects.locations.repositories.setIamPolicy" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_21)
+  gv_compare(gv_log_of(f), GO_26)
 }
 
-const GO_22: List[Str] = [
+const GO_27: List[Str] = [
   "CALL securesourcemanager.projects.locations.repositories.testIamPermissions",
   "REQ POST https://securesourcemanager.googleapis.com/v1/id1/%20x:testIamPermissions?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -496,10 +686,10 @@ test "Go's securesourcemanager.projects.locations.repositories.testIamPermission
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_22)
+  gv_compare(gv_log_of(f), GO_27)
 }
 
-const GO_23: List[Str] = [
+const GO_28: List[Str] = [
   "CALL securesourcemanager.projects.locations.repositories.branchRules.create",
   "REQ POST https://securesourcemanager.googleapis.com/v1/id1/%20x/branchRules?alt=json&branchRuleId=s-branchruleid&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -518,10 +708,10 @@ test "Go's securesourcemanager.projects.locations.repositories.branchRules.creat
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_23)
+  gv_compare(gv_log_of(f), GO_28)
 }
 
-const GO_24: List[Str] = [
+const GO_29: List[Str] = [
   "CALL securesourcemanager.projects.locations.repositories.branchRules.delete",
   "REQ DELETE https://securesourcemanager.googleapis.com/v1/id1/%20x?allowMissing=true&alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -539,10 +729,10 @@ test "Go's securesourcemanager.projects.locations.repositories.branchRules.delet
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_24)
+  gv_compare(gv_log_of(f), GO_29)
 }
 
-const GO_25: List[Str] = [
+const GO_30: List[Str] = [
   "CALL securesourcemanager.projects.locations.repositories.branchRules.get",
   "REQ GET https://securesourcemanager.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -560,10 +750,10 @@ test "Go's securesourcemanager.projects.locations.repositories.branchRules.get" 
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_25)
+  gv_compare(gv_log_of(f), GO_30)
 }
 
-const GO_26: List[Str] = [
+const GO_31: List[Str] = [
   "CALL securesourcemanager.projects.locations.repositories.branchRules.list",
   "REQ GET https://securesourcemanager.googleapis.com/v1/id1/%20x/branchRules?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -581,10 +771,48 @@ test "Go's securesourcemanager.projects.locations.repositories.branchRules.list"
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_26)
+  gv_compare(gv_log_of(f), GO_31)
 }
 
-const GO_27: List[Str] = [
+const GO_32: List[Str] = [
+  "CALL securesourcemanager.projects.locations.repositories.branchRules.list pages",
+  "REQ GET https://securesourcemanager.googleapis.com/v1/id1/%20x/branchRules?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"branchRules\":[{\"allowStaleReviews\":true,\"annotations\":{\"k1\":\"s-annotations\"},\"createTime\":\"s-createtime\",\"disabled\":true,\"etag\":\"s-etag\",\"includePattern\":\"s-includepattern\",\"minimumApprovalsCount\":7,\"minimumReviewsCount\":7,\"name\":\"s-name\",\"requireCommentsResolved\":true,\"requireLinearHistory\":true,\"requirePullRequest\":true,\"uid\":\"s-uid\",\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"branchRules\":[{\"allowStaleReviews\":true,\"annotations\":{\"k1\":\"s-annotations\"},\"createTime\":\"s-createtime\",\"disabled\":true,\"etag\":\"s-etag\",\"includePattern\":\"s-includepattern\",\"minimumApprovalsCount\":7,\"minimumReviewsCount\":7,\"name\":\"s-name\",\"requireCommentsResolved\":true,\"requireLinearHistory\":true,\"requirePullRequest\":true,\"uid\":\"s-uid\",\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://securesourcemanager.googleapis.com/v1/id1/%20x/branchRules?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"branchRules\":[{\"allowStaleReviews\":true,\"annotations\":{\"k1\":\"s-annotations\"},\"createTime\":\"s-createtime\",\"disabled\":true,\"etag\":\"s-etag\",\"includePattern\":\"s-includepattern\",\"minimumApprovalsCount\":7,\"minimumReviewsCount\":7,\"name\":\"s-name\",\"requireCommentsResolved\":true,\"requireLinearHistory\":true,\"requirePullRequest\":true,\"uid\":\"s-uid\",\"updateTime\":\"s-updatetime\"}]}",
+  "OUT: {\"branchRules\":[{\"allowStaleReviews\":true,\"annotations\":{\"k1\":\"s-annotations\"},\"createTime\":\"s-createtime\",\"disabled\":true,\"etag\":\"s-etag\",\"includePattern\":\"s-includepattern\",\"minimumApprovalsCount\":7,\"minimumReviewsCount\":7,\"name\":\"s-name\",\"requireCommentsResolved\":true,\"requireLinearHistory\":true,\"requirePullRequest\":true,\"uid\":\"s-uid\",\"updateTime\":\"s-updatetime\"}]}",
+  "OUT: ok",
+]
+
+test "Go's securesourcemanager.projects.locations.repositories.branchRules.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"branchRules\":[{\"allowStaleReviews\":true,\"annotations\":{\"k1\":\"s-annotations\"},\"createTime\":\"s-createtime\",\"disabled\":true,\"etag\":\"s-etag\",\"includePattern\":\"s-includepattern\",\"minimumApprovalsCount\":7,\"minimumReviewsCount\":7,\"name\":\"s-name\",\"requireCommentsResolved\":true,\"requireLinearHistory\":true,\"requirePullRequest\":true,\"uid\":\"s-uid\",\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"branchRules\":[{\"allowStaleReviews\":true,\"annotations\":{\"k1\":\"s-annotations\"},\"createTime\":\"s-createtime\",\"disabled\":true,\"etag\":\"s-etag\",\"includePattern\":\"s-includepattern\",\"minimumApprovalsCount\":7,\"minimumReviewsCount\":7,\"name\":\"s-name\",\"requireCommentsResolved\":true,\"requireLinearHistory\":true,\"requirePullRequest\":true,\"uid\":\"s-uid\",\"updateTime\":\"s-updatetime\"}]}")
+  gv_note(f, "CALL securesourcemanager.projects.locations.repositories.branchRules.list pages")
+  var p = svc.projects.locations.repositories.branch_rules.list_pages("id1/ x", options: ProjectsLocationsRepositoriesBranchRulesListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_32)
+}
+
+const GO_33: List[Str] = [
   "CALL securesourcemanager.projects.locations.repositories.branchRules.patch",
   "REQ PATCH https://securesourcemanager.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask&validateOnly=true",
   "  H content-type=application/json | x-extra=v1",
@@ -603,10 +831,10 @@ test "Go's securesourcemanager.projects.locations.repositories.branchRules.patch
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_27)
+  gv_compare(gv_log_of(f), GO_33)
 }
 
-const GO_28: List[Str] = [
+const GO_34: List[Str] = [
   "CALL securesourcemanager.projects.locations.repositories.hooks.create",
   "REQ POST https://securesourcemanager.googleapis.com/v1/id1/%20x/hooks?alt=json&fields=kind%2Cid&hookId=s-hookid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -625,10 +853,10 @@ test "Go's securesourcemanager.projects.locations.repositories.hooks.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_28)
+  gv_compare(gv_log_of(f), GO_34)
 }
 
-const GO_29: List[Str] = [
+const GO_35: List[Str] = [
   "CALL securesourcemanager.projects.locations.repositories.hooks.delete",
   "REQ DELETE https://securesourcemanager.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -646,10 +874,10 @@ test "Go's securesourcemanager.projects.locations.repositories.hooks.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_29)
+  gv_compare(gv_log_of(f), GO_35)
 }
 
-const GO_30: List[Str] = [
+const GO_36: List[Str] = [
   "CALL securesourcemanager.projects.locations.repositories.hooks.get",
   "REQ GET https://securesourcemanager.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -667,10 +895,10 @@ test "Go's securesourcemanager.projects.locations.repositories.hooks.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_30)
+  gv_compare(gv_log_of(f), GO_36)
 }
 
-const GO_31: List[Str] = [
+const GO_37: List[Str] = [
   "CALL securesourcemanager.projects.locations.repositories.hooks.list",
   "REQ GET https://securesourcemanager.googleapis.com/v1/id1/%20x/hooks?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -688,10 +916,48 @@ test "Go's securesourcemanager.projects.locations.repositories.hooks.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_31)
+  gv_compare(gv_log_of(f), GO_37)
 }
 
-const GO_32: List[Str] = [
+const GO_38: List[Str] = [
+  "CALL securesourcemanager.projects.locations.repositories.hooks.list pages",
+  "REQ GET https://securesourcemanager.googleapis.com/v1/id1/%20x/hooks?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"hooks\":[{\"createTime\":\"s-createtime\",\"disabled\":true,\"events\":[\"s-events\"],\"name\":\"s-name\",\"pushOption\":{\"branchFilter\":\"s-branchfilter\"},\"sensitiveQueryString\":\"s-sensitivequerystring\",\"targetUri\":\"s-targeturi\",\"uid\":\"s-uid\",\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"hooks\":[{\"createTime\":\"s-createtime\",\"disabled\":true,\"events\":[\"s-events\"],\"name\":\"s-name\",\"pushOption\":{\"branchFilter\":\"s-branchfilter\"},\"sensitiveQueryString\":\"s-sensitivequerystring\",\"targetUri\":\"s-targeturi\",\"uid\":\"s-uid\",\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://securesourcemanager.googleapis.com/v1/id1/%20x/hooks?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"hooks\":[{\"createTime\":\"s-createtime\",\"disabled\":true,\"events\":[\"s-events\"],\"name\":\"s-name\",\"pushOption\":{\"branchFilter\":\"s-branchfilter\"},\"sensitiveQueryString\":\"s-sensitivequerystring\",\"targetUri\":\"s-targeturi\",\"uid\":\"s-uid\",\"updateTime\":\"s-updatetime\"}]}",
+  "OUT: {\"hooks\":[{\"createTime\":\"s-createtime\",\"disabled\":true,\"events\":[\"s-events\"],\"name\":\"s-name\",\"pushOption\":{\"branchFilter\":\"s-branchfilter\"},\"sensitiveQueryString\":\"s-sensitivequerystring\",\"targetUri\":\"s-targeturi\",\"uid\":\"s-uid\",\"updateTime\":\"s-updatetime\"}]}",
+  "OUT: ok",
+]
+
+test "Go's securesourcemanager.projects.locations.repositories.hooks.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"hooks\":[{\"createTime\":\"s-createtime\",\"disabled\":true,\"events\":[\"s-events\"],\"name\":\"s-name\",\"pushOption\":{\"branchFilter\":\"s-branchfilter\"},\"sensitiveQueryString\":\"s-sensitivequerystring\",\"targetUri\":\"s-targeturi\",\"uid\":\"s-uid\",\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"hooks\":[{\"createTime\":\"s-createtime\",\"disabled\":true,\"events\":[\"s-events\"],\"name\":\"s-name\",\"pushOption\":{\"branchFilter\":\"s-branchfilter\"},\"sensitiveQueryString\":\"s-sensitivequerystring\",\"targetUri\":\"s-targeturi\",\"uid\":\"s-uid\",\"updateTime\":\"s-updatetime\"}]}")
+  gv_note(f, "CALL securesourcemanager.projects.locations.repositories.hooks.list pages")
+  var p = svc.projects.locations.repositories.hooks.list_pages("id1/ x", options: ProjectsLocationsRepositoriesHooksListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_38)
+}
+
+const GO_39: List[Str] = [
   "CALL securesourcemanager.projects.locations.repositories.hooks.patch",
   "REQ PATCH https://securesourcemanager.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
@@ -710,10 +976,10 @@ test "Go's securesourcemanager.projects.locations.repositories.hooks.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_32)
+  gv_compare(gv_log_of(f), GO_39)
 }
 
-const GO_33: List[Str] = [
+const GO_40: List[Str] = [
   "CALL securesourcemanager.projects.locations.repositories.issues.close",
   "REQ POST https://securesourcemanager.googleapis.com/v1/id1/%20x:close?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -732,10 +998,10 @@ test "Go's securesourcemanager.projects.locations.repositories.issues.close" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_33)
+  gv_compare(gv_log_of(f), GO_40)
 }
 
-const GO_34: List[Str] = [
+const GO_41: List[Str] = [
   "CALL securesourcemanager.projects.locations.repositories.issues.create",
   "REQ POST https://securesourcemanager.googleapis.com/v1/id1/%20x/issues?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -754,10 +1020,10 @@ test "Go's securesourcemanager.projects.locations.repositories.issues.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_34)
+  gv_compare(gv_log_of(f), GO_41)
 }
 
-const GO_35: List[Str] = [
+const GO_42: List[Str] = [
   "CALL securesourcemanager.projects.locations.repositories.issues.delete",
   "REQ DELETE https://securesourcemanager.googleapis.com/v1/id1/%20x?alt=json&etag=s-etag&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -775,10 +1041,10 @@ test "Go's securesourcemanager.projects.locations.repositories.issues.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_35)
+  gv_compare(gv_log_of(f), GO_42)
 }
 
-const GO_36: List[Str] = [
+const GO_43: List[Str] = [
   "CALL securesourcemanager.projects.locations.repositories.issues.get",
   "REQ GET https://securesourcemanager.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -796,10 +1062,10 @@ test "Go's securesourcemanager.projects.locations.repositories.issues.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_36)
+  gv_compare(gv_log_of(f), GO_43)
 }
 
-const GO_37: List[Str] = [
+const GO_44: List[Str] = [
   "CALL securesourcemanager.projects.locations.repositories.issues.list",
   "REQ GET https://securesourcemanager.googleapis.com/v1/id1/%20x/issues?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -817,10 +1083,48 @@ test "Go's securesourcemanager.projects.locations.repositories.issues.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_37)
+  gv_compare(gv_log_of(f), GO_44)
 }
 
-const GO_38: List[Str] = [
+const GO_45: List[Str] = [
+  "CALL securesourcemanager.projects.locations.repositories.issues.list pages",
+  "REQ GET https://securesourcemanager.googleapis.com/v1/id1/%20x/issues?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"issues\":[{\"body\":\"s-body\",\"closeTime\":\"s-closetime\",\"createTime\":\"s-createtime\",\"etag\":\"s-etag\",\"name\":\"s-name\",\"state\":\"s-state\",\"title\":\"s-title\",\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"issues\":[{\"body\":\"s-body\",\"closeTime\":\"s-closetime\",\"createTime\":\"s-createtime\",\"etag\":\"s-etag\",\"name\":\"s-name\",\"state\":\"s-state\",\"title\":\"s-title\",\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://securesourcemanager.googleapis.com/v1/id1/%20x/issues?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"issues\":[{\"body\":\"s-body\",\"closeTime\":\"s-closetime\",\"createTime\":\"s-createtime\",\"etag\":\"s-etag\",\"name\":\"s-name\",\"state\":\"s-state\",\"title\":\"s-title\",\"updateTime\":\"s-updatetime\"}]}",
+  "OUT: {\"issues\":[{\"body\":\"s-body\",\"closeTime\":\"s-closetime\",\"createTime\":\"s-createtime\",\"etag\":\"s-etag\",\"name\":\"s-name\",\"state\":\"s-state\",\"title\":\"s-title\",\"updateTime\":\"s-updatetime\"}]}",
+  "OUT: ok",
+]
+
+test "Go's securesourcemanager.projects.locations.repositories.issues.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"issues\":[{\"body\":\"s-body\",\"closeTime\":\"s-closetime\",\"createTime\":\"s-createtime\",\"etag\":\"s-etag\",\"name\":\"s-name\",\"state\":\"s-state\",\"title\":\"s-title\",\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"issues\":[{\"body\":\"s-body\",\"closeTime\":\"s-closetime\",\"createTime\":\"s-createtime\",\"etag\":\"s-etag\",\"name\":\"s-name\",\"state\":\"s-state\",\"title\":\"s-title\",\"updateTime\":\"s-updatetime\"}]}")
+  gv_note(f, "CALL securesourcemanager.projects.locations.repositories.issues.list pages")
+  var p = svc.projects.locations.repositories.issues.list_pages("id1/ x", options: ProjectsLocationsRepositoriesIssuesListOptions{filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_45)
+}
+
+const GO_46: List[Str] = [
   "CALL securesourcemanager.projects.locations.repositories.issues.open",
   "REQ POST https://securesourcemanager.googleapis.com/v1/id1/%20x:open?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -839,10 +1143,10 @@ test "Go's securesourcemanager.projects.locations.repositories.issues.open" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_38)
+  gv_compare(gv_log_of(f), GO_46)
 }
 
-const GO_39: List[Str] = [
+const GO_47: List[Str] = [
   "CALL securesourcemanager.projects.locations.repositories.issues.patch",
   "REQ PATCH https://securesourcemanager.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
@@ -861,10 +1165,10 @@ test "Go's securesourcemanager.projects.locations.repositories.issues.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_39)
+  gv_compare(gv_log_of(f), GO_47)
 }
 
-const GO_40: List[Str] = [
+const GO_48: List[Str] = [
   "CALL securesourcemanager.projects.locations.repositories.issues.issueComments.create",
   "REQ POST https://securesourcemanager.googleapis.com/v1/id1/%20x/issueComments?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -883,10 +1187,10 @@ test "Go's securesourcemanager.projects.locations.repositories.issues.issueComme
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_40)
+  gv_compare(gv_log_of(f), GO_48)
 }
 
-const GO_41: List[Str] = [
+const GO_49: List[Str] = [
   "CALL securesourcemanager.projects.locations.repositories.issues.issueComments.delete",
   "REQ DELETE https://securesourcemanager.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -904,10 +1208,10 @@ test "Go's securesourcemanager.projects.locations.repositories.issues.issueComme
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_41)
+  gv_compare(gv_log_of(f), GO_49)
 }
 
-const GO_42: List[Str] = [
+const GO_50: List[Str] = [
   "CALL securesourcemanager.projects.locations.repositories.issues.issueComments.get",
   "REQ GET https://securesourcemanager.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -925,10 +1229,10 @@ test "Go's securesourcemanager.projects.locations.repositories.issues.issueComme
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_42)
+  gv_compare(gv_log_of(f), GO_50)
 }
 
-const GO_43: List[Str] = [
+const GO_51: List[Str] = [
   "CALL securesourcemanager.projects.locations.repositories.issues.issueComments.list",
   "REQ GET https://securesourcemanager.googleapis.com/v1/id1/%20x/issueComments?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -946,10 +1250,48 @@ test "Go's securesourcemanager.projects.locations.repositories.issues.issueComme
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_43)
+  gv_compare(gv_log_of(f), GO_51)
 }
 
-const GO_44: List[Str] = [
+const GO_52: List[Str] = [
+  "CALL securesourcemanager.projects.locations.repositories.issues.issueComments.list pages",
+  "REQ GET https://securesourcemanager.googleapis.com/v1/id1/%20x/issueComments?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"issueComments\":[{\"body\":\"s-body\",\"createTime\":\"s-createtime\",\"name\":\"s-name\",\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"issueComments\":[{\"body\":\"s-body\",\"createTime\":\"s-createtime\",\"name\":\"s-name\",\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://securesourcemanager.googleapis.com/v1/id1/%20x/issueComments?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"issueComments\":[{\"body\":\"s-body\",\"createTime\":\"s-createtime\",\"name\":\"s-name\",\"updateTime\":\"s-updatetime\"}]}",
+  "OUT: {\"issueComments\":[{\"body\":\"s-body\",\"createTime\":\"s-createtime\",\"name\":\"s-name\",\"updateTime\":\"s-updatetime\"}]}",
+  "OUT: ok",
+]
+
+test "Go's securesourcemanager.projects.locations.repositories.issues.issueComments.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"issueComments\":[{\"body\":\"s-body\",\"createTime\":\"s-createtime\",\"name\":\"s-name\",\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"issueComments\":[{\"body\":\"s-body\",\"createTime\":\"s-createtime\",\"name\":\"s-name\",\"updateTime\":\"s-updatetime\"}]}")
+  gv_note(f, "CALL securesourcemanager.projects.locations.repositories.issues.issueComments.list pages")
+  var p = svc.projects.locations.repositories.issues.issue_comments.list_pages("id1/ x", options: ProjectsLocationsRepositoriesIssuesIssueCommentsListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_52)
+}
+
+const GO_53: List[Str] = [
   "CALL securesourcemanager.projects.locations.repositories.issues.issueComments.patch",
   "REQ PATCH https://securesourcemanager.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
@@ -968,10 +1310,10 @@ test "Go's securesourcemanager.projects.locations.repositories.issues.issueComme
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_44)
+  gv_compare(gv_log_of(f), GO_53)
 }
 
-const GO_45: List[Str] = [
+const GO_54: List[Str] = [
   "CALL securesourcemanager.projects.locations.repositories.pullRequests.close",
   "REQ POST https://securesourcemanager.googleapis.com/v1/id1/%20x:close?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -990,10 +1332,10 @@ test "Go's securesourcemanager.projects.locations.repositories.pullRequests.clos
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_45)
+  gv_compare(gv_log_of(f), GO_54)
 }
 
-const GO_46: List[Str] = [
+const GO_55: List[Str] = [
   "CALL securesourcemanager.projects.locations.repositories.pullRequests.create",
   "REQ POST https://securesourcemanager.googleapis.com/v1/id1/%20x/pullRequests?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1012,10 +1354,10 @@ test "Go's securesourcemanager.projects.locations.repositories.pullRequests.crea
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_46)
+  gv_compare(gv_log_of(f), GO_55)
 }
 
-const GO_47: List[Str] = [
+const GO_56: List[Str] = [
   "CALL securesourcemanager.projects.locations.repositories.pullRequests.get",
   "REQ GET https://securesourcemanager.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1033,10 +1375,10 @@ test "Go's securesourcemanager.projects.locations.repositories.pullRequests.get"
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_47)
+  gv_compare(gv_log_of(f), GO_56)
 }
 
-const GO_48: List[Str] = [
+const GO_57: List[Str] = [
   "CALL securesourcemanager.projects.locations.repositories.pullRequests.list",
   "REQ GET https://securesourcemanager.googleapis.com/v1/id1/%20x/pullRequests?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1054,10 +1396,48 @@ test "Go's securesourcemanager.projects.locations.repositories.pullRequests.list
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_48)
+  gv_compare(gv_log_of(f), GO_57)
 }
 
-const GO_49: List[Str] = [
+const GO_58: List[Str] = [
+  "CALL securesourcemanager.projects.locations.repositories.pullRequests.list pages",
+  "REQ GET https://securesourcemanager.googleapis.com/v1/id1/%20x/pullRequests?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"pullRequests\":[{\"base\":{\"ref\":\"s-ref\",\"sha\":\"s-sha\"},\"body\":\"s-body\",\"closeTime\":\"s-closetime\",\"createTime\":\"s-createtime\",\"head\":{\"ref\":\"s-ref\",\"sha\":\"s-sha\"},\"name\":\"s-name\",\"state\":\"s-state\",\"title\":\"s-title\",\"updateTime\":\"s-updatetime\"}]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"pullRequests\":[{\"base\":{\"ref\":\"s-ref\",\"sha\":\"s-sha\"},\"body\":\"s-body\",\"closeTime\":\"s-closetime\",\"createTime\":\"s-createtime\",\"head\":{\"ref\":\"s-ref\",\"sha\":\"s-sha\"},\"name\":\"s-name\",\"state\":\"s-state\",\"title\":\"s-title\",\"updateTime\":\"s-updatetime\"}]}",
+  "REQ GET https://securesourcemanager.googleapis.com/v1/id1/%20x/pullRequests?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"pullRequests\":[{\"base\":{\"ref\":\"s-ref\",\"sha\":\"s-sha\"},\"body\":\"s-body\",\"closeTime\":\"s-closetime\",\"createTime\":\"s-createtime\",\"head\":{\"ref\":\"s-ref\",\"sha\":\"s-sha\"},\"name\":\"s-name\",\"state\":\"s-state\",\"title\":\"s-title\",\"updateTime\":\"s-updatetime\"}]}",
+  "OUT: {\"pullRequests\":[{\"base\":{\"ref\":\"s-ref\",\"sha\":\"s-sha\"},\"body\":\"s-body\",\"closeTime\":\"s-closetime\",\"createTime\":\"s-createtime\",\"head\":{\"ref\":\"s-ref\",\"sha\":\"s-sha\"},\"name\":\"s-name\",\"state\":\"s-state\",\"title\":\"s-title\",\"updateTime\":\"s-updatetime\"}]}",
+  "OUT: ok",
+]
+
+test "Go's securesourcemanager.projects.locations.repositories.pullRequests.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"pullRequests\":[{\"base\":{\"ref\":\"s-ref\",\"sha\":\"s-sha\"},\"body\":\"s-body\",\"closeTime\":\"s-closetime\",\"createTime\":\"s-createtime\",\"head\":{\"ref\":\"s-ref\",\"sha\":\"s-sha\"},\"name\":\"s-name\",\"state\":\"s-state\",\"title\":\"s-title\",\"updateTime\":\"s-updatetime\"}]}")
+  gv_queue(f, "{\"pullRequests\":[{\"base\":{\"ref\":\"s-ref\",\"sha\":\"s-sha\"},\"body\":\"s-body\",\"closeTime\":\"s-closetime\",\"createTime\":\"s-createtime\",\"head\":{\"ref\":\"s-ref\",\"sha\":\"s-sha\"},\"name\":\"s-name\",\"state\":\"s-state\",\"title\":\"s-title\",\"updateTime\":\"s-updatetime\"}]}")
+  gv_note(f, "CALL securesourcemanager.projects.locations.repositories.pullRequests.list pages")
+  var p = svc.projects.locations.repositories.pull_requests.list_pages("id1/ x", options: ProjectsLocationsRepositoriesPullRequestsListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_58)
+}
+
+const GO_59: List[Str] = [
   "CALL securesourcemanager.projects.locations.repositories.pullRequests.listFileDiffs",
   "REQ GET https://securesourcemanager.googleapis.com/v1/id1/%20x:listFileDiffs?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1075,10 +1455,48 @@ test "Go's securesourcemanager.projects.locations.repositories.pullRequests.list
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_49)
+  gv_compare(gv_log_of(f), GO_59)
 }
 
-const GO_50: List[Str] = [
+const GO_60: List[Str] = [
+  "CALL securesourcemanager.projects.locations.repositories.pullRequests.listFileDiffs pages",
+  "REQ GET https://securesourcemanager.googleapis.com/v1/id1/%20x:listFileDiffs?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"fileDiffs\":[{\"action\":\"s-action\",\"name\":\"s-name\",\"patch\":\"s-patch\",\"sha\":\"s-sha\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"fileDiffs\":[{\"action\":\"s-action\",\"name\":\"s-name\",\"patch\":\"s-patch\",\"sha\":\"s-sha\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://securesourcemanager.googleapis.com/v1/id1/%20x:listFileDiffs?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"fileDiffs\":[{\"action\":\"s-action\",\"name\":\"s-name\",\"patch\":\"s-patch\",\"sha\":\"s-sha\"}]}",
+  "OUT: {\"fileDiffs\":[{\"action\":\"s-action\",\"name\":\"s-name\",\"patch\":\"s-patch\",\"sha\":\"s-sha\"}]}",
+  "OUT: ok",
+]
+
+test "Go's securesourcemanager.projects.locations.repositories.pullRequests.listFileDiffs pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"fileDiffs\":[{\"action\":\"s-action\",\"name\":\"s-name\",\"patch\":\"s-patch\",\"sha\":\"s-sha\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"fileDiffs\":[{\"action\":\"s-action\",\"name\":\"s-name\",\"patch\":\"s-patch\",\"sha\":\"s-sha\"}]}")
+  gv_note(f, "CALL securesourcemanager.projects.locations.repositories.pullRequests.listFileDiffs pages")
+  var p = svc.projects.locations.repositories.pull_requests.list_file_diffs_pages("id1/ x", options: ProjectsLocationsRepositoriesPullRequestsListFileDiffsOptions{page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_60)
+}
+
+const GO_61: List[Str] = [
   "CALL securesourcemanager.projects.locations.repositories.pullRequests.merge",
   "REQ POST https://securesourcemanager.googleapis.com/v1/id1/%20x:merge?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1097,10 +1515,10 @@ test "Go's securesourcemanager.projects.locations.repositories.pullRequests.merg
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_50)
+  gv_compare(gv_log_of(f), GO_61)
 }
 
-const GO_51: List[Str] = [
+const GO_62: List[Str] = [
   "CALL securesourcemanager.projects.locations.repositories.pullRequests.open",
   "REQ POST https://securesourcemanager.googleapis.com/v1/id1/%20x:open?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1119,10 +1537,10 @@ test "Go's securesourcemanager.projects.locations.repositories.pullRequests.open
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_51)
+  gv_compare(gv_log_of(f), GO_62)
 }
 
-const GO_52: List[Str] = [
+const GO_63: List[Str] = [
   "CALL securesourcemanager.projects.locations.repositories.pullRequests.patch",
   "REQ PATCH https://securesourcemanager.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
@@ -1141,10 +1559,10 @@ test "Go's securesourcemanager.projects.locations.repositories.pullRequests.patc
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_52)
+  gv_compare(gv_log_of(f), GO_63)
 }
 
-const GO_53: List[Str] = [
+const GO_64: List[Str] = [
   "CALL securesourcemanager.projects.locations.repositories.pullRequests.pullRequestComments.batchCreate",
   "REQ POST https://securesourcemanager.googleapis.com/v1/id1/%20x/pullRequestComments:batchCreate?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1163,10 +1581,10 @@ test "Go's securesourcemanager.projects.locations.repositories.pullRequests.pull
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_53)
+  gv_compare(gv_log_of(f), GO_64)
 }
 
-const GO_54: List[Str] = [
+const GO_65: List[Str] = [
   "CALL securesourcemanager.projects.locations.repositories.pullRequests.pullRequestComments.create",
   "REQ POST https://securesourcemanager.googleapis.com/v1/id1/%20x/pullRequestComments?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1185,10 +1603,10 @@ test "Go's securesourcemanager.projects.locations.repositories.pullRequests.pull
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_54)
+  gv_compare(gv_log_of(f), GO_65)
 }
 
-const GO_55: List[Str] = [
+const GO_66: List[Str] = [
   "CALL securesourcemanager.projects.locations.repositories.pullRequests.pullRequestComments.delete",
   "REQ DELETE https://securesourcemanager.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -1206,10 +1624,10 @@ test "Go's securesourcemanager.projects.locations.repositories.pullRequests.pull
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_55)
+  gv_compare(gv_log_of(f), GO_66)
 }
 
-const GO_56: List[Str] = [
+const GO_67: List[Str] = [
   "CALL securesourcemanager.projects.locations.repositories.pullRequests.pullRequestComments.get",
   "REQ GET https://securesourcemanager.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1227,10 +1645,10 @@ test "Go's securesourcemanager.projects.locations.repositories.pullRequests.pull
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_56)
+  gv_compare(gv_log_of(f), GO_67)
 }
 
-const GO_57: List[Str] = [
+const GO_68: List[Str] = [
   "CALL securesourcemanager.projects.locations.repositories.pullRequests.pullRequestComments.list",
   "REQ GET https://securesourcemanager.googleapis.com/v1/id1/%20x/pullRequestComments?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1248,10 +1666,48 @@ test "Go's securesourcemanager.projects.locations.repositories.pullRequests.pull
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_57)
+  gv_compare(gv_log_of(f), GO_68)
 }
 
-const GO_58: List[Str] = [
+const GO_69: List[Str] = [
+  "CALL securesourcemanager.projects.locations.repositories.pullRequests.pullRequestComments.list pages",
+  "REQ GET https://securesourcemanager.googleapis.com/v1/id1/%20x/pullRequestComments?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"pullRequestComments\":[{\"code\":{\"body\":\"s-body\",\"effectiveCommitSha\":\"s-effectivecommitsha\",\"effectiveRootComment\":\"s-effectiverootcomment\",\"reply\":\"s-reply\",\"resolved\":true},\"comment\":{\"body\":\"s-body\"},\"createTime\":\"s-createtime\",\"name\":\"s-name\",\"review\":{\"actionType\":\"s-actiontype\",\"body\":\"s-body\",\"effectiveCommitSha\":\"s-effectivecommitsha\"},\"updateTime\":\"s-updatetime\"}]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"pullRequestComments\":[{\"code\":{\"body\":\"s-body\",\"effectiveCommitSha\":\"s-effectivecommitsha\",\"effectiveRootComment\":\"s-effectiverootcomment\",\"reply\":\"s-reply\",\"resolved\":true},\"comment\":{\"body\":\"s-body\"},\"createTime\":\"s-createtime\",\"name\":\"s-name\",\"review\":{\"actionType\":\"s-actiontype\",\"body\":\"s-body\",\"effectiveCommitSha\":\"s-effectivecommitsha\"},\"updateTime\":\"s-updatetime\"}]}",
+  "REQ GET https://securesourcemanager.googleapis.com/v1/id1/%20x/pullRequestComments?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"pullRequestComments\":[{\"code\":{\"body\":\"s-body\",\"effectiveCommitSha\":\"s-effectivecommitsha\",\"effectiveRootComment\":\"s-effectiverootcomment\",\"reply\":\"s-reply\",\"resolved\":true},\"comment\":{\"body\":\"s-body\"},\"createTime\":\"s-createtime\",\"name\":\"s-name\",\"review\":{\"actionType\":\"s-actiontype\",\"body\":\"s-body\",\"effectiveCommitSha\":\"s-effectivecommitsha\"},\"updateTime\":\"s-updatetime\"}]}",
+  "OUT: {\"pullRequestComments\":[{\"code\":{\"body\":\"s-body\",\"effectiveCommitSha\":\"s-effectivecommitsha\",\"effectiveRootComment\":\"s-effectiverootcomment\",\"reply\":\"s-reply\",\"resolved\":true},\"comment\":{\"body\":\"s-body\"},\"createTime\":\"s-createtime\",\"name\":\"s-name\",\"review\":{\"actionType\":\"s-actiontype\",\"body\":\"s-body\",\"effectiveCommitSha\":\"s-effectivecommitsha\"},\"updateTime\":\"s-updatetime\"}]}",
+  "OUT: ok",
+]
+
+test "Go's securesourcemanager.projects.locations.repositories.pullRequests.pullRequestComments.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"pullRequestComments\":[{\"code\":{\"body\":\"s-body\",\"effectiveCommitSha\":\"s-effectivecommitsha\",\"effectiveRootComment\":\"s-effectiverootcomment\",\"reply\":\"s-reply\",\"resolved\":true},\"comment\":{\"body\":\"s-body\"},\"createTime\":\"s-createtime\",\"name\":\"s-name\",\"review\":{\"actionType\":\"s-actiontype\",\"body\":\"s-body\",\"effectiveCommitSha\":\"s-effectivecommitsha\"},\"updateTime\":\"s-updatetime\"}]}")
+  gv_queue(f, "{\"pullRequestComments\":[{\"code\":{\"body\":\"s-body\",\"effectiveCommitSha\":\"s-effectivecommitsha\",\"effectiveRootComment\":\"s-effectiverootcomment\",\"reply\":\"s-reply\",\"resolved\":true},\"comment\":{\"body\":\"s-body\"},\"createTime\":\"s-createtime\",\"name\":\"s-name\",\"review\":{\"actionType\":\"s-actiontype\",\"body\":\"s-body\",\"effectiveCommitSha\":\"s-effectivecommitsha\"},\"updateTime\":\"s-updatetime\"}]}")
+  gv_note(f, "CALL securesourcemanager.projects.locations.repositories.pullRequests.pullRequestComments.list pages")
+  var p = svc.projects.locations.repositories.pull_requests.pull_request_comments.list_pages("id1/ x", options: ProjectsLocationsRepositoriesPullRequestsPullRequestCommentsListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_69)
+}
+
+const GO_70: List[Str] = [
   "CALL securesourcemanager.projects.locations.repositories.pullRequests.pullRequestComments.patch",
   "REQ PATCH https://securesourcemanager.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
@@ -1270,10 +1726,10 @@ test "Go's securesourcemanager.projects.locations.repositories.pullRequests.pull
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_58)
+  gv_compare(gv_log_of(f), GO_70)
 }
 
-const GO_59: List[Str] = [
+const GO_71: List[Str] = [
   "CALL securesourcemanager.projects.locations.repositories.pullRequests.pullRequestComments.resolve",
   "REQ POST https://securesourcemanager.googleapis.com/v1/id1/%20x/pullRequestComments:resolve?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1292,10 +1748,10 @@ test "Go's securesourcemanager.projects.locations.repositories.pullRequests.pull
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_59)
+  gv_compare(gv_log_of(f), GO_71)
 }
 
-const GO_60: List[Str] = [
+const GO_72: List[Str] = [
   "CALL securesourcemanager.projects.locations.repositories.pullRequests.pullRequestComments.unresolve",
   "REQ POST https://securesourcemanager.googleapis.com/v1/id1/%20x/pullRequestComments:unresolve?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1314,5 +1770,5 @@ test "Go's securesourcemanager.projects.locations.repositories.pullRequests.pull
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_60)
+  gv_compare(gv_log_of(f), GO_72)
 }

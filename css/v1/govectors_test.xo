@@ -43,7 +43,7 @@ test "Go's css.accounts.listChildAccounts" {
   let svc = new_service(os.net, gv_opts())
   gv_set(f, "{\"accounts\":[{\"accountType\":\"s-accounttype\",\"automaticLabelIds\":[\"7\"],\"displayName\":\"s-displayname\",\"fullName\":\"s-fullname\",\"homepageUri\":\"s-homepageuri\",\"labelIds\":[\"7\"],\"name\":\"s-name\",\"parent\":\"s-parent\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
   gv_note(f, "CALL css.accounts.listChildAccounts")
-  match svc.accounts.list_child_accounts("id1/ x", options: AccountsListChildAccountsOptions{full_name: Some("s-fullname"), label_id: Some("7"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]}) {
+  match svc.accounts.list_child_accounts("id1/ x", options: AccountsListChildAccountsOptions{full_name: Some("s-fullname"), label_id: Some(7), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]}) {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
@@ -51,6 +51,44 @@ test "Go's css.accounts.listChildAccounts" {
 }
 
 const GO_2: List[Str] = [
+  "CALL css.accounts.listChildAccounts pages",
+  "REQ GET https://css.googleapis.com/v1/id1/%20x:listChildAccounts?alt=json&fields=kind%2Cid&fullName=s-fullname&labelId=7&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"accounts\":[{\"accountType\":\"s-accounttype\",\"automaticLabelIds\":[\"7\"],\"displayName\":\"s-displayname\",\"fullName\":\"s-fullname\",\"homepageUri\":\"s-homepageuri\",\"labelIds\":[\"7\"],\"name\":\"s-name\",\"parent\":\"s-parent\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"accounts\":[{\"accountType\":\"s-accounttype\",\"automaticLabelIds\":[\"7\"],\"displayName\":\"s-displayname\",\"fullName\":\"s-fullname\",\"homepageUri\":\"s-homepageuri\",\"labelIds\":[\"7\"],\"name\":\"s-name\",\"parent\":\"s-parent\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://css.googleapis.com/v1/id1/%20x:listChildAccounts?alt=json&fields=kind%2Cid&fullName=s-fullname&labelId=7&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"accounts\":[{\"accountType\":\"s-accounttype\",\"automaticLabelIds\":[\"7\"],\"displayName\":\"s-displayname\",\"fullName\":\"s-fullname\",\"homepageUri\":\"s-homepageuri\",\"labelIds\":[\"7\"],\"name\":\"s-name\",\"parent\":\"s-parent\"}]}",
+  "OUT: {\"accounts\":[{\"accountType\":\"s-accounttype\",\"automaticLabelIds\":[\"7\"],\"displayName\":\"s-displayname\",\"fullName\":\"s-fullname\",\"homepageUri\":\"s-homepageuri\",\"labelIds\":[\"7\"],\"name\":\"s-name\",\"parent\":\"s-parent\"}]}",
+  "OUT: ok",
+]
+
+test "Go's css.accounts.listChildAccounts pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"accounts\":[{\"accountType\":\"s-accounttype\",\"automaticLabelIds\":[\"7\"],\"displayName\":\"s-displayname\",\"fullName\":\"s-fullname\",\"homepageUri\":\"s-homepageuri\",\"labelIds\":[\"7\"],\"name\":\"s-name\",\"parent\":\"s-parent\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"accounts\":[{\"accountType\":\"s-accounttype\",\"automaticLabelIds\":[\"7\"],\"displayName\":\"s-displayname\",\"fullName\":\"s-fullname\",\"homepageUri\":\"s-homepageuri\",\"labelIds\":[\"7\"],\"name\":\"s-name\",\"parent\":\"s-parent\"}]}")
+  gv_note(f, "CALL css.accounts.listChildAccounts pages")
+  var p = svc.accounts.list_child_accounts_pages("id1/ x", options: AccountsListChildAccountsOptions{full_name: Some("s-fullname"), label_id: Some(7), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_2)
+}
+
+const GO_3: List[Str] = [
   "CALL css.accounts.updateLabels",
   "REQ POST https://css.googleapis.com/v1/id1/%20x:updateLabels?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -69,10 +107,10 @@ test "Go's css.accounts.updateLabels" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_2)
+  gv_compare(gv_log_of(f), GO_3)
 }
 
-const GO_3: List[Str] = [
+const GO_4: List[Str] = [
   "CALL css.accounts.cssProductInputs.delete",
   "REQ DELETE https://css.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&supplementalFeedId=7",
   "  H x-extra=v1",
@@ -86,18 +124,18 @@ test "Go's css.accounts.cssProductInputs.delete" {
   let svc = new_service(os.net, gv_opts())
   gv_set(f, "{}")
   gv_note(f, "CALL css.accounts.cssProductInputs.delete")
-  match svc.accounts.css_product_inputs.delete("id1/ x", options: AccountsCssProductInputsDeleteOptions{supplemental_feed_id: Some("7"), fields: ["kind", "id"], headers: [("X-Extra", "v1")]}) {
+  match svc.accounts.css_product_inputs.delete("id1/ x", options: AccountsCssProductInputsDeleteOptions{supplemental_feed_id: Some(7), fields: ["kind", "id"], headers: [("X-Extra", "v1")]}) {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_3)
+  gv_compare(gv_log_of(f), GO_4)
 }
 
-const GO_4: List[Str] = [
+const GO_5: List[Str] = [
   "CALL css.accounts.cssProductInputs.insert",
   "REQ POST https://css.googleapis.com/v1/id1/%20x/cssProductInputs:insert?alt=json&feedId=7&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"attributes\":{\"additionalImageLinks\":[\"s-additionalimagelinks\"],\"adult\":true,\"ageGroup\":\"s-agegroup\",\"brand\":\"s-brand\",\"certifications\":[{\"authority\":\"s-authority\",\"code\":\"s-code\",\"name\":\"s-name\"}],\"color\":\"s-color\",\"cppAdsRedirect\":\"s-cppadsredirect\",\"cppLink\":\"s-cpplink\",\"cppMobileLink\":\"s-cppmobilelink\",\"customLabel0\":\"s-customlabel0\",\"customLabel1\":\"s-customlabel1\",\"customLabel2\":\"s-customlabel2\",\"customLabel3\":\"s-customlabel3\",\"customLabel4\":\"s-customlabel4\",\"description\":\"s-description\",\"excludedDestinations\":[\"s-excludeddestinations\"],\"expirationDate\":\"s-expirationdate\",\"gender\":\"s-gender\",\"googleProductCategory\":\"s-googleproductcategory\",\"gtin\":\"s-gtin\",\"headlineOfferCondition\":\"s-headlineoffercondition\",\"headlineOfferInstallment\":{\"months\":\"7\"},\"headlineOfferLink\":\"s-headlineofferlink\",\"headlineOfferMobileLink\":\"s-headlineoffermobilelink\",\"headlineOfferPrice\":{\"amountMicros\":\"7\",\"currencyCode\":\"s-currencycode\"},\"headlineOfferShippingPrice\":{\"amountMicros\":\"7\",\"currencyCode\":\"s-currencycode\"},\"headlineOfferSubscriptionCost\":{\"period\":\"s-period\",\"periodLength\":\"7\"},\"highPrice\":{\"amountMicros\":\"7\",\"currencyCode\":\"s-currencycode\"},\"imageLink\":\"s-imagelink\",\"includedDestinations\":[\"s-includeddestinations\"],\"isBundle\":true,\"itemGroupId\":\"s-itemgroupid\",\"lowPrice\":{\"amountMicros\":\"7\",\"currencyCode\":\"s-currencycode\"},\"material\":\"s-material\",\"maxRating\":\"7\",\"minRating\":\"7\",\"mpn\":\"s-mpn\",\"multipack\":\"7\",\"numberOfOffers\":\"7\",\"pattern\":\"s-pattern\",\"pause\":\"s-pause\",\"productDetails\":[{\"attributeName\":\"s-attributename\",\"attributeValue\":\"s-attributevalue\",\"sectionName\":\"s-sectionname\"}],\"productHeight\":{\"unit\":\"s-unit\",\"value\":1.5},\"productHighlights\":[\"s-producthighlights\"],\"productLength\":{\"unit\":\"s-unit\",\"value\":1.5},\"productTypes\":[\"s-producttypes\"],\"productWeight\":{\"unit\":\"s-unit\",\"value\":1.5},\"productWidth\":{\"unit\":\"s-unit\",\"value\":1.5},\"rating\":1.5,\"reviewCount\":\"7\",\"size\":\"s-size\",\"sizeSystem\":\"s-sizesystem\",\"sizeTypes\":[\"s-sizetypes\"],\"title\":\"s-title\"},\"contentLanguage\":\"s-contentlanguage\",\"customAttributes\":[{\"name\":\"s-name\",\"value\":\"s-value\"}],\"feedLabel\":\"s-feedlabel\",\"finalName\":\"s-finalname\",\"freshnessTime\":\"s-freshnesstime\",\"name\":\"s-name\",\"rawProvidedId\":\"s-rawprovidedid\"}",
+  "  B <2224 bytes> {\"attributes\":{\"additionalImageL...wProvidedId\":\"s-rawprovidedid\"}",
   "",
   "  SERVED 200 {\"attributes\":{\"additionalImageLinks\":[\"s-additionalimagelinks\"],\"adult\":true,\"ageGroup\":\"s-agegroup\",\"brand\":\"s-brand\",\"certifications\":[{\"authority\":\"s-authority\",\"code\":\"s-code\",\"name\":\"s-name\"}],\"color\":\"s-color\",\"cppAdsRedirect\":\"s-cppadsredirect\",\"cppLink\":\"s-cpplink\",\"cppMobileLink\":\"s-cppmobilelink\",\"customLabel0\":\"s-customlabel0\",\"customLabel1\":\"s-customlabel1\",\"customLabel2\":\"s-customlabel2\",\"customLabel3\":\"s-customlabel3\",\"customLabel4\":\"s-customlabel4\",\"description\":\"s-description\",\"excludedDestinations\":[\"s-excludeddestinations\"],\"expirationDate\":\"s-expirationdate\",\"gender\":\"s-gender\",\"googleProductCategory\":\"s-googleproductcategory\",\"gtin\":\"s-gtin\",\"headlineOfferCondition\":\"s-headlineoffercondition\",\"headlineOfferInstallment\":{\"months\":\"7\"},\"headlineOfferLink\":\"s-headlineofferlink\",\"headlineOfferMobileLink\":\"s-headlineoffermobilelink\",\"headlineOfferPrice\":{\"amountMicros\":\"7\",\"currencyCode\":\"s-currencycode\"},\"headlineOfferShippingPrice\":{\"amountMicros\":\"7\",\"currencyCode\":\"s-currencycode\"},\"headlineOfferSubscriptionCost\":{\"period\":\"s-period\",\"periodLength\":\"7\"},\"highPrice\":{\"amountMicros\":\"7\",\"currencyCode\":\"s-currencycode\"},\"imageLink\":\"s-imagelink\",\"includedDestinations\":[\"s-includeddestinations\"],\"isBundle\":true,\"itemGroupId\":\"s-itemgroupid\",\"lowPrice\":{\"amountMicros\":\"7\",\"currencyCode\":\"s-currencycode\"},\"material\":\"s-material\",\"maxRating\":\"7\",\"minRating\":\"7\",\"mpn\":\"s-mpn\",\"multipack\":\"7\",\"numberOfOffers\":\"7\",\"pattern\":\"s-pattern\",\"pause\":\"s-pause\",\"productDetails\":[{\"attributeName\":\"s-attributename\",\"attributeValue\":\"s-attributevalue\",\"sectionName\":\"s-sectionname\"}],\"productHeight\":{\"unit\":\"s-unit\",\"value\":1.5},\"productHighlights\":[\"s-producthighlights\"],\"productLength\":{\"unit\":\"s-unit\",\"value\":1.5},\"productTypes\":[\"s-producttypes\"],\"productWeight\":{\"unit\":\"s-unit\",\"value\":1.5},\"productWidth\":{\"unit\":\"s-unit\",\"value\":1.5},\"rating\":1.5,\"reviewCount\":\"7\",\"size\":\"s-size\",\"sizeSystem\":\"s-sizesystem\",\"sizeTypes\":[\"s-sizetypes\"],\"title\":\"s-title\"},\"contentLanguage\":\"s-contentlanguage\",\"customAttributes\":[{\"name\":\"s-name\",\"value\":\"s-value\"}],\"feedLabel\":\"s-feedlabel\",\"finalName\":\"s-finalname\",\"freshnessTime\":\"s-freshnesstime\",\"name\":\"s-name\",\"rawProvidedId\":\"s-rawprovidedid\"}",
   "OUT: {\"attributes\":{\"additionalImageLinks\":[\"s-additionalimagelinks\"],\"adult\":true,\"ageGroup\":\"s-agegroup\",\"brand\":\"s-brand\",\"certifications\":[{\"authority\":\"s-authority\",\"code\":\"s-code\",\"name\":\"s-name\"}],\"color\":\"s-color\",\"cppAdsRedirect\":\"s-cppadsredirect\",\"cppLink\":\"s-cpplink\",\"cppMobileLink\":\"s-cppmobilelink\",\"customLabel0\":\"s-customlabel0\",\"customLabel1\":\"s-customlabel1\",\"customLabel2\":\"s-customlabel2\",\"customLabel3\":\"s-customlabel3\",\"customLabel4\":\"s-customlabel4\",\"description\":\"s-description\",\"excludedDestinations\":[\"s-excludeddestinations\"],\"expirationDate\":\"s-expirationdate\",\"gender\":\"s-gender\",\"googleProductCategory\":\"s-googleproductcategory\",\"gtin\":\"s-gtin\",\"headlineOfferCondition\":\"s-headlineoffercondition\",\"headlineOfferInstallment\":{\"months\":\"7\"},\"headlineOfferLink\":\"s-headlineofferlink\",\"headlineOfferMobileLink\":\"s-headlineoffermobilelink\",\"headlineOfferPrice\":{\"amountMicros\":\"7\",\"currencyCode\":\"s-currencycode\"},\"headlineOfferShippingPrice\":{\"amountMicros\":\"7\",\"currencyCode\":\"s-currencycode\"},\"headlineOfferSubscriptionCost\":{\"period\":\"s-period\",\"periodLength\":\"7\"},\"highPrice\":{\"amountMicros\":\"7\",\"currencyCode\":\"s-currencycode\"},\"imageLink\":\"s-imagelink\",\"includedDestinations\":[\"s-includeddestinations\"],\"isBundle\":true,\"itemGroupId\":\"s-itemgroupid\",\"lowPrice\":{\"amountMicros\":\"7\",\"currencyCode\":\"s-currencycode\"},\"material\":\"s-material\",\"maxRating\":\"7\",\"minRating\":\"7\",\"mpn\":\"s-mpn\",\"multipack\":\"7\",\"numberOfOffers\":\"7\",\"pattern\":\"s-pattern\",\"pause\":\"s-pause\",\"productDetails\":[{\"attributeName\":\"s-attributename\",\"attributeValue\":\"s-attributevalue\",\"sectionName\":\"s-sectionname\"}],\"productHeight\":{\"unit\":\"s-unit\",\"value\":1.5},\"productHighlights\":[\"s-producthighlights\"],\"productLength\":{\"unit\":\"s-unit\",\"value\":1.5},\"productTypes\":[\"s-producttypes\"],\"productWeight\":{\"unit\":\"s-unit\",\"value\":1.5},\"productWidth\":{\"unit\":\"s-unit\",\"value\":1.5},\"rating\":1.5,\"reviewCount\":\"7\",\"size\":\"s-size\",\"sizeSystem\":\"s-sizesystem\",\"sizeTypes\":[\"s-sizetypes\"],\"title\":\"s-title\"},\"contentLanguage\":\"s-contentlanguage\",\"customAttributes\":[{\"name\":\"s-name\",\"value\":\"s-value\"}],\"feedLabel\":\"s-feedlabel\",\"finalName\":\"s-finalname\",\"freshnessTime\":\"s-freshnesstime\",\"name\":\"s-name\",\"rawProvidedId\":\"s-rawprovidedid\"}",
@@ -108,18 +146,18 @@ test "Go's css.accounts.cssProductInputs.insert" {
   let svc = new_service(os.net, gv_opts())
   gv_set(f, "{\"attributes\":{\"additionalImageLinks\":[\"s-additionalimagelinks\"],\"adult\":true,\"ageGroup\":\"s-agegroup\",\"brand\":\"s-brand\",\"certifications\":[{\"authority\":\"s-authority\",\"code\":\"s-code\",\"name\":\"s-name\"}],\"color\":\"s-color\",\"cppAdsRedirect\":\"s-cppadsredirect\",\"cppLink\":\"s-cpplink\",\"cppMobileLink\":\"s-cppmobilelink\",\"customLabel0\":\"s-customlabel0\",\"customLabel1\":\"s-customlabel1\",\"customLabel2\":\"s-customlabel2\",\"customLabel3\":\"s-customlabel3\",\"customLabel4\":\"s-customlabel4\",\"description\":\"s-description\",\"excludedDestinations\":[\"s-excludeddestinations\"],\"expirationDate\":\"s-expirationdate\",\"gender\":\"s-gender\",\"googleProductCategory\":\"s-googleproductcategory\",\"gtin\":\"s-gtin\",\"headlineOfferCondition\":\"s-headlineoffercondition\",\"headlineOfferInstallment\":{\"months\":\"7\"},\"headlineOfferLink\":\"s-headlineofferlink\",\"headlineOfferMobileLink\":\"s-headlineoffermobilelink\",\"headlineOfferPrice\":{\"amountMicros\":\"7\",\"currencyCode\":\"s-currencycode\"},\"headlineOfferShippingPrice\":{\"amountMicros\":\"7\",\"currencyCode\":\"s-currencycode\"},\"headlineOfferSubscriptionCost\":{\"period\":\"s-period\",\"periodLength\":\"7\"},\"highPrice\":{\"amountMicros\":\"7\",\"currencyCode\":\"s-currencycode\"},\"imageLink\":\"s-imagelink\",\"includedDestinations\":[\"s-includeddestinations\"],\"isBundle\":true,\"itemGroupId\":\"s-itemgroupid\",\"lowPrice\":{\"amountMicros\":\"7\",\"currencyCode\":\"s-currencycode\"},\"material\":\"s-material\",\"maxRating\":\"7\",\"minRating\":\"7\",\"mpn\":\"s-mpn\",\"multipack\":\"7\",\"numberOfOffers\":\"7\",\"pattern\":\"s-pattern\",\"pause\":\"s-pause\",\"productDetails\":[{\"attributeName\":\"s-attributename\",\"attributeValue\":\"s-attributevalue\",\"sectionName\":\"s-sectionname\"}],\"productHeight\":{\"unit\":\"s-unit\",\"value\":1.5},\"productHighlights\":[\"s-producthighlights\"],\"productLength\":{\"unit\":\"s-unit\",\"value\":1.5},\"productTypes\":[\"s-producttypes\"],\"productWeight\":{\"unit\":\"s-unit\",\"value\":1.5},\"productWidth\":{\"unit\":\"s-unit\",\"value\":1.5},\"rating\":1.5,\"reviewCount\":\"7\",\"size\":\"s-size\",\"sizeSystem\":\"s-sizesystem\",\"sizeTypes\":[\"s-sizetypes\"],\"title\":\"s-title\"},\"contentLanguage\":\"s-contentlanguage\",\"customAttributes\":[{\"name\":\"s-name\",\"value\":\"s-value\"}],\"feedLabel\":\"s-feedlabel\",\"finalName\":\"s-finalname\",\"freshnessTime\":\"s-freshnesstime\",\"name\":\"s-name\",\"rawProvidedId\":\"s-rawprovidedid\"}")
   gv_note(f, "CALL css.accounts.cssProductInputs.insert")
-  match svc.accounts.css_product_inputs.insert("id1/ x", json.decode_str[CssProductInput]("{\"attributes\":{\"additionalImageLinks\":[\"s-additionalimagelinks\"],\"adult\":true,\"ageGroup\":\"s-agegroup\",\"brand\":\"s-brand\",\"certifications\":[{\"authority\":\"s-authority\",\"code\":\"s-code\",\"name\":\"s-name\"}],\"color\":\"s-color\",\"cppAdsRedirect\":\"s-cppadsredirect\",\"cppLink\":\"s-cpplink\",\"cppMobileLink\":\"s-cppmobilelink\",\"customLabel0\":\"s-customlabel0\",\"customLabel1\":\"s-customlabel1\",\"customLabel2\":\"s-customlabel2\",\"customLabel3\":\"s-customlabel3\",\"customLabel4\":\"s-customlabel4\",\"description\":\"s-description\",\"excludedDestinations\":[\"s-excludeddestinations\"],\"expirationDate\":\"s-expirationdate\",\"gender\":\"s-gender\",\"googleProductCategory\":\"s-googleproductcategory\",\"gtin\":\"s-gtin\",\"headlineOfferCondition\":\"s-headlineoffercondition\",\"headlineOfferInstallment\":{\"months\":\"7\"},\"headlineOfferLink\":\"s-headlineofferlink\",\"headlineOfferMobileLink\":\"s-headlineoffermobilelink\",\"headlineOfferPrice\":{\"amountMicros\":\"7\",\"currencyCode\":\"s-currencycode\"},\"headlineOfferShippingPrice\":{\"amountMicros\":\"7\",\"currencyCode\":\"s-currencycode\"},\"headlineOfferSubscriptionCost\":{\"period\":\"s-period\",\"periodLength\":\"7\"},\"highPrice\":{\"amountMicros\":\"7\",\"currencyCode\":\"s-currencycode\"},\"imageLink\":\"s-imagelink\",\"includedDestinations\":[\"s-includeddestinations\"],\"isBundle\":true,\"itemGroupId\":\"s-itemgroupid\",\"lowPrice\":{\"amountMicros\":\"7\",\"currencyCode\":\"s-currencycode\"},\"material\":\"s-material\",\"maxRating\":\"7\",\"minRating\":\"7\",\"mpn\":\"s-mpn\",\"multipack\":\"7\",\"numberOfOffers\":\"7\",\"pattern\":\"s-pattern\",\"pause\":\"s-pause\",\"productDetails\":[{\"attributeName\":\"s-attributename\",\"attributeValue\":\"s-attributevalue\",\"sectionName\":\"s-sectionname\"}],\"productHeight\":{\"unit\":\"s-unit\",\"value\":1.5},\"productHighlights\":[\"s-producthighlights\"],\"productLength\":{\"unit\":\"s-unit\",\"value\":1.5},\"productTypes\":[\"s-producttypes\"],\"productWeight\":{\"unit\":\"s-unit\",\"value\":1.5},\"productWidth\":{\"unit\":\"s-unit\",\"value\":1.5},\"rating\":1.5,\"reviewCount\":\"7\",\"size\":\"s-size\",\"sizeSystem\":\"s-sizesystem\",\"sizeTypes\":[\"s-sizetypes\"],\"title\":\"s-title\"},\"contentLanguage\":\"s-contentlanguage\",\"customAttributes\":[{\"name\":\"s-name\",\"value\":\"s-value\"}],\"feedLabel\":\"s-feedlabel\",\"finalName\":\"s-finalname\",\"freshnessTime\":\"s-freshnesstime\",\"name\":\"s-name\",\"rawProvidedId\":\"s-rawprovidedid\"}") ?? e => fault(e.display()), options: AccountsCssProductInputsInsertOptions{feed_id: Some("7"), fields: ["kind", "id"], headers: [("X-Extra", "v1")]}) {
+  match svc.accounts.css_product_inputs.insert("id1/ x", json.decode_str[CssProductInput]("{\"attributes\":{\"additionalImageLinks\":[\"s-additionalimagelinks\"],\"adult\":true,\"ageGroup\":\"s-agegroup\",\"brand\":\"s-brand\",\"certifications\":[{\"authority\":\"s-authority\",\"code\":\"s-code\",\"name\":\"s-name\"}],\"color\":\"s-color\",\"cppAdsRedirect\":\"s-cppadsredirect\",\"cppLink\":\"s-cpplink\",\"cppMobileLink\":\"s-cppmobilelink\",\"customLabel0\":\"s-customlabel0\",\"customLabel1\":\"s-customlabel1\",\"customLabel2\":\"s-customlabel2\",\"customLabel3\":\"s-customlabel3\",\"customLabel4\":\"s-customlabel4\",\"description\":\"s-description\",\"excludedDestinations\":[\"s-excludeddestinations\"],\"expirationDate\":\"s-expirationdate\",\"gender\":\"s-gender\",\"googleProductCategory\":\"s-googleproductcategory\",\"gtin\":\"s-gtin\",\"headlineOfferCondition\":\"s-headlineoffercondition\",\"headlineOfferInstallment\":{\"months\":\"7\"},\"headlineOfferLink\":\"s-headlineofferlink\",\"headlineOfferMobileLink\":\"s-headlineoffermobilelink\",\"headlineOfferPrice\":{\"amountMicros\":\"7\",\"currencyCode\":\"s-currencycode\"},\"headlineOfferShippingPrice\":{\"amountMicros\":\"7\",\"currencyCode\":\"s-currencycode\"},\"headlineOfferSubscriptionCost\":{\"period\":\"s-period\",\"periodLength\":\"7\"},\"highPrice\":{\"amountMicros\":\"7\",\"currencyCode\":\"s-currencycode\"},\"imageLink\":\"s-imagelink\",\"includedDestinations\":[\"s-includeddestinations\"],\"isBundle\":true,\"itemGroupId\":\"s-itemgroupid\",\"lowPrice\":{\"amountMicros\":\"7\",\"currencyCode\":\"s-currencycode\"},\"material\":\"s-material\",\"maxRating\":\"7\",\"minRating\":\"7\",\"mpn\":\"s-mpn\",\"multipack\":\"7\",\"numberOfOffers\":\"7\",\"pattern\":\"s-pattern\",\"pause\":\"s-pause\",\"productDetails\":[{\"attributeName\":\"s-attributename\",\"attributeValue\":\"s-attributevalue\",\"sectionName\":\"s-sectionname\"}],\"productHeight\":{\"unit\":\"s-unit\",\"value\":1.5},\"productHighlights\":[\"s-producthighlights\"],\"productLength\":{\"unit\":\"s-unit\",\"value\":1.5},\"productTypes\":[\"s-producttypes\"],\"productWeight\":{\"unit\":\"s-unit\",\"value\":1.5},\"productWidth\":{\"unit\":\"s-unit\",\"value\":1.5},\"rating\":1.5,\"reviewCount\":\"7\",\"size\":\"s-size\",\"sizeSystem\":\"s-sizesystem\",\"sizeTypes\":[\"s-sizetypes\"],\"title\":\"s-title\"},\"contentLanguage\":\"s-contentlanguage\",\"customAttributes\":[{\"name\":\"s-name\",\"value\":\"s-value\"}],\"feedLabel\":\"s-feedlabel\",\"finalName\":\"s-finalname\",\"freshnessTime\":\"s-freshnesstime\",\"name\":\"s-name\",\"rawProvidedId\":\"s-rawprovidedid\"}") ?? e => fault(e.display()), options: AccountsCssProductInputsInsertOptions{feed_id: Some(7), fields: ["kind", "id"], headers: [("X-Extra", "v1")]}) {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_4)
+  gv_compare(gv_log_of(f), GO_5)
 }
 
-const GO_5: List[Str] = [
+const GO_6: List[Str] = [
   "CALL css.accounts.cssProductInputs.patch",
   "REQ PATCH https://css.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"attributes\":{\"additionalImageLinks\":[\"s-additionalimagelinks\"],\"adult\":true,\"ageGroup\":\"s-agegroup\",\"brand\":\"s-brand\",\"certifications\":[{\"authority\":\"s-authority\",\"code\":\"s-code\",\"name\":\"s-name\"}],\"color\":\"s-color\",\"cppAdsRedirect\":\"s-cppadsredirect\",\"cppLink\":\"s-cpplink\",\"cppMobileLink\":\"s-cppmobilelink\",\"customLabel0\":\"s-customlabel0\",\"customLabel1\":\"s-customlabel1\",\"customLabel2\":\"s-customlabel2\",\"customLabel3\":\"s-customlabel3\",\"customLabel4\":\"s-customlabel4\",\"description\":\"s-description\",\"excludedDestinations\":[\"s-excludeddestinations\"],\"expirationDate\":\"s-expirationdate\",\"gender\":\"s-gender\",\"googleProductCategory\":\"s-googleproductcategory\",\"gtin\":\"s-gtin\",\"headlineOfferCondition\":\"s-headlineoffercondition\",\"headlineOfferInstallment\":{\"months\":\"7\"},\"headlineOfferLink\":\"s-headlineofferlink\",\"headlineOfferMobileLink\":\"s-headlineoffermobilelink\",\"headlineOfferPrice\":{\"amountMicros\":\"7\",\"currencyCode\":\"s-currencycode\"},\"headlineOfferShippingPrice\":{\"amountMicros\":\"7\",\"currencyCode\":\"s-currencycode\"},\"headlineOfferSubscriptionCost\":{\"period\":\"s-period\",\"periodLength\":\"7\"},\"highPrice\":{\"amountMicros\":\"7\",\"currencyCode\":\"s-currencycode\"},\"imageLink\":\"s-imagelink\",\"includedDestinations\":[\"s-includeddestinations\"],\"isBundle\":true,\"itemGroupId\":\"s-itemgroupid\",\"lowPrice\":{\"amountMicros\":\"7\",\"currencyCode\":\"s-currencycode\"},\"material\":\"s-material\",\"maxRating\":\"7\",\"minRating\":\"7\",\"mpn\":\"s-mpn\",\"multipack\":\"7\",\"numberOfOffers\":\"7\",\"pattern\":\"s-pattern\",\"pause\":\"s-pause\",\"productDetails\":[{\"attributeName\":\"s-attributename\",\"attributeValue\":\"s-attributevalue\",\"sectionName\":\"s-sectionname\"}],\"productHeight\":{\"unit\":\"s-unit\",\"value\":1.5},\"productHighlights\":[\"s-producthighlights\"],\"productLength\":{\"unit\":\"s-unit\",\"value\":1.5},\"productTypes\":[\"s-producttypes\"],\"productWeight\":{\"unit\":\"s-unit\",\"value\":1.5},\"productWidth\":{\"unit\":\"s-unit\",\"value\":1.5},\"rating\":1.5,\"reviewCount\":\"7\",\"size\":\"s-size\",\"sizeSystem\":\"s-sizesystem\",\"sizeTypes\":[\"s-sizetypes\"],\"title\":\"s-title\"},\"contentLanguage\":\"s-contentlanguage\",\"customAttributes\":[{\"name\":\"s-name\",\"value\":\"s-value\"}],\"feedLabel\":\"s-feedlabel\",\"finalName\":\"s-finalname\",\"freshnessTime\":\"s-freshnesstime\",\"name\":\"s-name\",\"rawProvidedId\":\"s-rawprovidedid\"}",
+  "  B <2224 bytes> {\"attributes\":{\"additionalImageL...wProvidedId\":\"s-rawprovidedid\"}",
   "",
   "  SERVED 200 {\"attributes\":{\"additionalImageLinks\":[\"s-additionalimagelinks\"],\"adult\":true,\"ageGroup\":\"s-agegroup\",\"brand\":\"s-brand\",\"certifications\":[{\"authority\":\"s-authority\",\"code\":\"s-code\",\"name\":\"s-name\"}],\"color\":\"s-color\",\"cppAdsRedirect\":\"s-cppadsredirect\",\"cppLink\":\"s-cpplink\",\"cppMobileLink\":\"s-cppmobilelink\",\"customLabel0\":\"s-customlabel0\",\"customLabel1\":\"s-customlabel1\",\"customLabel2\":\"s-customlabel2\",\"customLabel3\":\"s-customlabel3\",\"customLabel4\":\"s-customlabel4\",\"description\":\"s-description\",\"excludedDestinations\":[\"s-excludeddestinations\"],\"expirationDate\":\"s-expirationdate\",\"gender\":\"s-gender\",\"googleProductCategory\":\"s-googleproductcategory\",\"gtin\":\"s-gtin\",\"headlineOfferCondition\":\"s-headlineoffercondition\",\"headlineOfferInstallment\":{\"months\":\"7\"},\"headlineOfferLink\":\"s-headlineofferlink\",\"headlineOfferMobileLink\":\"s-headlineoffermobilelink\",\"headlineOfferPrice\":{\"amountMicros\":\"7\",\"currencyCode\":\"s-currencycode\"},\"headlineOfferShippingPrice\":{\"amountMicros\":\"7\",\"currencyCode\":\"s-currencycode\"},\"headlineOfferSubscriptionCost\":{\"period\":\"s-period\",\"periodLength\":\"7\"},\"highPrice\":{\"amountMicros\":\"7\",\"currencyCode\":\"s-currencycode\"},\"imageLink\":\"s-imagelink\",\"includedDestinations\":[\"s-includeddestinations\"],\"isBundle\":true,\"itemGroupId\":\"s-itemgroupid\",\"lowPrice\":{\"amountMicros\":\"7\",\"currencyCode\":\"s-currencycode\"},\"material\":\"s-material\",\"maxRating\":\"7\",\"minRating\":\"7\",\"mpn\":\"s-mpn\",\"multipack\":\"7\",\"numberOfOffers\":\"7\",\"pattern\":\"s-pattern\",\"pause\":\"s-pause\",\"productDetails\":[{\"attributeName\":\"s-attributename\",\"attributeValue\":\"s-attributevalue\",\"sectionName\":\"s-sectionname\"}],\"productHeight\":{\"unit\":\"s-unit\",\"value\":1.5},\"productHighlights\":[\"s-producthighlights\"],\"productLength\":{\"unit\":\"s-unit\",\"value\":1.5},\"productTypes\":[\"s-producttypes\"],\"productWeight\":{\"unit\":\"s-unit\",\"value\":1.5},\"productWidth\":{\"unit\":\"s-unit\",\"value\":1.5},\"rating\":1.5,\"reviewCount\":\"7\",\"size\":\"s-size\",\"sizeSystem\":\"s-sizesystem\",\"sizeTypes\":[\"s-sizetypes\"],\"title\":\"s-title\"},\"contentLanguage\":\"s-contentlanguage\",\"customAttributes\":[{\"name\":\"s-name\",\"value\":\"s-value\"}],\"feedLabel\":\"s-feedlabel\",\"finalName\":\"s-finalname\",\"freshnessTime\":\"s-freshnesstime\",\"name\":\"s-name\",\"rawProvidedId\":\"s-rawprovidedid\"}",
   "OUT: {\"attributes\":{\"additionalImageLinks\":[\"s-additionalimagelinks\"],\"adult\":true,\"ageGroup\":\"s-agegroup\",\"brand\":\"s-brand\",\"certifications\":[{\"authority\":\"s-authority\",\"code\":\"s-code\",\"name\":\"s-name\"}],\"color\":\"s-color\",\"cppAdsRedirect\":\"s-cppadsredirect\",\"cppLink\":\"s-cpplink\",\"cppMobileLink\":\"s-cppmobilelink\",\"customLabel0\":\"s-customlabel0\",\"customLabel1\":\"s-customlabel1\",\"customLabel2\":\"s-customlabel2\",\"customLabel3\":\"s-customlabel3\",\"customLabel4\":\"s-customlabel4\",\"description\":\"s-description\",\"excludedDestinations\":[\"s-excludeddestinations\"],\"expirationDate\":\"s-expirationdate\",\"gender\":\"s-gender\",\"googleProductCategory\":\"s-googleproductcategory\",\"gtin\":\"s-gtin\",\"headlineOfferCondition\":\"s-headlineoffercondition\",\"headlineOfferInstallment\":{\"months\":\"7\"},\"headlineOfferLink\":\"s-headlineofferlink\",\"headlineOfferMobileLink\":\"s-headlineoffermobilelink\",\"headlineOfferPrice\":{\"amountMicros\":\"7\",\"currencyCode\":\"s-currencycode\"},\"headlineOfferShippingPrice\":{\"amountMicros\":\"7\",\"currencyCode\":\"s-currencycode\"},\"headlineOfferSubscriptionCost\":{\"period\":\"s-period\",\"periodLength\":\"7\"},\"highPrice\":{\"amountMicros\":\"7\",\"currencyCode\":\"s-currencycode\"},\"imageLink\":\"s-imagelink\",\"includedDestinations\":[\"s-includeddestinations\"],\"isBundle\":true,\"itemGroupId\":\"s-itemgroupid\",\"lowPrice\":{\"amountMicros\":\"7\",\"currencyCode\":\"s-currencycode\"},\"material\":\"s-material\",\"maxRating\":\"7\",\"minRating\":\"7\",\"mpn\":\"s-mpn\",\"multipack\":\"7\",\"numberOfOffers\":\"7\",\"pattern\":\"s-pattern\",\"pause\":\"s-pause\",\"productDetails\":[{\"attributeName\":\"s-attributename\",\"attributeValue\":\"s-attributevalue\",\"sectionName\":\"s-sectionname\"}],\"productHeight\":{\"unit\":\"s-unit\",\"value\":1.5},\"productHighlights\":[\"s-producthighlights\"],\"productLength\":{\"unit\":\"s-unit\",\"value\":1.5},\"productTypes\":[\"s-producttypes\"],\"productWeight\":{\"unit\":\"s-unit\",\"value\":1.5},\"productWidth\":{\"unit\":\"s-unit\",\"value\":1.5},\"rating\":1.5,\"reviewCount\":\"7\",\"size\":\"s-size\",\"sizeSystem\":\"s-sizesystem\",\"sizeTypes\":[\"s-sizetypes\"],\"title\":\"s-title\"},\"contentLanguage\":\"s-contentlanguage\",\"customAttributes\":[{\"name\":\"s-name\",\"value\":\"s-value\"}],\"feedLabel\":\"s-feedlabel\",\"finalName\":\"s-finalname\",\"freshnessTime\":\"s-freshnesstime\",\"name\":\"s-name\",\"rawProvidedId\":\"s-rawprovidedid\"}",
@@ -134,10 +172,10 @@ test "Go's css.accounts.cssProductInputs.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_5)
+  gv_compare(gv_log_of(f), GO_6)
 }
 
-const GO_6: List[Str] = [
+const GO_7: List[Str] = [
   "CALL css.accounts.cssProducts.get",
   "REQ GET https://css.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -155,10 +193,10 @@ test "Go's css.accounts.cssProducts.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_6)
+  gv_compare(gv_log_of(f), GO_7)
 }
 
-const GO_7: List[Str] = [
+const GO_8: List[Str] = [
   "CALL css.accounts.cssProducts.list",
   "REQ GET https://css.googleapis.com/v1/id1/%20x/cssProducts?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -176,10 +214,48 @@ test "Go's css.accounts.cssProducts.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_7)
+  gv_compare(gv_log_of(f), GO_8)
 }
 
-const GO_8: List[Str] = [
+const GO_9: List[Str] = [
+  "CALL css.accounts.cssProducts.list pages",
+  "REQ GET https://css.googleapis.com/v1/id1/%20x/cssProducts?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"cssProducts\":[{\"attributes\":{\"adult\":true,\"ageGroup\":\"s-agegroup\",\"brand\":\"s-brand\",\"color\":\"s-color\",\"cppAdsRedirect\":\"s-cppadsredirect\",\"cppLink\":\"s-cpplink\",\"cppMobileLink\":\"s-cppmobilelink\",\"customLabel0\":\"s-customlabel0\",\"customLabel1\":\"s-customlabel1\",\"customLabel2\":\"s-customlabel2\",\"customLabel3\":\"s-customlabel3\",\"customLabel4\":\"s-customlabel4\",\"description\":\"s-description\",\"expirationDate\":\"s-expirationdate\",\"gender\":\"s-gender\",\"googleProductCategory\":\"s-googleproductcategory\",\"gtin\":\"s-gtin\",\"headlineOfferCondition\":\"s-headlineoffercondition\",\"headlineOfferLink\":\"s-headlineofferlink\",\"headlineOfferMobileLink\":\"s-headlineoffermobilelink\",\"imageLink\":\"s-imagelink\",\"isBundle\":true,\"itemGroupId\":\"s-itemgroupid\",\"material\":\"s-material\",\"maxRating\":\"7\",\"minRating\":\"7\",\"mpn\":\"s-mpn\",\"multipack\":\"7\",\"numberOfOffers\":\"7\",\"pattern\":\"s-pattern\",\"pause\":\"s-pause\",\"rating\":1.5,\"reviewCount\":\"7\",\"size\":\"s-size\",\"sizeSystem\":\"s-sizesystem\",\"title\":\"s-title\"},\"contentLanguage\":\"s-contentlanguage\",\"cssProductStatus\":{\"creationDate\":\"s-creationdate\",\"googleExpirationDate\":\"s-googleexpirationdate\",\"lastUpdateDate\":\"s-lastupdatedate\"},\"feedLabel\":\"s-feedlabel\",\"name\":\"s-name\",\"rawProvidedId\":\"s-rawprovidedid\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"cssProducts\":[{\"attributes\":{\"adult\":true,\"ageGroup\":\"s-agegroup\",\"brand\":\"s-brand\",\"color\":\"s-color\",\"cppAdsRedirect\":\"s-cppadsredirect\",\"cppLink\":\"s-cpplink\",\"cppMobileLink\":\"s-cppmobilelink\",\"customLabel0\":\"s-customlabel0\",\"customLabel1\":\"s-customlabel1\",\"customLabel2\":\"s-customlabel2\",\"customLabel3\":\"s-customlabel3\",\"customLabel4\":\"s-customlabel4\",\"description\":\"s-description\",\"expirationDate\":\"s-expirationdate\",\"gender\":\"s-gender\",\"googleProductCategory\":\"s-googleproductcategory\",\"gtin\":\"s-gtin\",\"headlineOfferCondition\":\"s-headlineoffercondition\",\"headlineOfferLink\":\"s-headlineofferlink\",\"headlineOfferMobileLink\":\"s-headlineoffermobilelink\",\"imageLink\":\"s-imagelink\",\"isBundle\":true,\"itemGroupId\":\"s-itemgroupid\",\"material\":\"s-material\",\"maxRating\":\"7\",\"minRating\":\"7\",\"mpn\":\"s-mpn\",\"multipack\":\"7\",\"numberOfOffers\":\"7\",\"pattern\":\"s-pattern\",\"pause\":\"s-pause\",\"rating\":1.5,\"reviewCount\":\"7\",\"size\":\"s-size\",\"sizeSystem\":\"s-sizesystem\",\"title\":\"s-title\"},\"contentLanguage\":\"s-contentlanguage\",\"cssProductStatus\":{\"creationDate\":\"s-creationdate\",\"googleExpirationDate\":\"s-googleexpirationdate\",\"lastUpdateDate\":\"s-lastupdatedate\"},\"feedLabel\":\"s-feedlabel\",\"name\":\"s-name\",\"rawProvidedId\":\"s-rawprovidedid\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://css.googleapis.com/v1/id1/%20x/cssProducts?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"cssProducts\":[{\"attributes\":{\"adult\":true,\"ageGroup\":\"s-agegroup\",\"brand\":\"s-brand\",\"color\":\"s-color\",\"cppAdsRedirect\":\"s-cppadsredirect\",\"cppLink\":\"s-cpplink\",\"cppMobileLink\":\"s-cppmobilelink\",\"customLabel0\":\"s-customlabel0\",\"customLabel1\":\"s-customlabel1\",\"customLabel2\":\"s-customlabel2\",\"customLabel3\":\"s-customlabel3\",\"customLabel4\":\"s-customlabel4\",\"description\":\"s-description\",\"expirationDate\":\"s-expirationdate\",\"gender\":\"s-gender\",\"googleProductCategory\":\"s-googleproductcategory\",\"gtin\":\"s-gtin\",\"headlineOfferCondition\":\"s-headlineoffercondition\",\"headlineOfferLink\":\"s-headlineofferlink\",\"headlineOfferMobileLink\":\"s-headlineoffermobilelink\",\"imageLink\":\"s-imagelink\",\"isBundle\":true,\"itemGroupId\":\"s-itemgroupid\",\"material\":\"s-material\",\"maxRating\":\"7\",\"minRating\":\"7\",\"mpn\":\"s-mpn\",\"multipack\":\"7\",\"numberOfOffers\":\"7\",\"pattern\":\"s-pattern\",\"pause\":\"s-pause\",\"rating\":1.5,\"reviewCount\":\"7\",\"size\":\"s-size\",\"sizeSystem\":\"s-sizesystem\",\"title\":\"s-title\"},\"contentLanguage\":\"s-contentlanguage\",\"cssProductStatus\":{\"creationDate\":\"s-creationdate\",\"googleExpirationDate\":\"s-googleexpirationdate\",\"lastUpdateDate\":\"s-lastupdatedate\"},\"feedLabel\":\"s-feedlabel\",\"name\":\"s-name\",\"rawProvidedId\":\"s-rawprovidedid\"}]}",
+  "OUT: {\"cssProducts\":[{\"attributes\":{\"adult\":true,\"ageGroup\":\"s-agegroup\",\"brand\":\"s-brand\",\"color\":\"s-color\",\"cppAdsRedirect\":\"s-cppadsredirect\",\"cppLink\":\"s-cpplink\",\"cppMobileLink\":\"s-cppmobilelink\",\"customLabel0\":\"s-customlabel0\",\"customLabel1\":\"s-customlabel1\",\"customLabel2\":\"s-customlabel2\",\"customLabel3\":\"s-customlabel3\",\"customLabel4\":\"s-customlabel4\",\"description\":\"s-description\",\"expirationDate\":\"s-expirationdate\",\"gender\":\"s-gender\",\"googleProductCategory\":\"s-googleproductcategory\",\"gtin\":\"s-gtin\",\"headlineOfferCondition\":\"s-headlineoffercondition\",\"headlineOfferLink\":\"s-headlineofferlink\",\"headlineOfferMobileLink\":\"s-headlineoffermobilelink\",\"imageLink\":\"s-imagelink\",\"isBundle\":true,\"itemGroupId\":\"s-itemgroupid\",\"material\":\"s-material\",\"maxRating\":\"7\",\"minRating\":\"7\",\"mpn\":\"s-mpn\",\"multipack\":\"7\",\"numberOfOffers\":\"7\",\"pattern\":\"s-pattern\",\"pause\":\"s-pause\",\"rating\":1.5,\"reviewCount\":\"7\",\"size\":\"s-size\",\"sizeSystem\":\"s-sizesystem\",\"title\":\"s-title\"},\"contentLanguage\":\"s-contentlanguage\",\"cssProductStatus\":{\"creationDate\":\"s-creationdate\",\"googleExpirationDate\":\"s-googleexpirationdate\",\"lastUpdateDate\":\"s-lastupdatedate\"},\"feedLabel\":\"s-feedlabel\",\"name\":\"s-name\",\"rawProvidedId\":\"s-rawprovidedid\"}]}",
+  "OUT: ok",
+]
+
+test "Go's css.accounts.cssProducts.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"cssProducts\":[{\"attributes\":{\"adult\":true,\"ageGroup\":\"s-agegroup\",\"brand\":\"s-brand\",\"color\":\"s-color\",\"cppAdsRedirect\":\"s-cppadsredirect\",\"cppLink\":\"s-cpplink\",\"cppMobileLink\":\"s-cppmobilelink\",\"customLabel0\":\"s-customlabel0\",\"customLabel1\":\"s-customlabel1\",\"customLabel2\":\"s-customlabel2\",\"customLabel3\":\"s-customlabel3\",\"customLabel4\":\"s-customlabel4\",\"description\":\"s-description\",\"expirationDate\":\"s-expirationdate\",\"gender\":\"s-gender\",\"googleProductCategory\":\"s-googleproductcategory\",\"gtin\":\"s-gtin\",\"headlineOfferCondition\":\"s-headlineoffercondition\",\"headlineOfferLink\":\"s-headlineofferlink\",\"headlineOfferMobileLink\":\"s-headlineoffermobilelink\",\"imageLink\":\"s-imagelink\",\"isBundle\":true,\"itemGroupId\":\"s-itemgroupid\",\"material\":\"s-material\",\"maxRating\":\"7\",\"minRating\":\"7\",\"mpn\":\"s-mpn\",\"multipack\":\"7\",\"numberOfOffers\":\"7\",\"pattern\":\"s-pattern\",\"pause\":\"s-pause\",\"rating\":1.5,\"reviewCount\":\"7\",\"size\":\"s-size\",\"sizeSystem\":\"s-sizesystem\",\"title\":\"s-title\"},\"contentLanguage\":\"s-contentlanguage\",\"cssProductStatus\":{\"creationDate\":\"s-creationdate\",\"googleExpirationDate\":\"s-googleexpirationdate\",\"lastUpdateDate\":\"s-lastupdatedate\"},\"feedLabel\":\"s-feedlabel\",\"name\":\"s-name\",\"rawProvidedId\":\"s-rawprovidedid\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"cssProducts\":[{\"attributes\":{\"adult\":true,\"ageGroup\":\"s-agegroup\",\"brand\":\"s-brand\",\"color\":\"s-color\",\"cppAdsRedirect\":\"s-cppadsredirect\",\"cppLink\":\"s-cpplink\",\"cppMobileLink\":\"s-cppmobilelink\",\"customLabel0\":\"s-customlabel0\",\"customLabel1\":\"s-customlabel1\",\"customLabel2\":\"s-customlabel2\",\"customLabel3\":\"s-customlabel3\",\"customLabel4\":\"s-customlabel4\",\"description\":\"s-description\",\"expirationDate\":\"s-expirationdate\",\"gender\":\"s-gender\",\"googleProductCategory\":\"s-googleproductcategory\",\"gtin\":\"s-gtin\",\"headlineOfferCondition\":\"s-headlineoffercondition\",\"headlineOfferLink\":\"s-headlineofferlink\",\"headlineOfferMobileLink\":\"s-headlineoffermobilelink\",\"imageLink\":\"s-imagelink\",\"isBundle\":true,\"itemGroupId\":\"s-itemgroupid\",\"material\":\"s-material\",\"maxRating\":\"7\",\"minRating\":\"7\",\"mpn\":\"s-mpn\",\"multipack\":\"7\",\"numberOfOffers\":\"7\",\"pattern\":\"s-pattern\",\"pause\":\"s-pause\",\"rating\":1.5,\"reviewCount\":\"7\",\"size\":\"s-size\",\"sizeSystem\":\"s-sizesystem\",\"title\":\"s-title\"},\"contentLanguage\":\"s-contentlanguage\",\"cssProductStatus\":{\"creationDate\":\"s-creationdate\",\"googleExpirationDate\":\"s-googleexpirationdate\",\"lastUpdateDate\":\"s-lastupdatedate\"},\"feedLabel\":\"s-feedlabel\",\"name\":\"s-name\",\"rawProvidedId\":\"s-rawprovidedid\"}]}")
+  gv_note(f, "CALL css.accounts.cssProducts.list pages")
+  var p = svc.accounts.css_products.list_pages("id1/ x", options: AccountsCssProductsListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_9)
+}
+
+const GO_10: List[Str] = [
   "CALL css.accounts.labels.create",
   "REQ POST https://css.googleapis.com/v1/id1/%20x/labels?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -198,10 +274,10 @@ test "Go's css.accounts.labels.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_8)
+  gv_compare(gv_log_of(f), GO_10)
 }
 
-const GO_9: List[Str] = [
+const GO_11: List[Str] = [
   "CALL css.accounts.labels.delete",
   "REQ DELETE https://css.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -219,10 +295,10 @@ test "Go's css.accounts.labels.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_9)
+  gv_compare(gv_log_of(f), GO_11)
 }
 
-const GO_10: List[Str] = [
+const GO_12: List[Str] = [
   "CALL css.accounts.labels.list",
   "REQ GET https://css.googleapis.com/v1/id1/%20x/labels?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -240,10 +316,48 @@ test "Go's css.accounts.labels.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_10)
+  gv_compare(gv_log_of(f), GO_12)
 }
 
-const GO_11: List[Str] = [
+const GO_13: List[Str] = [
+  "CALL css.accounts.labels.list pages",
+  "REQ GET https://css.googleapis.com/v1/id1/%20x/labels?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"accountLabels\":[{\"accountId\":\"7\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"labelId\":\"7\",\"labelType\":\"s-labeltype\",\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"accountLabels\":[{\"accountId\":\"7\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"labelId\":\"7\",\"labelType\":\"s-labeltype\",\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://css.googleapis.com/v1/id1/%20x/labels?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"accountLabels\":[{\"accountId\":\"7\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"labelId\":\"7\",\"labelType\":\"s-labeltype\",\"name\":\"s-name\"}]}",
+  "OUT: {\"accountLabels\":[{\"accountId\":\"7\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"labelId\":\"7\",\"labelType\":\"s-labeltype\",\"name\":\"s-name\"}]}",
+  "OUT: ok",
+]
+
+test "Go's css.accounts.labels.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"accountLabels\":[{\"accountId\":\"7\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"labelId\":\"7\",\"labelType\":\"s-labeltype\",\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"accountLabels\":[{\"accountId\":\"7\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"labelId\":\"7\",\"labelType\":\"s-labeltype\",\"name\":\"s-name\"}]}")
+  gv_note(f, "CALL css.accounts.labels.list pages")
+  var p = svc.accounts.labels.list_pages("id1/ x", options: AccountsLabelsListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_13)
+}
+
+const GO_14: List[Str] = [
   "CALL css.accounts.labels.patch",
   "REQ PATCH https://css.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -262,10 +376,10 @@ test "Go's css.accounts.labels.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_11)
+  gv_compare(gv_log_of(f), GO_14)
 }
 
-const GO_12: List[Str] = [
+const GO_15: List[Str] = [
   "CALL css.accounts.quotas.list",
   "REQ GET https://css.googleapis.com/v1/id1/%20x/quotas?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -283,5 +397,43 @@ test "Go's css.accounts.quotas.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_12)
+  gv_compare(gv_log_of(f), GO_15)
+}
+
+const GO_16: List[Str] = [
+  "CALL css.accounts.quotas.list pages",
+  "REQ GET https://css.googleapis.com/v1/id1/%20x/quotas?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"quotaGroups\":[{\"name\":\"s-name\",\"quotaLimit\":\"7\",\"quotaMinuteLimit\":\"7\",\"quotaUsage\":\"7\"}]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"quotaGroups\":[{\"name\":\"s-name\",\"quotaLimit\":\"7\",\"quotaMinuteLimit\":\"7\",\"quotaUsage\":\"7\"}]}",
+  "REQ GET https://css.googleapis.com/v1/id1/%20x/quotas?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"quotaGroups\":[{\"name\":\"s-name\",\"quotaLimit\":\"7\",\"quotaMinuteLimit\":\"7\",\"quotaUsage\":\"7\"}]}",
+  "OUT: {\"quotaGroups\":[{\"name\":\"s-name\",\"quotaLimit\":\"7\",\"quotaMinuteLimit\":\"7\",\"quotaUsage\":\"7\"}]}",
+  "OUT: ok",
+]
+
+test "Go's css.accounts.quotas.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"quotaGroups\":[{\"name\":\"s-name\",\"quotaLimit\":\"7\",\"quotaMinuteLimit\":\"7\",\"quotaUsage\":\"7\"}]}")
+  gv_queue(f, "{\"quotaGroups\":[{\"name\":\"s-name\",\"quotaLimit\":\"7\",\"quotaMinuteLimit\":\"7\",\"quotaUsage\":\"7\"}]}")
+  gv_note(f, "CALL css.accounts.quotas.list pages")
+  var p = svc.accounts.quotas.list_pages("id1/ x", options: AccountsQuotasListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_16)
 }

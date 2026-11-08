@@ -115,6 +115,44 @@ test "Go's firebasestorage.projects.buckets.list" {
 }
 
 const GO_5: List[Str] = [
+  "CALL firebasestorage.projects.buckets.list pages",
+  "REQ GET https://firebasestorage.googleapis.com/v1beta/id1/%20x/buckets?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"buckets\":[{\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"buckets\":[{\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://firebasestorage.googleapis.com/v1beta/id1/%20x/buckets?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"buckets\":[{\"name\":\"s-name\"}]}",
+  "OUT: {\"buckets\":[{\"name\":\"s-name\"}]}",
+  "OUT: ok",
+]
+
+test "Go's firebasestorage.projects.buckets.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"buckets\":[{\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"buckets\":[{\"name\":\"s-name\"}]}")
+  gv_note(f, "CALL firebasestorage.projects.buckets.list pages")
+  var p = svc.projects.buckets.list_pages("id1/ x", options: ProjectsBucketsListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_5)
+}
+
+const GO_6: List[Str] = [
   "CALL firebasestorage.projects.buckets.removeFirebase",
   "REQ POST https://firebasestorage.googleapis.com/v1beta/id1/%20x:removeFirebase?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -133,10 +171,10 @@ test "Go's firebasestorage.projects.buckets.removeFirebase" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_5)
+  gv_compare(gv_log_of(f), GO_6)
 }
 
-const GO_6: List[Str] = [
+const GO_7: List[Str] = [
   "CALL firebasestorage.projects.defaultBucket.create",
   "REQ POST https://firebasestorage.googleapis.com/v1beta/id1/%20x/defaultBucket?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -155,5 +193,5 @@ test "Go's firebasestorage.projects.defaultBucket.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_6)
+  gv_compare(gv_log_of(f), GO_7)
 }

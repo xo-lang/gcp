@@ -72,6 +72,44 @@ test "Go's redis.projects.locations.list" {
 }
 
 const GO_3: List[Str] = [
+  "CALL redis.projects.locations.list pages",
+  "REQ GET https://redis.googleapis.com/v1/id1/%20x/locations?alt=json&extraLocationTypes=s-extralocationtypes&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://redis.googleapis.com/v1/id1/%20x/locations?alt=json&extraLocationTypes=s-extralocationtypes&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}]}",
+  "OUT: {\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}]}",
+  "OUT: ok",
+]
+
+test "Go's redis.projects.locations.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}]}")
+  gv_note(f, "CALL redis.projects.locations.list pages")
+  var p = svc.projects.locations.list_pages("id1/ x", options: ProjectsLocationsListOptions{extra_location_types: ["s-extralocationtypes"], filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_3)
+}
+
+const GO_4: List[Str] = [
   "CALL redis.projects.locations.aclPolicies.create",
   "REQ POST https://redis.googleapis.com/v1/id1/%20x/aclPolicies?aclPolicyId=s-aclpolicyid&alt=json&fields=kind%2Cid&prettyPrint=false&requestId=s-requestid",
   "  H content-type=application/json | x-extra=v1",
@@ -90,10 +128,10 @@ test "Go's redis.projects.locations.aclPolicies.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_3)
+  gv_compare(gv_log_of(f), GO_4)
 }
 
-const GO_4: List[Str] = [
+const GO_5: List[Str] = [
   "CALL redis.projects.locations.aclPolicies.delete",
   "REQ DELETE https://redis.googleapis.com/v1/id1/%20x?alt=json&etag=s-etag&fields=kind%2Cid&prettyPrint=false&requestId=s-requestid",
   "  H x-extra=v1",
@@ -111,10 +149,10 @@ test "Go's redis.projects.locations.aclPolicies.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_4)
+  gv_compare(gv_log_of(f), GO_5)
 }
 
-const GO_5: List[Str] = [
+const GO_6: List[Str] = [
   "CALL redis.projects.locations.aclPolicies.get",
   "REQ GET https://redis.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -132,10 +170,10 @@ test "Go's redis.projects.locations.aclPolicies.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_5)
+  gv_compare(gv_log_of(f), GO_6)
 }
 
-const GO_6: List[Str] = [
+const GO_7: List[Str] = [
   "CALL redis.projects.locations.aclPolicies.list",
   "REQ GET https://redis.googleapis.com/v1/id1/%20x/aclPolicies?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -153,10 +191,48 @@ test "Go's redis.projects.locations.aclPolicies.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_6)
+  gv_compare(gv_log_of(f), GO_7)
 }
 
-const GO_7: List[Str] = [
+const GO_8: List[Str] = [
+  "CALL redis.projects.locations.aclPolicies.list pages",
+  "REQ GET https://redis.googleapis.com/v1/id1/%20x/aclPolicies?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"aclPolicies\":[{\"createTime\":\"s-createtime\",\"etag\":\"s-etag\",\"name\":\"s-name\",\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"version\":\"7\"}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"aclPolicies\":[{\"createTime\":\"s-createtime\",\"etag\":\"s-etag\",\"name\":\"s-name\",\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"version\":\"7\"}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}",
+  "REQ GET https://redis.googleapis.com/v1/id1/%20x/aclPolicies?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"aclPolicies\":[{\"createTime\":\"s-createtime\",\"etag\":\"s-etag\",\"name\":\"s-name\",\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"version\":\"7\"}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"aclPolicies\":[{\"createTime\":\"s-createtime\",\"etag\":\"s-etag\",\"name\":\"s-name\",\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"version\":\"7\"}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: ok",
+]
+
+test "Go's redis.projects.locations.aclPolicies.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"aclPolicies\":[{\"createTime\":\"s-createtime\",\"etag\":\"s-etag\",\"name\":\"s-name\",\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"version\":\"7\"}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}")
+  gv_queue(f, "{\"aclPolicies\":[{\"createTime\":\"s-createtime\",\"etag\":\"s-etag\",\"name\":\"s-name\",\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"version\":\"7\"}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_note(f, "CALL redis.projects.locations.aclPolicies.list pages")
+  var p = svc.projects.locations.acl_policies.list_pages("id1/ x", options: ProjectsLocationsAclPoliciesListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_8)
+}
+
+const GO_9: List[Str] = [
   "CALL redis.projects.locations.aclPolicies.patch",
   "REQ PATCH https://redis.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&requestId=s-requestid&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
@@ -175,10 +251,10 @@ test "Go's redis.projects.locations.aclPolicies.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_7)
+  gv_compare(gv_log_of(f), GO_9)
 }
 
-const GO_8: List[Str] = [
+const GO_10: List[Str] = [
   "CALL redis.projects.locations.aclPolicies.revisions.get",
   "REQ GET https://redis.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -196,10 +272,10 @@ test "Go's redis.projects.locations.aclPolicies.revisions.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_8)
+  gv_compare(gv_log_of(f), GO_10)
 }
 
-const GO_9: List[Str] = [
+const GO_11: List[Str] = [
   "CALL redis.projects.locations.aclPolicies.revisions.list",
   "REQ GET https://redis.googleapis.com/v1/id1/%20x/revisions?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -217,10 +293,48 @@ test "Go's redis.projects.locations.aclPolicies.revisions.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_9)
+  gv_compare(gv_log_of(f), GO_11)
 }
 
-const GO_10: List[Str] = [
+const GO_12: List[Str] = [
+  "CALL redis.projects.locations.aclPolicies.revisions.list pages",
+  "REQ GET https://redis.googleapis.com/v1/id1/%20x/revisions?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"aclPolicyRevisions\":[{\"attachedClusters\":[\"s-attachedclusters\"],\"createTime\":\"s-createtime\",\"name\":\"s-name\",\"revisionNumber\":\"7\",\"snapshot\":{\"createTime\":\"s-createtime\",\"etag\":\"s-etag\",\"name\":\"s-name\",\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"version\":\"7\"}}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"aclPolicyRevisions\":[{\"attachedClusters\":[\"s-attachedclusters\"],\"createTime\":\"s-createtime\",\"name\":\"s-name\",\"revisionNumber\":\"7\",\"snapshot\":{\"createTime\":\"s-createtime\",\"etag\":\"s-etag\",\"name\":\"s-name\",\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"version\":\"7\"}}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}",
+  "REQ GET https://redis.googleapis.com/v1/id1/%20x/revisions?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"aclPolicyRevisions\":[{\"attachedClusters\":[\"s-attachedclusters\"],\"createTime\":\"s-createtime\",\"name\":\"s-name\",\"revisionNumber\":\"7\",\"snapshot\":{\"createTime\":\"s-createtime\",\"etag\":\"s-etag\",\"name\":\"s-name\",\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"version\":\"7\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"aclPolicyRevisions\":[{\"attachedClusters\":[\"s-attachedclusters\"],\"createTime\":\"s-createtime\",\"name\":\"s-name\",\"revisionNumber\":\"7\",\"snapshot\":{\"createTime\":\"s-createtime\",\"etag\":\"s-etag\",\"name\":\"s-name\",\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"version\":\"7\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: ok",
+]
+
+test "Go's redis.projects.locations.aclPolicies.revisions.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"aclPolicyRevisions\":[{\"attachedClusters\":[\"s-attachedclusters\"],\"createTime\":\"s-createtime\",\"name\":\"s-name\",\"revisionNumber\":\"7\",\"snapshot\":{\"createTime\":\"s-createtime\",\"etag\":\"s-etag\",\"name\":\"s-name\",\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"version\":\"7\"}}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}")
+  gv_queue(f, "{\"aclPolicyRevisions\":[{\"attachedClusters\":[\"s-attachedclusters\"],\"createTime\":\"s-createtime\",\"name\":\"s-name\",\"revisionNumber\":\"7\",\"snapshot\":{\"createTime\":\"s-createtime\",\"etag\":\"s-etag\",\"name\":\"s-name\",\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"version\":\"7\"}}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_note(f, "CALL redis.projects.locations.aclPolicies.revisions.list pages")
+  var p = svc.projects.locations.acl_policies.revisions.list_pages("id1/ x", options: ProjectsLocationsAclPoliciesRevisionsListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_12)
+}
+
+const GO_13: List[Str] = [
   "CALL redis.projects.locations.backupCollections.get",
   "REQ GET https://redis.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -238,10 +352,10 @@ test "Go's redis.projects.locations.backupCollections.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_10)
+  gv_compare(gv_log_of(f), GO_13)
 }
 
-const GO_11: List[Str] = [
+const GO_14: List[Str] = [
   "CALL redis.projects.locations.backupCollections.list",
   "REQ GET https://redis.googleapis.com/v1/id1/%20x/backupCollections?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -259,10 +373,48 @@ test "Go's redis.projects.locations.backupCollections.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_11)
+  gv_compare(gv_log_of(f), GO_14)
 }
 
-const GO_12: List[Str] = [
+const GO_15: List[Str] = [
+  "CALL redis.projects.locations.backupCollections.list pages",
+  "REQ GET https://redis.googleapis.com/v1/id1/%20x/backupCollections?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"backupCollections\":[{\"cluster\":\"s-cluster\",\"clusterUid\":\"s-clusteruid\",\"createTime\":\"s-createtime\",\"kmsKey\":\"s-kmskey\",\"lastBackupTime\":\"s-lastbackuptime\",\"name\":\"s-name\",\"totalBackupCount\":\"7\",\"totalBackupSizeBytes\":\"7\",\"uid\":\"s-uid\"}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"backupCollections\":[{\"cluster\":\"s-cluster\",\"clusterUid\":\"s-clusteruid\",\"createTime\":\"s-createtime\",\"kmsKey\":\"s-kmskey\",\"lastBackupTime\":\"s-lastbackuptime\",\"name\":\"s-name\",\"totalBackupCount\":\"7\",\"totalBackupSizeBytes\":\"7\",\"uid\":\"s-uid\"}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}",
+  "REQ GET https://redis.googleapis.com/v1/id1/%20x/backupCollections?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"backupCollections\":[{\"cluster\":\"s-cluster\",\"clusterUid\":\"s-clusteruid\",\"createTime\":\"s-createtime\",\"kmsKey\":\"s-kmskey\",\"lastBackupTime\":\"s-lastbackuptime\",\"name\":\"s-name\",\"totalBackupCount\":\"7\",\"totalBackupSizeBytes\":\"7\",\"uid\":\"s-uid\"}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"backupCollections\":[{\"cluster\":\"s-cluster\",\"clusterUid\":\"s-clusteruid\",\"createTime\":\"s-createtime\",\"kmsKey\":\"s-kmskey\",\"lastBackupTime\":\"s-lastbackuptime\",\"name\":\"s-name\",\"totalBackupCount\":\"7\",\"totalBackupSizeBytes\":\"7\",\"uid\":\"s-uid\"}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: ok",
+]
+
+test "Go's redis.projects.locations.backupCollections.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"backupCollections\":[{\"cluster\":\"s-cluster\",\"clusterUid\":\"s-clusteruid\",\"createTime\":\"s-createtime\",\"kmsKey\":\"s-kmskey\",\"lastBackupTime\":\"s-lastbackuptime\",\"name\":\"s-name\",\"totalBackupCount\":\"7\",\"totalBackupSizeBytes\":\"7\",\"uid\":\"s-uid\"}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}")
+  gv_queue(f, "{\"backupCollections\":[{\"cluster\":\"s-cluster\",\"clusterUid\":\"s-clusteruid\",\"createTime\":\"s-createtime\",\"kmsKey\":\"s-kmskey\",\"lastBackupTime\":\"s-lastbackuptime\",\"name\":\"s-name\",\"totalBackupCount\":\"7\",\"totalBackupSizeBytes\":\"7\",\"uid\":\"s-uid\"}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_note(f, "CALL redis.projects.locations.backupCollections.list pages")
+  var p = svc.projects.locations.backup_collections.list_pages("id1/ x", options: ProjectsLocationsBackupCollectionsListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_15)
+}
+
+const GO_16: List[Str] = [
   "CALL redis.projects.locations.backupCollections.backups.delete",
   "REQ DELETE https://redis.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&requestId=s-requestid",
   "  H x-extra=v1",
@@ -280,10 +432,10 @@ test "Go's redis.projects.locations.backupCollections.backups.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_12)
+  gv_compare(gv_log_of(f), GO_16)
 }
 
-const GO_13: List[Str] = [
+const GO_17: List[Str] = [
   "CALL redis.projects.locations.backupCollections.backups.export",
   "REQ POST https://redis.googleapis.com/v1/id1/%20x:export?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -302,10 +454,10 @@ test "Go's redis.projects.locations.backupCollections.backups.export" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_13)
+  gv_compare(gv_log_of(f), GO_17)
 }
 
-const GO_14: List[Str] = [
+const GO_18: List[Str] = [
   "CALL redis.projects.locations.backupCollections.backups.get",
   "REQ GET https://redis.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -323,10 +475,10 @@ test "Go's redis.projects.locations.backupCollections.backups.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_14)
+  gv_compare(gv_log_of(f), GO_18)
 }
 
-const GO_15: List[Str] = [
+const GO_19: List[Str] = [
   "CALL redis.projects.locations.backupCollections.backups.list",
   "REQ GET https://redis.googleapis.com/v1/id1/%20x/backups?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -344,10 +496,48 @@ test "Go's redis.projects.locations.backupCollections.backups.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_15)
+  gv_compare(gv_log_of(f), GO_19)
 }
 
-const GO_16: List[Str] = [
+const GO_20: List[Str] = [
+  "CALL redis.projects.locations.backupCollections.backups.list pages",
+  "REQ GET https://redis.googleapis.com/v1/id1/%20x/backups?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"backups\":[{\"backupType\":\"s-backuptype\",\"cluster\":\"s-cluster\",\"clusterUid\":\"s-clusteruid\",\"createTime\":\"s-createtime\",\"encryptionInfo\":{\"encryptionType\":\"s-encryptiontype\",\"kmsKeyPrimaryState\":\"s-kmskeyprimarystate\",\"lastUpdateTime\":\"s-lastupdatetime\"},\"engineVersion\":\"s-engineversion\",\"expireTime\":\"s-expiretime\",\"name\":\"s-name\",\"nodeType\":\"s-nodetype\",\"replicaCount\":7,\"shardCount\":7,\"state\":\"s-state\",\"totalSizeBytes\":\"7\",\"uid\":\"s-uid\"}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"backups\":[{\"backupType\":\"s-backuptype\",\"cluster\":\"s-cluster\",\"clusterUid\":\"s-clusteruid\",\"createTime\":\"s-createtime\",\"encryptionInfo\":{\"encryptionType\":\"s-encryptiontype\",\"kmsKeyPrimaryState\":\"s-kmskeyprimarystate\",\"lastUpdateTime\":\"s-lastupdatetime\"},\"engineVersion\":\"s-engineversion\",\"expireTime\":\"s-expiretime\",\"name\":\"s-name\",\"nodeType\":\"s-nodetype\",\"replicaCount\":7,\"shardCount\":7,\"state\":\"s-state\",\"totalSizeBytes\":\"7\",\"uid\":\"s-uid\"}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}",
+  "REQ GET https://redis.googleapis.com/v1/id1/%20x/backups?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"backups\":[{\"backupType\":\"s-backuptype\",\"cluster\":\"s-cluster\",\"clusterUid\":\"s-clusteruid\",\"createTime\":\"s-createtime\",\"encryptionInfo\":{\"encryptionType\":\"s-encryptiontype\",\"kmsKeyPrimaryState\":\"s-kmskeyprimarystate\",\"lastUpdateTime\":\"s-lastupdatetime\"},\"engineVersion\":\"s-engineversion\",\"expireTime\":\"s-expiretime\",\"name\":\"s-name\",\"nodeType\":\"s-nodetype\",\"replicaCount\":7,\"shardCount\":7,\"state\":\"s-state\",\"totalSizeBytes\":\"7\",\"uid\":\"s-uid\"}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"backups\":[{\"backupType\":\"s-backuptype\",\"cluster\":\"s-cluster\",\"clusterUid\":\"s-clusteruid\",\"createTime\":\"s-createtime\",\"encryptionInfo\":{\"encryptionType\":\"s-encryptiontype\",\"kmsKeyPrimaryState\":\"s-kmskeyprimarystate\",\"lastUpdateTime\":\"s-lastupdatetime\"},\"engineVersion\":\"s-engineversion\",\"expireTime\":\"s-expiretime\",\"name\":\"s-name\",\"nodeType\":\"s-nodetype\",\"replicaCount\":7,\"shardCount\":7,\"state\":\"s-state\",\"totalSizeBytes\":\"7\",\"uid\":\"s-uid\"}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: ok",
+]
+
+test "Go's redis.projects.locations.backupCollections.backups.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"backups\":[{\"backupType\":\"s-backuptype\",\"cluster\":\"s-cluster\",\"clusterUid\":\"s-clusteruid\",\"createTime\":\"s-createtime\",\"encryptionInfo\":{\"encryptionType\":\"s-encryptiontype\",\"kmsKeyPrimaryState\":\"s-kmskeyprimarystate\",\"lastUpdateTime\":\"s-lastupdatetime\"},\"engineVersion\":\"s-engineversion\",\"expireTime\":\"s-expiretime\",\"name\":\"s-name\",\"nodeType\":\"s-nodetype\",\"replicaCount\":7,\"shardCount\":7,\"state\":\"s-state\",\"totalSizeBytes\":\"7\",\"uid\":\"s-uid\"}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}")
+  gv_queue(f, "{\"backups\":[{\"backupType\":\"s-backuptype\",\"cluster\":\"s-cluster\",\"clusterUid\":\"s-clusteruid\",\"createTime\":\"s-createtime\",\"encryptionInfo\":{\"encryptionType\":\"s-encryptiontype\",\"kmsKeyPrimaryState\":\"s-kmskeyprimarystate\",\"lastUpdateTime\":\"s-lastupdatetime\"},\"engineVersion\":\"s-engineversion\",\"expireTime\":\"s-expiretime\",\"name\":\"s-name\",\"nodeType\":\"s-nodetype\",\"replicaCount\":7,\"shardCount\":7,\"state\":\"s-state\",\"totalSizeBytes\":\"7\",\"uid\":\"s-uid\"}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_note(f, "CALL redis.projects.locations.backupCollections.backups.list pages")
+  var p = svc.projects.locations.backup_collections.backups.list_pages("id1/ x", options: ProjectsLocationsBackupCollectionsBackupsListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_20)
+}
+
+const GO_21: List[Str] = [
   "CALL redis.projects.locations.clusters.addTokenAuthUser",
   "REQ POST https://redis.googleapis.com/v1/id1/%20x:addTokenAuthUser?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -366,10 +556,10 @@ test "Go's redis.projects.locations.clusters.addTokenAuthUser" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_16)
+  gv_compare(gv_log_of(f), GO_21)
 }
 
-const GO_17: List[Str] = [
+const GO_22: List[Str] = [
   "CALL redis.projects.locations.clusters.backup",
   "REQ POST https://redis.googleapis.com/v1/id1/%20x:backup?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -388,14 +578,14 @@ test "Go's redis.projects.locations.clusters.backup" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_17)
+  gv_compare(gv_log_of(f), GO_22)
 }
 
-const GO_18: List[Str] = [
+const GO_23: List[Str] = [
   "CALL redis.projects.locations.clusters.create",
   "REQ POST https://redis.googleapis.com/v1/id1/%20x/clusters?alt=json&clusterId=s-clusterid&fields=kind%2Cid&prettyPrint=false&requestId=s-requestid",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"aclPolicy\":\"s-aclpolicy\",\"aclPolicyInSync\":true,\"aclPolicyInfo\":{\"aclPolicyRevisionStatuses\":[{\"aclPolicyRevision\":\"s-aclpolicyrevision\",\"aclPolicyRevisionNumber\":\"7\",\"errorMessage\":\"s-errormessage\",\"state\":\"s-state\"}],\"appliedAclPolicy\":\"s-appliedaclpolicy\",\"appliedAclPolicyRevision\":\"s-appliedaclpolicyrevision\",\"appliedAclPolicyRevisionNumber\":\"7\"},\"allowFewerZonesDeployment\":true,\"asyncClusterEndpointsDeletionEnabled\":true,\"authorizationMode\":\"s-authorizationmode\",\"automatedBackupConfig\":{\"automatedBackupMode\":\"s-automatedbackupmode\",\"fixedFrequencySchedule\":{},\"retention\":\"s-retention\"},\"availableMaintenanceVersions\":[\"s-availablemaintenanceversions\"],\"backupCollection\":\"s-backupcollection\",\"clusterEndpoints\":[{}],\"createTime\":\"s-createtime\",\"crossClusterReplicationConfig\":{\"clusterRole\":\"s-clusterrole\",\"membership\":{},\"primaryCluster\":{\"cluster\":\"s-cluster\",\"uid\":\"s-uid\"},\"secondaryClusters\":[{\"cluster\":\"s-cluster\",\"uid\":\"s-uid\"}],\"updateTime\":\"s-updatetime\"},\"deletionProtectionEnabled\":true,\"discoveryEndpoints\":[{\"address\":\"s-address\",\"port\":7,\"pscConfig\":{\"network\":\"s-network\"}}],\"effectiveMaintenanceVersion\":\"s-effectivemaintenanceversion\",\"encryptionInfo\":{\"encryptionType\":\"s-encryptiontype\",\"kmsKeyPrimaryState\":\"s-kmskeyprimarystate\",\"kmsKeyVersions\":[\"s-kmskeyversions\"],\"lastUpdateTime\":\"s-lastupdatetime\"},\"gcsSource\":{\"uris\":[\"s-uris\"]},\"kmsKey\":\"s-kmskey\",\"labels\":{\"k1\":\"s-labels\"},\"maintenancePolicy\":{\"createTime\":\"s-createtime\",\"updateTime\":\"s-updatetime\",\"weeklyMaintenanceWindow\":[{\"day\":\"s-day\"}]},\"maintenanceSchedule\":{\"endTime\":\"s-endtime\",\"startTime\":\"s-starttime\"},\"maintenanceVersion\":\"s-maintenanceversion\",\"managedBackupSource\":{\"backup\":\"s-backup\"},\"name\":\"s-name\",\"nodeType\":\"s-nodetype\",\"ondemandMaintenance\":true,\"persistenceConfig\":{\"aofConfig\":{\"appendFsync\":\"s-appendfsync\"},\"mode\":\"s-mode\",\"rdbConfig\":{\"rdbSnapshotPeriod\":\"s-rdbsnapshotperiod\",\"rdbSnapshotStartTime\":\"s-rdbsnapshotstarttime\"}},\"preciseSizeGb\":1.5,\"pscConfigs\":[{\"network\":\"s-network\"}],\"pscConnections\":[{\"address\":\"s-address\",\"connectionType\":\"s-connectiontype\",\"forwardingRule\":\"s-forwardingrule\",\"network\":\"s-network\",\"port\":7,\"projectId\":\"s-projectid\",\"pscConnectionId\":\"s-pscconnectionid\",\"pscConnectionStatus\":\"s-pscconnectionstatus\",\"serviceAttachment\":\"s-serviceattachment\"}],\"pscServiceAttachments\":[{\"connectionType\":\"s-connectiontype\",\"serviceAttachment\":\"s-serviceattachment\"}],\"redisConfigs\":{\"k1\":\"s-redisconfigs\"},\"replicaCount\":7,\"rotateServerCertificate\":true,\"satisfiesPzi\":true,\"satisfiesPzs\":true,\"serverCaMode\":\"s-servercamode\",\"serverCaPool\":\"s-servercapool\",\"shardCount\":7,\"simulateMaintenanceEvent\":true,\"sizeGb\":7,\"state\":\"s-state\",\"stateInfo\":{\"updateInfo\":{\"targetNodeType\":\"s-targetnodetype\",\"targetReplicaCount\":7,\"targetShardCount\":7}},\"transitEncryptionMode\":\"s-transitencryptionmode\",\"uid\":\"s-uid\",\"zoneDistributionConfig\":{\"activeZones\":[\"s-activezones\"],\"mode\":\"s-mode\",\"zone\":\"s-zone\",\"zones\":[\"s-zones\"]}}",
+  "  B <2970 bytes> {\"aclPolicy\":\"s-aclpolicy\",\"aclP...:\"s-zone\",\"zones\":[\"s-zones\"]}}",
   "",
   "  SERVED 200 {\"done\":true,\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}",
   "OUT: {\"done\":true,\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}",
@@ -410,10 +600,10 @@ test "Go's redis.projects.locations.clusters.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_18)
+  gv_compare(gv_log_of(f), GO_23)
 }
 
-const GO_19: List[Str] = [
+const GO_24: List[Str] = [
   "CALL redis.projects.locations.clusters.delete",
   "REQ DELETE https://redis.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&requestId=s-requestid",
   "  H x-extra=v1",
@@ -431,10 +621,10 @@ test "Go's redis.projects.locations.clusters.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_19)
+  gv_compare(gv_log_of(f), GO_24)
 }
 
-const GO_20: List[Str] = [
+const GO_25: List[Str] = [
   "CALL redis.projects.locations.clusters.get",
   "REQ GET https://redis.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -452,10 +642,10 @@ test "Go's redis.projects.locations.clusters.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_20)
+  gv_compare(gv_log_of(f), GO_25)
 }
 
-const GO_21: List[Str] = [
+const GO_26: List[Str] = [
   "CALL redis.projects.locations.clusters.getCertificateAuthority",
   "REQ GET https://redis.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -473,10 +663,10 @@ test "Go's redis.projects.locations.clusters.getCertificateAuthority" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_21)
+  gv_compare(gv_log_of(f), GO_26)
 }
 
-const GO_22: List[Str] = [
+const GO_27: List[Str] = [
   "CALL redis.projects.locations.clusters.list",
   "REQ GET https://redis.googleapis.com/v1/id1/%20x/clusters?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -494,14 +684,52 @@ test "Go's redis.projects.locations.clusters.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_22)
+  gv_compare(gv_log_of(f), GO_27)
 }
 
-const GO_23: List[Str] = [
+const GO_28: List[Str] = [
+  "CALL redis.projects.locations.clusters.list pages",
+  "REQ GET https://redis.googleapis.com/v1/id1/%20x/clusters?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"clusters\":[{\"aclPolicy\":\"s-aclpolicy\",\"aclPolicyInSync\":true,\"aclPolicyInfo\":{\"appliedAclPolicy\":\"s-appliedaclpolicy\",\"appliedAclPolicyRevision\":\"s-appliedaclpolicyrevision\",\"appliedAclPolicyRevisionNumber\":\"7\"},\"allowFewerZonesDeployment\":true,\"asyncClusterEndpointsDeletionEnabled\":true,\"authorizationMode\":\"s-authorizationmode\",\"automatedBackupConfig\":{\"automatedBackupMode\":\"s-automatedbackupmode\",\"retention\":\"s-retention\"},\"availableMaintenanceVersions\":[\"s-availablemaintenanceversions\"],\"backupCollection\":\"s-backupcollection\",\"createTime\":\"s-createtime\",\"crossClusterReplicationConfig\":{\"clusterRole\":\"s-clusterrole\",\"updateTime\":\"s-updatetime\"},\"deletionProtectionEnabled\":true,\"effectiveMaintenanceVersion\":\"s-effectivemaintenanceversion\",\"encryptionInfo\":{\"encryptionType\":\"s-encryptiontype\",\"kmsKeyPrimaryState\":\"s-kmskeyprimarystate\",\"lastUpdateTime\":\"s-lastupdatetime\"},\"gcsSource\":{},\"kmsKey\":\"s-kmskey\",\"labels\":{\"k1\":\"s-labels\"},\"maintenancePolicy\":{\"createTime\":\"s-createtime\",\"updateTime\":\"s-updatetime\"},\"maintenanceSchedule\":{\"endTime\":\"s-endtime\",\"startTime\":\"s-starttime\"},\"maintenanceVersion\":\"s-maintenanceversion\",\"managedBackupSource\":{\"backup\":\"s-backup\"},\"name\":\"s-name\",\"nodeType\":\"s-nodetype\",\"ondemandMaintenance\":true,\"persistenceConfig\":{\"mode\":\"s-mode\"},\"preciseSizeGb\":1.5,\"redisConfigs\":{\"k1\":\"s-redisconfigs\"},\"replicaCount\":7,\"rotateServerCertificate\":true,\"satisfiesPzi\":true,\"satisfiesPzs\":true,\"serverCaMode\":\"s-servercamode\",\"serverCaPool\":\"s-servercapool\",\"shardCount\":7,\"simulateMaintenanceEvent\":true,\"sizeGb\":7,\"state\":\"s-state\",\"stateInfo\":{},\"transitEncryptionMode\":\"s-transitencryptionmode\",\"uid\":\"s-uid\",\"zoneDistributionConfig\":{\"mode\":\"s-mode\",\"zone\":\"s-zone\"}}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"clusters\":[{\"aclPolicy\":\"s-aclpolicy\",\"aclPolicyInSync\":true,\"aclPolicyInfo\":{\"appliedAclPolicy\":\"s-appliedaclpolicy\",\"appliedAclPolicyRevision\":\"s-appliedaclpolicyrevision\",\"appliedAclPolicyRevisionNumber\":\"7\"},\"allowFewerZonesDeployment\":true,\"asyncClusterEndpointsDeletionEnabled\":true,\"authorizationMode\":\"s-authorizationmode\",\"automatedBackupConfig\":{\"automatedBackupMode\":\"s-automatedbackupmode\",\"retention\":\"s-retention\"},\"availableMaintenanceVersions\":[\"s-availablemaintenanceversions\"],\"backupCollection\":\"s-backupcollection\",\"createTime\":\"s-createtime\",\"crossClusterReplicationConfig\":{\"clusterRole\":\"s-clusterrole\",\"updateTime\":\"s-updatetime\"},\"deletionProtectionEnabled\":true,\"effectiveMaintenanceVersion\":\"s-effectivemaintenanceversion\",\"encryptionInfo\":{\"encryptionType\":\"s-encryptiontype\",\"kmsKeyPrimaryState\":\"s-kmskeyprimarystate\",\"lastUpdateTime\":\"s-lastupdatetime\"},\"gcsSource\":{},\"kmsKey\":\"s-kmskey\",\"labels\":{\"k1\":\"s-labels\"},\"maintenancePolicy\":{\"createTime\":\"s-createtime\",\"updateTime\":\"s-updatetime\"},\"maintenanceSchedule\":{\"endTime\":\"s-endtime\",\"startTime\":\"s-starttime\"},\"maintenanceVersion\":\"s-maintenanceversion\",\"managedBackupSource\":{\"backup\":\"s-backup\"},\"name\":\"s-name\",\"nodeType\":\"s-nodetype\",\"ondemandMaintenance\":true,\"persistenceConfig\":{\"mode\":\"s-mode\"},\"preciseSizeGb\":1.5,\"redisConfigs\":{\"k1\":\"s-redisconfigs\"},\"replicaCount\":7,\"rotateServerCertificate\":true,\"satisfiesPzi\":true,\"satisfiesPzs\":true,\"serverCaMode\":\"s-servercamode\",\"serverCaPool\":\"s-servercapool\",\"shardCount\":7,\"simulateMaintenanceEvent\":true,\"sizeGb\":7,\"state\":\"s-state\",\"stateInfo\":{},\"transitEncryptionMode\":\"s-transitencryptionmode\",\"uid\":\"s-uid\",\"zoneDistributionConfig\":{\"mode\":\"s-mode\",\"zone\":\"s-zone\"}}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}",
+  "REQ GET https://redis.googleapis.com/v1/id1/%20x/clusters?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"clusters\":[{\"aclPolicy\":\"s-aclpolicy\",\"aclPolicyInSync\":true,\"aclPolicyInfo\":{\"appliedAclPolicy\":\"s-appliedaclpolicy\",\"appliedAclPolicyRevision\":\"s-appliedaclpolicyrevision\",\"appliedAclPolicyRevisionNumber\":\"7\"},\"allowFewerZonesDeployment\":true,\"asyncClusterEndpointsDeletionEnabled\":true,\"authorizationMode\":\"s-authorizationmode\",\"automatedBackupConfig\":{\"automatedBackupMode\":\"s-automatedbackupmode\",\"retention\":\"s-retention\"},\"availableMaintenanceVersions\":[\"s-availablemaintenanceversions\"],\"backupCollection\":\"s-backupcollection\",\"createTime\":\"s-createtime\",\"crossClusterReplicationConfig\":{\"clusterRole\":\"s-clusterrole\",\"updateTime\":\"s-updatetime\"},\"deletionProtectionEnabled\":true,\"effectiveMaintenanceVersion\":\"s-effectivemaintenanceversion\",\"encryptionInfo\":{\"encryptionType\":\"s-encryptiontype\",\"kmsKeyPrimaryState\":\"s-kmskeyprimarystate\",\"lastUpdateTime\":\"s-lastupdatetime\"},\"gcsSource\":{},\"kmsKey\":\"s-kmskey\",\"labels\":{\"k1\":\"s-labels\"},\"maintenancePolicy\":{\"createTime\":\"s-createtime\",\"updateTime\":\"s-updatetime\"},\"maintenanceSchedule\":{\"endTime\":\"s-endtime\",\"startTime\":\"s-starttime\"},\"maintenanceVersion\":\"s-maintenanceversion\",\"managedBackupSource\":{\"backup\":\"s-backup\"},\"name\":\"s-name\",\"nodeType\":\"s-nodetype\",\"ondemandMaintenance\":true,\"persistenceConfig\":{\"mode\":\"s-mode\"},\"preciseSizeGb\":1.5,\"redisConfigs\":{\"k1\":\"s-redisconfigs\"},\"replicaCount\":7,\"rotateServerCertificate\":true,\"satisfiesPzi\":true,\"satisfiesPzs\":true,\"serverCaMode\":\"s-servercamode\",\"serverCaPool\":\"s-servercapool\",\"shardCount\":7,\"simulateMaintenanceEvent\":true,\"sizeGb\":7,\"state\":\"s-state\",\"stateInfo\":{},\"transitEncryptionMode\":\"s-transitencryptionmode\",\"uid\":\"s-uid\",\"zoneDistributionConfig\":{\"mode\":\"s-mode\",\"zone\":\"s-zone\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"clusters\":[{\"aclPolicy\":\"s-aclpolicy\",\"aclPolicyInSync\":true,\"aclPolicyInfo\":{\"appliedAclPolicy\":\"s-appliedaclpolicy\",\"appliedAclPolicyRevision\":\"s-appliedaclpolicyrevision\",\"appliedAclPolicyRevisionNumber\":\"7\"},\"allowFewerZonesDeployment\":true,\"asyncClusterEndpointsDeletionEnabled\":true,\"authorizationMode\":\"s-authorizationmode\",\"automatedBackupConfig\":{\"automatedBackupMode\":\"s-automatedbackupmode\",\"retention\":\"s-retention\"},\"availableMaintenanceVersions\":[\"s-availablemaintenanceversions\"],\"backupCollection\":\"s-backupcollection\",\"createTime\":\"s-createtime\",\"crossClusterReplicationConfig\":{\"clusterRole\":\"s-clusterrole\",\"updateTime\":\"s-updatetime\"},\"deletionProtectionEnabled\":true,\"effectiveMaintenanceVersion\":\"s-effectivemaintenanceversion\",\"encryptionInfo\":{\"encryptionType\":\"s-encryptiontype\",\"kmsKeyPrimaryState\":\"s-kmskeyprimarystate\",\"lastUpdateTime\":\"s-lastupdatetime\"},\"gcsSource\":{},\"kmsKey\":\"s-kmskey\",\"labels\":{\"k1\":\"s-labels\"},\"maintenancePolicy\":{\"createTime\":\"s-createtime\",\"updateTime\":\"s-updatetime\"},\"maintenanceSchedule\":{\"endTime\":\"s-endtime\",\"startTime\":\"s-starttime\"},\"maintenanceVersion\":\"s-maintenanceversion\",\"managedBackupSource\":{\"backup\":\"s-backup\"},\"name\":\"s-name\",\"nodeType\":\"s-nodetype\",\"ondemandMaintenance\":true,\"persistenceConfig\":{\"mode\":\"s-mode\"},\"preciseSizeGb\":1.5,\"redisConfigs\":{\"k1\":\"s-redisconfigs\"},\"replicaCount\":7,\"rotateServerCertificate\":true,\"satisfiesPzi\":true,\"satisfiesPzs\":true,\"serverCaMode\":\"s-servercamode\",\"serverCaPool\":\"s-servercapool\",\"shardCount\":7,\"simulateMaintenanceEvent\":true,\"sizeGb\":7,\"state\":\"s-state\",\"stateInfo\":{},\"transitEncryptionMode\":\"s-transitencryptionmode\",\"uid\":\"s-uid\",\"zoneDistributionConfig\":{\"mode\":\"s-mode\",\"zone\":\"s-zone\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: ok",
+]
+
+test "Go's redis.projects.locations.clusters.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"clusters\":[{\"aclPolicy\":\"s-aclpolicy\",\"aclPolicyInSync\":true,\"aclPolicyInfo\":{\"appliedAclPolicy\":\"s-appliedaclpolicy\",\"appliedAclPolicyRevision\":\"s-appliedaclpolicyrevision\",\"appliedAclPolicyRevisionNumber\":\"7\"},\"allowFewerZonesDeployment\":true,\"asyncClusterEndpointsDeletionEnabled\":true,\"authorizationMode\":\"s-authorizationmode\",\"automatedBackupConfig\":{\"automatedBackupMode\":\"s-automatedbackupmode\",\"retention\":\"s-retention\"},\"availableMaintenanceVersions\":[\"s-availablemaintenanceversions\"],\"backupCollection\":\"s-backupcollection\",\"createTime\":\"s-createtime\",\"crossClusterReplicationConfig\":{\"clusterRole\":\"s-clusterrole\",\"updateTime\":\"s-updatetime\"},\"deletionProtectionEnabled\":true,\"effectiveMaintenanceVersion\":\"s-effectivemaintenanceversion\",\"encryptionInfo\":{\"encryptionType\":\"s-encryptiontype\",\"kmsKeyPrimaryState\":\"s-kmskeyprimarystate\",\"lastUpdateTime\":\"s-lastupdatetime\"},\"gcsSource\":{},\"kmsKey\":\"s-kmskey\",\"labels\":{\"k1\":\"s-labels\"},\"maintenancePolicy\":{\"createTime\":\"s-createtime\",\"updateTime\":\"s-updatetime\"},\"maintenanceSchedule\":{\"endTime\":\"s-endtime\",\"startTime\":\"s-starttime\"},\"maintenanceVersion\":\"s-maintenanceversion\",\"managedBackupSource\":{\"backup\":\"s-backup\"},\"name\":\"s-name\",\"nodeType\":\"s-nodetype\",\"ondemandMaintenance\":true,\"persistenceConfig\":{\"mode\":\"s-mode\"},\"preciseSizeGb\":1.5,\"redisConfigs\":{\"k1\":\"s-redisconfigs\"},\"replicaCount\":7,\"rotateServerCertificate\":true,\"satisfiesPzi\":true,\"satisfiesPzs\":true,\"serverCaMode\":\"s-servercamode\",\"serverCaPool\":\"s-servercapool\",\"shardCount\":7,\"simulateMaintenanceEvent\":true,\"sizeGb\":7,\"state\":\"s-state\",\"stateInfo\":{},\"transitEncryptionMode\":\"s-transitencryptionmode\",\"uid\":\"s-uid\",\"zoneDistributionConfig\":{\"mode\":\"s-mode\",\"zone\":\"s-zone\"}}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}")
+  gv_queue(f, "{\"clusters\":[{\"aclPolicy\":\"s-aclpolicy\",\"aclPolicyInSync\":true,\"aclPolicyInfo\":{\"appliedAclPolicy\":\"s-appliedaclpolicy\",\"appliedAclPolicyRevision\":\"s-appliedaclpolicyrevision\",\"appliedAclPolicyRevisionNumber\":\"7\"},\"allowFewerZonesDeployment\":true,\"asyncClusterEndpointsDeletionEnabled\":true,\"authorizationMode\":\"s-authorizationmode\",\"automatedBackupConfig\":{\"automatedBackupMode\":\"s-automatedbackupmode\",\"retention\":\"s-retention\"},\"availableMaintenanceVersions\":[\"s-availablemaintenanceversions\"],\"backupCollection\":\"s-backupcollection\",\"createTime\":\"s-createtime\",\"crossClusterReplicationConfig\":{\"clusterRole\":\"s-clusterrole\",\"updateTime\":\"s-updatetime\"},\"deletionProtectionEnabled\":true,\"effectiveMaintenanceVersion\":\"s-effectivemaintenanceversion\",\"encryptionInfo\":{\"encryptionType\":\"s-encryptiontype\",\"kmsKeyPrimaryState\":\"s-kmskeyprimarystate\",\"lastUpdateTime\":\"s-lastupdatetime\"},\"gcsSource\":{},\"kmsKey\":\"s-kmskey\",\"labels\":{\"k1\":\"s-labels\"},\"maintenancePolicy\":{\"createTime\":\"s-createtime\",\"updateTime\":\"s-updatetime\"},\"maintenanceSchedule\":{\"endTime\":\"s-endtime\",\"startTime\":\"s-starttime\"},\"maintenanceVersion\":\"s-maintenanceversion\",\"managedBackupSource\":{\"backup\":\"s-backup\"},\"name\":\"s-name\",\"nodeType\":\"s-nodetype\",\"ondemandMaintenance\":true,\"persistenceConfig\":{\"mode\":\"s-mode\"},\"preciseSizeGb\":1.5,\"redisConfigs\":{\"k1\":\"s-redisconfigs\"},\"replicaCount\":7,\"rotateServerCertificate\":true,\"satisfiesPzi\":true,\"satisfiesPzs\":true,\"serverCaMode\":\"s-servercamode\",\"serverCaPool\":\"s-servercapool\",\"shardCount\":7,\"simulateMaintenanceEvent\":true,\"sizeGb\":7,\"state\":\"s-state\",\"stateInfo\":{},\"transitEncryptionMode\":\"s-transitencryptionmode\",\"uid\":\"s-uid\",\"zoneDistributionConfig\":{\"mode\":\"s-mode\",\"zone\":\"s-zone\"}}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_note(f, "CALL redis.projects.locations.clusters.list pages")
+  var p = svc.projects.locations.clusters.list_pages("id1/ x", options: ProjectsLocationsClustersListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_28)
+}
+
+const GO_29: List[Str] = [
   "CALL redis.projects.locations.clusters.patch",
   "REQ PATCH https://redis.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&requestId=s-requestid&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"aclPolicy\":\"s-aclpolicy\",\"aclPolicyInSync\":true,\"aclPolicyInfo\":{\"aclPolicyRevisionStatuses\":[{\"aclPolicyRevision\":\"s-aclpolicyrevision\",\"aclPolicyRevisionNumber\":\"7\",\"errorMessage\":\"s-errormessage\",\"state\":\"s-state\"}],\"appliedAclPolicy\":\"s-appliedaclpolicy\",\"appliedAclPolicyRevision\":\"s-appliedaclpolicyrevision\",\"appliedAclPolicyRevisionNumber\":\"7\"},\"allowFewerZonesDeployment\":true,\"asyncClusterEndpointsDeletionEnabled\":true,\"authorizationMode\":\"s-authorizationmode\",\"automatedBackupConfig\":{\"automatedBackupMode\":\"s-automatedbackupmode\",\"fixedFrequencySchedule\":{},\"retention\":\"s-retention\"},\"availableMaintenanceVersions\":[\"s-availablemaintenanceversions\"],\"backupCollection\":\"s-backupcollection\",\"clusterEndpoints\":[{}],\"createTime\":\"s-createtime\",\"crossClusterReplicationConfig\":{\"clusterRole\":\"s-clusterrole\",\"membership\":{},\"primaryCluster\":{\"cluster\":\"s-cluster\",\"uid\":\"s-uid\"},\"secondaryClusters\":[{\"cluster\":\"s-cluster\",\"uid\":\"s-uid\"}],\"updateTime\":\"s-updatetime\"},\"deletionProtectionEnabled\":true,\"discoveryEndpoints\":[{\"address\":\"s-address\",\"port\":7,\"pscConfig\":{\"network\":\"s-network\"}}],\"effectiveMaintenanceVersion\":\"s-effectivemaintenanceversion\",\"encryptionInfo\":{\"encryptionType\":\"s-encryptiontype\",\"kmsKeyPrimaryState\":\"s-kmskeyprimarystate\",\"kmsKeyVersions\":[\"s-kmskeyversions\"],\"lastUpdateTime\":\"s-lastupdatetime\"},\"gcsSource\":{\"uris\":[\"s-uris\"]},\"kmsKey\":\"s-kmskey\",\"labels\":{\"k1\":\"s-labels\"},\"maintenancePolicy\":{\"createTime\":\"s-createtime\",\"updateTime\":\"s-updatetime\",\"weeklyMaintenanceWindow\":[{\"day\":\"s-day\"}]},\"maintenanceSchedule\":{\"endTime\":\"s-endtime\",\"startTime\":\"s-starttime\"},\"maintenanceVersion\":\"s-maintenanceversion\",\"managedBackupSource\":{\"backup\":\"s-backup\"},\"name\":\"s-name\",\"nodeType\":\"s-nodetype\",\"ondemandMaintenance\":true,\"persistenceConfig\":{\"aofConfig\":{\"appendFsync\":\"s-appendfsync\"},\"mode\":\"s-mode\",\"rdbConfig\":{\"rdbSnapshotPeriod\":\"s-rdbsnapshotperiod\",\"rdbSnapshotStartTime\":\"s-rdbsnapshotstarttime\"}},\"preciseSizeGb\":1.5,\"pscConfigs\":[{\"network\":\"s-network\"}],\"pscConnections\":[{\"address\":\"s-address\",\"connectionType\":\"s-connectiontype\",\"forwardingRule\":\"s-forwardingrule\",\"network\":\"s-network\",\"port\":7,\"projectId\":\"s-projectid\",\"pscConnectionId\":\"s-pscconnectionid\",\"pscConnectionStatus\":\"s-pscconnectionstatus\",\"serviceAttachment\":\"s-serviceattachment\"}],\"pscServiceAttachments\":[{\"connectionType\":\"s-connectiontype\",\"serviceAttachment\":\"s-serviceattachment\"}],\"redisConfigs\":{\"k1\":\"s-redisconfigs\"},\"replicaCount\":7,\"rotateServerCertificate\":true,\"satisfiesPzi\":true,\"satisfiesPzs\":true,\"serverCaMode\":\"s-servercamode\",\"serverCaPool\":\"s-servercapool\",\"shardCount\":7,\"simulateMaintenanceEvent\":true,\"sizeGb\":7,\"state\":\"s-state\",\"stateInfo\":{\"updateInfo\":{\"targetNodeType\":\"s-targetnodetype\",\"targetReplicaCount\":7,\"targetShardCount\":7}},\"transitEncryptionMode\":\"s-transitencryptionmode\",\"uid\":\"s-uid\",\"zoneDistributionConfig\":{\"activeZones\":[\"s-activezones\"],\"mode\":\"s-mode\",\"zone\":\"s-zone\",\"zones\":[\"s-zones\"]}}",
+  "  B <2970 bytes> {\"aclPolicy\":\"s-aclpolicy\",\"aclP...:\"s-zone\",\"zones\":[\"s-zones\"]}}",
   "",
   "  SERVED 200 {\"done\":true,\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}",
   "OUT: {\"done\":true,\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}",
@@ -516,10 +744,10 @@ test "Go's redis.projects.locations.clusters.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_23)
+  gv_compare(gv_log_of(f), GO_29)
 }
 
-const GO_24: List[Str] = [
+const GO_30: List[Str] = [
   "CALL redis.projects.locations.clusters.rescheduleClusterMaintenance",
   "REQ POST https://redis.googleapis.com/v1/id1/%20x:rescheduleClusterMaintenance?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -538,10 +766,10 @@ test "Go's redis.projects.locations.clusters.rescheduleClusterMaintenance" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_24)
+  gv_compare(gv_log_of(f), GO_30)
 }
 
-const GO_25: List[Str] = [
+const GO_31: List[Str] = [
   "CALL redis.projects.locations.clusters.tokenAuthUsers.addAuthToken",
   "REQ POST https://redis.googleapis.com/v1/id1/%20x:addAuthToken?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -560,10 +788,10 @@ test "Go's redis.projects.locations.clusters.tokenAuthUsers.addAuthToken" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_25)
+  gv_compare(gv_log_of(f), GO_31)
 }
 
-const GO_26: List[Str] = [
+const GO_32: List[Str] = [
   "CALL redis.projects.locations.clusters.tokenAuthUsers.delete",
   "REQ DELETE https://redis.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&force=true&prettyPrint=false&requestId=s-requestid",
   "  H x-extra=v1",
@@ -581,10 +809,10 @@ test "Go's redis.projects.locations.clusters.tokenAuthUsers.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_26)
+  gv_compare(gv_log_of(f), GO_32)
 }
 
-const GO_27: List[Str] = [
+const GO_33: List[Str] = [
   "CALL redis.projects.locations.clusters.tokenAuthUsers.get",
   "REQ GET https://redis.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -602,10 +830,10 @@ test "Go's redis.projects.locations.clusters.tokenAuthUsers.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_27)
+  gv_compare(gv_log_of(f), GO_33)
 }
 
-const GO_28: List[Str] = [
+const GO_34: List[Str] = [
   "CALL redis.projects.locations.clusters.tokenAuthUsers.list",
   "REQ GET https://redis.googleapis.com/v1/id1/%20x/tokenAuthUsers?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -623,10 +851,48 @@ test "Go's redis.projects.locations.clusters.tokenAuthUsers.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_28)
+  gv_compare(gv_log_of(f), GO_34)
 }
 
-const GO_29: List[Str] = [
+const GO_35: List[Str] = [
+  "CALL redis.projects.locations.clusters.tokenAuthUsers.list pages",
+  "REQ GET https://redis.googleapis.com/v1/id1/%20x/tokenAuthUsers?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"tokenAuthUsers\":[{\"name\":\"s-name\",\"state\":\"s-state\"}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"tokenAuthUsers\":[{\"name\":\"s-name\",\"state\":\"s-state\"}],\"unreachable\":[\"s-unreachable\"]}",
+  "REQ GET https://redis.googleapis.com/v1/id1/%20x/tokenAuthUsers?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"tokenAuthUsers\":[{\"name\":\"s-name\",\"state\":\"s-state\"}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"tokenAuthUsers\":[{\"name\":\"s-name\",\"state\":\"s-state\"}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: ok",
+]
+
+test "Go's redis.projects.locations.clusters.tokenAuthUsers.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"tokenAuthUsers\":[{\"name\":\"s-name\",\"state\":\"s-state\"}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_queue(f, "{\"tokenAuthUsers\":[{\"name\":\"s-name\",\"state\":\"s-state\"}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_note(f, "CALL redis.projects.locations.clusters.tokenAuthUsers.list pages")
+  var p = svc.projects.locations.clusters.token_auth_users.list_pages("id1/ x", options: ProjectsLocationsClustersTokenAuthUsersListOptions{filter: Some("s-filter"), order_by: Some("s-orderby"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_35)
+}
+
+const GO_36: List[Str] = [
   "CALL redis.projects.locations.clusters.tokenAuthUsers.authTokens.delete",
   "REQ DELETE https://redis.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -644,10 +910,10 @@ test "Go's redis.projects.locations.clusters.tokenAuthUsers.authTokens.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_29)
+  gv_compare(gv_log_of(f), GO_36)
 }
 
-const GO_30: List[Str] = [
+const GO_37: List[Str] = [
   "CALL redis.projects.locations.clusters.tokenAuthUsers.authTokens.get",
   "REQ GET https://redis.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -665,10 +931,10 @@ test "Go's redis.projects.locations.clusters.tokenAuthUsers.authTokens.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_30)
+  gv_compare(gv_log_of(f), GO_37)
 }
 
-const GO_31: List[Str] = [
+const GO_38: List[Str] = [
   "CALL redis.projects.locations.clusters.tokenAuthUsers.authTokens.list",
   "REQ GET https://redis.googleapis.com/v1/id1/%20x/authTokens?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -686,14 +952,52 @@ test "Go's redis.projects.locations.clusters.tokenAuthUsers.authTokens.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_31)
+  gv_compare(gv_log_of(f), GO_38)
 }
 
-const GO_32: List[Str] = [
+const GO_39: List[Str] = [
+  "CALL redis.projects.locations.clusters.tokenAuthUsers.authTokens.list pages",
+  "REQ GET https://redis.googleapis.com/v1/id1/%20x/authTokens?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"authTokens\":[{\"createTime\":\"s-createtime\",\"name\":\"s-name\",\"state\":\"s-state\",\"token\":\"s-token\"}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"authTokens\":[{\"createTime\":\"s-createtime\",\"name\":\"s-name\",\"state\":\"s-state\",\"token\":\"s-token\"}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}",
+  "REQ GET https://redis.googleapis.com/v1/id1/%20x/authTokens?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"authTokens\":[{\"createTime\":\"s-createtime\",\"name\":\"s-name\",\"state\":\"s-state\",\"token\":\"s-token\"}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"authTokens\":[{\"createTime\":\"s-createtime\",\"name\":\"s-name\",\"state\":\"s-state\",\"token\":\"s-token\"}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: ok",
+]
+
+test "Go's redis.projects.locations.clusters.tokenAuthUsers.authTokens.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"authTokens\":[{\"createTime\":\"s-createtime\",\"name\":\"s-name\",\"state\":\"s-state\",\"token\":\"s-token\"}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}")
+  gv_queue(f, "{\"authTokens\":[{\"createTime\":\"s-createtime\",\"name\":\"s-name\",\"state\":\"s-state\",\"token\":\"s-token\"}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_note(f, "CALL redis.projects.locations.clusters.tokenAuthUsers.authTokens.list pages")
+  var p = svc.projects.locations.clusters.token_auth_users.auth_tokens.list_pages("id1/ x", options: ProjectsLocationsClustersTokenAuthUsersAuthTokensListOptions{filter: Some("s-filter"), order_by: Some("s-orderby"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_39)
+}
+
+const GO_40: List[Str] = [
   "CALL redis.projects.locations.instances.create",
   "REQ POST https://redis.googleapis.com/v1/id1/%20x/instances?alt=json&fields=kind%2Cid&instanceId=s-instanceid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"alternativeLocationId\":\"s-alternativelocationid\",\"authEnabled\":true,\"authorizedNetwork\":\"s-authorizednetwork\",\"availableMaintenanceVersions\":[\"s-availablemaintenanceversions\"],\"connectMode\":\"s-connectmode\",\"createTime\":\"s-createtime\",\"currentLocationId\":\"s-currentlocationid\",\"customerManagedKey\":\"s-customermanagedkey\",\"displayName\":\"s-displayname\",\"host\":\"s-host\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"maintenancePolicy\":{\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"updateTime\":\"s-updatetime\",\"weeklyMaintenanceWindow\":[{\"day\":\"s-day\",\"duration\":\"s-duration\"}]},\"maintenanceSchedule\":{\"canReschedule\":true,\"endTime\":\"s-endtime\",\"scheduleDeadlineTime\":\"s-scheduledeadlinetime\",\"startTime\":\"s-starttime\"},\"maintenanceVersion\":\"s-maintenanceversion\",\"memorySizeGb\":7,\"name\":\"s-name\",\"nodes\":[{\"id\":\"s-id\",\"zone\":\"s-zone\"}],\"persistenceConfig\":{\"persistenceMode\":\"s-persistencemode\",\"rdbNextSnapshotTime\":\"s-rdbnextsnapshottime\",\"rdbSnapshotPeriod\":\"s-rdbsnapshotperiod\",\"rdbSnapshotStartTime\":\"s-rdbsnapshotstarttime\"},\"persistenceIamIdentity\":\"s-persistenceiamidentity\",\"port\":7,\"readEndpoint\":\"s-readendpoint\",\"readEndpointPort\":7,\"readReplicasMode\":\"s-readreplicasmode\",\"redisConfigs\":{\"k1\":\"s-redisconfigs\"},\"redisVersion\":\"s-redisversion\",\"replicaCount\":7,\"reservedIpRange\":\"s-reservediprange\",\"satisfiesPzi\":true,\"satisfiesPzs\":true,\"secondaryIpRange\":\"s-secondaryiprange\",\"serverCaCerts\":[{\"cert\":\"s-cert\",\"createTime\":\"s-createtime\",\"expireTime\":\"s-expiretime\",\"serialNumber\":\"s-serialnumber\",\"sha1Fingerprint\":\"s-sha1fingerprint\"}],\"state\":\"s-state\",\"statusMessage\":\"s-statusmessage\",\"suspensionReasons\":[\"s-suspensionreasons\"],\"tags\":{\"k1\":\"s-tags\"},\"tier\":\"s-tier\",\"transitEncryptionMode\":\"s-transitencryptionmode\"}",
+  "  B <1761 bytes> {\"alternativeLocationId\":\"s-alte...ode\":\"s-transitencryptionmode\"}",
   "",
   "  SERVED 200 {\"done\":true,\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}",
   "OUT: {\"done\":true,\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}",
@@ -708,10 +1012,10 @@ test "Go's redis.projects.locations.instances.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_32)
+  gv_compare(gv_log_of(f), GO_40)
 }
 
-const GO_33: List[Str] = [
+const GO_41: List[Str] = [
   "CALL redis.projects.locations.instances.delete",
   "REQ DELETE https://redis.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -729,10 +1033,10 @@ test "Go's redis.projects.locations.instances.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_33)
+  gv_compare(gv_log_of(f), GO_41)
 }
 
-const GO_34: List[Str] = [
+const GO_42: List[Str] = [
   "CALL redis.projects.locations.instances.export",
   "REQ POST https://redis.googleapis.com/v1/id1/%20x:export?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -751,10 +1055,10 @@ test "Go's redis.projects.locations.instances.export" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_34)
+  gv_compare(gv_log_of(f), GO_42)
 }
 
-const GO_35: List[Str] = [
+const GO_43: List[Str] = [
   "CALL redis.projects.locations.instances.failover",
   "REQ POST https://redis.googleapis.com/v1/id1/%20x:failover?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -773,10 +1077,10 @@ test "Go's redis.projects.locations.instances.failover" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_35)
+  gv_compare(gv_log_of(f), GO_43)
 }
 
-const GO_36: List[Str] = [
+const GO_44: List[Str] = [
   "CALL redis.projects.locations.instances.get",
   "REQ GET https://redis.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -794,10 +1098,10 @@ test "Go's redis.projects.locations.instances.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_36)
+  gv_compare(gv_log_of(f), GO_44)
 }
 
-const GO_37: List[Str] = [
+const GO_45: List[Str] = [
   "CALL redis.projects.locations.instances.getAuthString",
   "REQ GET https://redis.googleapis.com/v1/id1/%20x/authString?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -815,10 +1119,10 @@ test "Go's redis.projects.locations.instances.getAuthString" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_37)
+  gv_compare(gv_log_of(f), GO_45)
 }
 
-const GO_38: List[Str] = [
+const GO_46: List[Str] = [
   "CALL redis.projects.locations.instances.import",
   "REQ POST https://redis.googleapis.com/v1/id1/%20x:import?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -837,10 +1141,10 @@ test "Go's redis.projects.locations.instances.import" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_38)
+  gv_compare(gv_log_of(f), GO_46)
 }
 
-const GO_39: List[Str] = [
+const GO_47: List[Str] = [
   "CALL redis.projects.locations.instances.list",
   "REQ GET https://redis.googleapis.com/v1/id1/%20x/instances?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -858,14 +1162,52 @@ test "Go's redis.projects.locations.instances.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_39)
+  gv_compare(gv_log_of(f), GO_47)
 }
 
-const GO_40: List[Str] = [
+const GO_48: List[Str] = [
+  "CALL redis.projects.locations.instances.list pages",
+  "REQ GET https://redis.googleapis.com/v1/id1/%20x/instances?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"instances\":[{\"alternativeLocationId\":\"s-alternativelocationid\",\"authEnabled\":true,\"authorizedNetwork\":\"s-authorizednetwork\",\"availableMaintenanceVersions\":[\"s-availablemaintenanceversions\"],\"connectMode\":\"s-connectmode\",\"createTime\":\"s-createtime\",\"currentLocationId\":\"s-currentlocationid\",\"customerManagedKey\":\"s-customermanagedkey\",\"displayName\":\"s-displayname\",\"host\":\"s-host\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"maintenancePolicy\":{\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"updateTime\":\"s-updatetime\"},\"maintenanceSchedule\":{\"canReschedule\":true,\"endTime\":\"s-endtime\",\"scheduleDeadlineTime\":\"s-scheduledeadlinetime\",\"startTime\":\"s-starttime\"},\"maintenanceVersion\":\"s-maintenanceversion\",\"memorySizeGb\":7,\"name\":\"s-name\",\"persistenceConfig\":{\"persistenceMode\":\"s-persistencemode\",\"rdbNextSnapshotTime\":\"s-rdbnextsnapshottime\",\"rdbSnapshotPeriod\":\"s-rdbsnapshotperiod\",\"rdbSnapshotStartTime\":\"s-rdbsnapshotstarttime\"},\"persistenceIamIdentity\":\"s-persistenceiamidentity\",\"port\":7,\"readEndpoint\":\"s-readendpoint\",\"readEndpointPort\":7,\"readReplicasMode\":\"s-readreplicasmode\",\"redisConfigs\":{\"k1\":\"s-redisconfigs\"},\"redisVersion\":\"s-redisversion\",\"replicaCount\":7,\"reservedIpRange\":\"s-reservediprange\",\"satisfiesPzi\":true,\"satisfiesPzs\":true,\"secondaryIpRange\":\"s-secondaryiprange\",\"state\":\"s-state\",\"statusMessage\":\"s-statusmessage\",\"suspensionReasons\":[\"s-suspensionreasons\"],\"tags\":{\"k1\":\"s-tags\"},\"tier\":\"s-tier\",\"transitEncryptionMode\":\"s-transitencryptionmode\"}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"instances\":[{\"alternativeLocationId\":\"s-alternativelocationid\",\"authEnabled\":true,\"authorizedNetwork\":\"s-authorizednetwork\",\"availableMaintenanceVersions\":[\"s-availablemaintenanceversions\"],\"connectMode\":\"s-connectmode\",\"createTime\":\"s-createtime\",\"currentLocationId\":\"s-currentlocationid\",\"customerManagedKey\":\"s-customermanagedkey\",\"displayName\":\"s-displayname\",\"host\":\"s-host\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"maintenancePolicy\":{\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"updateTime\":\"s-updatetime\"},\"maintenanceSchedule\":{\"canReschedule\":true,\"endTime\":\"s-endtime\",\"scheduleDeadlineTime\":\"s-scheduledeadlinetime\",\"startTime\":\"s-starttime\"},\"maintenanceVersion\":\"s-maintenanceversion\",\"memorySizeGb\":7,\"name\":\"s-name\",\"persistenceConfig\":{\"persistenceMode\":\"s-persistencemode\",\"rdbNextSnapshotTime\":\"s-rdbnextsnapshottime\",\"rdbSnapshotPeriod\":\"s-rdbsnapshotperiod\",\"rdbSnapshotStartTime\":\"s-rdbsnapshotstarttime\"},\"persistenceIamIdentity\":\"s-persistenceiamidentity\",\"port\":7,\"readEndpoint\":\"s-readendpoint\",\"readEndpointPort\":7,\"readReplicasMode\":\"s-readreplicasmode\",\"redisConfigs\":{\"k1\":\"s-redisconfigs\"},\"redisVersion\":\"s-redisversion\",\"replicaCount\":7,\"reservedIpRange\":\"s-reservediprange\",\"satisfiesPzi\":true,\"satisfiesPzs\":true,\"secondaryIpRange\":\"s-secondaryiprange\",\"state\":\"s-state\",\"statusMessage\":\"s-statusmessage\",\"suspensionReasons\":[\"s-suspensionreasons\"],\"tags\":{\"k1\":\"s-tags\"},\"tier\":\"s-tier\",\"transitEncryptionMode\":\"s-transitencryptionmode\"}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}",
+  "REQ GET https://redis.googleapis.com/v1/id1/%20x/instances?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"instances\":[{\"alternativeLocationId\":\"s-alternativelocationid\",\"authEnabled\":true,\"authorizedNetwork\":\"s-authorizednetwork\",\"availableMaintenanceVersions\":[\"s-availablemaintenanceversions\"],\"connectMode\":\"s-connectmode\",\"createTime\":\"s-createtime\",\"currentLocationId\":\"s-currentlocationid\",\"customerManagedKey\":\"s-customermanagedkey\",\"displayName\":\"s-displayname\",\"host\":\"s-host\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"maintenancePolicy\":{\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"updateTime\":\"s-updatetime\"},\"maintenanceSchedule\":{\"canReschedule\":true,\"endTime\":\"s-endtime\",\"scheduleDeadlineTime\":\"s-scheduledeadlinetime\",\"startTime\":\"s-starttime\"},\"maintenanceVersion\":\"s-maintenanceversion\",\"memorySizeGb\":7,\"name\":\"s-name\",\"persistenceConfig\":{\"persistenceMode\":\"s-persistencemode\",\"rdbNextSnapshotTime\":\"s-rdbnextsnapshottime\",\"rdbSnapshotPeriod\":\"s-rdbsnapshotperiod\",\"rdbSnapshotStartTime\":\"s-rdbsnapshotstarttime\"},\"persistenceIamIdentity\":\"s-persistenceiamidentity\",\"port\":7,\"readEndpoint\":\"s-readendpoint\",\"readEndpointPort\":7,\"readReplicasMode\":\"s-readreplicasmode\",\"redisConfigs\":{\"k1\":\"s-redisconfigs\"},\"redisVersion\":\"s-redisversion\",\"replicaCount\":7,\"reservedIpRange\":\"s-reservediprange\",\"satisfiesPzi\":true,\"satisfiesPzs\":true,\"secondaryIpRange\":\"s-secondaryiprange\",\"state\":\"s-state\",\"statusMessage\":\"s-statusmessage\",\"suspensionReasons\":[\"s-suspensionreasons\"],\"tags\":{\"k1\":\"s-tags\"},\"tier\":\"s-tier\",\"transitEncryptionMode\":\"s-transitencryptionmode\"}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"instances\":[{\"alternativeLocationId\":\"s-alternativelocationid\",\"authEnabled\":true,\"authorizedNetwork\":\"s-authorizednetwork\",\"availableMaintenanceVersions\":[\"s-availablemaintenanceversions\"],\"connectMode\":\"s-connectmode\",\"createTime\":\"s-createtime\",\"currentLocationId\":\"s-currentlocationid\",\"customerManagedKey\":\"s-customermanagedkey\",\"displayName\":\"s-displayname\",\"host\":\"s-host\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"maintenancePolicy\":{\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"updateTime\":\"s-updatetime\"},\"maintenanceSchedule\":{\"canReschedule\":true,\"endTime\":\"s-endtime\",\"scheduleDeadlineTime\":\"s-scheduledeadlinetime\",\"startTime\":\"s-starttime\"},\"maintenanceVersion\":\"s-maintenanceversion\",\"memorySizeGb\":7,\"name\":\"s-name\",\"persistenceConfig\":{\"persistenceMode\":\"s-persistencemode\",\"rdbNextSnapshotTime\":\"s-rdbnextsnapshottime\",\"rdbSnapshotPeriod\":\"s-rdbsnapshotperiod\",\"rdbSnapshotStartTime\":\"s-rdbsnapshotstarttime\"},\"persistenceIamIdentity\":\"s-persistenceiamidentity\",\"port\":7,\"readEndpoint\":\"s-readendpoint\",\"readEndpointPort\":7,\"readReplicasMode\":\"s-readreplicasmode\",\"redisConfigs\":{\"k1\":\"s-redisconfigs\"},\"redisVersion\":\"s-redisversion\",\"replicaCount\":7,\"reservedIpRange\":\"s-reservediprange\",\"satisfiesPzi\":true,\"satisfiesPzs\":true,\"secondaryIpRange\":\"s-secondaryiprange\",\"state\":\"s-state\",\"statusMessage\":\"s-statusmessage\",\"suspensionReasons\":[\"s-suspensionreasons\"],\"tags\":{\"k1\":\"s-tags\"},\"tier\":\"s-tier\",\"transitEncryptionMode\":\"s-transitencryptionmode\"}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: ok",
+]
+
+test "Go's redis.projects.locations.instances.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"instances\":[{\"alternativeLocationId\":\"s-alternativelocationid\",\"authEnabled\":true,\"authorizedNetwork\":\"s-authorizednetwork\",\"availableMaintenanceVersions\":[\"s-availablemaintenanceversions\"],\"connectMode\":\"s-connectmode\",\"createTime\":\"s-createtime\",\"currentLocationId\":\"s-currentlocationid\",\"customerManagedKey\":\"s-customermanagedkey\",\"displayName\":\"s-displayname\",\"host\":\"s-host\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"maintenancePolicy\":{\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"updateTime\":\"s-updatetime\"},\"maintenanceSchedule\":{\"canReschedule\":true,\"endTime\":\"s-endtime\",\"scheduleDeadlineTime\":\"s-scheduledeadlinetime\",\"startTime\":\"s-starttime\"},\"maintenanceVersion\":\"s-maintenanceversion\",\"memorySizeGb\":7,\"name\":\"s-name\",\"persistenceConfig\":{\"persistenceMode\":\"s-persistencemode\",\"rdbNextSnapshotTime\":\"s-rdbnextsnapshottime\",\"rdbSnapshotPeriod\":\"s-rdbsnapshotperiod\",\"rdbSnapshotStartTime\":\"s-rdbsnapshotstarttime\"},\"persistenceIamIdentity\":\"s-persistenceiamidentity\",\"port\":7,\"readEndpoint\":\"s-readendpoint\",\"readEndpointPort\":7,\"readReplicasMode\":\"s-readreplicasmode\",\"redisConfigs\":{\"k1\":\"s-redisconfigs\"},\"redisVersion\":\"s-redisversion\",\"replicaCount\":7,\"reservedIpRange\":\"s-reservediprange\",\"satisfiesPzi\":true,\"satisfiesPzs\":true,\"secondaryIpRange\":\"s-secondaryiprange\",\"state\":\"s-state\",\"statusMessage\":\"s-statusmessage\",\"suspensionReasons\":[\"s-suspensionreasons\"],\"tags\":{\"k1\":\"s-tags\"},\"tier\":\"s-tier\",\"transitEncryptionMode\":\"s-transitencryptionmode\"}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}")
+  gv_queue(f, "{\"instances\":[{\"alternativeLocationId\":\"s-alternativelocationid\",\"authEnabled\":true,\"authorizedNetwork\":\"s-authorizednetwork\",\"availableMaintenanceVersions\":[\"s-availablemaintenanceversions\"],\"connectMode\":\"s-connectmode\",\"createTime\":\"s-createtime\",\"currentLocationId\":\"s-currentlocationid\",\"customerManagedKey\":\"s-customermanagedkey\",\"displayName\":\"s-displayname\",\"host\":\"s-host\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"maintenancePolicy\":{\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"updateTime\":\"s-updatetime\"},\"maintenanceSchedule\":{\"canReschedule\":true,\"endTime\":\"s-endtime\",\"scheduleDeadlineTime\":\"s-scheduledeadlinetime\",\"startTime\":\"s-starttime\"},\"maintenanceVersion\":\"s-maintenanceversion\",\"memorySizeGb\":7,\"name\":\"s-name\",\"persistenceConfig\":{\"persistenceMode\":\"s-persistencemode\",\"rdbNextSnapshotTime\":\"s-rdbnextsnapshottime\",\"rdbSnapshotPeriod\":\"s-rdbsnapshotperiod\",\"rdbSnapshotStartTime\":\"s-rdbsnapshotstarttime\"},\"persistenceIamIdentity\":\"s-persistenceiamidentity\",\"port\":7,\"readEndpoint\":\"s-readendpoint\",\"readEndpointPort\":7,\"readReplicasMode\":\"s-readreplicasmode\",\"redisConfigs\":{\"k1\":\"s-redisconfigs\"},\"redisVersion\":\"s-redisversion\",\"replicaCount\":7,\"reservedIpRange\":\"s-reservediprange\",\"satisfiesPzi\":true,\"satisfiesPzs\":true,\"secondaryIpRange\":\"s-secondaryiprange\",\"state\":\"s-state\",\"statusMessage\":\"s-statusmessage\",\"suspensionReasons\":[\"s-suspensionreasons\"],\"tags\":{\"k1\":\"s-tags\"},\"tier\":\"s-tier\",\"transitEncryptionMode\":\"s-transitencryptionmode\"}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_note(f, "CALL redis.projects.locations.instances.list pages")
+  var p = svc.projects.locations.instances.list_pages("id1/ x", options: ProjectsLocationsInstancesListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_48)
+}
+
+const GO_49: List[Str] = [
   "CALL redis.projects.locations.instances.patch",
   "REQ PATCH https://redis.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"alternativeLocationId\":\"s-alternativelocationid\",\"authEnabled\":true,\"authorizedNetwork\":\"s-authorizednetwork\",\"availableMaintenanceVersions\":[\"s-availablemaintenanceversions\"],\"connectMode\":\"s-connectmode\",\"createTime\":\"s-createtime\",\"currentLocationId\":\"s-currentlocationid\",\"customerManagedKey\":\"s-customermanagedkey\",\"displayName\":\"s-displayname\",\"host\":\"s-host\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"maintenancePolicy\":{\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"updateTime\":\"s-updatetime\",\"weeklyMaintenanceWindow\":[{\"day\":\"s-day\",\"duration\":\"s-duration\"}]},\"maintenanceSchedule\":{\"canReschedule\":true,\"endTime\":\"s-endtime\",\"scheduleDeadlineTime\":\"s-scheduledeadlinetime\",\"startTime\":\"s-starttime\"},\"maintenanceVersion\":\"s-maintenanceversion\",\"memorySizeGb\":7,\"name\":\"s-name\",\"nodes\":[{\"id\":\"s-id\",\"zone\":\"s-zone\"}],\"persistenceConfig\":{\"persistenceMode\":\"s-persistencemode\",\"rdbNextSnapshotTime\":\"s-rdbnextsnapshottime\",\"rdbSnapshotPeriod\":\"s-rdbsnapshotperiod\",\"rdbSnapshotStartTime\":\"s-rdbsnapshotstarttime\"},\"persistenceIamIdentity\":\"s-persistenceiamidentity\",\"port\":7,\"readEndpoint\":\"s-readendpoint\",\"readEndpointPort\":7,\"readReplicasMode\":\"s-readreplicasmode\",\"redisConfigs\":{\"k1\":\"s-redisconfigs\"},\"redisVersion\":\"s-redisversion\",\"replicaCount\":7,\"reservedIpRange\":\"s-reservediprange\",\"satisfiesPzi\":true,\"satisfiesPzs\":true,\"secondaryIpRange\":\"s-secondaryiprange\",\"serverCaCerts\":[{\"cert\":\"s-cert\",\"createTime\":\"s-createtime\",\"expireTime\":\"s-expiretime\",\"serialNumber\":\"s-serialnumber\",\"sha1Fingerprint\":\"s-sha1fingerprint\"}],\"state\":\"s-state\",\"statusMessage\":\"s-statusmessage\",\"suspensionReasons\":[\"s-suspensionreasons\"],\"tags\":{\"k1\":\"s-tags\"},\"tier\":\"s-tier\",\"transitEncryptionMode\":\"s-transitencryptionmode\"}",
+  "  B <1761 bytes> {\"alternativeLocationId\":\"s-alte...ode\":\"s-transitencryptionmode\"}",
   "",
   "  SERVED 200 {\"done\":true,\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}",
   "OUT: {\"done\":true,\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}",
@@ -880,10 +1222,10 @@ test "Go's redis.projects.locations.instances.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_40)
+  gv_compare(gv_log_of(f), GO_49)
 }
 
-const GO_41: List[Str] = [
+const GO_50: List[Str] = [
   "CALL redis.projects.locations.instances.rescheduleMaintenance",
   "REQ POST https://redis.googleapis.com/v1/id1/%20x:rescheduleMaintenance?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -902,10 +1244,10 @@ test "Go's redis.projects.locations.instances.rescheduleMaintenance" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_41)
+  gv_compare(gv_log_of(f), GO_50)
 }
 
-const GO_42: List[Str] = [
+const GO_51: List[Str] = [
   "CALL redis.projects.locations.instances.upgrade",
   "REQ POST https://redis.googleapis.com/v1/id1/%20x:upgrade?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -924,10 +1266,10 @@ test "Go's redis.projects.locations.instances.upgrade" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_42)
+  gv_compare(gv_log_of(f), GO_51)
 }
 
-const GO_43: List[Str] = [
+const GO_52: List[Str] = [
   "CALL redis.projects.locations.operations.cancel",
   "REQ POST https://redis.googleapis.com/v1/id1/%20x:cancel?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -945,10 +1287,10 @@ test "Go's redis.projects.locations.operations.cancel" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_43)
+  gv_compare(gv_log_of(f), GO_52)
 }
 
-const GO_44: List[Str] = [
+const GO_53: List[Str] = [
   "CALL redis.projects.locations.operations.delete",
   "REQ DELETE https://redis.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -966,10 +1308,10 @@ test "Go's redis.projects.locations.operations.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_44)
+  gv_compare(gv_log_of(f), GO_53)
 }
 
-const GO_45: List[Str] = [
+const GO_54: List[Str] = [
   "CALL redis.projects.locations.operations.get",
   "REQ GET https://redis.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -987,10 +1329,10 @@ test "Go's redis.projects.locations.operations.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_45)
+  gv_compare(gv_log_of(f), GO_54)
 }
 
-const GO_46: List[Str] = [
+const GO_55: List[Str] = [
   "CALL redis.projects.locations.operations.list",
   "REQ GET https://redis.googleapis.com/v1/id1/%20x/operations?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&returnPartialSuccess=true",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1008,5 +1350,43 @@ test "Go's redis.projects.locations.operations.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_46)
+  gv_compare(gv_log_of(f), GO_55)
+}
+
+const GO_56: List[Str] = [
+  "CALL redis.projects.locations.operations.list pages",
+  "REQ GET https://redis.googleapis.com/v1/id1/%20x/operations?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&returnPartialSuccess=true",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "REQ GET https://redis.googleapis.com/v1/id1/%20x/operations?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false&returnPartialSuccess=true",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: ok",
+]
+
+test "Go's redis.projects.locations.operations.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_queue(f, "{\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_note(f, "CALL redis.projects.locations.operations.list pages")
+  var p = svc.projects.locations.operations.list_pages("id1/ x", options: ProjectsLocationsOperationsListOptions{filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), return_partial_success: Some(true), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_56)
 }

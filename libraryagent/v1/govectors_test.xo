@@ -51,6 +51,44 @@ test "Go's libraryagent.shelves.list" {
 }
 
 const GO_2: List[Str] = [
+  "CALL libraryagent.shelves.list pages",
+  "REQ GET https://libraryagent.googleapis.com/v1/shelves?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"shelves\":[{\"name\":\"s-name\",\"theme\":\"s-theme\"}]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"shelves\":[{\"name\":\"s-name\",\"theme\":\"s-theme\"}]}",
+  "REQ GET https://libraryagent.googleapis.com/v1/shelves?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"shelves\":[{\"name\":\"s-name\",\"theme\":\"s-theme\"}]}",
+  "OUT: {\"shelves\":[{\"name\":\"s-name\",\"theme\":\"s-theme\"}]}",
+  "OUT: ok",
+]
+
+test "Go's libraryagent.shelves.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"shelves\":[{\"name\":\"s-name\",\"theme\":\"s-theme\"}]}")
+  gv_queue(f, "{\"shelves\":[{\"name\":\"s-name\",\"theme\":\"s-theme\"}]}")
+  gv_note(f, "CALL libraryagent.shelves.list pages")
+  var p = svc.shelves.list_pages(options: ShelvesListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_2)
+}
+
+const GO_3: List[Str] = [
   "CALL libraryagent.shelves.books.borrow",
   "REQ POST https://libraryagent.googleapis.com/v1/id1/%20x:borrow?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -68,10 +106,10 @@ test "Go's libraryagent.shelves.books.borrow" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_2)
+  gv_compare(gv_log_of(f), GO_3)
 }
 
-const GO_3: List[Str] = [
+const GO_4: List[Str] = [
   "CALL libraryagent.shelves.books.get",
   "REQ GET https://libraryagent.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -89,10 +127,10 @@ test "Go's libraryagent.shelves.books.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_3)
+  gv_compare(gv_log_of(f), GO_4)
 }
 
-const GO_4: List[Str] = [
+const GO_5: List[Str] = [
   "CALL libraryagent.shelves.books.list",
   "REQ GET https://libraryagent.googleapis.com/v1/id1/%20x/books?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -110,10 +148,48 @@ test "Go's libraryagent.shelves.books.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_4)
+  gv_compare(gv_log_of(f), GO_5)
 }
 
-const GO_5: List[Str] = [
+const GO_6: List[Str] = [
+  "CALL libraryagent.shelves.books.list pages",
+  "REQ GET https://libraryagent.googleapis.com/v1/id1/%20x/books?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"books\":[{\"author\":\"s-author\",\"name\":\"s-name\",\"read\":true,\"title\":\"s-title\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"books\":[{\"author\":\"s-author\",\"name\":\"s-name\",\"read\":true,\"title\":\"s-title\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://libraryagent.googleapis.com/v1/id1/%20x/books?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"books\":[{\"author\":\"s-author\",\"name\":\"s-name\",\"read\":true,\"title\":\"s-title\"}]}",
+  "OUT: {\"books\":[{\"author\":\"s-author\",\"name\":\"s-name\",\"read\":true,\"title\":\"s-title\"}]}",
+  "OUT: ok",
+]
+
+test "Go's libraryagent.shelves.books.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"books\":[{\"author\":\"s-author\",\"name\":\"s-name\",\"read\":true,\"title\":\"s-title\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"books\":[{\"author\":\"s-author\",\"name\":\"s-name\",\"read\":true,\"title\":\"s-title\"}]}")
+  gv_note(f, "CALL libraryagent.shelves.books.list pages")
+  var p = svc.shelves.books.list_pages("id1/ x", options: ShelvesBooksListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_6)
+}
+
+const GO_7: List[Str] = [
   "CALL libraryagent.shelves.books.return",
   "REQ POST https://libraryagent.googleapis.com/v1/id1/%20x:return?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -131,5 +207,5 @@ test "Go's libraryagent.shelves.books.return" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_5)
+  gv_compare(gv_log_of(f), GO_7)
 }

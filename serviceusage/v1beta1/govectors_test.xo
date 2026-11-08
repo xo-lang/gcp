@@ -51,6 +51,44 @@ test "Go's serviceusage.operations.list" {
 }
 
 const GO_2: List[Str] = [
+  "CALL serviceusage.operations.list pages",
+  "REQ GET https://serviceusage.googleapis.com/v1beta1/operations?alt=json&fields=kind%2Cid&filter=s-filter&name=s-name&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&returnPartialSuccess=true",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "REQ GET https://serviceusage.googleapis.com/v1beta1/operations?alt=json&fields=kind%2Cid&filter=s-filter&name=s-name&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false&returnPartialSuccess=true",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: ok",
+]
+
+test "Go's serviceusage.operations.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_queue(f, "{\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_note(f, "CALL serviceusage.operations.list pages")
+  var p = svc.operations.list_pages(options: OperationsListOptions{filter: Some("s-filter"), name: Some("s-name"), page_size: Some(7), page_token: Some("s-pagetoken"), return_partial_success: Some(true), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_2)
+}
+
+const GO_3: List[Str] = [
   "CALL serviceusage.services.batchEnable",
   "REQ POST https://serviceusage.googleapis.com/v1beta1/id1/%20x/services:batchEnable?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -69,10 +107,10 @@ test "Go's serviceusage.services.batchEnable" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_2)
+  gv_compare(gv_log_of(f), GO_3)
 }
 
-const GO_3: List[Str] = [
+const GO_4: List[Str] = [
   "CALL serviceusage.services.disable",
   "REQ POST https://serviceusage.googleapis.com/v1beta1/id1/%20x:disable?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -91,10 +129,10 @@ test "Go's serviceusage.services.disable" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_3)
+  gv_compare(gv_log_of(f), GO_4)
 }
 
-const GO_4: List[Str] = [
+const GO_5: List[Str] = [
   "CALL serviceusage.services.enable",
   "REQ POST https://serviceusage.googleapis.com/v1beta1/id1/%20x:enable?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -113,10 +151,10 @@ test "Go's serviceusage.services.enable" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_4)
+  gv_compare(gv_log_of(f), GO_5)
 }
 
-const GO_5: List[Str] = [
+const GO_6: List[Str] = [
   "CALL serviceusage.services.generateServiceIdentity",
   "REQ POST https://serviceusage.googleapis.com/v1beta1/id1/%20x:generateServiceIdentity?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -134,10 +172,10 @@ test "Go's serviceusage.services.generateServiceIdentity" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_5)
+  gv_compare(gv_log_of(f), GO_6)
 }
 
-const GO_6: List[Str] = [
+const GO_7: List[Str] = [
   "CALL serviceusage.services.get",
   "REQ GET https://serviceusage.googleapis.com/v1beta1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -155,10 +193,10 @@ test "Go's serviceusage.services.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_6)
+  gv_compare(gv_log_of(f), GO_7)
 }
 
-const GO_7: List[Str] = [
+const GO_8: List[Str] = [
   "CALL serviceusage.services.list",
   "REQ GET https://serviceusage.googleapis.com/v1beta1/id1/%20x/services?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -176,10 +214,48 @@ test "Go's serviceusage.services.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_7)
+  gv_compare(gv_log_of(f), GO_8)
 }
 
-const GO_8: List[Str] = [
+const GO_9: List[Str] = [
+  "CALL serviceusage.services.list pages",
+  "REQ GET https://serviceusage.googleapis.com/v1beta1/id1/%20x/services?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"services\":[{\"config\":{\"name\":\"s-name\",\"title\":\"s-title\"},\"name\":\"s-name\",\"parent\":\"s-parent\",\"state\":\"s-state\"}]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"services\":[{\"config\":{\"name\":\"s-name\",\"title\":\"s-title\"},\"name\":\"s-name\",\"parent\":\"s-parent\",\"state\":\"s-state\"}]}",
+  "REQ GET https://serviceusage.googleapis.com/v1beta1/id1/%20x/services?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"services\":[{\"config\":{\"name\":\"s-name\",\"title\":\"s-title\"},\"name\":\"s-name\",\"parent\":\"s-parent\",\"state\":\"s-state\"}]}",
+  "OUT: {\"services\":[{\"config\":{\"name\":\"s-name\",\"title\":\"s-title\"},\"name\":\"s-name\",\"parent\":\"s-parent\",\"state\":\"s-state\"}]}",
+  "OUT: ok",
+]
+
+test "Go's serviceusage.services.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"services\":[{\"config\":{\"name\":\"s-name\",\"title\":\"s-title\"},\"name\":\"s-name\",\"parent\":\"s-parent\",\"state\":\"s-state\"}]}")
+  gv_queue(f, "{\"services\":[{\"config\":{\"name\":\"s-name\",\"title\":\"s-title\"},\"name\":\"s-name\",\"parent\":\"s-parent\",\"state\":\"s-state\"}]}")
+  gv_note(f, "CALL serviceusage.services.list pages")
+  var p = svc.services.list_pages("id1/ x", options: ServicesListOptions{filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_9)
+}
+
+const GO_10: List[Str] = [
   "CALL serviceusage.services.consumerQuotaMetrics.get",
   "REQ GET https://serviceusage.googleapis.com/v1beta1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&view=s-view",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -197,10 +273,10 @@ test "Go's serviceusage.services.consumerQuotaMetrics.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_8)
+  gv_compare(gv_log_of(f), GO_10)
 }
 
-const GO_9: List[Str] = [
+const GO_11: List[Str] = [
   "CALL serviceusage.services.consumerQuotaMetrics.importAdminOverrides",
   "REQ POST https://serviceusage.googleapis.com/v1beta1/id1/%20x/consumerQuotaMetrics:importAdminOverrides?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -219,10 +295,10 @@ test "Go's serviceusage.services.consumerQuotaMetrics.importAdminOverrides" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_9)
+  gv_compare(gv_log_of(f), GO_11)
 }
 
-const GO_10: List[Str] = [
+const GO_12: List[Str] = [
   "CALL serviceusage.services.consumerQuotaMetrics.importConsumerOverrides",
   "REQ POST https://serviceusage.googleapis.com/v1beta1/id1/%20x/consumerQuotaMetrics:importConsumerOverrides?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -241,10 +317,10 @@ test "Go's serviceusage.services.consumerQuotaMetrics.importConsumerOverrides" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_10)
+  gv_compare(gv_log_of(f), GO_12)
 }
 
-const GO_11: List[Str] = [
+const GO_13: List[Str] = [
   "CALL serviceusage.services.consumerQuotaMetrics.list",
   "REQ GET https://serviceusage.googleapis.com/v1beta1/id1/%20x/consumerQuotaMetrics?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&view=s-view",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -262,10 +338,48 @@ test "Go's serviceusage.services.consumerQuotaMetrics.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_11)
+  gv_compare(gv_log_of(f), GO_13)
 }
 
-const GO_12: List[Str] = [
+const GO_14: List[Str] = [
+  "CALL serviceusage.services.consumerQuotaMetrics.list pages",
+  "REQ GET https://serviceusage.googleapis.com/v1beta1/id1/%20x/consumerQuotaMetrics?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&view=s-view",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"metrics\":[{\"displayName\":\"s-displayname\",\"metric\":\"s-metric\",\"name\":\"s-name\",\"unit\":\"s-unit\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"metrics\":[{\"displayName\":\"s-displayname\",\"metric\":\"s-metric\",\"name\":\"s-name\",\"unit\":\"s-unit\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://serviceusage.googleapis.com/v1beta1/id1/%20x/consumerQuotaMetrics?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false&view=s-view",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"metrics\":[{\"displayName\":\"s-displayname\",\"metric\":\"s-metric\",\"name\":\"s-name\",\"unit\":\"s-unit\"}]}",
+  "OUT: {\"metrics\":[{\"displayName\":\"s-displayname\",\"metric\":\"s-metric\",\"name\":\"s-name\",\"unit\":\"s-unit\"}]}",
+  "OUT: ok",
+]
+
+test "Go's serviceusage.services.consumerQuotaMetrics.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"metrics\":[{\"displayName\":\"s-displayname\",\"metric\":\"s-metric\",\"name\":\"s-name\",\"unit\":\"s-unit\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"metrics\":[{\"displayName\":\"s-displayname\",\"metric\":\"s-metric\",\"name\":\"s-name\",\"unit\":\"s-unit\"}]}")
+  gv_note(f, "CALL serviceusage.services.consumerQuotaMetrics.list pages")
+  var p = svc.services.consumer_quota_metrics.list_pages("id1/ x", options: ServicesConsumerQuotaMetricsListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), view: Some("s-view"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_14)
+}
+
+const GO_15: List[Str] = [
   "CALL serviceusage.services.consumerQuotaMetrics.limits.get",
   "REQ GET https://serviceusage.googleapis.com/v1beta1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&view=s-view",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -283,10 +397,10 @@ test "Go's serviceusage.services.consumerQuotaMetrics.limits.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_12)
+  gv_compare(gv_log_of(f), GO_15)
 }
 
-const GO_13: List[Str] = [
+const GO_16: List[Str] = [
   "CALL serviceusage.services.consumerQuotaMetrics.limits.adminOverrides.create",
   "REQ POST https://serviceusage.googleapis.com/v1beta1/id1/%20x/adminOverrides?alt=json&fields=kind%2Cid&force=true&forceOnly=s-forceonly&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -305,10 +419,10 @@ test "Go's serviceusage.services.consumerQuotaMetrics.limits.adminOverrides.crea
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_13)
+  gv_compare(gv_log_of(f), GO_16)
 }
 
-const GO_14: List[Str] = [
+const GO_17: List[Str] = [
   "CALL serviceusage.services.consumerQuotaMetrics.limits.adminOverrides.delete",
   "REQ DELETE https://serviceusage.googleapis.com/v1beta1/id1/%20x?alt=json&fields=kind%2Cid&force=true&forceOnly=s-forceonly&prettyPrint=false",
   "  H x-extra=v1",
@@ -326,10 +440,10 @@ test "Go's serviceusage.services.consumerQuotaMetrics.limits.adminOverrides.dele
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_14)
+  gv_compare(gv_log_of(f), GO_17)
 }
 
-const GO_15: List[Str] = [
+const GO_18: List[Str] = [
   "CALL serviceusage.services.consumerQuotaMetrics.limits.adminOverrides.list",
   "REQ GET https://serviceusage.googleapis.com/v1beta1/id1/%20x/adminOverrides?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -347,10 +461,48 @@ test "Go's serviceusage.services.consumerQuotaMetrics.limits.adminOverrides.list
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_15)
+  gv_compare(gv_log_of(f), GO_18)
 }
 
-const GO_16: List[Str] = [
+const GO_19: List[Str] = [
+  "CALL serviceusage.services.consumerQuotaMetrics.limits.adminOverrides.list pages",
+  "REQ GET https://serviceusage.googleapis.com/v1beta1/id1/%20x/adminOverrides?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"overrides\":[{\"adminOverrideAncestor\":\"s-adminoverrideancestor\",\"dimensions\":{\"k1\":\"s-dimensions\"},\"metric\":\"s-metric\",\"name\":\"s-name\",\"overrideValue\":\"7\",\"unit\":\"s-unit\"}]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"overrides\":[{\"adminOverrideAncestor\":\"s-adminoverrideancestor\",\"dimensions\":{\"k1\":\"s-dimensions\"},\"metric\":\"s-metric\",\"name\":\"s-name\",\"overrideValue\":\"7\",\"unit\":\"s-unit\"}]}",
+  "REQ GET https://serviceusage.googleapis.com/v1beta1/id1/%20x/adminOverrides?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"overrides\":[{\"adminOverrideAncestor\":\"s-adminoverrideancestor\",\"dimensions\":{\"k1\":\"s-dimensions\"},\"metric\":\"s-metric\",\"name\":\"s-name\",\"overrideValue\":\"7\",\"unit\":\"s-unit\"}]}",
+  "OUT: {\"overrides\":[{\"adminOverrideAncestor\":\"s-adminoverrideancestor\",\"dimensions\":{\"k1\":\"s-dimensions\"},\"metric\":\"s-metric\",\"name\":\"s-name\",\"overrideValue\":\"7\",\"unit\":\"s-unit\"}]}",
+  "OUT: ok",
+]
+
+test "Go's serviceusage.services.consumerQuotaMetrics.limits.adminOverrides.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"overrides\":[{\"adminOverrideAncestor\":\"s-adminoverrideancestor\",\"dimensions\":{\"k1\":\"s-dimensions\"},\"metric\":\"s-metric\",\"name\":\"s-name\",\"overrideValue\":\"7\",\"unit\":\"s-unit\"}]}")
+  gv_queue(f, "{\"overrides\":[{\"adminOverrideAncestor\":\"s-adminoverrideancestor\",\"dimensions\":{\"k1\":\"s-dimensions\"},\"metric\":\"s-metric\",\"name\":\"s-name\",\"overrideValue\":\"7\",\"unit\":\"s-unit\"}]}")
+  gv_note(f, "CALL serviceusage.services.consumerQuotaMetrics.limits.adminOverrides.list pages")
+  var p = svc.services.consumer_quota_metrics.limits.admin_overrides.list_pages("id1/ x", options: ServicesConsumerQuotaMetricsLimitsAdminOverridesListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_19)
+}
+
+const GO_20: List[Str] = [
   "CALL serviceusage.services.consumerQuotaMetrics.limits.adminOverrides.patch",
   "REQ PATCH https://serviceusage.googleapis.com/v1beta1/id1/%20x?alt=json&fields=kind%2Cid&force=true&forceOnly=s-forceonly&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
@@ -369,10 +521,10 @@ test "Go's serviceusage.services.consumerQuotaMetrics.limits.adminOverrides.patc
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_16)
+  gv_compare(gv_log_of(f), GO_20)
 }
 
-const GO_17: List[Str] = [
+const GO_21: List[Str] = [
   "CALL serviceusage.services.consumerQuotaMetrics.limits.consumerOverrides.create",
   "REQ POST https://serviceusage.googleapis.com/v1beta1/id1/%20x/consumerOverrides?alt=json&fields=kind%2Cid&force=true&forceOnly=s-forceonly&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -391,10 +543,10 @@ test "Go's serviceusage.services.consumerQuotaMetrics.limits.consumerOverrides.c
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_17)
+  gv_compare(gv_log_of(f), GO_21)
 }
 
-const GO_18: List[Str] = [
+const GO_22: List[Str] = [
   "CALL serviceusage.services.consumerQuotaMetrics.limits.consumerOverrides.delete",
   "REQ DELETE https://serviceusage.googleapis.com/v1beta1/id1/%20x?alt=json&fields=kind%2Cid&force=true&forceOnly=s-forceonly&prettyPrint=false",
   "  H x-extra=v1",
@@ -412,10 +564,10 @@ test "Go's serviceusage.services.consumerQuotaMetrics.limits.consumerOverrides.d
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_18)
+  gv_compare(gv_log_of(f), GO_22)
 }
 
-const GO_19: List[Str] = [
+const GO_23: List[Str] = [
   "CALL serviceusage.services.consumerQuotaMetrics.limits.consumerOverrides.list",
   "REQ GET https://serviceusage.googleapis.com/v1beta1/id1/%20x/consumerOverrides?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -433,10 +585,48 @@ test "Go's serviceusage.services.consumerQuotaMetrics.limits.consumerOverrides.l
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_19)
+  gv_compare(gv_log_of(f), GO_23)
 }
 
-const GO_20: List[Str] = [
+const GO_24: List[Str] = [
+  "CALL serviceusage.services.consumerQuotaMetrics.limits.consumerOverrides.list pages",
+  "REQ GET https://serviceusage.googleapis.com/v1beta1/id1/%20x/consumerOverrides?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"overrides\":[{\"adminOverrideAncestor\":\"s-adminoverrideancestor\",\"dimensions\":{\"k1\":\"s-dimensions\"},\"metric\":\"s-metric\",\"name\":\"s-name\",\"overrideValue\":\"7\",\"unit\":\"s-unit\"}]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"overrides\":[{\"adminOverrideAncestor\":\"s-adminoverrideancestor\",\"dimensions\":{\"k1\":\"s-dimensions\"},\"metric\":\"s-metric\",\"name\":\"s-name\",\"overrideValue\":\"7\",\"unit\":\"s-unit\"}]}",
+  "REQ GET https://serviceusage.googleapis.com/v1beta1/id1/%20x/consumerOverrides?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"overrides\":[{\"adminOverrideAncestor\":\"s-adminoverrideancestor\",\"dimensions\":{\"k1\":\"s-dimensions\"},\"metric\":\"s-metric\",\"name\":\"s-name\",\"overrideValue\":\"7\",\"unit\":\"s-unit\"}]}",
+  "OUT: {\"overrides\":[{\"adminOverrideAncestor\":\"s-adminoverrideancestor\",\"dimensions\":{\"k1\":\"s-dimensions\"},\"metric\":\"s-metric\",\"name\":\"s-name\",\"overrideValue\":\"7\",\"unit\":\"s-unit\"}]}",
+  "OUT: ok",
+]
+
+test "Go's serviceusage.services.consumerQuotaMetrics.limits.consumerOverrides.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"overrides\":[{\"adminOverrideAncestor\":\"s-adminoverrideancestor\",\"dimensions\":{\"k1\":\"s-dimensions\"},\"metric\":\"s-metric\",\"name\":\"s-name\",\"overrideValue\":\"7\",\"unit\":\"s-unit\"}]}")
+  gv_queue(f, "{\"overrides\":[{\"adminOverrideAncestor\":\"s-adminoverrideancestor\",\"dimensions\":{\"k1\":\"s-dimensions\"},\"metric\":\"s-metric\",\"name\":\"s-name\",\"overrideValue\":\"7\",\"unit\":\"s-unit\"}]}")
+  gv_note(f, "CALL serviceusage.services.consumerQuotaMetrics.limits.consumerOverrides.list pages")
+  var p = svc.services.consumer_quota_metrics.limits.consumer_overrides.list_pages("id1/ x", options: ServicesConsumerQuotaMetricsLimitsConsumerOverridesListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_24)
+}
+
+const GO_25: List[Str] = [
   "CALL serviceusage.services.consumerQuotaMetrics.limits.consumerOverrides.patch",
   "REQ PATCH https://serviceusage.googleapis.com/v1beta1/id1/%20x?alt=json&fields=kind%2Cid&force=true&forceOnly=s-forceonly&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
@@ -455,5 +645,5 @@ test "Go's serviceusage.services.consumerQuotaMetrics.limits.consumerOverrides.p
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_20)
+  gv_compare(gv_log_of(f), GO_25)
 }

@@ -30,6 +30,44 @@ test "Go's cloudfunctions.projects.locations.list" {
 }
 
 const GO_1: List[Str] = [
+  "CALL cloudfunctions.projects.locations.list pages",
+  "REQ GET https://cloudfunctions.googleapis.com/v2/id1/%20x/locations?alt=json&extraLocationTypes=s-extralocationtypes&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://cloudfunctions.googleapis.com/v2/id1/%20x/locations?alt=json&extraLocationTypes=s-extralocationtypes&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}]}",
+  "OUT: {\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}]}",
+  "OUT: ok",
+]
+
+test "Go's cloudfunctions.projects.locations.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}]}")
+  gv_note(f, "CALL cloudfunctions.projects.locations.list pages")
+  var p = svc.projects.locations.list_pages("id1/ x", options: ProjectsLocationsListOptions{extra_location_types: ["s-extralocationtypes"], filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_1)
+}
+
+const GO_2: List[Str] = [
   "CALL cloudfunctions.projects.locations.functions.abortFunctionUpgrade",
   "REQ POST https://cloudfunctions.googleapis.com/v2/id1/%20x:abortFunctionUpgrade?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -48,10 +86,10 @@ test "Go's cloudfunctions.projects.locations.functions.abortFunctionUpgrade" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_1)
+  gv_compare(gv_log_of(f), GO_2)
 }
 
-const GO_2: List[Str] = [
+const GO_3: List[Str] = [
   "CALL cloudfunctions.projects.locations.functions.commitFunctionUpgrade",
   "REQ POST https://cloudfunctions.googleapis.com/v2/id1/%20x:commitFunctionUpgrade?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -70,10 +108,10 @@ test "Go's cloudfunctions.projects.locations.functions.commitFunctionUpgrade" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_2)
+  gv_compare(gv_log_of(f), GO_3)
 }
 
-const GO_3: List[Str] = [
+const GO_4: List[Str] = [
   "CALL cloudfunctions.projects.locations.functions.commitFunctionUpgradeAsGen2",
   "REQ POST https://cloudfunctions.googleapis.com/v2/id1/%20x:commitFunctionUpgradeAsGen2?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -92,14 +130,14 @@ test "Go's cloudfunctions.projects.locations.functions.commitFunctionUpgradeAsGe
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_3)
+  gv_compare(gv_log_of(f), GO_4)
 }
 
-const GO_4: List[Str] = [
+const GO_5: List[Str] = [
   "CALL cloudfunctions.projects.locations.functions.create",
   "REQ POST https://cloudfunctions.googleapis.com/v2/id1/%20x/functions?alt=json&fields=kind%2Cid&functionId=s-functionid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"buildConfig\":{\"automaticUpdatePolicy\":{},\"build\":\"s-build\",\"dockerRegistry\":\"s-dockerregistry\",\"dockerRepository\":\"s-dockerrepository\",\"entryPoint\":\"s-entrypoint\",\"environmentVariables\":{\"k1\":\"s-environmentvariables\"},\"onDeployUpdatePolicy\":{\"runtimeVersion\":\"s-runtimeversion\"},\"runtime\":\"s-runtime\",\"serviceAccount\":\"s-serviceaccount\",\"source\":{\"gitUri\":\"s-gituri\"},\"sourceProvenance\":{\"gitUri\":\"s-gituri\"},\"sourceToken\":\"s-sourcetoken\",\"workerPool\":\"s-workerpool\"},\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"environment\":\"s-environment\",\"eventTrigger\":{\"channel\":\"s-channel\",\"eventFilters\":[{\"attribute\":\"s-attribute\",\"operator\":\"s-operator\",\"value\":\"s-value\"}],\"eventType\":\"s-eventtype\",\"pubsubTopic\":\"s-pubsubtopic\",\"retryPolicy\":\"s-retrypolicy\",\"service\":\"s-service\",\"serviceAccountEmail\":\"s-serviceaccountemail\",\"trigger\":\"s-trigger\",\"triggerRegion\":\"s-triggerregion\"},\"kmsKeyName\":\"s-kmskeyname\",\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"satisfiesPzi\":true,\"satisfiesPzs\":true,\"serviceConfig\":{\"allTrafficOnLatestRevision\":true,\"availableCpu\":\"s-availablecpu\",\"availableMemory\":\"s-availablememory\",\"binaryAuthorizationPolicy\":\"s-binaryauthorizationpolicy\",\"directVpcEgress\":\"s-directvpcegress\",\"directVpcNetworkInterface\":[{\"network\":\"s-network\",\"subnetwork\":\"s-subnetwork\"}],\"environmentVariables\":{\"k1\":\"s-environmentvariables\"},\"ingressSettings\":\"s-ingresssettings\",\"maxInstanceCount\":7,\"maxInstanceRequestConcurrency\":7,\"minInstanceCount\":7,\"revision\":\"s-revision\",\"secretEnvironmentVariables\":[{\"key\":\"s-key\",\"projectId\":\"s-projectid\",\"secret\":\"s-secret\",\"version\":\"s-version\"}],\"secretVolumes\":[{\"mountPath\":\"s-mountpath\",\"projectId\":\"s-projectid\",\"secret\":\"s-secret\"}],\"securityLevel\":\"s-securitylevel\",\"service\":\"s-service\",\"serviceAccountEmail\":\"s-serviceaccountemail\",\"timeoutSeconds\":7,\"uri\":\"s-uri\",\"vpcConnector\":\"s-vpcconnector\",\"vpcConnectorEgressSettings\":\"s-vpcconnectoregresssettings\"},\"state\":\"s-state\",\"stateMessages\":[{\"message\":\"s-message\",\"severity\":\"s-severity\",\"type\":\"s-type\"}],\"updateTime\":\"s-updatetime\",\"upgradeInfo\":{\"buildConfig\":{\"build\":\"s-build\",\"dockerRegistry\":\"s-dockerregistry\",\"dockerRepository\":\"s-dockerrepository\",\"entryPoint\":\"s-entrypoint\",\"environmentVariables\":{\"k1\":\"s-environmentvariables\"},\"runtime\":\"s-runtime\",\"serviceAccount\":\"s-serviceaccount\",\"sourceToken\":\"s-sourcetoken\",\"workerPool\":\"s-workerpool\"},\"eventTrigger\":{\"channel\":\"s-channel\",\"eventType\":\"s-eventtype\",\"pubsubTopic\":\"s-pubsubtopic\",\"retryPolicy\":\"s-retrypolicy\",\"service\":\"s-service\",\"serviceAccountEmail\":\"s-serviceaccountemail\",\"trigger\":\"s-trigger\",\"triggerRegion\":\"s-triggerregion\"},\"serviceConfig\":{\"allTrafficOnLatestRevision\":true,\"availableCpu\":\"s-availablecpu\",\"availableMemory\":\"s-availablememory\",\"binaryAuthorizationPolicy\":\"s-binaryauthorizationpolicy\",\"directVpcEgress\":\"s-directvpcegress\",\"environmentVariables\":{\"k1\":\"s-environmentvariables\"},\"ingressSettings\":\"s-ingresssettings\",\"maxInstanceCount\":7,\"maxInstanceRequestConcurrency\":7,\"minInstanceCount\":7,\"revision\":\"s-revision\",\"securityLevel\":\"s-securitylevel\",\"service\":\"s-service\",\"serviceAccountEmail\":\"s-serviceaccountemail\",\"timeoutSeconds\":7,\"uri\":\"s-uri\",\"vpcConnector\":\"s-vpcconnector\",\"vpcConnectorEgressSettings\":\"s-vpcconnectoregresssettings\"},\"upgradeState\":\"s-upgradestate\"},\"url\":\"s-url\"}",
+  "  B <3319 bytes> {\"buildConfig\":{\"automaticUpdate...s-upgradestate\"},\"url\":\"s-url\"}",
   "",
   "  SERVED 200 {\"done\":true,\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}",
   "OUT: {\"done\":true,\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}",
@@ -114,10 +152,10 @@ test "Go's cloudfunctions.projects.locations.functions.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_4)
+  gv_compare(gv_log_of(f), GO_5)
 }
 
-const GO_5: List[Str] = [
+const GO_6: List[Str] = [
   "CALL cloudfunctions.projects.locations.functions.delete",
   "REQ DELETE https://cloudfunctions.googleapis.com/v2/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -135,10 +173,10 @@ test "Go's cloudfunctions.projects.locations.functions.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_5)
+  gv_compare(gv_log_of(f), GO_6)
 }
 
-const GO_6: List[Str] = [
+const GO_7: List[Str] = [
   "CALL cloudfunctions.projects.locations.functions.detachFunction",
   "REQ POST https://cloudfunctions.googleapis.com/v2/id1/%20x:detachFunction?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -157,10 +195,10 @@ test "Go's cloudfunctions.projects.locations.functions.detachFunction" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_6)
+  gv_compare(gv_log_of(f), GO_7)
 }
 
-const GO_7: List[Str] = [
+const GO_8: List[Str] = [
   "CALL cloudfunctions.projects.locations.functions.generateDownloadUrl",
   "REQ POST https://cloudfunctions.googleapis.com/v2/id1/%20x:generateDownloadUrl?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -179,10 +217,10 @@ test "Go's cloudfunctions.projects.locations.functions.generateDownloadUrl" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_7)
+  gv_compare(gv_log_of(f), GO_8)
 }
 
-const GO_8: List[Str] = [
+const GO_9: List[Str] = [
   "CALL cloudfunctions.projects.locations.functions.generateUploadUrl",
   "REQ POST https://cloudfunctions.googleapis.com/v2/id1/%20x/functions:generateUploadUrl?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -201,10 +239,10 @@ test "Go's cloudfunctions.projects.locations.functions.generateUploadUrl" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_8)
+  gv_compare(gv_log_of(f), GO_9)
 }
 
-const GO_9: List[Str] = [
+const GO_10: List[Str] = [
   "CALL cloudfunctions.projects.locations.functions.get",
   "REQ GET https://cloudfunctions.googleapis.com/v2/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&revision=s-revision",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -222,10 +260,10 @@ test "Go's cloudfunctions.projects.locations.functions.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_9)
+  gv_compare(gv_log_of(f), GO_10)
 }
 
-const GO_10: List[Str] = [
+const GO_11: List[Str] = [
   "CALL cloudfunctions.projects.locations.functions.getIamPolicy",
   "REQ GET https://cloudfunctions.googleapis.com/v2/id1/%20x:getIamPolicy?alt=json&fields=kind%2Cid&options.requestedPolicyVersion=7&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -243,10 +281,10 @@ test "Go's cloudfunctions.projects.locations.functions.getIamPolicy" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_10)
+  gv_compare(gv_log_of(f), GO_11)
 }
 
-const GO_11: List[Str] = [
+const GO_12: List[Str] = [
   "CALL cloudfunctions.projects.locations.functions.list",
   "REQ GET https://cloudfunctions.googleapis.com/v2/id1/%20x/functions?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -264,14 +302,52 @@ test "Go's cloudfunctions.projects.locations.functions.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_11)
+  gv_compare(gv_log_of(f), GO_12)
 }
 
-const GO_12: List[Str] = [
+const GO_13: List[Str] = [
+  "CALL cloudfunctions.projects.locations.functions.list pages",
+  "REQ GET https://cloudfunctions.googleapis.com/v2/id1/%20x/functions?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"functions\":[{\"buildConfig\":{\"build\":\"s-build\",\"dockerRegistry\":\"s-dockerregistry\",\"dockerRepository\":\"s-dockerrepository\",\"entryPoint\":\"s-entrypoint\",\"runtime\":\"s-runtime\",\"serviceAccount\":\"s-serviceaccount\",\"sourceToken\":\"s-sourcetoken\",\"workerPool\":\"s-workerpool\"},\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"environment\":\"s-environment\",\"eventTrigger\":{\"channel\":\"s-channel\",\"eventType\":\"s-eventtype\",\"pubsubTopic\":\"s-pubsubtopic\",\"retryPolicy\":\"s-retrypolicy\",\"service\":\"s-service\",\"serviceAccountEmail\":\"s-serviceaccountemail\",\"trigger\":\"s-trigger\",\"triggerRegion\":\"s-triggerregion\"},\"kmsKeyName\":\"s-kmskeyname\",\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"satisfiesPzi\":true,\"satisfiesPzs\":true,\"serviceConfig\":{\"allTrafficOnLatestRevision\":true,\"availableCpu\":\"s-availablecpu\",\"availableMemory\":\"s-availablememory\",\"binaryAuthorizationPolicy\":\"s-binaryauthorizationpolicy\",\"directVpcEgress\":\"s-directvpcegress\",\"ingressSettings\":\"s-ingresssettings\",\"maxInstanceCount\":7,\"maxInstanceRequestConcurrency\":7,\"minInstanceCount\":7,\"revision\":\"s-revision\",\"securityLevel\":\"s-securitylevel\",\"service\":\"s-service\",\"serviceAccountEmail\":\"s-serviceaccountemail\",\"timeoutSeconds\":7,\"uri\":\"s-uri\",\"vpcConnector\":\"s-vpcconnector\",\"vpcConnectorEgressSettings\":\"s-vpcconnectoregresssettings\"},\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"upgradeInfo\":{\"upgradeState\":\"s-upgradestate\"},\"url\":\"s-url\"}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"functions\":[{\"buildConfig\":{\"build\":\"s-build\",\"dockerRegistry\":\"s-dockerregistry\",\"dockerRepository\":\"s-dockerrepository\",\"entryPoint\":\"s-entrypoint\",\"runtime\":\"s-runtime\",\"serviceAccount\":\"s-serviceaccount\",\"sourceToken\":\"s-sourcetoken\",\"workerPool\":\"s-workerpool\"},\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"environment\":\"s-environment\",\"eventTrigger\":{\"channel\":\"s-channel\",\"eventType\":\"s-eventtype\",\"pubsubTopic\":\"s-pubsubtopic\",\"retryPolicy\":\"s-retrypolicy\",\"service\":\"s-service\",\"serviceAccountEmail\":\"s-serviceaccountemail\",\"trigger\":\"s-trigger\",\"triggerRegion\":\"s-triggerregion\"},\"kmsKeyName\":\"s-kmskeyname\",\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"satisfiesPzi\":true,\"satisfiesPzs\":true,\"serviceConfig\":{\"allTrafficOnLatestRevision\":true,\"availableCpu\":\"s-availablecpu\",\"availableMemory\":\"s-availablememory\",\"binaryAuthorizationPolicy\":\"s-binaryauthorizationpolicy\",\"directVpcEgress\":\"s-directvpcegress\",\"ingressSettings\":\"s-ingresssettings\",\"maxInstanceCount\":7,\"maxInstanceRequestConcurrency\":7,\"minInstanceCount\":7,\"revision\":\"s-revision\",\"securityLevel\":\"s-securitylevel\",\"service\":\"s-service\",\"serviceAccountEmail\":\"s-serviceaccountemail\",\"timeoutSeconds\":7,\"uri\":\"s-uri\",\"vpcConnector\":\"s-vpcconnector\",\"vpcConnectorEgressSettings\":\"s-vpcconnectoregresssettings\"},\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"upgradeInfo\":{\"upgradeState\":\"s-upgradestate\"},\"url\":\"s-url\"}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}",
+  "REQ GET https://cloudfunctions.googleapis.com/v2/id1/%20x/functions?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"functions\":[{\"buildConfig\":{\"build\":\"s-build\",\"dockerRegistry\":\"s-dockerregistry\",\"dockerRepository\":\"s-dockerrepository\",\"entryPoint\":\"s-entrypoint\",\"runtime\":\"s-runtime\",\"serviceAccount\":\"s-serviceaccount\",\"sourceToken\":\"s-sourcetoken\",\"workerPool\":\"s-workerpool\"},\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"environment\":\"s-environment\",\"eventTrigger\":{\"channel\":\"s-channel\",\"eventType\":\"s-eventtype\",\"pubsubTopic\":\"s-pubsubtopic\",\"retryPolicy\":\"s-retrypolicy\",\"service\":\"s-service\",\"serviceAccountEmail\":\"s-serviceaccountemail\",\"trigger\":\"s-trigger\",\"triggerRegion\":\"s-triggerregion\"},\"kmsKeyName\":\"s-kmskeyname\",\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"satisfiesPzi\":true,\"satisfiesPzs\":true,\"serviceConfig\":{\"allTrafficOnLatestRevision\":true,\"availableCpu\":\"s-availablecpu\",\"availableMemory\":\"s-availablememory\",\"binaryAuthorizationPolicy\":\"s-binaryauthorizationpolicy\",\"directVpcEgress\":\"s-directvpcegress\",\"ingressSettings\":\"s-ingresssettings\",\"maxInstanceCount\":7,\"maxInstanceRequestConcurrency\":7,\"minInstanceCount\":7,\"revision\":\"s-revision\",\"securityLevel\":\"s-securitylevel\",\"service\":\"s-service\",\"serviceAccountEmail\":\"s-serviceaccountemail\",\"timeoutSeconds\":7,\"uri\":\"s-uri\",\"vpcConnector\":\"s-vpcconnector\",\"vpcConnectorEgressSettings\":\"s-vpcconnectoregresssettings\"},\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"upgradeInfo\":{\"upgradeState\":\"s-upgradestate\"},\"url\":\"s-url\"}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"functions\":[{\"buildConfig\":{\"build\":\"s-build\",\"dockerRegistry\":\"s-dockerregistry\",\"dockerRepository\":\"s-dockerrepository\",\"entryPoint\":\"s-entrypoint\",\"runtime\":\"s-runtime\",\"serviceAccount\":\"s-serviceaccount\",\"sourceToken\":\"s-sourcetoken\",\"workerPool\":\"s-workerpool\"},\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"environment\":\"s-environment\",\"eventTrigger\":{\"channel\":\"s-channel\",\"eventType\":\"s-eventtype\",\"pubsubTopic\":\"s-pubsubtopic\",\"retryPolicy\":\"s-retrypolicy\",\"service\":\"s-service\",\"serviceAccountEmail\":\"s-serviceaccountemail\",\"trigger\":\"s-trigger\",\"triggerRegion\":\"s-triggerregion\"},\"kmsKeyName\":\"s-kmskeyname\",\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"satisfiesPzi\":true,\"satisfiesPzs\":true,\"serviceConfig\":{\"allTrafficOnLatestRevision\":true,\"availableCpu\":\"s-availablecpu\",\"availableMemory\":\"s-availablememory\",\"binaryAuthorizationPolicy\":\"s-binaryauthorizationpolicy\",\"directVpcEgress\":\"s-directvpcegress\",\"ingressSettings\":\"s-ingresssettings\",\"maxInstanceCount\":7,\"maxInstanceRequestConcurrency\":7,\"minInstanceCount\":7,\"revision\":\"s-revision\",\"securityLevel\":\"s-securitylevel\",\"service\":\"s-service\",\"serviceAccountEmail\":\"s-serviceaccountemail\",\"timeoutSeconds\":7,\"uri\":\"s-uri\",\"vpcConnector\":\"s-vpcconnector\",\"vpcConnectorEgressSettings\":\"s-vpcconnectoregresssettings\"},\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"upgradeInfo\":{\"upgradeState\":\"s-upgradestate\"},\"url\":\"s-url\"}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: ok",
+]
+
+test "Go's cloudfunctions.projects.locations.functions.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"functions\":[{\"buildConfig\":{\"build\":\"s-build\",\"dockerRegistry\":\"s-dockerregistry\",\"dockerRepository\":\"s-dockerrepository\",\"entryPoint\":\"s-entrypoint\",\"runtime\":\"s-runtime\",\"serviceAccount\":\"s-serviceaccount\",\"sourceToken\":\"s-sourcetoken\",\"workerPool\":\"s-workerpool\"},\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"environment\":\"s-environment\",\"eventTrigger\":{\"channel\":\"s-channel\",\"eventType\":\"s-eventtype\",\"pubsubTopic\":\"s-pubsubtopic\",\"retryPolicy\":\"s-retrypolicy\",\"service\":\"s-service\",\"serviceAccountEmail\":\"s-serviceaccountemail\",\"trigger\":\"s-trigger\",\"triggerRegion\":\"s-triggerregion\"},\"kmsKeyName\":\"s-kmskeyname\",\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"satisfiesPzi\":true,\"satisfiesPzs\":true,\"serviceConfig\":{\"allTrafficOnLatestRevision\":true,\"availableCpu\":\"s-availablecpu\",\"availableMemory\":\"s-availablememory\",\"binaryAuthorizationPolicy\":\"s-binaryauthorizationpolicy\",\"directVpcEgress\":\"s-directvpcegress\",\"ingressSettings\":\"s-ingresssettings\",\"maxInstanceCount\":7,\"maxInstanceRequestConcurrency\":7,\"minInstanceCount\":7,\"revision\":\"s-revision\",\"securityLevel\":\"s-securitylevel\",\"service\":\"s-service\",\"serviceAccountEmail\":\"s-serviceaccountemail\",\"timeoutSeconds\":7,\"uri\":\"s-uri\",\"vpcConnector\":\"s-vpcconnector\",\"vpcConnectorEgressSettings\":\"s-vpcconnectoregresssettings\"},\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"upgradeInfo\":{\"upgradeState\":\"s-upgradestate\"},\"url\":\"s-url\"}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}")
+  gv_queue(f, "{\"functions\":[{\"buildConfig\":{\"build\":\"s-build\",\"dockerRegistry\":\"s-dockerregistry\",\"dockerRepository\":\"s-dockerrepository\",\"entryPoint\":\"s-entrypoint\",\"runtime\":\"s-runtime\",\"serviceAccount\":\"s-serviceaccount\",\"sourceToken\":\"s-sourcetoken\",\"workerPool\":\"s-workerpool\"},\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"environment\":\"s-environment\",\"eventTrigger\":{\"channel\":\"s-channel\",\"eventType\":\"s-eventtype\",\"pubsubTopic\":\"s-pubsubtopic\",\"retryPolicy\":\"s-retrypolicy\",\"service\":\"s-service\",\"serviceAccountEmail\":\"s-serviceaccountemail\",\"trigger\":\"s-trigger\",\"triggerRegion\":\"s-triggerregion\"},\"kmsKeyName\":\"s-kmskeyname\",\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"satisfiesPzi\":true,\"satisfiesPzs\":true,\"serviceConfig\":{\"allTrafficOnLatestRevision\":true,\"availableCpu\":\"s-availablecpu\",\"availableMemory\":\"s-availablememory\",\"binaryAuthorizationPolicy\":\"s-binaryauthorizationpolicy\",\"directVpcEgress\":\"s-directvpcegress\",\"ingressSettings\":\"s-ingresssettings\",\"maxInstanceCount\":7,\"maxInstanceRequestConcurrency\":7,\"minInstanceCount\":7,\"revision\":\"s-revision\",\"securityLevel\":\"s-securitylevel\",\"service\":\"s-service\",\"serviceAccountEmail\":\"s-serviceaccountemail\",\"timeoutSeconds\":7,\"uri\":\"s-uri\",\"vpcConnector\":\"s-vpcconnector\",\"vpcConnectorEgressSettings\":\"s-vpcconnectoregresssettings\"},\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"upgradeInfo\":{\"upgradeState\":\"s-upgradestate\"},\"url\":\"s-url\"}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_note(f, "CALL cloudfunctions.projects.locations.functions.list pages")
+  var p = svc.projects.locations.functions.list_pages("id1/ x", options: ProjectsLocationsFunctionsListOptions{filter: Some("s-filter"), order_by: Some("s-orderby"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_13)
+}
+
+const GO_14: List[Str] = [
   "CALL cloudfunctions.projects.locations.functions.patch",
   "REQ PATCH https://cloudfunctions.googleapis.com/v2/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"buildConfig\":{\"automaticUpdatePolicy\":{},\"build\":\"s-build\",\"dockerRegistry\":\"s-dockerregistry\",\"dockerRepository\":\"s-dockerrepository\",\"entryPoint\":\"s-entrypoint\",\"environmentVariables\":{\"k1\":\"s-environmentvariables\"},\"onDeployUpdatePolicy\":{\"runtimeVersion\":\"s-runtimeversion\"},\"runtime\":\"s-runtime\",\"serviceAccount\":\"s-serviceaccount\",\"source\":{\"gitUri\":\"s-gituri\"},\"sourceProvenance\":{\"gitUri\":\"s-gituri\"},\"sourceToken\":\"s-sourcetoken\",\"workerPool\":\"s-workerpool\"},\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"environment\":\"s-environment\",\"eventTrigger\":{\"channel\":\"s-channel\",\"eventFilters\":[{\"attribute\":\"s-attribute\",\"operator\":\"s-operator\",\"value\":\"s-value\"}],\"eventType\":\"s-eventtype\",\"pubsubTopic\":\"s-pubsubtopic\",\"retryPolicy\":\"s-retrypolicy\",\"service\":\"s-service\",\"serviceAccountEmail\":\"s-serviceaccountemail\",\"trigger\":\"s-trigger\",\"triggerRegion\":\"s-triggerregion\"},\"kmsKeyName\":\"s-kmskeyname\",\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"satisfiesPzi\":true,\"satisfiesPzs\":true,\"serviceConfig\":{\"allTrafficOnLatestRevision\":true,\"availableCpu\":\"s-availablecpu\",\"availableMemory\":\"s-availablememory\",\"binaryAuthorizationPolicy\":\"s-binaryauthorizationpolicy\",\"directVpcEgress\":\"s-directvpcegress\",\"directVpcNetworkInterface\":[{\"network\":\"s-network\",\"subnetwork\":\"s-subnetwork\"}],\"environmentVariables\":{\"k1\":\"s-environmentvariables\"},\"ingressSettings\":\"s-ingresssettings\",\"maxInstanceCount\":7,\"maxInstanceRequestConcurrency\":7,\"minInstanceCount\":7,\"revision\":\"s-revision\",\"secretEnvironmentVariables\":[{\"key\":\"s-key\",\"projectId\":\"s-projectid\",\"secret\":\"s-secret\",\"version\":\"s-version\"}],\"secretVolumes\":[{\"mountPath\":\"s-mountpath\",\"projectId\":\"s-projectid\",\"secret\":\"s-secret\"}],\"securityLevel\":\"s-securitylevel\",\"service\":\"s-service\",\"serviceAccountEmail\":\"s-serviceaccountemail\",\"timeoutSeconds\":7,\"uri\":\"s-uri\",\"vpcConnector\":\"s-vpcconnector\",\"vpcConnectorEgressSettings\":\"s-vpcconnectoregresssettings\"},\"state\":\"s-state\",\"stateMessages\":[{\"message\":\"s-message\",\"severity\":\"s-severity\",\"type\":\"s-type\"}],\"updateTime\":\"s-updatetime\",\"upgradeInfo\":{\"buildConfig\":{\"build\":\"s-build\",\"dockerRegistry\":\"s-dockerregistry\",\"dockerRepository\":\"s-dockerrepository\",\"entryPoint\":\"s-entrypoint\",\"environmentVariables\":{\"k1\":\"s-environmentvariables\"},\"runtime\":\"s-runtime\",\"serviceAccount\":\"s-serviceaccount\",\"sourceToken\":\"s-sourcetoken\",\"workerPool\":\"s-workerpool\"},\"eventTrigger\":{\"channel\":\"s-channel\",\"eventType\":\"s-eventtype\",\"pubsubTopic\":\"s-pubsubtopic\",\"retryPolicy\":\"s-retrypolicy\",\"service\":\"s-service\",\"serviceAccountEmail\":\"s-serviceaccountemail\",\"trigger\":\"s-trigger\",\"triggerRegion\":\"s-triggerregion\"},\"serviceConfig\":{\"allTrafficOnLatestRevision\":true,\"availableCpu\":\"s-availablecpu\",\"availableMemory\":\"s-availablememory\",\"binaryAuthorizationPolicy\":\"s-binaryauthorizationpolicy\",\"directVpcEgress\":\"s-directvpcegress\",\"environmentVariables\":{\"k1\":\"s-environmentvariables\"},\"ingressSettings\":\"s-ingresssettings\",\"maxInstanceCount\":7,\"maxInstanceRequestConcurrency\":7,\"minInstanceCount\":7,\"revision\":\"s-revision\",\"securityLevel\":\"s-securitylevel\",\"service\":\"s-service\",\"serviceAccountEmail\":\"s-serviceaccountemail\",\"timeoutSeconds\":7,\"uri\":\"s-uri\",\"vpcConnector\":\"s-vpcconnector\",\"vpcConnectorEgressSettings\":\"s-vpcconnectoregresssettings\"},\"upgradeState\":\"s-upgradestate\"},\"url\":\"s-url\"}",
+  "  B <3319 bytes> {\"buildConfig\":{\"automaticUpdate...s-upgradestate\"},\"url\":\"s-url\"}",
   "",
   "  SERVED 200 {\"done\":true,\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}",
   "OUT: {\"done\":true,\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}",
@@ -286,10 +362,10 @@ test "Go's cloudfunctions.projects.locations.functions.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_12)
+  gv_compare(gv_log_of(f), GO_14)
 }
 
-const GO_13: List[Str] = [
+const GO_15: List[Str] = [
   "CALL cloudfunctions.projects.locations.functions.redirectFunctionUpgradeTraffic",
   "REQ POST https://cloudfunctions.googleapis.com/v2/id1/%20x:redirectFunctionUpgradeTraffic?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -308,10 +384,10 @@ test "Go's cloudfunctions.projects.locations.functions.redirectFunctionUpgradeTr
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_13)
+  gv_compare(gv_log_of(f), GO_15)
 }
 
-const GO_14: List[Str] = [
+const GO_16: List[Str] = [
   "CALL cloudfunctions.projects.locations.functions.rollbackFunctionUpgradeTraffic",
   "REQ POST https://cloudfunctions.googleapis.com/v2/id1/%20x:rollbackFunctionUpgradeTraffic?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -330,10 +406,10 @@ test "Go's cloudfunctions.projects.locations.functions.rollbackFunctionUpgradeTr
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_14)
+  gv_compare(gv_log_of(f), GO_16)
 }
 
-const GO_15: List[Str] = [
+const GO_17: List[Str] = [
   "CALL cloudfunctions.projects.locations.functions.setIamPolicy",
   "REQ POST https://cloudfunctions.googleapis.com/v2/id1/%20x:setIamPolicy?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -352,10 +428,10 @@ test "Go's cloudfunctions.projects.locations.functions.setIamPolicy" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_15)
+  gv_compare(gv_log_of(f), GO_17)
 }
 
-const GO_16: List[Str] = [
+const GO_18: List[Str] = [
   "CALL cloudfunctions.projects.locations.functions.setupFunctionUpgradeConfig",
   "REQ POST https://cloudfunctions.googleapis.com/v2/id1/%20x:setupFunctionUpgradeConfig?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -374,10 +450,10 @@ test "Go's cloudfunctions.projects.locations.functions.setupFunctionUpgradeConfi
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_16)
+  gv_compare(gv_log_of(f), GO_18)
 }
 
-const GO_17: List[Str] = [
+const GO_19: List[Str] = [
   "CALL cloudfunctions.projects.locations.functions.testIamPermissions",
   "REQ POST https://cloudfunctions.googleapis.com/v2/id1/%20x:testIamPermissions?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -396,10 +472,10 @@ test "Go's cloudfunctions.projects.locations.functions.testIamPermissions" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_17)
+  gv_compare(gv_log_of(f), GO_19)
 }
 
-const GO_18: List[Str] = [
+const GO_20: List[Str] = [
   "CALL cloudfunctions.projects.locations.operations.get",
   "REQ GET https://cloudfunctions.googleapis.com/v2/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -417,10 +493,10 @@ test "Go's cloudfunctions.projects.locations.operations.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_18)
+  gv_compare(gv_log_of(f), GO_20)
 }
 
-const GO_19: List[Str] = [
+const GO_21: List[Str] = [
   "CALL cloudfunctions.projects.locations.operations.list",
   "REQ GET https://cloudfunctions.googleapis.com/v2/id1/%20x/operations?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&returnPartialSuccess=true",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -438,10 +514,48 @@ test "Go's cloudfunctions.projects.locations.operations.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_19)
+  gv_compare(gv_log_of(f), GO_21)
 }
 
-const GO_20: List[Str] = [
+const GO_22: List[Str] = [
+  "CALL cloudfunctions.projects.locations.operations.list pages",
+  "REQ GET https://cloudfunctions.googleapis.com/v2/id1/%20x/operations?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&returnPartialSuccess=true",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "REQ GET https://cloudfunctions.googleapis.com/v2/id1/%20x/operations?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false&returnPartialSuccess=true",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: ok",
+]
+
+test "Go's cloudfunctions.projects.locations.operations.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_queue(f, "{\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_note(f, "CALL cloudfunctions.projects.locations.operations.list pages")
+  var p = svc.projects.locations.operations.list_pages("id1/ x", options: ProjectsLocationsOperationsListOptions{filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), return_partial_success: Some(true), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_22)
+}
+
+const GO_23: List[Str] = [
   "CALL cloudfunctions.projects.locations.runtimes.list",
   "REQ GET https://cloudfunctions.googleapis.com/v2/id1/%20x/runtimes?alt=json&fields=kind%2Cid&filter=s-filter&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -459,5 +573,5 @@ test "Go's cloudfunctions.projects.locations.runtimes.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_20)
+  gv_compare(gv_log_of(f), GO_23)
 }

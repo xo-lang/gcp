@@ -52,6 +52,44 @@ test "Go's cloudchannel.accounts.listSubscribers" {
 }
 
 const GO_2: List[Str] = [
+  "CALL cloudchannel.accounts.listSubscribers pages",
+  "REQ GET https://cloudchannel.googleapis.com/v1/id1/%20x:listSubscribers?alt=json&fields=kind%2Cid&integrator=s-integrator&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"serviceAccounts\":[\"s-serviceaccounts\"],\"topic\":\"s-topic\"}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"serviceAccounts\":[\"s-serviceaccounts\"],\"topic\":\"s-topic\"}",
+  "REQ GET https://cloudchannel.googleapis.com/v1/id1/%20x:listSubscribers?alt=json&fields=kind%2Cid&integrator=s-integrator&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"serviceAccounts\":[\"s-serviceaccounts\"],\"topic\":\"s-topic\"}",
+  "OUT: {\"serviceAccounts\":[\"s-serviceaccounts\"],\"topic\":\"s-topic\"}",
+  "OUT: ok",
+]
+
+test "Go's cloudchannel.accounts.listSubscribers pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"serviceAccounts\":[\"s-serviceaccounts\"],\"topic\":\"s-topic\"}")
+  gv_queue(f, "{\"serviceAccounts\":[\"s-serviceaccounts\"],\"topic\":\"s-topic\"}")
+  gv_note(f, "CALL cloudchannel.accounts.listSubscribers pages")
+  var p = svc.accounts.list_subscribers_pages("id1/ x", options: AccountsListSubscribersOptions{integrator: Some("s-integrator"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_2)
+}
+
+const GO_3: List[Str] = [
   "CALL cloudchannel.accounts.listTransferableOffers",
   "REQ POST https://cloudchannel.googleapis.com/v1/id1/%20x:listTransferableOffers?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -70,10 +108,50 @@ test "Go's cloudchannel.accounts.listTransferableOffers" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_2)
+  gv_compare(gv_log_of(f), GO_3)
 }
 
-const GO_3: List[Str] = [
+const GO_4: List[Str] = [
+  "CALL cloudchannel.accounts.listTransferableOffers pages",
+  "REQ POST https://cloudchannel.googleapis.com/v1/id1/%20x:listTransferableOffers?alt=json&fields=kind%2Cid&prettyPrint=false",
+  "  H content-type=application/json | x-extra=v1",
+  "  B {\"billingAccount\":\"s-billingaccount\",\"cloudIdentityId\":\"s-cloudidentityid\",\"customerName\":\"s-customername\",\"languageCode\":\"s-languagecode\",\"pageSize\":7,\"pageToken\":\"s-pagetoken\",\"sku\":\"s-sku\"}",
+  "",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"transferableOffers\":[{\"offer\":{\"dealCode\":\"s-dealcode\",\"endTime\":\"s-endtime\",\"name\":\"s-name\",\"startTime\":\"s-starttime\"},\"priceReferenceId\":\"s-pricereferenceid\"}]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"transferableOffers\":[{\"offer\":{\"dealCode\":\"s-dealcode\",\"endTime\":\"s-endtime\",\"name\":\"s-name\",\"startTime\":\"s-starttime\"},\"priceReferenceId\":\"s-pricereferenceid\"}]}",
+  "REQ POST https://cloudchannel.googleapis.com/v1/id1/%20x:listTransferableOffers?alt=json&fields=kind%2Cid&prettyPrint=false",
+  "  H content-type=application/json | x-extra=v1",
+  "  B {\"billingAccount\":\"s-billingaccount\",\"cloudIdentityId\":\"s-cloudidentityid\",\"customerName\":\"s-customername\",\"languageCode\":\"s-languagecode\",\"pageSize\":7,\"pageToken\":\"s-nextpagetoken\",\"sku\":\"s-sku\"}",
+  "",
+  "  SERVED 200 {\"transferableOffers\":[{\"offer\":{\"dealCode\":\"s-dealcode\",\"endTime\":\"s-endtime\",\"name\":\"s-name\",\"startTime\":\"s-starttime\"},\"priceReferenceId\":\"s-pricereferenceid\"}]}",
+  "OUT: {\"transferableOffers\":[{\"offer\":{\"dealCode\":\"s-dealcode\",\"endTime\":\"s-endtime\",\"name\":\"s-name\",\"startTime\":\"s-starttime\"},\"priceReferenceId\":\"s-pricereferenceid\"}]}",
+  "OUT: ok",
+]
+
+test "Go's cloudchannel.accounts.listTransferableOffers pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"transferableOffers\":[{\"offer\":{\"dealCode\":\"s-dealcode\",\"endTime\":\"s-endtime\",\"name\":\"s-name\",\"startTime\":\"s-starttime\"},\"priceReferenceId\":\"s-pricereferenceid\"}]}")
+  gv_queue(f, "{\"transferableOffers\":[{\"offer\":{\"dealCode\":\"s-dealcode\",\"endTime\":\"s-endtime\",\"name\":\"s-name\",\"startTime\":\"s-starttime\"},\"priceReferenceId\":\"s-pricereferenceid\"}]}")
+  gv_note(f, "CALL cloudchannel.accounts.listTransferableOffers pages")
+  var p = svc.accounts.list_transferable_offers_pages("id1/ x", json.decode_str[GoogleCloudChannelV1ListTransferableOffersRequest]("{\"billingAccount\":\"s-billingaccount\",\"cloudIdentityId\":\"s-cloudidentityid\",\"customerName\":\"s-customername\",\"languageCode\":\"s-languagecode\",\"pageSize\":7,\"pageToken\":\"s-pagetoken\",\"sku\":\"s-sku\"}") ?? e => fault(e.display()), options: AccountsListTransferableOffersOptions{fields: ["kind", "id"], headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_4)
+}
+
+const GO_5: List[Str] = [
   "CALL cloudchannel.accounts.listTransferableSkus",
   "REQ POST https://cloudchannel.googleapis.com/v1/id1/%20x:listTransferableSkus?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -92,10 +170,50 @@ test "Go's cloudchannel.accounts.listTransferableSkus" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_3)
+  gv_compare(gv_log_of(f), GO_5)
 }
 
-const GO_4: List[Str] = [
+const GO_6: List[Str] = [
+  "CALL cloudchannel.accounts.listTransferableSkus pages",
+  "REQ POST https://cloudchannel.googleapis.com/v1/id1/%20x:listTransferableSkus?alt=json&fields=kind%2Cid&prettyPrint=false",
+  "  H content-type=application/json | x-extra=v1",
+  "  B {\"authToken\":\"s-authtoken\",\"cloudIdentityId\":\"s-cloudidentityid\",\"customerName\":\"s-customername\",\"languageCode\":\"s-languagecode\",\"pageSize\":7,\"pageToken\":\"s-pagetoken\"}",
+  "",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"transferableSkus\":[{\"legacySku\":{\"name\":\"s-name\"},\"sku\":{\"name\":\"s-name\"},\"transferEligibility\":{\"description\":\"s-description\",\"ineligibilityReason\":\"s-ineligibilityreason\",\"isEligible\":true}}]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"transferableSkus\":[{\"legacySku\":{\"name\":\"s-name\"},\"sku\":{\"name\":\"s-name\"},\"transferEligibility\":{\"description\":\"s-description\",\"ineligibilityReason\":\"s-ineligibilityreason\",\"isEligible\":true}}]}",
+  "REQ POST https://cloudchannel.googleapis.com/v1/id1/%20x:listTransferableSkus?alt=json&fields=kind%2Cid&prettyPrint=false",
+  "  H content-type=application/json | x-extra=v1",
+  "  B {\"authToken\":\"s-authtoken\",\"cloudIdentityId\":\"s-cloudidentityid\",\"customerName\":\"s-customername\",\"languageCode\":\"s-languagecode\",\"pageSize\":7,\"pageToken\":\"s-nextpagetoken\"}",
+  "",
+  "  SERVED 200 {\"transferableSkus\":[{\"legacySku\":{\"name\":\"s-name\"},\"sku\":{\"name\":\"s-name\"},\"transferEligibility\":{\"description\":\"s-description\",\"ineligibilityReason\":\"s-ineligibilityreason\",\"isEligible\":true}}]}",
+  "OUT: {\"transferableSkus\":[{\"legacySku\":{\"name\":\"s-name\"},\"sku\":{\"name\":\"s-name\"},\"transferEligibility\":{\"description\":\"s-description\",\"ineligibilityReason\":\"s-ineligibilityreason\",\"isEligible\":true}}]}",
+  "OUT: ok",
+]
+
+test "Go's cloudchannel.accounts.listTransferableSkus pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"transferableSkus\":[{\"legacySku\":{\"name\":\"s-name\"},\"sku\":{\"name\":\"s-name\"},\"transferEligibility\":{\"description\":\"s-description\",\"ineligibilityReason\":\"s-ineligibilityreason\",\"isEligible\":true}}]}")
+  gv_queue(f, "{\"transferableSkus\":[{\"legacySku\":{\"name\":\"s-name\"},\"sku\":{\"name\":\"s-name\"},\"transferEligibility\":{\"description\":\"s-description\",\"ineligibilityReason\":\"s-ineligibilityreason\",\"isEligible\":true}}]}")
+  gv_note(f, "CALL cloudchannel.accounts.listTransferableSkus pages")
+  var p = svc.accounts.list_transferable_skus_pages("id1/ x", json.decode_str[GoogleCloudChannelV1ListTransferableSkusRequest]("{\"authToken\":\"s-authtoken\",\"cloudIdentityId\":\"s-cloudidentityid\",\"customerName\":\"s-customername\",\"languageCode\":\"s-languagecode\",\"pageSize\":7,\"pageToken\":\"s-pagetoken\"}") ?? e => fault(e.display()), options: AccountsListTransferableSkusOptions{fields: ["kind", "id"], headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_6)
+}
+
+const GO_7: List[Str] = [
   "CALL cloudchannel.accounts.register",
   "REQ POST https://cloudchannel.googleapis.com/v1/id1/%20x:register?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -114,10 +232,10 @@ test "Go's cloudchannel.accounts.register" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_4)
+  gv_compare(gv_log_of(f), GO_7)
 }
 
-const GO_5: List[Str] = [
+const GO_8: List[Str] = [
   "CALL cloudchannel.accounts.unregister",
   "REQ POST https://cloudchannel.googleapis.com/v1/id1/%20x:unregister?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -136,10 +254,10 @@ test "Go's cloudchannel.accounts.unregister" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_5)
+  gv_compare(gv_log_of(f), GO_8)
 }
 
-const GO_6: List[Str] = [
+const GO_9: List[Str] = [
   "CALL cloudchannel.accounts.channelPartnerLinks.create",
   "REQ POST https://cloudchannel.googleapis.com/v1/id1/%20x/channelPartnerLinks?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -158,10 +276,10 @@ test "Go's cloudchannel.accounts.channelPartnerLinks.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_6)
+  gv_compare(gv_log_of(f), GO_9)
 }
 
-const GO_7: List[Str] = [
+const GO_10: List[Str] = [
   "CALL cloudchannel.accounts.channelPartnerLinks.get",
   "REQ GET https://cloudchannel.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&view=s-view",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -179,10 +297,10 @@ test "Go's cloudchannel.accounts.channelPartnerLinks.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_7)
+  gv_compare(gv_log_of(f), GO_10)
 }
 
-const GO_8: List[Str] = [
+const GO_11: List[Str] = [
   "CALL cloudchannel.accounts.channelPartnerLinks.list",
   "REQ GET https://cloudchannel.googleapis.com/v1/id1/%20x/channelPartnerLinks?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&view=s-view",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -200,10 +318,48 @@ test "Go's cloudchannel.accounts.channelPartnerLinks.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_8)
+  gv_compare(gv_log_of(f), GO_11)
 }
 
-const GO_9: List[Str] = [
+const GO_12: List[Str] = [
+  "CALL cloudchannel.accounts.channelPartnerLinks.list pages",
+  "REQ GET https://cloudchannel.googleapis.com/v1/id1/%20x/channelPartnerLinks?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&view=s-view",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"channelPartnerLinks\":[{\"channelPartnerCloudIdentityInfo\":{\"adminConsoleUri\":\"s-adminconsoleuri\",\"alternateEmail\":\"s-alternateemail\",\"customerType\":\"s-customertype\",\"isDomainVerified\":true,\"languageCode\":\"s-languagecode\",\"phoneNumber\":\"s-phonenumber\",\"primaryDomain\":\"s-primarydomain\"},\"createTime\":\"s-createtime\",\"inviteLinkUri\":\"s-invitelinkuri\",\"linkState\":\"s-linkstate\",\"name\":\"s-name\",\"publicId\":\"s-publicid\",\"resellerCloudIdentityId\":\"s-resellercloudidentityid\",\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"channelPartnerLinks\":[{\"channelPartnerCloudIdentityInfo\":{\"adminConsoleUri\":\"s-adminconsoleuri\",\"alternateEmail\":\"s-alternateemail\",\"customerType\":\"s-customertype\",\"isDomainVerified\":true,\"languageCode\":\"s-languagecode\",\"phoneNumber\":\"s-phonenumber\",\"primaryDomain\":\"s-primarydomain\"},\"createTime\":\"s-createtime\",\"inviteLinkUri\":\"s-invitelinkuri\",\"linkState\":\"s-linkstate\",\"name\":\"s-name\",\"publicId\":\"s-publicid\",\"resellerCloudIdentityId\":\"s-resellercloudidentityid\",\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://cloudchannel.googleapis.com/v1/id1/%20x/channelPartnerLinks?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false&view=s-view",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"channelPartnerLinks\":[{\"channelPartnerCloudIdentityInfo\":{\"adminConsoleUri\":\"s-adminconsoleuri\",\"alternateEmail\":\"s-alternateemail\",\"customerType\":\"s-customertype\",\"isDomainVerified\":true,\"languageCode\":\"s-languagecode\",\"phoneNumber\":\"s-phonenumber\",\"primaryDomain\":\"s-primarydomain\"},\"createTime\":\"s-createtime\",\"inviteLinkUri\":\"s-invitelinkuri\",\"linkState\":\"s-linkstate\",\"name\":\"s-name\",\"publicId\":\"s-publicid\",\"resellerCloudIdentityId\":\"s-resellercloudidentityid\",\"updateTime\":\"s-updatetime\"}]}",
+  "OUT: {\"channelPartnerLinks\":[{\"channelPartnerCloudIdentityInfo\":{\"adminConsoleUri\":\"s-adminconsoleuri\",\"alternateEmail\":\"s-alternateemail\",\"customerType\":\"s-customertype\",\"isDomainVerified\":true,\"languageCode\":\"s-languagecode\",\"phoneNumber\":\"s-phonenumber\",\"primaryDomain\":\"s-primarydomain\"},\"createTime\":\"s-createtime\",\"inviteLinkUri\":\"s-invitelinkuri\",\"linkState\":\"s-linkstate\",\"name\":\"s-name\",\"publicId\":\"s-publicid\",\"resellerCloudIdentityId\":\"s-resellercloudidentityid\",\"updateTime\":\"s-updatetime\"}]}",
+  "OUT: ok",
+]
+
+test "Go's cloudchannel.accounts.channelPartnerLinks.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"channelPartnerLinks\":[{\"channelPartnerCloudIdentityInfo\":{\"adminConsoleUri\":\"s-adminconsoleuri\",\"alternateEmail\":\"s-alternateemail\",\"customerType\":\"s-customertype\",\"isDomainVerified\":true,\"languageCode\":\"s-languagecode\",\"phoneNumber\":\"s-phonenumber\",\"primaryDomain\":\"s-primarydomain\"},\"createTime\":\"s-createtime\",\"inviteLinkUri\":\"s-invitelinkuri\",\"linkState\":\"s-linkstate\",\"name\":\"s-name\",\"publicId\":\"s-publicid\",\"resellerCloudIdentityId\":\"s-resellercloudidentityid\",\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"channelPartnerLinks\":[{\"channelPartnerCloudIdentityInfo\":{\"adminConsoleUri\":\"s-adminconsoleuri\",\"alternateEmail\":\"s-alternateemail\",\"customerType\":\"s-customertype\",\"isDomainVerified\":true,\"languageCode\":\"s-languagecode\",\"phoneNumber\":\"s-phonenumber\",\"primaryDomain\":\"s-primarydomain\"},\"createTime\":\"s-createtime\",\"inviteLinkUri\":\"s-invitelinkuri\",\"linkState\":\"s-linkstate\",\"name\":\"s-name\",\"publicId\":\"s-publicid\",\"resellerCloudIdentityId\":\"s-resellercloudidentityid\",\"updateTime\":\"s-updatetime\"}]}")
+  gv_note(f, "CALL cloudchannel.accounts.channelPartnerLinks.list pages")
+  var p = svc.accounts.channel_partner_links.list_pages("id1/ x", options: AccountsChannelPartnerLinksListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), view: Some("s-view"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_12)
+}
+
+const GO_13: List[Str] = [
   "CALL cloudchannel.accounts.channelPartnerLinks.patch",
   "REQ PATCH https://cloudchannel.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -222,10 +378,10 @@ test "Go's cloudchannel.accounts.channelPartnerLinks.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_9)
+  gv_compare(gv_log_of(f), GO_13)
 }
 
-const GO_10: List[Str] = [
+const GO_14: List[Str] = [
   "CALL cloudchannel.accounts.channelPartnerLinks.channelPartnerRepricingConfigs.create",
   "REQ POST https://cloudchannel.googleapis.com/v1/id1/%20x/channelPartnerRepricingConfigs?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -244,10 +400,10 @@ test "Go's cloudchannel.accounts.channelPartnerLinks.channelPartnerRepricingConf
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_10)
+  gv_compare(gv_log_of(f), GO_14)
 }
 
-const GO_11: List[Str] = [
+const GO_15: List[Str] = [
   "CALL cloudchannel.accounts.channelPartnerLinks.channelPartnerRepricingConfigs.delete",
   "REQ DELETE https://cloudchannel.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -265,10 +421,10 @@ test "Go's cloudchannel.accounts.channelPartnerLinks.channelPartnerRepricingConf
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_11)
+  gv_compare(gv_log_of(f), GO_15)
 }
 
-const GO_12: List[Str] = [
+const GO_16: List[Str] = [
   "CALL cloudchannel.accounts.channelPartnerLinks.channelPartnerRepricingConfigs.get",
   "REQ GET https://cloudchannel.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -286,10 +442,10 @@ test "Go's cloudchannel.accounts.channelPartnerLinks.channelPartnerRepricingConf
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_12)
+  gv_compare(gv_log_of(f), GO_16)
 }
 
-const GO_13: List[Str] = [
+const GO_17: List[Str] = [
   "CALL cloudchannel.accounts.channelPartnerLinks.channelPartnerRepricingConfigs.list",
   "REQ GET https://cloudchannel.googleapis.com/v1/id1/%20x/channelPartnerRepricingConfigs?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -307,10 +463,48 @@ test "Go's cloudchannel.accounts.channelPartnerLinks.channelPartnerRepricingConf
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_13)
+  gv_compare(gv_log_of(f), GO_17)
 }
 
-const GO_14: List[Str] = [
+const GO_18: List[Str] = [
+  "CALL cloudchannel.accounts.channelPartnerLinks.channelPartnerRepricingConfigs.list pages",
+  "REQ GET https://cloudchannel.googleapis.com/v1/id1/%20x/channelPartnerRepricingConfigs?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"channelPartnerRepricingConfigs\":[{\"name\":\"s-name\",\"repricingConfig\":{\"rebillingBasis\":\"s-rebillingbasis\"},\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"channelPartnerRepricingConfigs\":[{\"name\":\"s-name\",\"repricingConfig\":{\"rebillingBasis\":\"s-rebillingbasis\"},\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://cloudchannel.googleapis.com/v1/id1/%20x/channelPartnerRepricingConfigs?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"channelPartnerRepricingConfigs\":[{\"name\":\"s-name\",\"repricingConfig\":{\"rebillingBasis\":\"s-rebillingbasis\"},\"updateTime\":\"s-updatetime\"}]}",
+  "OUT: {\"channelPartnerRepricingConfigs\":[{\"name\":\"s-name\",\"repricingConfig\":{\"rebillingBasis\":\"s-rebillingbasis\"},\"updateTime\":\"s-updatetime\"}]}",
+  "OUT: ok",
+]
+
+test "Go's cloudchannel.accounts.channelPartnerLinks.channelPartnerRepricingConfigs.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"channelPartnerRepricingConfigs\":[{\"name\":\"s-name\",\"repricingConfig\":{\"rebillingBasis\":\"s-rebillingbasis\"},\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"channelPartnerRepricingConfigs\":[{\"name\":\"s-name\",\"repricingConfig\":{\"rebillingBasis\":\"s-rebillingbasis\"},\"updateTime\":\"s-updatetime\"}]}")
+  gv_note(f, "CALL cloudchannel.accounts.channelPartnerLinks.channelPartnerRepricingConfigs.list pages")
+  var p = svc.accounts.channel_partner_links.channel_partner_repricing_configs.list_pages("id1/ x", options: AccountsChannelPartnerLinksChannelPartnerRepricingConfigsListOptions{filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_18)
+}
+
+const GO_19: List[Str] = [
   "CALL cloudchannel.accounts.channelPartnerLinks.channelPartnerRepricingConfigs.patch",
   "REQ PATCH https://cloudchannel.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -329,14 +523,14 @@ test "Go's cloudchannel.accounts.channelPartnerLinks.channelPartnerRepricingConf
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_14)
+  gv_compare(gv_log_of(f), GO_19)
 }
 
-const GO_15: List[Str] = [
+const GO_20: List[Str] = [
   "CALL cloudchannel.accounts.channelPartnerLinks.customers.create",
   "REQ POST https://cloudchannel.googleapis.com/v1/id1/%20x/customers?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"alternateEmail\":\"s-alternateemail\",\"channelPartnerId\":\"s-channelpartnerid\",\"cloudIdentityId\":\"s-cloudidentityid\",\"cloudIdentityInfo\":{\"adminConsoleUri\":\"s-adminconsoleuri\",\"alternateEmail\":\"s-alternateemail\",\"customerType\":\"s-customertype\",\"eduData\":{\"instituteSize\":\"s-institutesize\",\"instituteType\":\"s-institutetype\",\"website\":\"s-website\"},\"isDomainVerified\":true,\"languageCode\":\"s-languagecode\",\"phoneNumber\":\"s-phonenumber\",\"primaryDomain\":\"s-primarydomain\"},\"correlationId\":\"s-correlationid\",\"createTime\":\"s-createtime\",\"customerAttestationState\":\"s-customerattestationstate\",\"domain\":\"s-domain\",\"languageCode\":\"s-languagecode\",\"name\":\"s-name\",\"orgDisplayName\":\"s-orgdisplayname\",\"orgPostalAddress\":{\"addressLines\":[\"s-addresslines\"],\"administrativeArea\":\"s-administrativearea\",\"languageCode\":\"s-languagecode\",\"locality\":\"s-locality\",\"organization\":\"s-organization\",\"postalCode\":\"s-postalcode\",\"recipients\":[\"s-recipients\"],\"regionCode\":\"s-regioncode\",\"revision\":7,\"sortingCode\":\"s-sortingcode\",\"sublocality\":\"s-sublocality\"},\"primaryContactInfo\":{\"displayName\":\"s-displayname\",\"email\":\"s-email\",\"firstName\":\"s-firstname\",\"lastName\":\"s-lastname\",\"phone\":\"s-phone\",\"title\":\"s-title\"},\"updateTime\":\"s-updatetime\"}",
+  "  B <1219 bytes> {\"alternateEmail\":\"s-alternateem...\"},\"updateTime\":\"s-updatetime\"}",
   "",
   "  SERVED 200 {\"alternateEmail\":\"s-alternateemail\",\"channelPartnerId\":\"s-channelpartnerid\",\"cloudIdentityId\":\"s-cloudidentityid\",\"cloudIdentityInfo\":{\"adminConsoleUri\":\"s-adminconsoleuri\",\"alternateEmail\":\"s-alternateemail\",\"customerType\":\"s-customertype\",\"eduData\":{\"instituteSize\":\"s-institutesize\",\"instituteType\":\"s-institutetype\",\"website\":\"s-website\"},\"isDomainVerified\":true,\"languageCode\":\"s-languagecode\",\"phoneNumber\":\"s-phonenumber\",\"primaryDomain\":\"s-primarydomain\"},\"correlationId\":\"s-correlationid\",\"createTime\":\"s-createtime\",\"customerAttestationState\":\"s-customerattestationstate\",\"domain\":\"s-domain\",\"languageCode\":\"s-languagecode\",\"name\":\"s-name\",\"orgDisplayName\":\"s-orgdisplayname\",\"orgPostalAddress\":{\"addressLines\":[\"s-addresslines\"],\"administrativeArea\":\"s-administrativearea\",\"languageCode\":\"s-languagecode\",\"locality\":\"s-locality\",\"organization\":\"s-organization\",\"postalCode\":\"s-postalcode\",\"recipients\":[\"s-recipients\"],\"regionCode\":\"s-regioncode\",\"revision\":7,\"sortingCode\":\"s-sortingcode\",\"sublocality\":\"s-sublocality\"},\"primaryContactInfo\":{\"displayName\":\"s-displayname\",\"email\":\"s-email\",\"firstName\":\"s-firstname\",\"lastName\":\"s-lastname\",\"phone\":\"s-phone\",\"title\":\"s-title\"},\"updateTime\":\"s-updatetime\"}",
   "OUT: {\"alternateEmail\":\"s-alternateemail\",\"channelPartnerId\":\"s-channelpartnerid\",\"cloudIdentityId\":\"s-cloudidentityid\",\"cloudIdentityInfo\":{\"adminConsoleUri\":\"s-adminconsoleuri\",\"alternateEmail\":\"s-alternateemail\",\"customerType\":\"s-customertype\",\"eduData\":{\"instituteSize\":\"s-institutesize\",\"instituteType\":\"s-institutetype\",\"website\":\"s-website\"},\"isDomainVerified\":true,\"languageCode\":\"s-languagecode\",\"phoneNumber\":\"s-phonenumber\",\"primaryDomain\":\"s-primarydomain\"},\"correlationId\":\"s-correlationid\",\"createTime\":\"s-createtime\",\"customerAttestationState\":\"s-customerattestationstate\",\"domain\":\"s-domain\",\"languageCode\":\"s-languagecode\",\"name\":\"s-name\",\"orgDisplayName\":\"s-orgdisplayname\",\"orgPostalAddress\":{\"addressLines\":[\"s-addresslines\"],\"administrativeArea\":\"s-administrativearea\",\"languageCode\":\"s-languagecode\",\"locality\":\"s-locality\",\"organization\":\"s-organization\",\"postalCode\":\"s-postalcode\",\"recipients\":[\"s-recipients\"],\"regionCode\":\"s-regioncode\",\"revision\":7,\"sortingCode\":\"s-sortingcode\",\"sublocality\":\"s-sublocality\"},\"primaryContactInfo\":{\"displayName\":\"s-displayname\",\"email\":\"s-email\",\"firstName\":\"s-firstname\",\"lastName\":\"s-lastname\",\"phone\":\"s-phone\",\"title\":\"s-title\"},\"updateTime\":\"s-updatetime\"}",
@@ -351,10 +545,10 @@ test "Go's cloudchannel.accounts.channelPartnerLinks.customers.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_15)
+  gv_compare(gv_log_of(f), GO_20)
 }
 
-const GO_16: List[Str] = [
+const GO_21: List[Str] = [
   "CALL cloudchannel.accounts.channelPartnerLinks.customers.delete",
   "REQ DELETE https://cloudchannel.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -372,10 +566,10 @@ test "Go's cloudchannel.accounts.channelPartnerLinks.customers.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_16)
+  gv_compare(gv_log_of(f), GO_21)
 }
 
-const GO_17: List[Str] = [
+const GO_22: List[Str] = [
   "CALL cloudchannel.accounts.channelPartnerLinks.customers.get",
   "REQ GET https://cloudchannel.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -393,10 +587,10 @@ test "Go's cloudchannel.accounts.channelPartnerLinks.customers.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_17)
+  gv_compare(gv_log_of(f), GO_22)
 }
 
-const GO_18: List[Str] = [
+const GO_23: List[Str] = [
   "CALL cloudchannel.accounts.channelPartnerLinks.customers.import",
   "REQ POST https://cloudchannel.googleapis.com/v1/id1/%20x/customers:import?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -415,10 +609,10 @@ test "Go's cloudchannel.accounts.channelPartnerLinks.customers.import" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_18)
+  gv_compare(gv_log_of(f), GO_23)
 }
 
-const GO_19: List[Str] = [
+const GO_24: List[Str] = [
   "CALL cloudchannel.accounts.channelPartnerLinks.customers.list",
   "REQ GET https://cloudchannel.googleapis.com/v1/id1/%20x/customers?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -436,14 +630,52 @@ test "Go's cloudchannel.accounts.channelPartnerLinks.customers.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_19)
+  gv_compare(gv_log_of(f), GO_24)
 }
 
-const GO_20: List[Str] = [
+const GO_25: List[Str] = [
+  "CALL cloudchannel.accounts.channelPartnerLinks.customers.list pages",
+  "REQ GET https://cloudchannel.googleapis.com/v1/id1/%20x/customers?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"customers\":[{\"alternateEmail\":\"s-alternateemail\",\"channelPartnerId\":\"s-channelpartnerid\",\"cloudIdentityId\":\"s-cloudidentityid\",\"cloudIdentityInfo\":{\"adminConsoleUri\":\"s-adminconsoleuri\",\"alternateEmail\":\"s-alternateemail\",\"customerType\":\"s-customertype\",\"isDomainVerified\":true,\"languageCode\":\"s-languagecode\",\"phoneNumber\":\"s-phonenumber\",\"primaryDomain\":\"s-primarydomain\"},\"correlationId\":\"s-correlationid\",\"createTime\":\"s-createtime\",\"customerAttestationState\":\"s-customerattestationstate\",\"domain\":\"s-domain\",\"languageCode\":\"s-languagecode\",\"name\":\"s-name\",\"orgDisplayName\":\"s-orgdisplayname\",\"orgPostalAddress\":{\"administrativeArea\":\"s-administrativearea\",\"languageCode\":\"s-languagecode\",\"locality\":\"s-locality\",\"organization\":\"s-organization\",\"postalCode\":\"s-postalcode\",\"regionCode\":\"s-regioncode\",\"revision\":7,\"sortingCode\":\"s-sortingcode\",\"sublocality\":\"s-sublocality\"},\"primaryContactInfo\":{\"displayName\":\"s-displayname\",\"email\":\"s-email\",\"firstName\":\"s-firstname\",\"lastName\":\"s-lastname\",\"phone\":\"s-phone\",\"title\":\"s-title\"},\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"customers\":[{\"alternateEmail\":\"s-alternateemail\",\"channelPartnerId\":\"s-channelpartnerid\",\"cloudIdentityId\":\"s-cloudidentityid\",\"cloudIdentityInfo\":{\"adminConsoleUri\":\"s-adminconsoleuri\",\"alternateEmail\":\"s-alternateemail\",\"customerType\":\"s-customertype\",\"isDomainVerified\":true,\"languageCode\":\"s-languagecode\",\"phoneNumber\":\"s-phonenumber\",\"primaryDomain\":\"s-primarydomain\"},\"correlationId\":\"s-correlationid\",\"createTime\":\"s-createtime\",\"customerAttestationState\":\"s-customerattestationstate\",\"domain\":\"s-domain\",\"languageCode\":\"s-languagecode\",\"name\":\"s-name\",\"orgDisplayName\":\"s-orgdisplayname\",\"orgPostalAddress\":{\"administrativeArea\":\"s-administrativearea\",\"languageCode\":\"s-languagecode\",\"locality\":\"s-locality\",\"organization\":\"s-organization\",\"postalCode\":\"s-postalcode\",\"regionCode\":\"s-regioncode\",\"revision\":7,\"sortingCode\":\"s-sortingcode\",\"sublocality\":\"s-sublocality\"},\"primaryContactInfo\":{\"displayName\":\"s-displayname\",\"email\":\"s-email\",\"firstName\":\"s-firstname\",\"lastName\":\"s-lastname\",\"phone\":\"s-phone\",\"title\":\"s-title\"},\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://cloudchannel.googleapis.com/v1/id1/%20x/customers?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"customers\":[{\"alternateEmail\":\"s-alternateemail\",\"channelPartnerId\":\"s-channelpartnerid\",\"cloudIdentityId\":\"s-cloudidentityid\",\"cloudIdentityInfo\":{\"adminConsoleUri\":\"s-adminconsoleuri\",\"alternateEmail\":\"s-alternateemail\",\"customerType\":\"s-customertype\",\"isDomainVerified\":true,\"languageCode\":\"s-languagecode\",\"phoneNumber\":\"s-phonenumber\",\"primaryDomain\":\"s-primarydomain\"},\"correlationId\":\"s-correlationid\",\"createTime\":\"s-createtime\",\"customerAttestationState\":\"s-customerattestationstate\",\"domain\":\"s-domain\",\"languageCode\":\"s-languagecode\",\"name\":\"s-name\",\"orgDisplayName\":\"s-orgdisplayname\",\"orgPostalAddress\":{\"administrativeArea\":\"s-administrativearea\",\"languageCode\":\"s-languagecode\",\"locality\":\"s-locality\",\"organization\":\"s-organization\",\"postalCode\":\"s-postalcode\",\"regionCode\":\"s-regioncode\",\"revision\":7,\"sortingCode\":\"s-sortingcode\",\"sublocality\":\"s-sublocality\"},\"primaryContactInfo\":{\"displayName\":\"s-displayname\",\"email\":\"s-email\",\"firstName\":\"s-firstname\",\"lastName\":\"s-lastname\",\"phone\":\"s-phone\",\"title\":\"s-title\"},\"updateTime\":\"s-updatetime\"}]}",
+  "OUT: {\"customers\":[{\"alternateEmail\":\"s-alternateemail\",\"channelPartnerId\":\"s-channelpartnerid\",\"cloudIdentityId\":\"s-cloudidentityid\",\"cloudIdentityInfo\":{\"adminConsoleUri\":\"s-adminconsoleuri\",\"alternateEmail\":\"s-alternateemail\",\"customerType\":\"s-customertype\",\"isDomainVerified\":true,\"languageCode\":\"s-languagecode\",\"phoneNumber\":\"s-phonenumber\",\"primaryDomain\":\"s-primarydomain\"},\"correlationId\":\"s-correlationid\",\"createTime\":\"s-createtime\",\"customerAttestationState\":\"s-customerattestationstate\",\"domain\":\"s-domain\",\"languageCode\":\"s-languagecode\",\"name\":\"s-name\",\"orgDisplayName\":\"s-orgdisplayname\",\"orgPostalAddress\":{\"administrativeArea\":\"s-administrativearea\",\"languageCode\":\"s-languagecode\",\"locality\":\"s-locality\",\"organization\":\"s-organization\",\"postalCode\":\"s-postalcode\",\"regionCode\":\"s-regioncode\",\"revision\":7,\"sortingCode\":\"s-sortingcode\",\"sublocality\":\"s-sublocality\"},\"primaryContactInfo\":{\"displayName\":\"s-displayname\",\"email\":\"s-email\",\"firstName\":\"s-firstname\",\"lastName\":\"s-lastname\",\"phone\":\"s-phone\",\"title\":\"s-title\"},\"updateTime\":\"s-updatetime\"}]}",
+  "OUT: ok",
+]
+
+test "Go's cloudchannel.accounts.channelPartnerLinks.customers.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"customers\":[{\"alternateEmail\":\"s-alternateemail\",\"channelPartnerId\":\"s-channelpartnerid\",\"cloudIdentityId\":\"s-cloudidentityid\",\"cloudIdentityInfo\":{\"adminConsoleUri\":\"s-adminconsoleuri\",\"alternateEmail\":\"s-alternateemail\",\"customerType\":\"s-customertype\",\"isDomainVerified\":true,\"languageCode\":\"s-languagecode\",\"phoneNumber\":\"s-phonenumber\",\"primaryDomain\":\"s-primarydomain\"},\"correlationId\":\"s-correlationid\",\"createTime\":\"s-createtime\",\"customerAttestationState\":\"s-customerattestationstate\",\"domain\":\"s-domain\",\"languageCode\":\"s-languagecode\",\"name\":\"s-name\",\"orgDisplayName\":\"s-orgdisplayname\",\"orgPostalAddress\":{\"administrativeArea\":\"s-administrativearea\",\"languageCode\":\"s-languagecode\",\"locality\":\"s-locality\",\"organization\":\"s-organization\",\"postalCode\":\"s-postalcode\",\"regionCode\":\"s-regioncode\",\"revision\":7,\"sortingCode\":\"s-sortingcode\",\"sublocality\":\"s-sublocality\"},\"primaryContactInfo\":{\"displayName\":\"s-displayname\",\"email\":\"s-email\",\"firstName\":\"s-firstname\",\"lastName\":\"s-lastname\",\"phone\":\"s-phone\",\"title\":\"s-title\"},\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"customers\":[{\"alternateEmail\":\"s-alternateemail\",\"channelPartnerId\":\"s-channelpartnerid\",\"cloudIdentityId\":\"s-cloudidentityid\",\"cloudIdentityInfo\":{\"adminConsoleUri\":\"s-adminconsoleuri\",\"alternateEmail\":\"s-alternateemail\",\"customerType\":\"s-customertype\",\"isDomainVerified\":true,\"languageCode\":\"s-languagecode\",\"phoneNumber\":\"s-phonenumber\",\"primaryDomain\":\"s-primarydomain\"},\"correlationId\":\"s-correlationid\",\"createTime\":\"s-createtime\",\"customerAttestationState\":\"s-customerattestationstate\",\"domain\":\"s-domain\",\"languageCode\":\"s-languagecode\",\"name\":\"s-name\",\"orgDisplayName\":\"s-orgdisplayname\",\"orgPostalAddress\":{\"administrativeArea\":\"s-administrativearea\",\"languageCode\":\"s-languagecode\",\"locality\":\"s-locality\",\"organization\":\"s-organization\",\"postalCode\":\"s-postalcode\",\"regionCode\":\"s-regioncode\",\"revision\":7,\"sortingCode\":\"s-sortingcode\",\"sublocality\":\"s-sublocality\"},\"primaryContactInfo\":{\"displayName\":\"s-displayname\",\"email\":\"s-email\",\"firstName\":\"s-firstname\",\"lastName\":\"s-lastname\",\"phone\":\"s-phone\",\"title\":\"s-title\"},\"updateTime\":\"s-updatetime\"}]}")
+  gv_note(f, "CALL cloudchannel.accounts.channelPartnerLinks.customers.list pages")
+  var p = svc.accounts.channel_partner_links.customers.list_pages("id1/ x", options: AccountsChannelPartnerLinksCustomersListOptions{filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_25)
+}
+
+const GO_26: List[Str] = [
   "CALL cloudchannel.accounts.channelPartnerLinks.customers.patch",
   "REQ PATCH https://cloudchannel.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"alternateEmail\":\"s-alternateemail\",\"channelPartnerId\":\"s-channelpartnerid\",\"cloudIdentityId\":\"s-cloudidentityid\",\"cloudIdentityInfo\":{\"adminConsoleUri\":\"s-adminconsoleuri\",\"alternateEmail\":\"s-alternateemail\",\"customerType\":\"s-customertype\",\"eduData\":{\"instituteSize\":\"s-institutesize\",\"instituteType\":\"s-institutetype\",\"website\":\"s-website\"},\"isDomainVerified\":true,\"languageCode\":\"s-languagecode\",\"phoneNumber\":\"s-phonenumber\",\"primaryDomain\":\"s-primarydomain\"},\"correlationId\":\"s-correlationid\",\"createTime\":\"s-createtime\",\"customerAttestationState\":\"s-customerattestationstate\",\"domain\":\"s-domain\",\"languageCode\":\"s-languagecode\",\"name\":\"s-name\",\"orgDisplayName\":\"s-orgdisplayname\",\"orgPostalAddress\":{\"addressLines\":[\"s-addresslines\"],\"administrativeArea\":\"s-administrativearea\",\"languageCode\":\"s-languagecode\",\"locality\":\"s-locality\",\"organization\":\"s-organization\",\"postalCode\":\"s-postalcode\",\"recipients\":[\"s-recipients\"],\"regionCode\":\"s-regioncode\",\"revision\":7,\"sortingCode\":\"s-sortingcode\",\"sublocality\":\"s-sublocality\"},\"primaryContactInfo\":{\"displayName\":\"s-displayname\",\"email\":\"s-email\",\"firstName\":\"s-firstname\",\"lastName\":\"s-lastname\",\"phone\":\"s-phone\",\"title\":\"s-title\"},\"updateTime\":\"s-updatetime\"}",
+  "  B <1219 bytes> {\"alternateEmail\":\"s-alternateem...\"},\"updateTime\":\"s-updatetime\"}",
   "",
   "  SERVED 200 {\"alternateEmail\":\"s-alternateemail\",\"channelPartnerId\":\"s-channelpartnerid\",\"cloudIdentityId\":\"s-cloudidentityid\",\"cloudIdentityInfo\":{\"adminConsoleUri\":\"s-adminconsoleuri\",\"alternateEmail\":\"s-alternateemail\",\"customerType\":\"s-customertype\",\"eduData\":{\"instituteSize\":\"s-institutesize\",\"instituteType\":\"s-institutetype\",\"website\":\"s-website\"},\"isDomainVerified\":true,\"languageCode\":\"s-languagecode\",\"phoneNumber\":\"s-phonenumber\",\"primaryDomain\":\"s-primarydomain\"},\"correlationId\":\"s-correlationid\",\"createTime\":\"s-createtime\",\"customerAttestationState\":\"s-customerattestationstate\",\"domain\":\"s-domain\",\"languageCode\":\"s-languagecode\",\"name\":\"s-name\",\"orgDisplayName\":\"s-orgdisplayname\",\"orgPostalAddress\":{\"addressLines\":[\"s-addresslines\"],\"administrativeArea\":\"s-administrativearea\",\"languageCode\":\"s-languagecode\",\"locality\":\"s-locality\",\"organization\":\"s-organization\",\"postalCode\":\"s-postalcode\",\"recipients\":[\"s-recipients\"],\"regionCode\":\"s-regioncode\",\"revision\":7,\"sortingCode\":\"s-sortingcode\",\"sublocality\":\"s-sublocality\"},\"primaryContactInfo\":{\"displayName\":\"s-displayname\",\"email\":\"s-email\",\"firstName\":\"s-firstname\",\"lastName\":\"s-lastname\",\"phone\":\"s-phone\",\"title\":\"s-title\"},\"updateTime\":\"s-updatetime\"}",
   "OUT: {\"alternateEmail\":\"s-alternateemail\",\"channelPartnerId\":\"s-channelpartnerid\",\"cloudIdentityId\":\"s-cloudidentityid\",\"cloudIdentityInfo\":{\"adminConsoleUri\":\"s-adminconsoleuri\",\"alternateEmail\":\"s-alternateemail\",\"customerType\":\"s-customertype\",\"eduData\":{\"instituteSize\":\"s-institutesize\",\"instituteType\":\"s-institutetype\",\"website\":\"s-website\"},\"isDomainVerified\":true,\"languageCode\":\"s-languagecode\",\"phoneNumber\":\"s-phonenumber\",\"primaryDomain\":\"s-primarydomain\"},\"correlationId\":\"s-correlationid\",\"createTime\":\"s-createtime\",\"customerAttestationState\":\"s-customerattestationstate\",\"domain\":\"s-domain\",\"languageCode\":\"s-languagecode\",\"name\":\"s-name\",\"orgDisplayName\":\"s-orgdisplayname\",\"orgPostalAddress\":{\"addressLines\":[\"s-addresslines\"],\"administrativeArea\":\"s-administrativearea\",\"languageCode\":\"s-languagecode\",\"locality\":\"s-locality\",\"organization\":\"s-organization\",\"postalCode\":\"s-postalcode\",\"recipients\":[\"s-recipients\"],\"regionCode\":\"s-regioncode\",\"revision\":7,\"sortingCode\":\"s-sortingcode\",\"sublocality\":\"s-sublocality\"},\"primaryContactInfo\":{\"displayName\":\"s-displayname\",\"email\":\"s-email\",\"firstName\":\"s-firstname\",\"lastName\":\"s-lastname\",\"phone\":\"s-phone\",\"title\":\"s-title\"},\"updateTime\":\"s-updatetime\"}",
@@ -458,14 +690,14 @@ test "Go's cloudchannel.accounts.channelPartnerLinks.customers.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_20)
+  gv_compare(gv_log_of(f), GO_26)
 }
 
-const GO_21: List[Str] = [
+const GO_27: List[Str] = [
   "CALL cloudchannel.accounts.customers.create",
   "REQ POST https://cloudchannel.googleapis.com/v1/id1/%20x/customers?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"alternateEmail\":\"s-alternateemail\",\"channelPartnerId\":\"s-channelpartnerid\",\"cloudIdentityId\":\"s-cloudidentityid\",\"cloudIdentityInfo\":{\"adminConsoleUri\":\"s-adminconsoleuri\",\"alternateEmail\":\"s-alternateemail\",\"customerType\":\"s-customertype\",\"eduData\":{\"instituteSize\":\"s-institutesize\",\"instituteType\":\"s-institutetype\",\"website\":\"s-website\"},\"isDomainVerified\":true,\"languageCode\":\"s-languagecode\",\"phoneNumber\":\"s-phonenumber\",\"primaryDomain\":\"s-primarydomain\"},\"correlationId\":\"s-correlationid\",\"createTime\":\"s-createtime\",\"customerAttestationState\":\"s-customerattestationstate\",\"domain\":\"s-domain\",\"languageCode\":\"s-languagecode\",\"name\":\"s-name\",\"orgDisplayName\":\"s-orgdisplayname\",\"orgPostalAddress\":{\"addressLines\":[\"s-addresslines\"],\"administrativeArea\":\"s-administrativearea\",\"languageCode\":\"s-languagecode\",\"locality\":\"s-locality\",\"organization\":\"s-organization\",\"postalCode\":\"s-postalcode\",\"recipients\":[\"s-recipients\"],\"regionCode\":\"s-regioncode\",\"revision\":7,\"sortingCode\":\"s-sortingcode\",\"sublocality\":\"s-sublocality\"},\"primaryContactInfo\":{\"displayName\":\"s-displayname\",\"email\":\"s-email\",\"firstName\":\"s-firstname\",\"lastName\":\"s-lastname\",\"phone\":\"s-phone\",\"title\":\"s-title\"},\"updateTime\":\"s-updatetime\"}",
+  "  B <1219 bytes> {\"alternateEmail\":\"s-alternateem...\"},\"updateTime\":\"s-updatetime\"}",
   "",
   "  SERVED 200 {\"alternateEmail\":\"s-alternateemail\",\"channelPartnerId\":\"s-channelpartnerid\",\"cloudIdentityId\":\"s-cloudidentityid\",\"cloudIdentityInfo\":{\"adminConsoleUri\":\"s-adminconsoleuri\",\"alternateEmail\":\"s-alternateemail\",\"customerType\":\"s-customertype\",\"eduData\":{\"instituteSize\":\"s-institutesize\",\"instituteType\":\"s-institutetype\",\"website\":\"s-website\"},\"isDomainVerified\":true,\"languageCode\":\"s-languagecode\",\"phoneNumber\":\"s-phonenumber\",\"primaryDomain\":\"s-primarydomain\"},\"correlationId\":\"s-correlationid\",\"createTime\":\"s-createtime\",\"customerAttestationState\":\"s-customerattestationstate\",\"domain\":\"s-domain\",\"languageCode\":\"s-languagecode\",\"name\":\"s-name\",\"orgDisplayName\":\"s-orgdisplayname\",\"orgPostalAddress\":{\"addressLines\":[\"s-addresslines\"],\"administrativeArea\":\"s-administrativearea\",\"languageCode\":\"s-languagecode\",\"locality\":\"s-locality\",\"organization\":\"s-organization\",\"postalCode\":\"s-postalcode\",\"recipients\":[\"s-recipients\"],\"regionCode\":\"s-regioncode\",\"revision\":7,\"sortingCode\":\"s-sortingcode\",\"sublocality\":\"s-sublocality\"},\"primaryContactInfo\":{\"displayName\":\"s-displayname\",\"email\":\"s-email\",\"firstName\":\"s-firstname\",\"lastName\":\"s-lastname\",\"phone\":\"s-phone\",\"title\":\"s-title\"},\"updateTime\":\"s-updatetime\"}",
   "OUT: {\"alternateEmail\":\"s-alternateemail\",\"channelPartnerId\":\"s-channelpartnerid\",\"cloudIdentityId\":\"s-cloudidentityid\",\"cloudIdentityInfo\":{\"adminConsoleUri\":\"s-adminconsoleuri\",\"alternateEmail\":\"s-alternateemail\",\"customerType\":\"s-customertype\",\"eduData\":{\"instituteSize\":\"s-institutesize\",\"instituteType\":\"s-institutetype\",\"website\":\"s-website\"},\"isDomainVerified\":true,\"languageCode\":\"s-languagecode\",\"phoneNumber\":\"s-phonenumber\",\"primaryDomain\":\"s-primarydomain\"},\"correlationId\":\"s-correlationid\",\"createTime\":\"s-createtime\",\"customerAttestationState\":\"s-customerattestationstate\",\"domain\":\"s-domain\",\"languageCode\":\"s-languagecode\",\"name\":\"s-name\",\"orgDisplayName\":\"s-orgdisplayname\",\"orgPostalAddress\":{\"addressLines\":[\"s-addresslines\"],\"administrativeArea\":\"s-administrativearea\",\"languageCode\":\"s-languagecode\",\"locality\":\"s-locality\",\"organization\":\"s-organization\",\"postalCode\":\"s-postalcode\",\"recipients\":[\"s-recipients\"],\"regionCode\":\"s-regioncode\",\"revision\":7,\"sortingCode\":\"s-sortingcode\",\"sublocality\":\"s-sublocality\"},\"primaryContactInfo\":{\"displayName\":\"s-displayname\",\"email\":\"s-email\",\"firstName\":\"s-firstname\",\"lastName\":\"s-lastname\",\"phone\":\"s-phone\",\"title\":\"s-title\"},\"updateTime\":\"s-updatetime\"}",
@@ -480,10 +712,10 @@ test "Go's cloudchannel.accounts.customers.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_21)
+  gv_compare(gv_log_of(f), GO_27)
 }
 
-const GO_22: List[Str] = [
+const GO_28: List[Str] = [
   "CALL cloudchannel.accounts.customers.delete",
   "REQ DELETE https://cloudchannel.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -501,10 +733,10 @@ test "Go's cloudchannel.accounts.customers.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_22)
+  gv_compare(gv_log_of(f), GO_28)
 }
 
-const GO_23: List[Str] = [
+const GO_29: List[Str] = [
   "CALL cloudchannel.accounts.customers.get",
   "REQ GET https://cloudchannel.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -522,10 +754,10 @@ test "Go's cloudchannel.accounts.customers.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_23)
+  gv_compare(gv_log_of(f), GO_29)
 }
 
-const GO_24: List[Str] = [
+const GO_30: List[Str] = [
   "CALL cloudchannel.accounts.customers.import",
   "REQ POST https://cloudchannel.googleapis.com/v1/id1/%20x/customers:import?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -544,10 +776,10 @@ test "Go's cloudchannel.accounts.customers.import" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_24)
+  gv_compare(gv_log_of(f), GO_30)
 }
 
-const GO_25: List[Str] = [
+const GO_31: List[Str] = [
   "CALL cloudchannel.accounts.customers.list",
   "REQ GET https://cloudchannel.googleapis.com/v1/id1/%20x/customers?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -565,10 +797,48 @@ test "Go's cloudchannel.accounts.customers.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_25)
+  gv_compare(gv_log_of(f), GO_31)
 }
 
-const GO_26: List[Str] = [
+const GO_32: List[Str] = [
+  "CALL cloudchannel.accounts.customers.list pages",
+  "REQ GET https://cloudchannel.googleapis.com/v1/id1/%20x/customers?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"customers\":[{\"alternateEmail\":\"s-alternateemail\",\"channelPartnerId\":\"s-channelpartnerid\",\"cloudIdentityId\":\"s-cloudidentityid\",\"cloudIdentityInfo\":{\"adminConsoleUri\":\"s-adminconsoleuri\",\"alternateEmail\":\"s-alternateemail\",\"customerType\":\"s-customertype\",\"isDomainVerified\":true,\"languageCode\":\"s-languagecode\",\"phoneNumber\":\"s-phonenumber\",\"primaryDomain\":\"s-primarydomain\"},\"correlationId\":\"s-correlationid\",\"createTime\":\"s-createtime\",\"customerAttestationState\":\"s-customerattestationstate\",\"domain\":\"s-domain\",\"languageCode\":\"s-languagecode\",\"name\":\"s-name\",\"orgDisplayName\":\"s-orgdisplayname\",\"orgPostalAddress\":{\"administrativeArea\":\"s-administrativearea\",\"languageCode\":\"s-languagecode\",\"locality\":\"s-locality\",\"organization\":\"s-organization\",\"postalCode\":\"s-postalcode\",\"regionCode\":\"s-regioncode\",\"revision\":7,\"sortingCode\":\"s-sortingcode\",\"sublocality\":\"s-sublocality\"},\"primaryContactInfo\":{\"displayName\":\"s-displayname\",\"email\":\"s-email\",\"firstName\":\"s-firstname\",\"lastName\":\"s-lastname\",\"phone\":\"s-phone\",\"title\":\"s-title\"},\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"customers\":[{\"alternateEmail\":\"s-alternateemail\",\"channelPartnerId\":\"s-channelpartnerid\",\"cloudIdentityId\":\"s-cloudidentityid\",\"cloudIdentityInfo\":{\"adminConsoleUri\":\"s-adminconsoleuri\",\"alternateEmail\":\"s-alternateemail\",\"customerType\":\"s-customertype\",\"isDomainVerified\":true,\"languageCode\":\"s-languagecode\",\"phoneNumber\":\"s-phonenumber\",\"primaryDomain\":\"s-primarydomain\"},\"correlationId\":\"s-correlationid\",\"createTime\":\"s-createtime\",\"customerAttestationState\":\"s-customerattestationstate\",\"domain\":\"s-domain\",\"languageCode\":\"s-languagecode\",\"name\":\"s-name\",\"orgDisplayName\":\"s-orgdisplayname\",\"orgPostalAddress\":{\"administrativeArea\":\"s-administrativearea\",\"languageCode\":\"s-languagecode\",\"locality\":\"s-locality\",\"organization\":\"s-organization\",\"postalCode\":\"s-postalcode\",\"regionCode\":\"s-regioncode\",\"revision\":7,\"sortingCode\":\"s-sortingcode\",\"sublocality\":\"s-sublocality\"},\"primaryContactInfo\":{\"displayName\":\"s-displayname\",\"email\":\"s-email\",\"firstName\":\"s-firstname\",\"lastName\":\"s-lastname\",\"phone\":\"s-phone\",\"title\":\"s-title\"},\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://cloudchannel.googleapis.com/v1/id1/%20x/customers?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"customers\":[{\"alternateEmail\":\"s-alternateemail\",\"channelPartnerId\":\"s-channelpartnerid\",\"cloudIdentityId\":\"s-cloudidentityid\",\"cloudIdentityInfo\":{\"adminConsoleUri\":\"s-adminconsoleuri\",\"alternateEmail\":\"s-alternateemail\",\"customerType\":\"s-customertype\",\"isDomainVerified\":true,\"languageCode\":\"s-languagecode\",\"phoneNumber\":\"s-phonenumber\",\"primaryDomain\":\"s-primarydomain\"},\"correlationId\":\"s-correlationid\",\"createTime\":\"s-createtime\",\"customerAttestationState\":\"s-customerattestationstate\",\"domain\":\"s-domain\",\"languageCode\":\"s-languagecode\",\"name\":\"s-name\",\"orgDisplayName\":\"s-orgdisplayname\",\"orgPostalAddress\":{\"administrativeArea\":\"s-administrativearea\",\"languageCode\":\"s-languagecode\",\"locality\":\"s-locality\",\"organization\":\"s-organization\",\"postalCode\":\"s-postalcode\",\"regionCode\":\"s-regioncode\",\"revision\":7,\"sortingCode\":\"s-sortingcode\",\"sublocality\":\"s-sublocality\"},\"primaryContactInfo\":{\"displayName\":\"s-displayname\",\"email\":\"s-email\",\"firstName\":\"s-firstname\",\"lastName\":\"s-lastname\",\"phone\":\"s-phone\",\"title\":\"s-title\"},\"updateTime\":\"s-updatetime\"}]}",
+  "OUT: {\"customers\":[{\"alternateEmail\":\"s-alternateemail\",\"channelPartnerId\":\"s-channelpartnerid\",\"cloudIdentityId\":\"s-cloudidentityid\",\"cloudIdentityInfo\":{\"adminConsoleUri\":\"s-adminconsoleuri\",\"alternateEmail\":\"s-alternateemail\",\"customerType\":\"s-customertype\",\"isDomainVerified\":true,\"languageCode\":\"s-languagecode\",\"phoneNumber\":\"s-phonenumber\",\"primaryDomain\":\"s-primarydomain\"},\"correlationId\":\"s-correlationid\",\"createTime\":\"s-createtime\",\"customerAttestationState\":\"s-customerattestationstate\",\"domain\":\"s-domain\",\"languageCode\":\"s-languagecode\",\"name\":\"s-name\",\"orgDisplayName\":\"s-orgdisplayname\",\"orgPostalAddress\":{\"administrativeArea\":\"s-administrativearea\",\"languageCode\":\"s-languagecode\",\"locality\":\"s-locality\",\"organization\":\"s-organization\",\"postalCode\":\"s-postalcode\",\"regionCode\":\"s-regioncode\",\"revision\":7,\"sortingCode\":\"s-sortingcode\",\"sublocality\":\"s-sublocality\"},\"primaryContactInfo\":{\"displayName\":\"s-displayname\",\"email\":\"s-email\",\"firstName\":\"s-firstname\",\"lastName\":\"s-lastname\",\"phone\":\"s-phone\",\"title\":\"s-title\"},\"updateTime\":\"s-updatetime\"}]}",
+  "OUT: ok",
+]
+
+test "Go's cloudchannel.accounts.customers.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"customers\":[{\"alternateEmail\":\"s-alternateemail\",\"channelPartnerId\":\"s-channelpartnerid\",\"cloudIdentityId\":\"s-cloudidentityid\",\"cloudIdentityInfo\":{\"adminConsoleUri\":\"s-adminconsoleuri\",\"alternateEmail\":\"s-alternateemail\",\"customerType\":\"s-customertype\",\"isDomainVerified\":true,\"languageCode\":\"s-languagecode\",\"phoneNumber\":\"s-phonenumber\",\"primaryDomain\":\"s-primarydomain\"},\"correlationId\":\"s-correlationid\",\"createTime\":\"s-createtime\",\"customerAttestationState\":\"s-customerattestationstate\",\"domain\":\"s-domain\",\"languageCode\":\"s-languagecode\",\"name\":\"s-name\",\"orgDisplayName\":\"s-orgdisplayname\",\"orgPostalAddress\":{\"administrativeArea\":\"s-administrativearea\",\"languageCode\":\"s-languagecode\",\"locality\":\"s-locality\",\"organization\":\"s-organization\",\"postalCode\":\"s-postalcode\",\"regionCode\":\"s-regioncode\",\"revision\":7,\"sortingCode\":\"s-sortingcode\",\"sublocality\":\"s-sublocality\"},\"primaryContactInfo\":{\"displayName\":\"s-displayname\",\"email\":\"s-email\",\"firstName\":\"s-firstname\",\"lastName\":\"s-lastname\",\"phone\":\"s-phone\",\"title\":\"s-title\"},\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"customers\":[{\"alternateEmail\":\"s-alternateemail\",\"channelPartnerId\":\"s-channelpartnerid\",\"cloudIdentityId\":\"s-cloudidentityid\",\"cloudIdentityInfo\":{\"adminConsoleUri\":\"s-adminconsoleuri\",\"alternateEmail\":\"s-alternateemail\",\"customerType\":\"s-customertype\",\"isDomainVerified\":true,\"languageCode\":\"s-languagecode\",\"phoneNumber\":\"s-phonenumber\",\"primaryDomain\":\"s-primarydomain\"},\"correlationId\":\"s-correlationid\",\"createTime\":\"s-createtime\",\"customerAttestationState\":\"s-customerattestationstate\",\"domain\":\"s-domain\",\"languageCode\":\"s-languagecode\",\"name\":\"s-name\",\"orgDisplayName\":\"s-orgdisplayname\",\"orgPostalAddress\":{\"administrativeArea\":\"s-administrativearea\",\"languageCode\":\"s-languagecode\",\"locality\":\"s-locality\",\"organization\":\"s-organization\",\"postalCode\":\"s-postalcode\",\"regionCode\":\"s-regioncode\",\"revision\":7,\"sortingCode\":\"s-sortingcode\",\"sublocality\":\"s-sublocality\"},\"primaryContactInfo\":{\"displayName\":\"s-displayname\",\"email\":\"s-email\",\"firstName\":\"s-firstname\",\"lastName\":\"s-lastname\",\"phone\":\"s-phone\",\"title\":\"s-title\"},\"updateTime\":\"s-updatetime\"}]}")
+  gv_note(f, "CALL cloudchannel.accounts.customers.list pages")
+  var p = svc.accounts.customers.list_pages("id1/ x", options: AccountsCustomersListOptions{filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_32)
+}
+
+const GO_33: List[Str] = [
   "CALL cloudchannel.accounts.customers.listPurchasableOffers",
   "REQ GET https://cloudchannel.googleapis.com/v1/id1/%20x:listPurchasableOffers?alt=json&changeOfferPurchase.billingAccount=s-changeofferpurchase.billingaccount&changeOfferPurchase.entitlement=s-changeofferpurchase.entitlement&changeOfferPurchase.newSku=s-changeofferpurchase.newsku&createEntitlementPurchase.billingAccount=s-createentitlementpurchase.billingaccount&createEntitlementPurchase.sku=s-createentitlementpurchase.sku&fields=kind%2Cid&languageCode=s-languagecode&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -586,10 +856,48 @@ test "Go's cloudchannel.accounts.customers.listPurchasableOffers" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_26)
+  gv_compare(gv_log_of(f), GO_33)
 }
 
-const GO_27: List[Str] = [
+const GO_34: List[Str] = [
+  "CALL cloudchannel.accounts.customers.listPurchasableOffers pages",
+  "REQ GET https://cloudchannel.googleapis.com/v1/id1/%20x:listPurchasableOffers?alt=json&changeOfferPurchase.billingAccount=s-changeofferpurchase.billingaccount&changeOfferPurchase.entitlement=s-changeofferpurchase.entitlement&changeOfferPurchase.newSku=s-changeofferpurchase.newsku&createEntitlementPurchase.billingAccount=s-createentitlementpurchase.billingaccount&createEntitlementPurchase.sku=s-createentitlementpurchase.sku&fields=kind%2Cid&languageCode=s-languagecode&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"purchasableOffers\":[{\"offer\":{\"dealCode\":\"s-dealcode\",\"endTime\":\"s-endtime\",\"name\":\"s-name\",\"startTime\":\"s-starttime\"},\"priceReferenceId\":\"s-pricereferenceid\"}]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"purchasableOffers\":[{\"offer\":{\"dealCode\":\"s-dealcode\",\"endTime\":\"s-endtime\",\"name\":\"s-name\",\"startTime\":\"s-starttime\"},\"priceReferenceId\":\"s-pricereferenceid\"}]}",
+  "REQ GET https://cloudchannel.googleapis.com/v1/id1/%20x:listPurchasableOffers?alt=json&changeOfferPurchase.billingAccount=s-changeofferpurchase.billingaccount&changeOfferPurchase.entitlement=s-changeofferpurchase.entitlement&changeOfferPurchase.newSku=s-changeofferpurchase.newsku&createEntitlementPurchase.billingAccount=s-createentitlementpurchase.billingaccount&createEntitlementPurchase.sku=s-createentitlementpurchase.sku&fields=kind%2Cid&languageCode=s-languagecode&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"purchasableOffers\":[{\"offer\":{\"dealCode\":\"s-dealcode\",\"endTime\":\"s-endtime\",\"name\":\"s-name\",\"startTime\":\"s-starttime\"},\"priceReferenceId\":\"s-pricereferenceid\"}]}",
+  "OUT: {\"purchasableOffers\":[{\"offer\":{\"dealCode\":\"s-dealcode\",\"endTime\":\"s-endtime\",\"name\":\"s-name\",\"startTime\":\"s-starttime\"},\"priceReferenceId\":\"s-pricereferenceid\"}]}",
+  "OUT: ok",
+]
+
+test "Go's cloudchannel.accounts.customers.listPurchasableOffers pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"purchasableOffers\":[{\"offer\":{\"dealCode\":\"s-dealcode\",\"endTime\":\"s-endtime\",\"name\":\"s-name\",\"startTime\":\"s-starttime\"},\"priceReferenceId\":\"s-pricereferenceid\"}]}")
+  gv_queue(f, "{\"purchasableOffers\":[{\"offer\":{\"dealCode\":\"s-dealcode\",\"endTime\":\"s-endtime\",\"name\":\"s-name\",\"startTime\":\"s-starttime\"},\"priceReferenceId\":\"s-pricereferenceid\"}]}")
+  gv_note(f, "CALL cloudchannel.accounts.customers.listPurchasableOffers pages")
+  var p = svc.accounts.customers.list_purchasable_offers_pages("id1/ x", options: AccountsCustomersListPurchasableOffersOptions{change_offer_purchase_billing_account: Some("s-changeofferpurchase.billingaccount"), change_offer_purchase_entitlement: Some("s-changeofferpurchase.entitlement"), change_offer_purchase_new_sku: Some("s-changeofferpurchase.newsku"), create_entitlement_purchase_billing_account: Some("s-createentitlementpurchase.billingaccount"), create_entitlement_purchase_sku: Some("s-createentitlementpurchase.sku"), language_code: Some("s-languagecode"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_34)
+}
+
+const GO_35: List[Str] = [
   "CALL cloudchannel.accounts.customers.listPurchasableSkus",
   "REQ GET https://cloudchannel.googleapis.com/v1/id1/%20x:listPurchasableSkus?alt=json&changeOfferPurchase.changeType=s-changeofferpurchase.changetype&changeOfferPurchase.entitlement=s-changeofferpurchase.entitlement&createEntitlementPurchase.product=s-createentitlementpurchase.product&fields=kind%2Cid&languageCode=s-languagecode&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -607,14 +915,52 @@ test "Go's cloudchannel.accounts.customers.listPurchasableSkus" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_27)
+  gv_compare(gv_log_of(f), GO_35)
 }
 
-const GO_28: List[Str] = [
+const GO_36: List[Str] = [
+  "CALL cloudchannel.accounts.customers.listPurchasableSkus pages",
+  "REQ GET https://cloudchannel.googleapis.com/v1/id1/%20x:listPurchasableSkus?alt=json&changeOfferPurchase.changeType=s-changeofferpurchase.changetype&changeOfferPurchase.entitlement=s-changeofferpurchase.entitlement&createEntitlementPurchase.product=s-createentitlementpurchase.product&fields=kind%2Cid&languageCode=s-languagecode&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"purchasableSkus\":[{\"sku\":{\"name\":\"s-name\"}}]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"purchasableSkus\":[{\"sku\":{\"name\":\"s-name\"}}]}",
+  "REQ GET https://cloudchannel.googleapis.com/v1/id1/%20x:listPurchasableSkus?alt=json&changeOfferPurchase.changeType=s-changeofferpurchase.changetype&changeOfferPurchase.entitlement=s-changeofferpurchase.entitlement&createEntitlementPurchase.product=s-createentitlementpurchase.product&fields=kind%2Cid&languageCode=s-languagecode&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"purchasableSkus\":[{\"sku\":{\"name\":\"s-name\"}}]}",
+  "OUT: {\"purchasableSkus\":[{\"sku\":{\"name\":\"s-name\"}}]}",
+  "OUT: ok",
+]
+
+test "Go's cloudchannel.accounts.customers.listPurchasableSkus pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"purchasableSkus\":[{\"sku\":{\"name\":\"s-name\"}}]}")
+  gv_queue(f, "{\"purchasableSkus\":[{\"sku\":{\"name\":\"s-name\"}}]}")
+  gv_note(f, "CALL cloudchannel.accounts.customers.listPurchasableSkus pages")
+  var p = svc.accounts.customers.list_purchasable_skus_pages("id1/ x", options: AccountsCustomersListPurchasableSkusOptions{change_offer_purchase_change_type: Some("s-changeofferpurchase.changetype"), change_offer_purchase_entitlement: Some("s-changeofferpurchase.entitlement"), create_entitlement_purchase_product: Some("s-createentitlementpurchase.product"), language_code: Some("s-languagecode"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_36)
+}
+
+const GO_37: List[Str] = [
   "CALL cloudchannel.accounts.customers.patch",
   "REQ PATCH https://cloudchannel.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"alternateEmail\":\"s-alternateemail\",\"channelPartnerId\":\"s-channelpartnerid\",\"cloudIdentityId\":\"s-cloudidentityid\",\"cloudIdentityInfo\":{\"adminConsoleUri\":\"s-adminconsoleuri\",\"alternateEmail\":\"s-alternateemail\",\"customerType\":\"s-customertype\",\"eduData\":{\"instituteSize\":\"s-institutesize\",\"instituteType\":\"s-institutetype\",\"website\":\"s-website\"},\"isDomainVerified\":true,\"languageCode\":\"s-languagecode\",\"phoneNumber\":\"s-phonenumber\",\"primaryDomain\":\"s-primarydomain\"},\"correlationId\":\"s-correlationid\",\"createTime\":\"s-createtime\",\"customerAttestationState\":\"s-customerattestationstate\",\"domain\":\"s-domain\",\"languageCode\":\"s-languagecode\",\"name\":\"s-name\",\"orgDisplayName\":\"s-orgdisplayname\",\"orgPostalAddress\":{\"addressLines\":[\"s-addresslines\"],\"administrativeArea\":\"s-administrativearea\",\"languageCode\":\"s-languagecode\",\"locality\":\"s-locality\",\"organization\":\"s-organization\",\"postalCode\":\"s-postalcode\",\"recipients\":[\"s-recipients\"],\"regionCode\":\"s-regioncode\",\"revision\":7,\"sortingCode\":\"s-sortingcode\",\"sublocality\":\"s-sublocality\"},\"primaryContactInfo\":{\"displayName\":\"s-displayname\",\"email\":\"s-email\",\"firstName\":\"s-firstname\",\"lastName\":\"s-lastname\",\"phone\":\"s-phone\",\"title\":\"s-title\"},\"updateTime\":\"s-updatetime\"}",
+  "  B <1219 bytes> {\"alternateEmail\":\"s-alternateem...\"},\"updateTime\":\"s-updatetime\"}",
   "",
   "  SERVED 200 {\"alternateEmail\":\"s-alternateemail\",\"channelPartnerId\":\"s-channelpartnerid\",\"cloudIdentityId\":\"s-cloudidentityid\",\"cloudIdentityInfo\":{\"adminConsoleUri\":\"s-adminconsoleuri\",\"alternateEmail\":\"s-alternateemail\",\"customerType\":\"s-customertype\",\"eduData\":{\"instituteSize\":\"s-institutesize\",\"instituteType\":\"s-institutetype\",\"website\":\"s-website\"},\"isDomainVerified\":true,\"languageCode\":\"s-languagecode\",\"phoneNumber\":\"s-phonenumber\",\"primaryDomain\":\"s-primarydomain\"},\"correlationId\":\"s-correlationid\",\"createTime\":\"s-createtime\",\"customerAttestationState\":\"s-customerattestationstate\",\"domain\":\"s-domain\",\"languageCode\":\"s-languagecode\",\"name\":\"s-name\",\"orgDisplayName\":\"s-orgdisplayname\",\"orgPostalAddress\":{\"addressLines\":[\"s-addresslines\"],\"administrativeArea\":\"s-administrativearea\",\"languageCode\":\"s-languagecode\",\"locality\":\"s-locality\",\"organization\":\"s-organization\",\"postalCode\":\"s-postalcode\",\"recipients\":[\"s-recipients\"],\"regionCode\":\"s-regioncode\",\"revision\":7,\"sortingCode\":\"s-sortingcode\",\"sublocality\":\"s-sublocality\"},\"primaryContactInfo\":{\"displayName\":\"s-displayname\",\"email\":\"s-email\",\"firstName\":\"s-firstname\",\"lastName\":\"s-lastname\",\"phone\":\"s-phone\",\"title\":\"s-title\"},\"updateTime\":\"s-updatetime\"}",
   "OUT: {\"alternateEmail\":\"s-alternateemail\",\"channelPartnerId\":\"s-channelpartnerid\",\"cloudIdentityId\":\"s-cloudidentityid\",\"cloudIdentityInfo\":{\"adminConsoleUri\":\"s-adminconsoleuri\",\"alternateEmail\":\"s-alternateemail\",\"customerType\":\"s-customertype\",\"eduData\":{\"instituteSize\":\"s-institutesize\",\"instituteType\":\"s-institutetype\",\"website\":\"s-website\"},\"isDomainVerified\":true,\"languageCode\":\"s-languagecode\",\"phoneNumber\":\"s-phonenumber\",\"primaryDomain\":\"s-primarydomain\"},\"correlationId\":\"s-correlationid\",\"createTime\":\"s-createtime\",\"customerAttestationState\":\"s-customerattestationstate\",\"domain\":\"s-domain\",\"languageCode\":\"s-languagecode\",\"name\":\"s-name\",\"orgDisplayName\":\"s-orgdisplayname\",\"orgPostalAddress\":{\"addressLines\":[\"s-addresslines\"],\"administrativeArea\":\"s-administrativearea\",\"languageCode\":\"s-languagecode\",\"locality\":\"s-locality\",\"organization\":\"s-organization\",\"postalCode\":\"s-postalcode\",\"recipients\":[\"s-recipients\"],\"regionCode\":\"s-regioncode\",\"revision\":7,\"sortingCode\":\"s-sortingcode\",\"sublocality\":\"s-sublocality\"},\"primaryContactInfo\":{\"displayName\":\"s-displayname\",\"email\":\"s-email\",\"firstName\":\"s-firstname\",\"lastName\":\"s-lastname\",\"phone\":\"s-phone\",\"title\":\"s-title\"},\"updateTime\":\"s-updatetime\"}",
@@ -629,10 +975,10 @@ test "Go's cloudchannel.accounts.customers.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_28)
+  gv_compare(gv_log_of(f), GO_37)
 }
 
-const GO_29: List[Str] = [
+const GO_38: List[Str] = [
   "CALL cloudchannel.accounts.customers.provisionCloudIdentity",
   "REQ POST https://cloudchannel.googleapis.com/v1/id1/%20x:provisionCloudIdentity?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -651,10 +997,10 @@ test "Go's cloudchannel.accounts.customers.provisionCloudIdentity" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_29)
+  gv_compare(gv_log_of(f), GO_38)
 }
 
-const GO_30: List[Str] = [
+const GO_39: List[Str] = [
   "CALL cloudchannel.accounts.customers.queryEligibleBillingAccounts",
   "REQ GET https://cloudchannel.googleapis.com/v1/id1/%20x:queryEligibleBillingAccounts?alt=json&fields=kind%2Cid&prettyPrint=false&skus=s-skus",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -672,10 +1018,10 @@ test "Go's cloudchannel.accounts.customers.queryEligibleBillingAccounts" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_30)
+  gv_compare(gv_log_of(f), GO_39)
 }
 
-const GO_31: List[Str] = [
+const GO_40: List[Str] = [
   "CALL cloudchannel.accounts.customers.transferEntitlements",
   "REQ POST https://cloudchannel.googleapis.com/v1/id1/%20x:transferEntitlements?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -694,10 +1040,10 @@ test "Go's cloudchannel.accounts.customers.transferEntitlements" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_31)
+  gv_compare(gv_log_of(f), GO_40)
 }
 
-const GO_32: List[Str] = [
+const GO_41: List[Str] = [
   "CALL cloudchannel.accounts.customers.transferEntitlementsToGoogle",
   "REQ POST https://cloudchannel.googleapis.com/v1/id1/%20x:transferEntitlementsToGoogle?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -716,10 +1062,10 @@ test "Go's cloudchannel.accounts.customers.transferEntitlementsToGoogle" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_32)
+  gv_compare(gv_log_of(f), GO_41)
 }
 
-const GO_33: List[Str] = [
+const GO_42: List[Str] = [
   "CALL cloudchannel.accounts.customers.customerRepricingConfigs.create",
   "REQ POST https://cloudchannel.googleapis.com/v1/id1/%20x/customerRepricingConfigs?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -738,10 +1084,10 @@ test "Go's cloudchannel.accounts.customers.customerRepricingConfigs.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_33)
+  gv_compare(gv_log_of(f), GO_42)
 }
 
-const GO_34: List[Str] = [
+const GO_43: List[Str] = [
   "CALL cloudchannel.accounts.customers.customerRepricingConfigs.delete",
   "REQ DELETE https://cloudchannel.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -759,10 +1105,10 @@ test "Go's cloudchannel.accounts.customers.customerRepricingConfigs.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_34)
+  gv_compare(gv_log_of(f), GO_43)
 }
 
-const GO_35: List[Str] = [
+const GO_44: List[Str] = [
   "CALL cloudchannel.accounts.customers.customerRepricingConfigs.get",
   "REQ GET https://cloudchannel.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -780,10 +1126,10 @@ test "Go's cloudchannel.accounts.customers.customerRepricingConfigs.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_35)
+  gv_compare(gv_log_of(f), GO_44)
 }
 
-const GO_36: List[Str] = [
+const GO_45: List[Str] = [
   "CALL cloudchannel.accounts.customers.customerRepricingConfigs.list",
   "REQ GET https://cloudchannel.googleapis.com/v1/id1/%20x/customerRepricingConfigs?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -801,10 +1147,48 @@ test "Go's cloudchannel.accounts.customers.customerRepricingConfigs.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_36)
+  gv_compare(gv_log_of(f), GO_45)
 }
 
-const GO_37: List[Str] = [
+const GO_46: List[Str] = [
+  "CALL cloudchannel.accounts.customers.customerRepricingConfigs.list pages",
+  "REQ GET https://cloudchannel.googleapis.com/v1/id1/%20x/customerRepricingConfigs?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"customerRepricingConfigs\":[{\"name\":\"s-name\",\"repricingConfig\":{\"rebillingBasis\":\"s-rebillingbasis\"},\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"customerRepricingConfigs\":[{\"name\":\"s-name\",\"repricingConfig\":{\"rebillingBasis\":\"s-rebillingbasis\"},\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://cloudchannel.googleapis.com/v1/id1/%20x/customerRepricingConfigs?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"customerRepricingConfigs\":[{\"name\":\"s-name\",\"repricingConfig\":{\"rebillingBasis\":\"s-rebillingbasis\"},\"updateTime\":\"s-updatetime\"}]}",
+  "OUT: {\"customerRepricingConfigs\":[{\"name\":\"s-name\",\"repricingConfig\":{\"rebillingBasis\":\"s-rebillingbasis\"},\"updateTime\":\"s-updatetime\"}]}",
+  "OUT: ok",
+]
+
+test "Go's cloudchannel.accounts.customers.customerRepricingConfigs.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"customerRepricingConfigs\":[{\"name\":\"s-name\",\"repricingConfig\":{\"rebillingBasis\":\"s-rebillingbasis\"},\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"customerRepricingConfigs\":[{\"name\":\"s-name\",\"repricingConfig\":{\"rebillingBasis\":\"s-rebillingbasis\"},\"updateTime\":\"s-updatetime\"}]}")
+  gv_note(f, "CALL cloudchannel.accounts.customers.customerRepricingConfigs.list pages")
+  var p = svc.accounts.customers.customer_repricing_configs.list_pages("id1/ x", options: AccountsCustomersCustomerRepricingConfigsListOptions{filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_46)
+}
+
+const GO_47: List[Str] = [
   "CALL cloudchannel.accounts.customers.customerRepricingConfigs.patch",
   "REQ PATCH https://cloudchannel.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -823,10 +1207,10 @@ test "Go's cloudchannel.accounts.customers.customerRepricingConfigs.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_37)
+  gv_compare(gv_log_of(f), GO_47)
 }
 
-const GO_38: List[Str] = [
+const GO_48: List[Str] = [
   "CALL cloudchannel.accounts.customers.entitlements.activate",
   "REQ POST https://cloudchannel.googleapis.com/v1/id1/%20x:activate?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -845,10 +1229,10 @@ test "Go's cloudchannel.accounts.customers.entitlements.activate" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_38)
+  gv_compare(gv_log_of(f), GO_48)
 }
 
-const GO_39: List[Str] = [
+const GO_49: List[Str] = [
   "CALL cloudchannel.accounts.customers.entitlements.cancel",
   "REQ POST https://cloudchannel.googleapis.com/v1/id1/%20x:cancel?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -867,10 +1251,10 @@ test "Go's cloudchannel.accounts.customers.entitlements.cancel" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_39)
+  gv_compare(gv_log_of(f), GO_49)
 }
 
-const GO_40: List[Str] = [
+const GO_50: List[Str] = [
   "CALL cloudchannel.accounts.customers.entitlements.changeOffer",
   "REQ POST https://cloudchannel.googleapis.com/v1/id1/%20x:changeOffer?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -889,10 +1273,10 @@ test "Go's cloudchannel.accounts.customers.entitlements.changeOffer" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_40)
+  gv_compare(gv_log_of(f), GO_50)
 }
 
-const GO_41: List[Str] = [
+const GO_51: List[Str] = [
   "CALL cloudchannel.accounts.customers.entitlements.changeParameters",
   "REQ POST https://cloudchannel.googleapis.com/v1/id1/%20x:changeParameters?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -911,10 +1295,10 @@ test "Go's cloudchannel.accounts.customers.entitlements.changeParameters" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_41)
+  gv_compare(gv_log_of(f), GO_51)
 }
 
-const GO_42: List[Str] = [
+const GO_52: List[Str] = [
   "CALL cloudchannel.accounts.customers.entitlements.changeRenewalSettings",
   "REQ POST https://cloudchannel.googleapis.com/v1/id1/%20x:changeRenewalSettings?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -933,10 +1317,10 @@ test "Go's cloudchannel.accounts.customers.entitlements.changeRenewalSettings" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_42)
+  gv_compare(gv_log_of(f), GO_52)
 }
 
-const GO_43: List[Str] = [
+const GO_53: List[Str] = [
   "CALL cloudchannel.accounts.customers.entitlements.create",
   "REQ POST https://cloudchannel.googleapis.com/v1/id1/%20x/entitlements?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -955,10 +1339,10 @@ test "Go's cloudchannel.accounts.customers.entitlements.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_43)
+  gv_compare(gv_log_of(f), GO_53)
 }
 
-const GO_44: List[Str] = [
+const GO_54: List[Str] = [
   "CALL cloudchannel.accounts.customers.entitlements.get",
   "REQ GET https://cloudchannel.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -976,10 +1360,10 @@ test "Go's cloudchannel.accounts.customers.entitlements.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_44)
+  gv_compare(gv_log_of(f), GO_54)
 }
 
-const GO_45: List[Str] = [
+const GO_55: List[Str] = [
   "CALL cloudchannel.accounts.customers.entitlements.list",
   "REQ GET https://cloudchannel.googleapis.com/v1/id1/%20x/entitlements?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -997,10 +1381,48 @@ test "Go's cloudchannel.accounts.customers.entitlements.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_45)
+  gv_compare(gv_log_of(f), GO_55)
 }
 
-const GO_46: List[Str] = [
+const GO_56: List[Str] = [
+  "CALL cloudchannel.accounts.customers.entitlements.list pages",
+  "REQ GET https://cloudchannel.googleapis.com/v1/id1/%20x/entitlements?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"entitlements\":[{\"associationInfo\":{\"baseEntitlement\":\"s-baseentitlement\"},\"billingAccount\":\"s-billingaccount\",\"commitmentSettings\":{\"endTime\":\"s-endtime\",\"startTime\":\"s-starttime\"},\"createTime\":\"s-createtime\",\"name\":\"s-name\",\"offer\":\"s-offer\",\"priceReferenceId\":\"s-pricereferenceid\",\"provisionedService\":{\"productId\":\"s-productid\",\"provisioningId\":\"s-provisioningid\",\"skuId\":\"s-skuid\"},\"provisioningState\":\"s-provisioningstate\",\"purchaseOrderId\":\"s-purchaseorderid\",\"suspensionReasons\":[\"s-suspensionreasons\"],\"trialSettings\":{\"endTime\":\"s-endtime\",\"trial\":true},\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"entitlements\":[{\"associationInfo\":{\"baseEntitlement\":\"s-baseentitlement\"},\"billingAccount\":\"s-billingaccount\",\"commitmentSettings\":{\"endTime\":\"s-endtime\",\"startTime\":\"s-starttime\"},\"createTime\":\"s-createtime\",\"name\":\"s-name\",\"offer\":\"s-offer\",\"priceReferenceId\":\"s-pricereferenceid\",\"provisionedService\":{\"productId\":\"s-productid\",\"provisioningId\":\"s-provisioningid\",\"skuId\":\"s-skuid\"},\"provisioningState\":\"s-provisioningstate\",\"purchaseOrderId\":\"s-purchaseorderid\",\"suspensionReasons\":[\"s-suspensionreasons\"],\"trialSettings\":{\"endTime\":\"s-endtime\",\"trial\":true},\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://cloudchannel.googleapis.com/v1/id1/%20x/entitlements?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"entitlements\":[{\"associationInfo\":{\"baseEntitlement\":\"s-baseentitlement\"},\"billingAccount\":\"s-billingaccount\",\"commitmentSettings\":{\"endTime\":\"s-endtime\",\"startTime\":\"s-starttime\"},\"createTime\":\"s-createtime\",\"name\":\"s-name\",\"offer\":\"s-offer\",\"priceReferenceId\":\"s-pricereferenceid\",\"provisionedService\":{\"productId\":\"s-productid\",\"provisioningId\":\"s-provisioningid\",\"skuId\":\"s-skuid\"},\"provisioningState\":\"s-provisioningstate\",\"purchaseOrderId\":\"s-purchaseorderid\",\"suspensionReasons\":[\"s-suspensionreasons\"],\"trialSettings\":{\"endTime\":\"s-endtime\",\"trial\":true},\"updateTime\":\"s-updatetime\"}]}",
+  "OUT: {\"entitlements\":[{\"associationInfo\":{\"baseEntitlement\":\"s-baseentitlement\"},\"billingAccount\":\"s-billingaccount\",\"commitmentSettings\":{\"endTime\":\"s-endtime\",\"startTime\":\"s-starttime\"},\"createTime\":\"s-createtime\",\"name\":\"s-name\",\"offer\":\"s-offer\",\"priceReferenceId\":\"s-pricereferenceid\",\"provisionedService\":{\"productId\":\"s-productid\",\"provisioningId\":\"s-provisioningid\",\"skuId\":\"s-skuid\"},\"provisioningState\":\"s-provisioningstate\",\"purchaseOrderId\":\"s-purchaseorderid\",\"suspensionReasons\":[\"s-suspensionreasons\"],\"trialSettings\":{\"endTime\":\"s-endtime\",\"trial\":true},\"updateTime\":\"s-updatetime\"}]}",
+  "OUT: ok",
+]
+
+test "Go's cloudchannel.accounts.customers.entitlements.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"entitlements\":[{\"associationInfo\":{\"baseEntitlement\":\"s-baseentitlement\"},\"billingAccount\":\"s-billingaccount\",\"commitmentSettings\":{\"endTime\":\"s-endtime\",\"startTime\":\"s-starttime\"},\"createTime\":\"s-createtime\",\"name\":\"s-name\",\"offer\":\"s-offer\",\"priceReferenceId\":\"s-pricereferenceid\",\"provisionedService\":{\"productId\":\"s-productid\",\"provisioningId\":\"s-provisioningid\",\"skuId\":\"s-skuid\"},\"provisioningState\":\"s-provisioningstate\",\"purchaseOrderId\":\"s-purchaseorderid\",\"suspensionReasons\":[\"s-suspensionreasons\"],\"trialSettings\":{\"endTime\":\"s-endtime\",\"trial\":true},\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"entitlements\":[{\"associationInfo\":{\"baseEntitlement\":\"s-baseentitlement\"},\"billingAccount\":\"s-billingaccount\",\"commitmentSettings\":{\"endTime\":\"s-endtime\",\"startTime\":\"s-starttime\"},\"createTime\":\"s-createtime\",\"name\":\"s-name\",\"offer\":\"s-offer\",\"priceReferenceId\":\"s-pricereferenceid\",\"provisionedService\":{\"productId\":\"s-productid\",\"provisioningId\":\"s-provisioningid\",\"skuId\":\"s-skuid\"},\"provisioningState\":\"s-provisioningstate\",\"purchaseOrderId\":\"s-purchaseorderid\",\"suspensionReasons\":[\"s-suspensionreasons\"],\"trialSettings\":{\"endTime\":\"s-endtime\",\"trial\":true},\"updateTime\":\"s-updatetime\"}]}")
+  gv_note(f, "CALL cloudchannel.accounts.customers.entitlements.list pages")
+  var p = svc.accounts.customers.entitlements.list_pages("id1/ x", options: AccountsCustomersEntitlementsListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_56)
+}
+
+const GO_57: List[Str] = [
   "CALL cloudchannel.accounts.customers.entitlements.listEntitlementChanges",
   "REQ GET https://cloudchannel.googleapis.com/v1/id1/%20x:listEntitlementChanges?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1018,10 +1440,48 @@ test "Go's cloudchannel.accounts.customers.entitlements.listEntitlementChanges" 
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_46)
+  gv_compare(gv_log_of(f), GO_57)
 }
 
-const GO_47: List[Str] = [
+const GO_58: List[Str] = [
+  "CALL cloudchannel.accounts.customers.entitlements.listEntitlementChanges pages",
+  "REQ GET https://cloudchannel.googleapis.com/v1/id1/%20x:listEntitlementChanges?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"entitlementChanges\":[{\"activationReason\":\"s-activationreason\",\"cancellationReason\":\"s-cancellationreason\",\"changeType\":\"s-changetype\",\"createTime\":\"s-createtime\",\"entitlement\":\"s-entitlement\",\"offer\":\"s-offer\",\"operator\":\"s-operator\",\"operatorType\":\"s-operatortype\",\"otherChangeReason\":\"s-otherchangereason\",\"provisionedService\":{\"productId\":\"s-productid\",\"provisioningId\":\"s-provisioningid\",\"skuId\":\"s-skuid\"},\"suspensionReason\":\"s-suspensionreason\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"entitlementChanges\":[{\"activationReason\":\"s-activationreason\",\"cancellationReason\":\"s-cancellationreason\",\"changeType\":\"s-changetype\",\"createTime\":\"s-createtime\",\"entitlement\":\"s-entitlement\",\"offer\":\"s-offer\",\"operator\":\"s-operator\",\"operatorType\":\"s-operatortype\",\"otherChangeReason\":\"s-otherchangereason\",\"provisionedService\":{\"productId\":\"s-productid\",\"provisioningId\":\"s-provisioningid\",\"skuId\":\"s-skuid\"},\"suspensionReason\":\"s-suspensionreason\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://cloudchannel.googleapis.com/v1/id1/%20x:listEntitlementChanges?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"entitlementChanges\":[{\"activationReason\":\"s-activationreason\",\"cancellationReason\":\"s-cancellationreason\",\"changeType\":\"s-changetype\",\"createTime\":\"s-createtime\",\"entitlement\":\"s-entitlement\",\"offer\":\"s-offer\",\"operator\":\"s-operator\",\"operatorType\":\"s-operatortype\",\"otherChangeReason\":\"s-otherchangereason\",\"provisionedService\":{\"productId\":\"s-productid\",\"provisioningId\":\"s-provisioningid\",\"skuId\":\"s-skuid\"},\"suspensionReason\":\"s-suspensionreason\"}]}",
+  "OUT: {\"entitlementChanges\":[{\"activationReason\":\"s-activationreason\",\"cancellationReason\":\"s-cancellationreason\",\"changeType\":\"s-changetype\",\"createTime\":\"s-createtime\",\"entitlement\":\"s-entitlement\",\"offer\":\"s-offer\",\"operator\":\"s-operator\",\"operatorType\":\"s-operatortype\",\"otherChangeReason\":\"s-otherchangereason\",\"provisionedService\":{\"productId\":\"s-productid\",\"provisioningId\":\"s-provisioningid\",\"skuId\":\"s-skuid\"},\"suspensionReason\":\"s-suspensionreason\"}]}",
+  "OUT: ok",
+]
+
+test "Go's cloudchannel.accounts.customers.entitlements.listEntitlementChanges pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"entitlementChanges\":[{\"activationReason\":\"s-activationreason\",\"cancellationReason\":\"s-cancellationreason\",\"changeType\":\"s-changetype\",\"createTime\":\"s-createtime\",\"entitlement\":\"s-entitlement\",\"offer\":\"s-offer\",\"operator\":\"s-operator\",\"operatorType\":\"s-operatortype\",\"otherChangeReason\":\"s-otherchangereason\",\"provisionedService\":{\"productId\":\"s-productid\",\"provisioningId\":\"s-provisioningid\",\"skuId\":\"s-skuid\"},\"suspensionReason\":\"s-suspensionreason\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"entitlementChanges\":[{\"activationReason\":\"s-activationreason\",\"cancellationReason\":\"s-cancellationreason\",\"changeType\":\"s-changetype\",\"createTime\":\"s-createtime\",\"entitlement\":\"s-entitlement\",\"offer\":\"s-offer\",\"operator\":\"s-operator\",\"operatorType\":\"s-operatortype\",\"otherChangeReason\":\"s-otherchangereason\",\"provisionedService\":{\"productId\":\"s-productid\",\"provisioningId\":\"s-provisioningid\",\"skuId\":\"s-skuid\"},\"suspensionReason\":\"s-suspensionreason\"}]}")
+  gv_note(f, "CALL cloudchannel.accounts.customers.entitlements.listEntitlementChanges pages")
+  var p = svc.accounts.customers.entitlements.list_entitlement_changes_pages("id1/ x", options: AccountsCustomersEntitlementsListEntitlementChangesOptions{filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_58)
+}
+
+const GO_59: List[Str] = [
   "CALL cloudchannel.accounts.customers.entitlements.lookupOffer",
   "REQ GET https://cloudchannel.googleapis.com/v1/id1/%20x:lookupOffer?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1039,10 +1499,10 @@ test "Go's cloudchannel.accounts.customers.entitlements.lookupOffer" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_47)
+  gv_compare(gv_log_of(f), GO_59)
 }
 
-const GO_48: List[Str] = [
+const GO_60: List[Str] = [
   "CALL cloudchannel.accounts.customers.entitlements.startPaidService",
   "REQ POST https://cloudchannel.googleapis.com/v1/id1/%20x:startPaidService?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1061,10 +1521,10 @@ test "Go's cloudchannel.accounts.customers.entitlements.startPaidService" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_48)
+  gv_compare(gv_log_of(f), GO_60)
 }
 
-const GO_49: List[Str] = [
+const GO_61: List[Str] = [
   "CALL cloudchannel.accounts.customers.entitlements.suspend",
   "REQ POST https://cloudchannel.googleapis.com/v1/id1/%20x:suspend?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1083,10 +1543,10 @@ test "Go's cloudchannel.accounts.customers.entitlements.suspend" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_49)
+  gv_compare(gv_log_of(f), GO_61)
 }
 
-const GO_50: List[Str] = [
+const GO_62: List[Str] = [
   "CALL cloudchannel.accounts.offers.list",
   "REQ GET https://cloudchannel.googleapis.com/v1/id1/%20x/offers?alt=json&fields=kind%2Cid&filter=s-filter&languageCode=s-languagecode&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&showFutureOffers=true",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1104,10 +1564,48 @@ test "Go's cloudchannel.accounts.offers.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_50)
+  gv_compare(gv_log_of(f), GO_62)
 }
 
-const GO_51: List[Str] = [
+const GO_63: List[Str] = [
+  "CALL cloudchannel.accounts.offers.list pages",
+  "REQ GET https://cloudchannel.googleapis.com/v1/id1/%20x/offers?alt=json&fields=kind%2Cid&filter=s-filter&languageCode=s-languagecode&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&showFutureOffers=true",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"offers\":[{\"constraints\":{},\"dealCode\":\"s-dealcode\",\"endTime\":\"s-endtime\",\"marketingInfo\":{\"description\":\"s-description\",\"displayName\":\"s-displayname\"},\"name\":\"s-name\",\"plan\":{\"billingAccount\":\"s-billingaccount\",\"paymentPlan\":\"s-paymentplan\",\"paymentType\":\"s-paymenttype\"},\"sku\":{\"name\":\"s-name\"},\"startTime\":\"s-starttime\"}]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"offers\":[{\"constraints\":{},\"dealCode\":\"s-dealcode\",\"endTime\":\"s-endtime\",\"marketingInfo\":{\"description\":\"s-description\",\"displayName\":\"s-displayname\"},\"name\":\"s-name\",\"plan\":{\"billingAccount\":\"s-billingaccount\",\"paymentPlan\":\"s-paymentplan\",\"paymentType\":\"s-paymenttype\"},\"sku\":{\"name\":\"s-name\"},\"startTime\":\"s-starttime\"}]}",
+  "REQ GET https://cloudchannel.googleapis.com/v1/id1/%20x/offers?alt=json&fields=kind%2Cid&filter=s-filter&languageCode=s-languagecode&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false&showFutureOffers=true",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"offers\":[{\"constraints\":{},\"dealCode\":\"s-dealcode\",\"endTime\":\"s-endtime\",\"marketingInfo\":{\"description\":\"s-description\",\"displayName\":\"s-displayname\"},\"name\":\"s-name\",\"plan\":{\"billingAccount\":\"s-billingaccount\",\"paymentPlan\":\"s-paymentplan\",\"paymentType\":\"s-paymenttype\"},\"sku\":{\"name\":\"s-name\"},\"startTime\":\"s-starttime\"}]}",
+  "OUT: {\"offers\":[{\"constraints\":{},\"dealCode\":\"s-dealcode\",\"endTime\":\"s-endtime\",\"marketingInfo\":{\"description\":\"s-description\",\"displayName\":\"s-displayname\"},\"name\":\"s-name\",\"plan\":{\"billingAccount\":\"s-billingaccount\",\"paymentPlan\":\"s-paymentplan\",\"paymentType\":\"s-paymenttype\"},\"sku\":{\"name\":\"s-name\"},\"startTime\":\"s-starttime\"}]}",
+  "OUT: ok",
+]
+
+test "Go's cloudchannel.accounts.offers.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"offers\":[{\"constraints\":{},\"dealCode\":\"s-dealcode\",\"endTime\":\"s-endtime\",\"marketingInfo\":{\"description\":\"s-description\",\"displayName\":\"s-displayname\"},\"name\":\"s-name\",\"plan\":{\"billingAccount\":\"s-billingaccount\",\"paymentPlan\":\"s-paymentplan\",\"paymentType\":\"s-paymenttype\"},\"sku\":{\"name\":\"s-name\"},\"startTime\":\"s-starttime\"}]}")
+  gv_queue(f, "{\"offers\":[{\"constraints\":{},\"dealCode\":\"s-dealcode\",\"endTime\":\"s-endtime\",\"marketingInfo\":{\"description\":\"s-description\",\"displayName\":\"s-displayname\"},\"name\":\"s-name\",\"plan\":{\"billingAccount\":\"s-billingaccount\",\"paymentPlan\":\"s-paymentplan\",\"paymentType\":\"s-paymenttype\"},\"sku\":{\"name\":\"s-name\"},\"startTime\":\"s-starttime\"}]}")
+  gv_note(f, "CALL cloudchannel.accounts.offers.list pages")
+  var p = svc.accounts.offers.list_pages("id1/ x", options: AccountsOffersListOptions{filter: Some("s-filter"), language_code: Some("s-languagecode"), page_size: Some(7), page_token: Some("s-pagetoken"), show_future_offers: Some(true), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_63)
+}
+
+const GO_64: List[Str] = [
   "CALL cloudchannel.accounts.reportJobs.fetchReportResults",
   "REQ POST https://cloudchannel.googleapis.com/v1/id1/%20x:fetchReportResults?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1126,10 +1624,50 @@ test "Go's cloudchannel.accounts.reportJobs.fetchReportResults" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_51)
+  gv_compare(gv_log_of(f), GO_64)
 }
 
-const GO_52: List[Str] = [
+const GO_65: List[Str] = [
+  "CALL cloudchannel.accounts.reportJobs.fetchReportResults pages",
+  "REQ POST https://cloudchannel.googleapis.com/v1/id1/%20x:fetchReportResults?alt=json&fields=kind%2Cid&prettyPrint=false",
+  "  H content-type=application/json | x-extra=v1",
+  "  B {\"pageSize\":7,\"pageToken\":\"s-pagetoken\",\"partitionKeys\":[\"s-partitionkeys\"]}",
+  "",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"reportMetadata\":{\"dateRange\":{},\"precedingDateRange\":{},\"report\":{\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"name\":\"s-name\"},\"rowCount\":\"7\"},\"rows\":[{\"partitionKey\":\"s-partitionkey\"}]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"reportMetadata\":{\"dateRange\":{},\"precedingDateRange\":{},\"report\":{\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"name\":\"s-name\"},\"rowCount\":\"7\"},\"rows\":[{\"partitionKey\":\"s-partitionkey\"}]}",
+  "REQ POST https://cloudchannel.googleapis.com/v1/id1/%20x:fetchReportResults?alt=json&fields=kind%2Cid&prettyPrint=false",
+  "  H content-type=application/json | x-extra=v1",
+  "  B {\"pageSize\":7,\"pageToken\":\"s-nextpagetoken\",\"partitionKeys\":[\"s-partitionkeys\"]}",
+  "",
+  "  SERVED 200 {\"reportMetadata\":{\"dateRange\":{},\"precedingDateRange\":{},\"report\":{\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"name\":\"s-name\"},\"rowCount\":\"7\"},\"rows\":[{\"partitionKey\":\"s-partitionkey\"}]}",
+  "OUT: {\"reportMetadata\":{\"dateRange\":{},\"precedingDateRange\":{},\"report\":{\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"name\":\"s-name\"},\"rowCount\":\"7\"},\"rows\":[{\"partitionKey\":\"s-partitionkey\"}]}",
+  "OUT: ok",
+]
+
+test "Go's cloudchannel.accounts.reportJobs.fetchReportResults pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"reportMetadata\":{\"dateRange\":{},\"precedingDateRange\":{},\"report\":{\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"name\":\"s-name\"},\"rowCount\":\"7\"},\"rows\":[{\"partitionKey\":\"s-partitionkey\"}]}")
+  gv_queue(f, "{\"reportMetadata\":{\"dateRange\":{},\"precedingDateRange\":{},\"report\":{\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"name\":\"s-name\"},\"rowCount\":\"7\"},\"rows\":[{\"partitionKey\":\"s-partitionkey\"}]}")
+  gv_note(f, "CALL cloudchannel.accounts.reportJobs.fetchReportResults pages")
+  var p = svc.accounts.report_jobs.fetch_report_results_pages("id1/ x", json.decode_str[GoogleCloudChannelV1FetchReportResultsRequest]("{\"pageSize\":7,\"pageToken\":\"s-pagetoken\",\"partitionKeys\":[\"s-partitionkeys\"]}") ?? e => fault(e.display()), options: AccountsReportJobsFetchReportResultsOptions{fields: ["kind", "id"], headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_65)
+}
+
+const GO_66: List[Str] = [
   "CALL cloudchannel.accounts.reports.list",
   "REQ GET https://cloudchannel.googleapis.com/v1/id1/%20x/reports?alt=json&fields=kind%2Cid&languageCode=s-languagecode&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1147,10 +1685,48 @@ test "Go's cloudchannel.accounts.reports.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_52)
+  gv_compare(gv_log_of(f), GO_66)
 }
 
-const GO_53: List[Str] = [
+const GO_67: List[Str] = [
+  "CALL cloudchannel.accounts.reports.list pages",
+  "REQ GET https://cloudchannel.googleapis.com/v1/id1/%20x/reports?alt=json&fields=kind%2Cid&languageCode=s-languagecode&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"reports\":[{\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"name\":\"s-name\"}]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"reports\":[{\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"name\":\"s-name\"}]}",
+  "REQ GET https://cloudchannel.googleapis.com/v1/id1/%20x/reports?alt=json&fields=kind%2Cid&languageCode=s-languagecode&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"reports\":[{\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"name\":\"s-name\"}]}",
+  "OUT: {\"reports\":[{\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"name\":\"s-name\"}]}",
+  "OUT: ok",
+]
+
+test "Go's cloudchannel.accounts.reports.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"reports\":[{\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"name\":\"s-name\"}]}")
+  gv_queue(f, "{\"reports\":[{\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"name\":\"s-name\"}]}")
+  gv_note(f, "CALL cloudchannel.accounts.reports.list pages")
+  var p = svc.accounts.reports.list_pages("id1/ x", options: AccountsReportsListOptions{language_code: Some("s-languagecode"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_67)
+}
+
+const GO_68: List[Str] = [
   "CALL cloudchannel.accounts.reports.run",
   "REQ POST https://cloudchannel.googleapis.com/v1/id1/%20x:run?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1169,10 +1745,10 @@ test "Go's cloudchannel.accounts.reports.run" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_53)
+  gv_compare(gv_log_of(f), GO_68)
 }
 
-const GO_54: List[Str] = [
+const GO_69: List[Str] = [
   "CALL cloudchannel.accounts.skuGroups.list",
   "REQ GET https://cloudchannel.googleapis.com/v1/id1/%20x/skuGroups?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1190,10 +1766,48 @@ test "Go's cloudchannel.accounts.skuGroups.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_54)
+  gv_compare(gv_log_of(f), GO_69)
 }
 
-const GO_55: List[Str] = [
+const GO_70: List[Str] = [
+  "CALL cloudchannel.accounts.skuGroups.list pages",
+  "REQ GET https://cloudchannel.googleapis.com/v1/id1/%20x/skuGroups?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"skuGroups\":[{\"displayName\":\"s-displayname\",\"name\":\"s-name\"}]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"skuGroups\":[{\"displayName\":\"s-displayname\",\"name\":\"s-name\"}]}",
+  "REQ GET https://cloudchannel.googleapis.com/v1/id1/%20x/skuGroups?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"skuGroups\":[{\"displayName\":\"s-displayname\",\"name\":\"s-name\"}]}",
+  "OUT: {\"skuGroups\":[{\"displayName\":\"s-displayname\",\"name\":\"s-name\"}]}",
+  "OUT: ok",
+]
+
+test "Go's cloudchannel.accounts.skuGroups.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"skuGroups\":[{\"displayName\":\"s-displayname\",\"name\":\"s-name\"}]}")
+  gv_queue(f, "{\"skuGroups\":[{\"displayName\":\"s-displayname\",\"name\":\"s-name\"}]}")
+  gv_note(f, "CALL cloudchannel.accounts.skuGroups.list pages")
+  var p = svc.accounts.sku_groups.list_pages("id1/ x", options: AccountsSkuGroupsListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_70)
+}
+
+const GO_71: List[Str] = [
   "CALL cloudchannel.accounts.skuGroups.billableSkus.list",
   "REQ GET https://cloudchannel.googleapis.com/v1/id1/%20x/billableSkus?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1211,10 +1825,48 @@ test "Go's cloudchannel.accounts.skuGroups.billableSkus.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_55)
+  gv_compare(gv_log_of(f), GO_71)
 }
 
-const GO_56: List[Str] = [
+const GO_72: List[Str] = [
+  "CALL cloudchannel.accounts.skuGroups.billableSkus.list pages",
+  "REQ GET https://cloudchannel.googleapis.com/v1/id1/%20x/billableSkus?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"billableSkus\":[{\"service\":\"s-service\",\"serviceDisplayName\":\"s-servicedisplayname\",\"sku\":\"s-sku\",\"skuDisplayName\":\"s-skudisplayname\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"billableSkus\":[{\"service\":\"s-service\",\"serviceDisplayName\":\"s-servicedisplayname\",\"sku\":\"s-sku\",\"skuDisplayName\":\"s-skudisplayname\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://cloudchannel.googleapis.com/v1/id1/%20x/billableSkus?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"billableSkus\":[{\"service\":\"s-service\",\"serviceDisplayName\":\"s-servicedisplayname\",\"sku\":\"s-sku\",\"skuDisplayName\":\"s-skudisplayname\"}]}",
+  "OUT: {\"billableSkus\":[{\"service\":\"s-service\",\"serviceDisplayName\":\"s-servicedisplayname\",\"sku\":\"s-sku\",\"skuDisplayName\":\"s-skudisplayname\"}]}",
+  "OUT: ok",
+]
+
+test "Go's cloudchannel.accounts.skuGroups.billableSkus.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"billableSkus\":[{\"service\":\"s-service\",\"serviceDisplayName\":\"s-servicedisplayname\",\"sku\":\"s-sku\",\"skuDisplayName\":\"s-skudisplayname\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"billableSkus\":[{\"service\":\"s-service\",\"serviceDisplayName\":\"s-servicedisplayname\",\"sku\":\"s-sku\",\"skuDisplayName\":\"s-skudisplayname\"}]}")
+  gv_note(f, "CALL cloudchannel.accounts.skuGroups.billableSkus.list pages")
+  var p = svc.accounts.sku_groups.billable_skus.list_pages("id1/ x", options: AccountsSkuGroupsBillableSkusListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_72)
+}
+
+const GO_73: List[Str] = [
   "CALL cloudchannel.integrators.listSubscribers",
   "REQ GET https://cloudchannel.googleapis.com/v1/id1/%20x:listSubscribers?account=s-account&alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1232,10 +1884,48 @@ test "Go's cloudchannel.integrators.listSubscribers" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_56)
+  gv_compare(gv_log_of(f), GO_73)
 }
 
-const GO_57: List[Str] = [
+const GO_74: List[Str] = [
+  "CALL cloudchannel.integrators.listSubscribers pages",
+  "REQ GET https://cloudchannel.googleapis.com/v1/id1/%20x:listSubscribers?account=s-account&alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"serviceAccounts\":[\"s-serviceaccounts\"],\"topic\":\"s-topic\"}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"serviceAccounts\":[\"s-serviceaccounts\"],\"topic\":\"s-topic\"}",
+  "REQ GET https://cloudchannel.googleapis.com/v1/id1/%20x:listSubscribers?account=s-account&alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"serviceAccounts\":[\"s-serviceaccounts\"],\"topic\":\"s-topic\"}",
+  "OUT: {\"serviceAccounts\":[\"s-serviceaccounts\"],\"topic\":\"s-topic\"}",
+  "OUT: ok",
+]
+
+test "Go's cloudchannel.integrators.listSubscribers pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"serviceAccounts\":[\"s-serviceaccounts\"],\"topic\":\"s-topic\"}")
+  gv_queue(f, "{\"serviceAccounts\":[\"s-serviceaccounts\"],\"topic\":\"s-topic\"}")
+  gv_note(f, "CALL cloudchannel.integrators.listSubscribers pages")
+  var p = svc.integrators.list_subscribers_pages("id1/ x", options: IntegratorsListSubscribersOptions{account: Some("s-account"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_74)
+}
+
+const GO_75: List[Str] = [
   "CALL cloudchannel.integrators.registerSubscriber",
   "REQ POST https://cloudchannel.googleapis.com/v1/id1/%20x:registerSubscriber?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1254,10 +1944,10 @@ test "Go's cloudchannel.integrators.registerSubscriber" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_57)
+  gv_compare(gv_log_of(f), GO_75)
 }
 
-const GO_58: List[Str] = [
+const GO_76: List[Str] = [
   "CALL cloudchannel.integrators.unregisterSubscriber",
   "REQ POST https://cloudchannel.googleapis.com/v1/id1/%20x:unregisterSubscriber?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1276,10 +1966,10 @@ test "Go's cloudchannel.integrators.unregisterSubscriber" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_58)
+  gv_compare(gv_log_of(f), GO_76)
 }
 
-const GO_59: List[Str] = [
+const GO_77: List[Str] = [
   "CALL cloudchannel.operations.cancel",
   "REQ POST https://cloudchannel.googleapis.com/v1/id1/%20x:cancel?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1298,10 +1988,10 @@ test "Go's cloudchannel.operations.cancel" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_59)
+  gv_compare(gv_log_of(f), GO_77)
 }
 
-const GO_60: List[Str] = [
+const GO_78: List[Str] = [
   "CALL cloudchannel.operations.delete",
   "REQ DELETE https://cloudchannel.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -1319,10 +2009,10 @@ test "Go's cloudchannel.operations.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_60)
+  gv_compare(gv_log_of(f), GO_78)
 }
 
-const GO_61: List[Str] = [
+const GO_79: List[Str] = [
   "CALL cloudchannel.operations.get",
   "REQ GET https://cloudchannel.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1340,10 +2030,10 @@ test "Go's cloudchannel.operations.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_61)
+  gv_compare(gv_log_of(f), GO_79)
 }
 
-const GO_62: List[Str] = [
+const GO_80: List[Str] = [
   "CALL cloudchannel.operations.list",
   "REQ GET https://cloudchannel.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&returnPartialSuccess=true",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1361,10 +2051,48 @@ test "Go's cloudchannel.operations.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_62)
+  gv_compare(gv_log_of(f), GO_80)
 }
 
-const GO_63: List[Str] = [
+const GO_81: List[Str] = [
+  "CALL cloudchannel.operations.list pages",
+  "REQ GET https://cloudchannel.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&returnPartialSuccess=true",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "REQ GET https://cloudchannel.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false&returnPartialSuccess=true",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: ok",
+]
+
+test "Go's cloudchannel.operations.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_queue(f, "{\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_note(f, "CALL cloudchannel.operations.list pages")
+  var p = svc.operations.list_pages("id1/ x", options: OperationsListOptions{filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), return_partial_success: Some(true), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_81)
+}
+
+const GO_82: List[Str] = [
   "CALL cloudchannel.products.list",
   "REQ GET https://cloudchannel.googleapis.com/v1/products?account=s-account&alt=json&fields=kind%2Cid&languageCode=s-languagecode&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1382,10 +2110,48 @@ test "Go's cloudchannel.products.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_63)
+  gv_compare(gv_log_of(f), GO_82)
 }
 
-const GO_64: List[Str] = [
+const GO_83: List[Str] = [
+  "CALL cloudchannel.products.list pages",
+  "REQ GET https://cloudchannel.googleapis.com/v1/products?account=s-account&alt=json&fields=kind%2Cid&languageCode=s-languagecode&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"products\":[{\"marketingInfo\":{\"description\":\"s-description\",\"displayName\":\"s-displayname\"},\"name\":\"s-name\"}]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"products\":[{\"marketingInfo\":{\"description\":\"s-description\",\"displayName\":\"s-displayname\"},\"name\":\"s-name\"}]}",
+  "REQ GET https://cloudchannel.googleapis.com/v1/products?account=s-account&alt=json&fields=kind%2Cid&languageCode=s-languagecode&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"products\":[{\"marketingInfo\":{\"description\":\"s-description\",\"displayName\":\"s-displayname\"},\"name\":\"s-name\"}]}",
+  "OUT: {\"products\":[{\"marketingInfo\":{\"description\":\"s-description\",\"displayName\":\"s-displayname\"},\"name\":\"s-name\"}]}",
+  "OUT: ok",
+]
+
+test "Go's cloudchannel.products.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"products\":[{\"marketingInfo\":{\"description\":\"s-description\",\"displayName\":\"s-displayname\"},\"name\":\"s-name\"}]}")
+  gv_queue(f, "{\"products\":[{\"marketingInfo\":{\"description\":\"s-description\",\"displayName\":\"s-displayname\"},\"name\":\"s-name\"}]}")
+  gv_note(f, "CALL cloudchannel.products.list pages")
+  var p = svc.products.list_pages(options: ProductsListOptions{account: Some("s-account"), language_code: Some("s-languagecode"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_83)
+}
+
+const GO_84: List[Str] = [
   "CALL cloudchannel.products.skus.list",
   "REQ GET https://cloudchannel.googleapis.com/v1/id1/%20x/skus?account=s-account&alt=json&fields=kind%2Cid&languageCode=s-languagecode&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1403,5 +2169,43 @@ test "Go's cloudchannel.products.skus.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_64)
+  gv_compare(gv_log_of(f), GO_84)
+}
+
+const GO_85: List[Str] = [
+  "CALL cloudchannel.products.skus.list pages",
+  "REQ GET https://cloudchannel.googleapis.com/v1/id1/%20x/skus?account=s-account&alt=json&fields=kind%2Cid&languageCode=s-languagecode&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"skus\":[{\"marketingInfo\":{\"description\":\"s-description\",\"displayName\":\"s-displayname\"},\"name\":\"s-name\",\"product\":{\"name\":\"s-name\"}}]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"skus\":[{\"marketingInfo\":{\"description\":\"s-description\",\"displayName\":\"s-displayname\"},\"name\":\"s-name\",\"product\":{\"name\":\"s-name\"}}]}",
+  "REQ GET https://cloudchannel.googleapis.com/v1/id1/%20x/skus?account=s-account&alt=json&fields=kind%2Cid&languageCode=s-languagecode&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"skus\":[{\"marketingInfo\":{\"description\":\"s-description\",\"displayName\":\"s-displayname\"},\"name\":\"s-name\",\"product\":{\"name\":\"s-name\"}}]}",
+  "OUT: {\"skus\":[{\"marketingInfo\":{\"description\":\"s-description\",\"displayName\":\"s-displayname\"},\"name\":\"s-name\",\"product\":{\"name\":\"s-name\"}}]}",
+  "OUT: ok",
+]
+
+test "Go's cloudchannel.products.skus.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"skus\":[{\"marketingInfo\":{\"description\":\"s-description\",\"displayName\":\"s-displayname\"},\"name\":\"s-name\",\"product\":{\"name\":\"s-name\"}}]}")
+  gv_queue(f, "{\"skus\":[{\"marketingInfo\":{\"description\":\"s-description\",\"displayName\":\"s-displayname\"},\"name\":\"s-name\",\"product\":{\"name\":\"s-name\"}}]}")
+  gv_note(f, "CALL cloudchannel.products.skus.list pages")
+  var p = svc.products.skus.list_pages("id1/ x", options: ProductsSkusListOptions{account: Some("s-account"), language_code: Some("s-languagecode"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_85)
 }

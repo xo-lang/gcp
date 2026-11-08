@@ -5,6 +5,7 @@
 // compares the request, the response served and the result.
 
 use std/json
+use github.com/xo-lang/gcp/gensupport
 
 const GV_HOST: Str = "https://www.googleapis.com"
 
@@ -215,7 +216,7 @@ test "Go's storage.buckets.list" {
   let svc = new_service(os.net, gv_opts())
   gv_set(f, "{\"items\":[{\"id\":\"s-id\",\"kind\":\"s-kind\",\"location\":\"s-location\",\"owner\":{\"entity\":\"s-entity\",\"entityId\":\"s-entityid\"},\"projectId\":\"7\",\"selfLink\":\"s-selflink\",\"timeCreated\":\"s-timecreated\",\"website\":{\"mainPageSuffix\":\"s-mainpagesuffix\",\"notFoundPage\":\"s-notfoundpage\"}}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\"}")
   gv_note(f, "CALL storage.buckets.list")
-  match svc.buckets.list("7", options: BucketsListOptions{max_results: Some(7), page_token: Some("s-pagetoken"), projection: Some("s-projection"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]}) {
+  match svc.buckets.list(7, options: BucketsListOptions{max_results: Some(7), page_token: Some("s-pagetoken"), projection: Some("s-projection"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]}) {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
@@ -223,6 +224,44 @@ test "Go's storage.buckets.list" {
 }
 
 const GO_10: List[Str] = [
+  "CALL storage.buckets.list pages",
+  "REQ GET https://www.googleapis.com/storage/v1beta1/b?alt=json&fields=kind%2Cid&max-results=7&pageToken=s-pagetoken&prettyPrint=false&projectId=7&projection=s-projection",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"items\":[{\"id\":\"s-id\",\"kind\":\"s-kind\",\"location\":\"s-location\",\"owner\":{\"entity\":\"s-entity\",\"entityId\":\"s-entityid\"},\"projectId\":\"7\",\"selfLink\":\"s-selflink\",\"timeCreated\":\"s-timecreated\",\"website\":{\"mainPageSuffix\":\"s-mainpagesuffix\",\"notFoundPage\":\"s-notfoundpage\"}}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"items\":[{\"id\":\"s-id\",\"kind\":\"s-kind\",\"location\":\"s-location\",\"owner\":{\"entity\":\"s-entity\",\"entityId\":\"s-entityid\"},\"projectId\":\"7\",\"selfLink\":\"s-selflink\",\"timeCreated\":\"s-timecreated\",\"website\":{\"mainPageSuffix\":\"s-mainpagesuffix\",\"notFoundPage\":\"s-notfoundpage\"}}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://www.googleapis.com/storage/v1beta1/b?alt=json&fields=kind%2Cid&max-results=7&pageToken=s-nextpagetoken&prettyPrint=false&projectId=7&projection=s-projection",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"items\":[{\"id\":\"s-id\",\"kind\":\"s-kind\",\"location\":\"s-location\",\"owner\":{\"entity\":\"s-entity\",\"entityId\":\"s-entityid\"},\"projectId\":\"7\",\"selfLink\":\"s-selflink\",\"timeCreated\":\"s-timecreated\",\"website\":{\"mainPageSuffix\":\"s-mainpagesuffix\",\"notFoundPage\":\"s-notfoundpage\"}}],\"kind\":\"s-kind\"}",
+  "OUT: {\"items\":[{\"id\":\"s-id\",\"kind\":\"s-kind\",\"location\":\"s-location\",\"owner\":{\"entity\":\"s-entity\",\"entityId\":\"s-entityid\"},\"projectId\":\"7\",\"selfLink\":\"s-selflink\",\"timeCreated\":\"s-timecreated\",\"website\":{\"mainPageSuffix\":\"s-mainpagesuffix\",\"notFoundPage\":\"s-notfoundpage\"}}],\"kind\":\"s-kind\"}",
+  "OUT: ok",
+]
+
+test "Go's storage.buckets.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"items\":[{\"id\":\"s-id\",\"kind\":\"s-kind\",\"location\":\"s-location\",\"owner\":{\"entity\":\"s-entity\",\"entityId\":\"s-entityid\"},\"projectId\":\"7\",\"selfLink\":\"s-selflink\",\"timeCreated\":\"s-timecreated\",\"website\":{\"mainPageSuffix\":\"s-mainpagesuffix\",\"notFoundPage\":\"s-notfoundpage\"}}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"items\":[{\"id\":\"s-id\",\"kind\":\"s-kind\",\"location\":\"s-location\",\"owner\":{\"entity\":\"s-entity\",\"entityId\":\"s-entityid\"},\"projectId\":\"7\",\"selfLink\":\"s-selflink\",\"timeCreated\":\"s-timecreated\",\"website\":{\"mainPageSuffix\":\"s-mainpagesuffix\",\"notFoundPage\":\"s-notfoundpage\"}}],\"kind\":\"s-kind\"}")
+  gv_note(f, "CALL storage.buckets.list pages")
+  var p = svc.buckets.list_pages(7, options: BucketsListOptions{max_results: Some(7), page_token: Some("s-pagetoken"), projection: Some("s-projection"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_10)
+}
+
+const GO_11: List[Str] = [
   "CALL storage.buckets.patch",
   "REQ PATCH https://www.googleapis.com/storage/v1beta1/b/id1%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false&projection=s-projection",
   "  H content-type=application/json | x-extra=v1",
@@ -241,10 +280,10 @@ test "Go's storage.buckets.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_10)
+  gv_compare(gv_log_of(f), GO_11)
 }
 
-const GO_11: List[Str] = [
+const GO_12: List[Str] = [
   "CALL storage.buckets.update",
   "REQ PUT https://www.googleapis.com/storage/v1beta1/b/id1%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false&projection=s-projection",
   "  H content-type=application/json | x-extra=v1",
@@ -263,10 +302,10 @@ test "Go's storage.buckets.update" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_11)
+  gv_compare(gv_log_of(f), GO_12)
 }
 
-const GO_12: List[Str] = [
+const GO_13: List[Str] = [
   "CALL storage.objectAccessControls.delete",
   "REQ DELETE https://www.googleapis.com/storage/v1beta1/b/id1%2F%20x/o/id2%2F%20x/acl/id3%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -284,10 +323,10 @@ test "Go's storage.objectAccessControls.delete" {
     Ok(_) => gv_note(f, "OUT: ok")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_12)
+  gv_compare(gv_log_of(f), GO_13)
 }
 
-const GO_13: List[Str] = [
+const GO_14: List[Str] = [
   "CALL storage.objectAccessControls.get",
   "REQ GET https://www.googleapis.com/storage/v1beta1/b/id1%2F%20x/o/id2%2F%20x/acl/id3%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -305,10 +344,10 @@ test "Go's storage.objectAccessControls.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_13)
+  gv_compare(gv_log_of(f), GO_14)
 }
 
-const GO_14: List[Str] = [
+const GO_15: List[Str] = [
   "CALL storage.objectAccessControls.insert",
   "REQ POST https://www.googleapis.com/storage/v1beta1/b/id1%2F%20x/o/id2%2F%20x/acl?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -327,10 +366,10 @@ test "Go's storage.objectAccessControls.insert" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_14)
+  gv_compare(gv_log_of(f), GO_15)
 }
 
-const GO_15: List[Str] = [
+const GO_16: List[Str] = [
   "CALL storage.objectAccessControls.list",
   "REQ GET https://www.googleapis.com/storage/v1beta1/b/id1%2F%20x/o/id2%2F%20x/acl?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -348,10 +387,10 @@ test "Go's storage.objectAccessControls.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_15)
+  gv_compare(gv_log_of(f), GO_16)
 }
 
-const GO_16: List[Str] = [
+const GO_17: List[Str] = [
   "CALL storage.objectAccessControls.patch",
   "REQ PATCH https://www.googleapis.com/storage/v1beta1/b/id1%2F%20x/o/id2%2F%20x/acl/id3%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -370,10 +409,10 @@ test "Go's storage.objectAccessControls.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_16)
+  gv_compare(gv_log_of(f), GO_17)
 }
 
-const GO_17: List[Str] = [
+const GO_18: List[Str] = [
   "CALL storage.objectAccessControls.update",
   "REQ PUT https://www.googleapis.com/storage/v1beta1/b/id1%2F%20x/o/id2%2F%20x/acl/id3%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -392,10 +431,10 @@ test "Go's storage.objectAccessControls.update" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_17)
+  gv_compare(gv_log_of(f), GO_18)
 }
 
-const GO_18: List[Str] = [
+const GO_19: List[Str] = [
   "CALL storage.objects.delete",
   "REQ DELETE https://www.googleapis.com/storage/v1beta1/b/id1%2F%20x/o/id2%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -413,10 +452,10 @@ test "Go's storage.objects.delete" {
     Ok(_) => gv_note(f, "OUT: ok")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_18)
+  gv_compare(gv_log_of(f), GO_19)
 }
 
-const GO_19: List[Str] = [
+const GO_20: List[Str] = [
   "CALL storage.objects.get",
   "REQ GET https://www.googleapis.com/storage/v1beta1/b/id1%2F%20x/o/id2%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false&projection=s-projection",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -434,10 +473,31 @@ test "Go's storage.objects.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_19)
+  gv_compare(gv_log_of(f), GO_20)
 }
 
-const GO_20: List[Str] = [
+const GO_21: List[Str] = [
+  "CALL storage.objects.get download",
+  "REQ GET https://www.googleapis.com/storage/v1beta1/b/id1%2F%20x/o/id2%2F%20x?alt=media&fields=kind%2Cid&prettyPrint=false&projection=s-projection",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 media-bytes \u{0001}ÿ",
+  "OUT: media 200 media-bytes \u{0001}ÿ",
+]
+
+test "Go's storage.objects.get download" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "media-bytes \u{0001}ÿ")
+  gv_note(f, "CALL storage.objects.get download")
+  match svc.objects.get_download("id1/ x", "id2/ x", options: ObjectsGetOptions{projection: Some("s-projection"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]}) {
+    Ok(r) => gv_note(f, "OUT: media ${r.status} ${r.body.to_str_lossy()}")
+    Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+  }
+  gv_compare(gv_log_of(f), GO_21)
+}
+
+const GO_22: List[Str] = [
   "CALL storage.objects.insert",
   "REQ POST https://www.googleapis.com/storage/v1beta1/b/id1%2F%20x/o?alt=json&fields=kind%2Cid&name=s-name&prettyPrint=false&projection=s-projection",
   "  H content-type=application/json | x-extra=v1",
@@ -456,10 +516,73 @@ test "Go's storage.objects.insert" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_20)
+  gv_compare(gv_log_of(f), GO_22)
 }
 
-const GO_21: List[Str] = [
+const GO_23: List[Str] = [
+  "CALL storage.objects.insert media",
+  "REQ POST https://www.googleapis.com/upload/storage/v1beta1/b/id1%2F%20x/o?alt=json&fields=kind%2Cid&name=s-name&prettyPrint=false&projection=s-projection&uploadType=multipart",
+  "  H content-type=multipart/related; boundary=BOUNDARY | x-extra=v1",
+  "  B --BOUNDARY\u{000d}",
+  "Content-Type: application/json\u{000d}",
+  "\u{000d}",
+  "{\"acl\":[{\"bucket\":\"s-bucket\",\"domain\":\"s-domain\",\"email\":\"s-email\",\"entity\":\"s-entity\",\"entityId\":\"s-entityid\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"object\":\"s-object\",\"role\":\"s-role\",\"selfLink\":\"s-selflink\"}],\"bucket\":\"s-bucket\",\"cacheControl\":\"s-cachecontrol\",\"contentDisposition\":\"s-contentdisposition\",\"contentEncoding\":\"s-contentencoding\",\"contentLanguage\":\"s-contentlanguage\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"media\":{\"algorithm\":\"s-algorithm\",\"contentType\":\"s-contenttype\",\"data\":\"YWI=\",\"hash\":\"s-hash\",\"length\":\"7\",\"link\":\"s-link\",\"timeCreated\":\"s-timecreated\"},\"metadata\":{\"k1\":\"s-metadata\"},\"name\":\"s-name\",\"owner\":{\"entity\":\"s-entity\",\"entityId\":\"s-entityid\"},\"selfLink\":\"s-selflink\"}",
+  "\u{000d}",
+  "--BOUNDARY\u{000d}",
+  "Content-Type: text/plain\u{000d}",
+  "\u{000d}",
+  "hello media\u{000d}",
+  "--BOUNDARY--\u{000d}",
+  "",
+  "  SERVED 200 {\"acl\":[{\"bucket\":\"s-bucket\",\"domain\":\"s-domain\",\"email\":\"s-email\",\"entity\":\"s-entity\",\"entityId\":\"s-entityid\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"object\":\"s-object\",\"role\":\"s-role\",\"selfLink\":\"s-selflink\"}],\"bucket\":\"s-bucket\",\"cacheControl\":\"s-cachecontrol\",\"contentDisposition\":\"s-contentdisposition\",\"contentEncoding\":\"s-contentencoding\",\"contentLanguage\":\"s-contentlanguage\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"media\":{\"algorithm\":\"s-algorithm\",\"contentType\":\"s-contenttype\",\"data\":\"YWI=\",\"hash\":\"s-hash\",\"length\":\"7\",\"link\":\"s-link\",\"timeCreated\":\"s-timecreated\"},\"metadata\":{\"k1\":\"s-metadata\"},\"name\":\"s-name\",\"owner\":{\"entity\":\"s-entity\",\"entityId\":\"s-entityid\"},\"selfLink\":\"s-selflink\"}",
+  "OUT: {\"acl\":[{\"bucket\":\"s-bucket\",\"domain\":\"s-domain\",\"email\":\"s-email\",\"entity\":\"s-entity\",\"entityId\":\"s-entityid\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"object\":\"s-object\",\"role\":\"s-role\",\"selfLink\":\"s-selflink\"}],\"bucket\":\"s-bucket\",\"cacheControl\":\"s-cachecontrol\",\"contentDisposition\":\"s-contentdisposition\",\"contentEncoding\":\"s-contentencoding\",\"contentLanguage\":\"s-contentlanguage\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"media\":{\"algorithm\":\"s-algorithm\",\"contentType\":\"s-contenttype\",\"data\":\"YWI=\",\"hash\":\"s-hash\",\"length\":\"7\",\"link\":\"s-link\",\"timeCreated\":\"s-timecreated\"},\"metadata\":{\"k1\":\"s-metadata\"},\"name\":\"s-name\",\"owner\":{\"entity\":\"s-entity\",\"entityId\":\"s-entityid\"},\"selfLink\":\"s-selflink\"}",
+]
+
+test "Go's storage.objects.insert media" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"acl\":[{\"bucket\":\"s-bucket\",\"domain\":\"s-domain\",\"email\":\"s-email\",\"entity\":\"s-entity\",\"entityId\":\"s-entityid\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"object\":\"s-object\",\"role\":\"s-role\",\"selfLink\":\"s-selflink\"}],\"bucket\":\"s-bucket\",\"cacheControl\":\"s-cachecontrol\",\"contentDisposition\":\"s-contentdisposition\",\"contentEncoding\":\"s-contentencoding\",\"contentLanguage\":\"s-contentlanguage\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"media\":{\"algorithm\":\"s-algorithm\",\"contentType\":\"s-contenttype\",\"data\":\"YWI=\",\"hash\":\"s-hash\",\"length\":\"7\",\"link\":\"s-link\",\"timeCreated\":\"s-timecreated\"},\"metadata\":{\"k1\":\"s-metadata\"},\"name\":\"s-name\",\"owner\":{\"entity\":\"s-entity\",\"entityId\":\"s-entityid\"},\"selfLink\":\"s-selflink\"}")
+  gv_note(f, "CALL storage.objects.insert media")
+  match svc.objects.insert_media(os.clock, os.rand, "id1/ x", json.decode_str[Object]("{\"acl\":[{\"bucket\":\"s-bucket\",\"domain\":\"s-domain\",\"email\":\"s-email\",\"entity\":\"s-entity\",\"entityId\":\"s-entityid\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"object\":\"s-object\",\"role\":\"s-role\",\"selfLink\":\"s-selflink\"}],\"bucket\":\"s-bucket\",\"cacheControl\":\"s-cachecontrol\",\"contentDisposition\":\"s-contentdisposition\",\"contentEncoding\":\"s-contentencoding\",\"contentLanguage\":\"s-contentlanguage\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"media\":{\"algorithm\":\"s-algorithm\",\"contentType\":\"s-contenttype\",\"data\":\"YWI=\",\"hash\":\"s-hash\",\"length\":\"7\",\"link\":\"s-link\",\"timeCreated\":\"s-timecreated\"},\"metadata\":{\"k1\":\"s-metadata\"},\"name\":\"s-name\",\"owner\":{\"entity\":\"s-entity\",\"entityId\":\"s-entityid\"},\"selfLink\":\"s-selflink\"}") ?? e => fault(e.display()), media: gensupport.Media{data: "hello media".bytes(), content_type: "text/plain"}, options: ObjectsInsertOptions{name: Some("s-name"), projection: Some("s-projection"), fields: ["kind", "id"], headers: [("X-Extra", "v1")]}) {
+    Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+    Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+  }
+  gv_compare(gv_log_of(f), GO_23)
+}
+
+const GO_24: List[Str] = [
+  "CALL storage.objects.insert resumable",
+  "REQ POST https://www.googleapis.com/upload/storage/v1beta1/b/id1%2F%20x/o?alt=json&fields=kind%2Cid&name=s-name&prettyPrint=false&projection=s-projection&uploadType=resumable",
+  "  H content-type=application/json | x-extra=v1 | x-upload-content-type=text/plain",
+  "  B {\"acl\":[{\"bucket\":\"s-bucket\",\"domain\":\"s-domain\",\"email\":\"s-email\",\"entity\":\"s-entity\",\"entityId\":\"s-entityid\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"object\":\"s-object\",\"role\":\"s-role\",\"selfLink\":\"s-selflink\"}],\"bucket\":\"s-bucket\",\"cacheControl\":\"s-cachecontrol\",\"contentDisposition\":\"s-contentdisposition\",\"contentEncoding\":\"s-contentencoding\",\"contentLanguage\":\"s-contentlanguage\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"media\":{\"algorithm\":\"s-algorithm\",\"contentType\":\"s-contenttype\",\"data\":\"YWI=\",\"hash\":\"s-hash\",\"length\":\"7\",\"link\":\"s-link\",\"timeCreated\":\"s-timecreated\"},\"metadata\":{\"k1\":\"s-metadata\"},\"name\":\"s-name\",\"owner\":{\"entity\":\"s-entity\",\"entityId\":\"s-entityid\"},\"selfLink\":\"s-selflink\"}",
+  "",
+  "  SERVED 200 @H Location=https://www.googleapis.com/upload/session-1 @B ",
+  "REQ POST https://www.googleapis.com/upload/session-1",
+  "  H content-range=bytes 0-262143/* | content-type=text/plain | x-goog-gcs-idempotency-token=UUID | x-guploader-no-308=yes",
+  "  B <262144 bytes> 0123456789abcdef0123456789abcdef...0123456789abcdef0123456789abcdef",
+  "  SERVED 200 @H X-Http-Status-Code-Override=308 @B ",
+  "REQ POST https://www.googleapis.com/upload/session-1",
+  "  H content-range=bytes 262144-262153/262154 | content-type=text/plain | x-goog-gcs-idempotency-token=UUID | x-guploader-no-308=yes",
+  "  B 0123456789",
+  "  SERVED 200 {\"acl\":[{\"bucket\":\"s-bucket\",\"domain\":\"s-domain\",\"email\":\"s-email\",\"entity\":\"s-entity\",\"entityId\":\"s-entityid\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"object\":\"s-object\",\"role\":\"s-role\",\"selfLink\":\"s-selflink\"}],\"bucket\":\"s-bucket\",\"cacheControl\":\"s-cachecontrol\",\"contentDisposition\":\"s-contentdisposition\",\"contentEncoding\":\"s-contentencoding\",\"contentLanguage\":\"s-contentlanguage\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"media\":{\"algorithm\":\"s-algorithm\",\"contentType\":\"s-contenttype\",\"data\":\"YWI=\",\"hash\":\"s-hash\",\"length\":\"7\",\"link\":\"s-link\",\"timeCreated\":\"s-timecreated\"},\"metadata\":{\"k1\":\"s-metadata\"},\"name\":\"s-name\",\"owner\":{\"entity\":\"s-entity\",\"entityId\":\"s-entityid\"},\"selfLink\":\"s-selflink\"}",
+  "OUT: {\"acl\":[{\"bucket\":\"s-bucket\",\"domain\":\"s-domain\",\"email\":\"s-email\",\"entity\":\"s-entity\",\"entityId\":\"s-entityid\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"object\":\"s-object\",\"role\":\"s-role\",\"selfLink\":\"s-selflink\"}],\"bucket\":\"s-bucket\",\"cacheControl\":\"s-cachecontrol\",\"contentDisposition\":\"s-contentdisposition\",\"contentEncoding\":\"s-contentencoding\",\"contentLanguage\":\"s-contentlanguage\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"media\":{\"algorithm\":\"s-algorithm\",\"contentType\":\"s-contenttype\",\"data\":\"YWI=\",\"hash\":\"s-hash\",\"length\":\"7\",\"link\":\"s-link\",\"timeCreated\":\"s-timecreated\"},\"metadata\":{\"k1\":\"s-metadata\"},\"name\":\"s-name\",\"owner\":{\"entity\":\"s-entity\",\"entityId\":\"s-entityid\"},\"selfLink\":\"s-selflink\"}",
+]
+
+test "Go's storage.objects.insert resumable" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "@H Location=https://www.googleapis.com/upload/session-1 @B ")
+  gv_queue(f, "@H X-Http-Status-Code-Override=308 @B ")
+  gv_queue(f, "{\"acl\":[{\"bucket\":\"s-bucket\",\"domain\":\"s-domain\",\"email\":\"s-email\",\"entity\":\"s-entity\",\"entityId\":\"s-entityid\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"object\":\"s-object\",\"role\":\"s-role\",\"selfLink\":\"s-selflink\"}],\"bucket\":\"s-bucket\",\"cacheControl\":\"s-cachecontrol\",\"contentDisposition\":\"s-contentdisposition\",\"contentEncoding\":\"s-contentencoding\",\"contentLanguage\":\"s-contentlanguage\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"media\":{\"algorithm\":\"s-algorithm\",\"contentType\":\"s-contenttype\",\"data\":\"YWI=\",\"hash\":\"s-hash\",\"length\":\"7\",\"link\":\"s-link\",\"timeCreated\":\"s-timecreated\"},\"metadata\":{\"k1\":\"s-metadata\"},\"name\":\"s-name\",\"owner\":{\"entity\":\"s-entity\",\"entityId\":\"s-entityid\"},\"selfLink\":\"s-selflink\"}")
+  gv_note(f, "CALL storage.objects.insert resumable")
+  match svc.objects.insert_media(os.clock, os.rand, "id1/ x", json.decode_str[Object]("{\"acl\":[{\"bucket\":\"s-bucket\",\"domain\":\"s-domain\",\"email\":\"s-email\",\"entity\":\"s-entity\",\"entityId\":\"s-entityid\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"object\":\"s-object\",\"role\":\"s-role\",\"selfLink\":\"s-selflink\"}],\"bucket\":\"s-bucket\",\"cacheControl\":\"s-cachecontrol\",\"contentDisposition\":\"s-contentdisposition\",\"contentEncoding\":\"s-contentencoding\",\"contentLanguage\":\"s-contentlanguage\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"media\":{\"algorithm\":\"s-algorithm\",\"contentType\":\"s-contenttype\",\"data\":\"YWI=\",\"hash\":\"s-hash\",\"length\":\"7\",\"link\":\"s-link\",\"timeCreated\":\"s-timecreated\"},\"metadata\":{\"k1\":\"s-metadata\"},\"name\":\"s-name\",\"owner\":{\"entity\":\"s-entity\",\"entityId\":\"s-entityid\"},\"selfLink\":\"s-selflink\"}") ?? e => fault(e.display()), media: gensupport.Media{data: gv_big(), content_type: "text/plain", chunk_size: 262144}, options: ObjectsInsertOptions{name: Some("s-name"), projection: Some("s-projection"), fields: ["kind", "id"], headers: [("X-Extra", "v1")]}) {
+    Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+    Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+  }
+  gv_compare(gv_log_of(f), GO_24)
+}
+
+const GO_25: List[Str] = [
   "CALL storage.objects.list",
   "REQ GET https://www.googleapis.com/storage/v1beta1/b/id1%2F%20x/o?alt=json&delimiter=s-delimiter&fields=kind%2Cid&max-results=7&pageToken=s-pagetoken&prefix=s-prefix&prettyPrint=false&projection=s-projection",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -477,10 +600,48 @@ test "Go's storage.objects.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_21)
+  gv_compare(gv_log_of(f), GO_25)
 }
 
-const GO_22: List[Str] = [
+const GO_26: List[Str] = [
+  "CALL storage.objects.list pages",
+  "REQ GET https://www.googleapis.com/storage/v1beta1/b/id1%2F%20x/o?alt=json&delimiter=s-delimiter&fields=kind%2Cid&max-results=7&pageToken=s-pagetoken&prefix=s-prefix&prettyPrint=false&projection=s-projection",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"items\":[{\"bucket\":\"s-bucket\",\"cacheControl\":\"s-cachecontrol\",\"contentDisposition\":\"s-contentdisposition\",\"contentEncoding\":\"s-contentencoding\",\"contentLanguage\":\"s-contentlanguage\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"media\":{\"algorithm\":\"s-algorithm\",\"contentType\":\"s-contenttype\",\"data\":\"YWI=\",\"hash\":\"s-hash\",\"length\":\"7\",\"link\":\"s-link\",\"timeCreated\":\"s-timecreated\"},\"metadata\":{\"k1\":\"s-metadata\"},\"name\":\"s-name\",\"owner\":{\"entity\":\"s-entity\",\"entityId\":\"s-entityid\"},\"selfLink\":\"s-selflink\"}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\",\"prefixes\":[\"s-prefixes\"]}",
+  "OUT: {\"items\":[{\"bucket\":\"s-bucket\",\"cacheControl\":\"s-cachecontrol\",\"contentDisposition\":\"s-contentdisposition\",\"contentEncoding\":\"s-contentencoding\",\"contentLanguage\":\"s-contentlanguage\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"media\":{\"algorithm\":\"s-algorithm\",\"contentType\":\"s-contenttype\",\"data\":\"YWI=\",\"hash\":\"s-hash\",\"length\":\"7\",\"link\":\"s-link\",\"timeCreated\":\"s-timecreated\"},\"metadata\":{\"k1\":\"s-metadata\"},\"name\":\"s-name\",\"owner\":{\"entity\":\"s-entity\",\"entityId\":\"s-entityid\"},\"selfLink\":\"s-selflink\"}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\",\"prefixes\":[\"s-prefixes\"]}",
+  "REQ GET https://www.googleapis.com/storage/v1beta1/b/id1%2F%20x/o?alt=json&delimiter=s-delimiter&fields=kind%2Cid&max-results=7&pageToken=s-nextpagetoken&prefix=s-prefix&prettyPrint=false&projection=s-projection",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"items\":[{\"bucket\":\"s-bucket\",\"cacheControl\":\"s-cachecontrol\",\"contentDisposition\":\"s-contentdisposition\",\"contentEncoding\":\"s-contentencoding\",\"contentLanguage\":\"s-contentlanguage\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"media\":{\"algorithm\":\"s-algorithm\",\"contentType\":\"s-contenttype\",\"data\":\"YWI=\",\"hash\":\"s-hash\",\"length\":\"7\",\"link\":\"s-link\",\"timeCreated\":\"s-timecreated\"},\"metadata\":{\"k1\":\"s-metadata\"},\"name\":\"s-name\",\"owner\":{\"entity\":\"s-entity\",\"entityId\":\"s-entityid\"},\"selfLink\":\"s-selflink\"}],\"kind\":\"s-kind\",\"prefixes\":[\"s-prefixes\"]}",
+  "OUT: {\"items\":[{\"bucket\":\"s-bucket\",\"cacheControl\":\"s-cachecontrol\",\"contentDisposition\":\"s-contentdisposition\",\"contentEncoding\":\"s-contentencoding\",\"contentLanguage\":\"s-contentlanguage\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"media\":{\"algorithm\":\"s-algorithm\",\"contentType\":\"s-contenttype\",\"data\":\"YWI=\",\"hash\":\"s-hash\",\"length\":\"7\",\"link\":\"s-link\",\"timeCreated\":\"s-timecreated\"},\"metadata\":{\"k1\":\"s-metadata\"},\"name\":\"s-name\",\"owner\":{\"entity\":\"s-entity\",\"entityId\":\"s-entityid\"},\"selfLink\":\"s-selflink\"}],\"kind\":\"s-kind\",\"prefixes\":[\"s-prefixes\"]}",
+  "OUT: ok",
+]
+
+test "Go's storage.objects.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"items\":[{\"bucket\":\"s-bucket\",\"cacheControl\":\"s-cachecontrol\",\"contentDisposition\":\"s-contentdisposition\",\"contentEncoding\":\"s-contentencoding\",\"contentLanguage\":\"s-contentlanguage\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"media\":{\"algorithm\":\"s-algorithm\",\"contentType\":\"s-contenttype\",\"data\":\"YWI=\",\"hash\":\"s-hash\",\"length\":\"7\",\"link\":\"s-link\",\"timeCreated\":\"s-timecreated\"},\"metadata\":{\"k1\":\"s-metadata\"},\"name\":\"s-name\",\"owner\":{\"entity\":\"s-entity\",\"entityId\":\"s-entityid\"},\"selfLink\":\"s-selflink\"}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\",\"prefixes\":[\"s-prefixes\"]}")
+  gv_queue(f, "{\"items\":[{\"bucket\":\"s-bucket\",\"cacheControl\":\"s-cachecontrol\",\"contentDisposition\":\"s-contentdisposition\",\"contentEncoding\":\"s-contentencoding\",\"contentLanguage\":\"s-contentlanguage\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"media\":{\"algorithm\":\"s-algorithm\",\"contentType\":\"s-contenttype\",\"data\":\"YWI=\",\"hash\":\"s-hash\",\"length\":\"7\",\"link\":\"s-link\",\"timeCreated\":\"s-timecreated\"},\"metadata\":{\"k1\":\"s-metadata\"},\"name\":\"s-name\",\"owner\":{\"entity\":\"s-entity\",\"entityId\":\"s-entityid\"},\"selfLink\":\"s-selflink\"}],\"kind\":\"s-kind\",\"prefixes\":[\"s-prefixes\"]}")
+  gv_note(f, "CALL storage.objects.list pages")
+  var p = svc.objects.list_pages("id1/ x", options: ObjectsListOptions{delimiter: Some("s-delimiter"), max_results: Some(7), page_token: Some("s-pagetoken"), prefix: Some("s-prefix"), projection: Some("s-projection"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_26)
+}
+
+const GO_27: List[Str] = [
   "CALL storage.objects.patch",
   "REQ PATCH https://www.googleapis.com/storage/v1beta1/b/id1%2F%20x/o/id2%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false&projection=s-projection",
   "  H content-type=application/json | x-extra=v1",
@@ -499,10 +660,10 @@ test "Go's storage.objects.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_22)
+  gv_compare(gv_log_of(f), GO_27)
 }
 
-const GO_23: List[Str] = [
+const GO_28: List[Str] = [
   "CALL storage.objects.update",
   "REQ PUT https://www.googleapis.com/storage/v1beta1/b/id1%2F%20x/o/id2%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false&projection=s-projection",
   "  H content-type=application/json | x-extra=v1",
@@ -521,5 +682,27 @@ test "Go's storage.objects.update" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_23)
+  gv_compare(gv_log_of(f), GO_28)
+}
+
+const GO_29: List[Str] = [
+  "CALL storage.objects.update download",
+  "REQ PUT https://www.googleapis.com/storage/v1beta1/b/id1%2F%20x/o/id2%2F%20x?alt=media&fields=kind%2Cid&prettyPrint=false&projection=s-projection",
+  "  H content-type=application/json | x-extra=v1",
+  "  B {\"acl\":[{\"bucket\":\"s-bucket\",\"domain\":\"s-domain\",\"email\":\"s-email\",\"entity\":\"s-entity\",\"entityId\":\"s-entityid\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"object\":\"s-object\",\"role\":\"s-role\",\"selfLink\":\"s-selflink\"}],\"bucket\":\"s-bucket\",\"cacheControl\":\"s-cachecontrol\",\"contentDisposition\":\"s-contentdisposition\",\"contentEncoding\":\"s-contentencoding\",\"contentLanguage\":\"s-contentlanguage\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"media\":{\"algorithm\":\"s-algorithm\",\"contentType\":\"s-contenttype\",\"data\":\"YWI=\",\"hash\":\"s-hash\",\"length\":\"7\",\"link\":\"s-link\",\"timeCreated\":\"s-timecreated\"},\"metadata\":{\"k1\":\"s-metadata\"},\"name\":\"s-name\",\"owner\":{\"entity\":\"s-entity\",\"entityId\":\"s-entityid\"},\"selfLink\":\"s-selflink\"}",
+  "",
+  "  SERVED 200 media-bytes \u{0001}ÿ",
+  "OUT: media 200 media-bytes \u{0001}ÿ",
+]
+
+test "Go's storage.objects.update download" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "media-bytes \u{0001}ÿ")
+  gv_note(f, "CALL storage.objects.update download")
+  match svc.objects.update_download("id1/ x", "id2/ x", json.decode_str[Object]("{\"acl\":[{\"bucket\":\"s-bucket\",\"domain\":\"s-domain\",\"email\":\"s-email\",\"entity\":\"s-entity\",\"entityId\":\"s-entityid\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"object\":\"s-object\",\"role\":\"s-role\",\"selfLink\":\"s-selflink\"}],\"bucket\":\"s-bucket\",\"cacheControl\":\"s-cachecontrol\",\"contentDisposition\":\"s-contentdisposition\",\"contentEncoding\":\"s-contentencoding\",\"contentLanguage\":\"s-contentlanguage\",\"id\":\"s-id\",\"kind\":\"s-kind\",\"media\":{\"algorithm\":\"s-algorithm\",\"contentType\":\"s-contenttype\",\"data\":\"YWI=\",\"hash\":\"s-hash\",\"length\":\"7\",\"link\":\"s-link\",\"timeCreated\":\"s-timecreated\"},\"metadata\":{\"k1\":\"s-metadata\"},\"name\":\"s-name\",\"owner\":{\"entity\":\"s-entity\",\"entityId\":\"s-entityid\"},\"selfLink\":\"s-selflink\"}") ?? e => fault(e.display()), options: ObjectsUpdateOptions{projection: Some("s-projection"), fields: ["kind", "id"], headers: [("X-Extra", "v1")]}) {
+    Ok(r) => gv_note(f, "OUT: media ${r.status} ${r.body.to_str_lossy()}")
+    Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+  }
+  gv_compare(gv_log_of(f), GO_29)
 }

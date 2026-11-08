@@ -117,6 +117,44 @@ test "Go's mybusinessverifications.locations.verifications.list" {
 }
 
 const GO_5: List[Str] = [
+  "CALL mybusinessverifications.locations.verifications.list pages",
+  "REQ GET https://mybusinessverifications.googleapis.com/v1/id1/%20x/verifications?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"verifications\":[{\"announcement\":\"s-announcement\",\"createTime\":\"s-createtime\",\"method\":\"s-method\",\"name\":\"s-name\",\"state\":\"s-state\"}]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"verifications\":[{\"announcement\":\"s-announcement\",\"createTime\":\"s-createtime\",\"method\":\"s-method\",\"name\":\"s-name\",\"state\":\"s-state\"}]}",
+  "REQ GET https://mybusinessverifications.googleapis.com/v1/id1/%20x/verifications?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"verifications\":[{\"announcement\":\"s-announcement\",\"createTime\":\"s-createtime\",\"method\":\"s-method\",\"name\":\"s-name\",\"state\":\"s-state\"}]}",
+  "OUT: {\"verifications\":[{\"announcement\":\"s-announcement\",\"createTime\":\"s-createtime\",\"method\":\"s-method\",\"name\":\"s-name\",\"state\":\"s-state\"}]}",
+  "OUT: ok",
+]
+
+test "Go's mybusinessverifications.locations.verifications.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"verifications\":[{\"announcement\":\"s-announcement\",\"createTime\":\"s-createtime\",\"method\":\"s-method\",\"name\":\"s-name\",\"state\":\"s-state\"}]}")
+  gv_queue(f, "{\"verifications\":[{\"announcement\":\"s-announcement\",\"createTime\":\"s-createtime\",\"method\":\"s-method\",\"name\":\"s-name\",\"state\":\"s-state\"}]}")
+  gv_note(f, "CALL mybusinessverifications.locations.verifications.list pages")
+  var p = svc.locations.verifications.list_pages("id1/ x", options: LocationsVerificationsListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_5)
+}
+
+const GO_6: List[Str] = [
   "CALL mybusinessverifications.verificationTokens.generate",
   "REQ POST https://mybusinessverifications.googleapis.com/v1/verificationTokens:generate?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -135,5 +173,5 @@ test "Go's mybusinessverifications.verificationTokens.generate" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_5)
+  gv_compare(gv_log_of(f), GO_6)
 }

@@ -51,6 +51,44 @@ test "Go's privateca.projects.locations.list" {
 }
 
 const GO_2: List[Str] = [
+  "CALL privateca.projects.locations.list pages",
+  "REQ GET https://privateca.googleapis.com/v1/id1/%20x/locations?alt=json&extraLocationTypes=s-extralocationtypes&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://privateca.googleapis.com/v1/id1/%20x/locations?alt=json&extraLocationTypes=s-extralocationtypes&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}]}",
+  "OUT: {\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}]}",
+  "OUT: ok",
+]
+
+test "Go's privateca.projects.locations.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}]}")
+  gv_note(f, "CALL privateca.projects.locations.list pages")
+  var p = svc.projects.locations.list_pages("id1/ x", options: ProjectsLocationsListOptions{extra_location_types: ["s-extralocationtypes"], filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_2)
+}
+
+const GO_3: List[Str] = [
   "CALL privateca.projects.locations.caPools.create",
   "REQ POST https://privateca.googleapis.com/v1/id1/%20x/caPools?alt=json&caPoolId=s-capoolid&fields=kind%2Cid&prettyPrint=false&requestId=s-requestid",
   "  H content-type=application/json | x-extra=v1",
@@ -69,10 +107,10 @@ test "Go's privateca.projects.locations.caPools.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_2)
+  gv_compare(gv_log_of(f), GO_3)
 }
 
-const GO_3: List[Str] = [
+const GO_4: List[Str] = [
   "CALL privateca.projects.locations.caPools.delete",
   "REQ DELETE https://privateca.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&ignoreDependentResources=true&prettyPrint=false&requestId=s-requestid",
   "  H x-extra=v1",
@@ -90,10 +128,10 @@ test "Go's privateca.projects.locations.caPools.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_3)
+  gv_compare(gv_log_of(f), GO_4)
 }
 
-const GO_4: List[Str] = [
+const GO_5: List[Str] = [
   "CALL privateca.projects.locations.caPools.fetchCaCerts",
   "REQ POST https://privateca.googleapis.com/v1/id1/%20x:fetchCaCerts?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -112,10 +150,10 @@ test "Go's privateca.projects.locations.caPools.fetchCaCerts" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_4)
+  gv_compare(gv_log_of(f), GO_5)
 }
 
-const GO_5: List[Str] = [
+const GO_6: List[Str] = [
   "CALL privateca.projects.locations.caPools.get",
   "REQ GET https://privateca.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -133,10 +171,10 @@ test "Go's privateca.projects.locations.caPools.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_5)
+  gv_compare(gv_log_of(f), GO_6)
 }
 
-const GO_6: List[Str] = [
+const GO_7: List[Str] = [
   "CALL privateca.projects.locations.caPools.getIamPolicy",
   "REQ GET https://privateca.googleapis.com/v1/id1/%20x:getIamPolicy?alt=json&fields=kind%2Cid&options.requestedPolicyVersion=7&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -154,10 +192,10 @@ test "Go's privateca.projects.locations.caPools.getIamPolicy" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_6)
+  gv_compare(gv_log_of(f), GO_7)
 }
 
-const GO_7: List[Str] = [
+const GO_8: List[Str] = [
   "CALL privateca.projects.locations.caPools.list",
   "REQ GET https://privateca.googleapis.com/v1/id1/%20x/caPools?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -175,10 +213,48 @@ test "Go's privateca.projects.locations.caPools.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_7)
+  gv_compare(gv_log_of(f), GO_8)
 }
 
-const GO_8: List[Str] = [
+const GO_9: List[Str] = [
+  "CALL privateca.projects.locations.caPools.list pages",
+  "REQ GET https://privateca.googleapis.com/v1/id1/%20x/caPools?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"caPools\":[{\"encryptionSpec\":{\"cloudKmsKey\":\"s-cloudkmskey\"},\"issuancePolicy\":{\"allowRequesterSpecifiedNotBeforeTime\":true,\"backdateDuration\":\"s-backdateduration\",\"maximumLifetime\":\"s-maximumlifetime\"},\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"publishingOptions\":{\"encodingFormat\":\"s-encodingformat\",\"publishCaCert\":true,\"publishCrl\":true},\"tier\":\"s-tier\"}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"caPools\":[{\"encryptionSpec\":{\"cloudKmsKey\":\"s-cloudkmskey\"},\"issuancePolicy\":{\"allowRequesterSpecifiedNotBeforeTime\":true,\"backdateDuration\":\"s-backdateduration\",\"maximumLifetime\":\"s-maximumlifetime\"},\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"publishingOptions\":{\"encodingFormat\":\"s-encodingformat\",\"publishCaCert\":true,\"publishCrl\":true},\"tier\":\"s-tier\"}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}",
+  "REQ GET https://privateca.googleapis.com/v1/id1/%20x/caPools?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"caPools\":[{\"encryptionSpec\":{\"cloudKmsKey\":\"s-cloudkmskey\"},\"issuancePolicy\":{\"allowRequesterSpecifiedNotBeforeTime\":true,\"backdateDuration\":\"s-backdateduration\",\"maximumLifetime\":\"s-maximumlifetime\"},\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"publishingOptions\":{\"encodingFormat\":\"s-encodingformat\",\"publishCaCert\":true,\"publishCrl\":true},\"tier\":\"s-tier\"}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"caPools\":[{\"encryptionSpec\":{\"cloudKmsKey\":\"s-cloudkmskey\"},\"issuancePolicy\":{\"allowRequesterSpecifiedNotBeforeTime\":true,\"backdateDuration\":\"s-backdateduration\",\"maximumLifetime\":\"s-maximumlifetime\"},\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"publishingOptions\":{\"encodingFormat\":\"s-encodingformat\",\"publishCaCert\":true,\"publishCrl\":true},\"tier\":\"s-tier\"}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: ok",
+]
+
+test "Go's privateca.projects.locations.caPools.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"caPools\":[{\"encryptionSpec\":{\"cloudKmsKey\":\"s-cloudkmskey\"},\"issuancePolicy\":{\"allowRequesterSpecifiedNotBeforeTime\":true,\"backdateDuration\":\"s-backdateduration\",\"maximumLifetime\":\"s-maximumlifetime\"},\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"publishingOptions\":{\"encodingFormat\":\"s-encodingformat\",\"publishCaCert\":true,\"publishCrl\":true},\"tier\":\"s-tier\"}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}")
+  gv_queue(f, "{\"caPools\":[{\"encryptionSpec\":{\"cloudKmsKey\":\"s-cloudkmskey\"},\"issuancePolicy\":{\"allowRequesterSpecifiedNotBeforeTime\":true,\"backdateDuration\":\"s-backdateduration\",\"maximumLifetime\":\"s-maximumlifetime\"},\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"publishingOptions\":{\"encodingFormat\":\"s-encodingformat\",\"publishCaCert\":true,\"publishCrl\":true},\"tier\":\"s-tier\"}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_note(f, "CALL privateca.projects.locations.caPools.list pages")
+  var p = svc.projects.locations.ca_pools.list_pages("id1/ x", options: ProjectsLocationsCaPoolsListOptions{filter: Some("s-filter"), order_by: Some("s-orderby"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_9)
+}
+
+const GO_10: List[Str] = [
   "CALL privateca.projects.locations.caPools.patch",
   "REQ PATCH https://privateca.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&requestId=s-requestid&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
@@ -197,10 +273,10 @@ test "Go's privateca.projects.locations.caPools.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_8)
+  gv_compare(gv_log_of(f), GO_10)
 }
 
-const GO_9: List[Str] = [
+const GO_11: List[Str] = [
   "CALL privateca.projects.locations.caPools.setIamPolicy",
   "REQ POST https://privateca.googleapis.com/v1/id1/%20x:setIamPolicy?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -219,10 +295,10 @@ test "Go's privateca.projects.locations.caPools.setIamPolicy" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_9)
+  gv_compare(gv_log_of(f), GO_11)
 }
 
-const GO_10: List[Str] = [
+const GO_12: List[Str] = [
   "CALL privateca.projects.locations.caPools.testIamPermissions",
   "REQ POST https://privateca.googleapis.com/v1/id1/%20x:testIamPermissions?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -241,10 +317,10 @@ test "Go's privateca.projects.locations.caPools.testIamPermissions" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_10)
+  gv_compare(gv_log_of(f), GO_12)
 }
 
-const GO_11: List[Str] = [
+const GO_13: List[Str] = [
   "CALL privateca.projects.locations.caPools.certificateAuthorities.activate",
   "REQ POST https://privateca.googleapis.com/v1/id1/%20x:activate?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -263,14 +339,14 @@ test "Go's privateca.projects.locations.caPools.certificateAuthorities.activate"
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_11)
+  gv_compare(gv_log_of(f), GO_13)
 }
 
-const GO_12: List[Str] = [
+const GO_14: List[Str] = [
   "CALL privateca.projects.locations.caPools.certificateAuthorities.create",
   "REQ POST https://privateca.googleapis.com/v1/id1/%20x/certificateAuthorities?alt=json&certificateAuthorityId=s-certificateauthorityid&fields=kind%2Cid&prettyPrint=false&requestId=s-requestid",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"accessUrls\":{\"caCertificateAccessUrl\":\"s-cacertificateaccessurl\",\"crlAccessUrls\":[\"s-crlaccessurls\"]},\"caCertificateDescriptions\":[{\"aiaIssuingCertificateUrls\":[\"s-aiaissuingcertificateurls\"],\"authorityKeyId\":{\"keyId\":\"s-keyid\"},\"certFingerprint\":{\"sha256Hash\":\"s-sha256hash\"},\"crlDistributionPoints\":[\"s-crldistributionpoints\"],\"publicKey\":{\"format\":\"s-format\",\"key\":\"YWI=\"},\"subjectDescription\":{\"hexSerialNumber\":\"s-hexserialnumber\",\"lifetime\":\"s-lifetime\",\"notAfterTime\":\"s-notaftertime\",\"notBeforeTime\":\"s-notbeforetime\"},\"subjectKeyId\":{\"keyId\":\"s-keyid\"},\"tbsCertificateDigest\":\"s-tbscertificatedigest\",\"x509Description\":{}}],\"config\":{\"publicKey\":{\"format\":\"s-format\",\"key\":\"YWI=\"},\"subjectConfig\":{},\"subjectKeyId\":{\"keyId\":\"s-keyid\"},\"x509Config\":{\"aiaOcspServers\":[\"s-aiaocspservers\"]}},\"createTime\":\"s-createtime\",\"deleteTime\":\"s-deletetime\",\"expireTime\":\"s-expiretime\",\"gcsBucket\":\"s-gcsbucket\",\"keySpec\":{\"algorithm\":\"s-algorithm\",\"cloudKmsKeyVersion\":\"s-cloudkmskeyversion\"},\"labels\":{\"k1\":\"s-labels\"},\"lifetime\":\"s-lifetime\",\"name\":\"s-name\",\"pemCaCertificates\":[\"s-pemcacertificates\"],\"satisfiesPzi\":true,\"satisfiesPzs\":true,\"state\":\"s-state\",\"subordinateConfig\":{\"certificateAuthority\":\"s-certificateauthority\",\"pemIssuerChain\":{\"pemCertificates\":[\"s-pemcertificates\"]}},\"tier\":\"s-tier\",\"type\":\"s-type\",\"updateTime\":\"s-updatetime\",\"userDefinedAccessUrls\":{\"aiaIssuingCertificateUrls\":[\"s-aiaissuingcertificateurls\"],\"crlAccessUrls\":[\"s-crlaccessurls\"]}}",
+  "  B <1473 bytes> {\"accessUrls\":{\"caCertificateAcc...cessUrls\":[\"s-crlaccessurls\"]}}",
   "",
   "  SERVED 200 {\"done\":true,\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}",
   "OUT: {\"done\":true,\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}",
@@ -285,10 +361,10 @@ test "Go's privateca.projects.locations.caPools.certificateAuthorities.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_12)
+  gv_compare(gv_log_of(f), GO_14)
 }
 
-const GO_13: List[Str] = [
+const GO_15: List[Str] = [
   "CALL privateca.projects.locations.caPools.certificateAuthorities.delete",
   "REQ DELETE https://privateca.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&ignoreActiveCertificates=true&ignoreDependentResources=true&prettyPrint=false&requestId=s-requestid&skipGracePeriod=true",
   "  H x-extra=v1",
@@ -306,10 +382,10 @@ test "Go's privateca.projects.locations.caPools.certificateAuthorities.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_13)
+  gv_compare(gv_log_of(f), GO_15)
 }
 
-const GO_14: List[Str] = [
+const GO_16: List[Str] = [
   "CALL privateca.projects.locations.caPools.certificateAuthorities.disable",
   "REQ POST https://privateca.googleapis.com/v1/id1/%20x:disable?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -328,10 +404,10 @@ test "Go's privateca.projects.locations.caPools.certificateAuthorities.disable" 
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_14)
+  gv_compare(gv_log_of(f), GO_16)
 }
 
-const GO_15: List[Str] = [
+const GO_17: List[Str] = [
   "CALL privateca.projects.locations.caPools.certificateAuthorities.enable",
   "REQ POST https://privateca.googleapis.com/v1/id1/%20x:enable?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -350,10 +426,10 @@ test "Go's privateca.projects.locations.caPools.certificateAuthorities.enable" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_15)
+  gv_compare(gv_log_of(f), GO_17)
 }
 
-const GO_16: List[Str] = [
+const GO_18: List[Str] = [
   "CALL privateca.projects.locations.caPools.certificateAuthorities.fetch",
   "REQ GET https://privateca.googleapis.com/v1/id1/%20x:fetch?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -371,10 +447,10 @@ test "Go's privateca.projects.locations.caPools.certificateAuthorities.fetch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_16)
+  gv_compare(gv_log_of(f), GO_18)
 }
 
-const GO_17: List[Str] = [
+const GO_19: List[Str] = [
   "CALL privateca.projects.locations.caPools.certificateAuthorities.get",
   "REQ GET https://privateca.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -392,10 +468,10 @@ test "Go's privateca.projects.locations.caPools.certificateAuthorities.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_17)
+  gv_compare(gv_log_of(f), GO_19)
 }
 
-const GO_18: List[Str] = [
+const GO_20: List[Str] = [
   "CALL privateca.projects.locations.caPools.certificateAuthorities.list",
   "REQ GET https://privateca.googleapis.com/v1/id1/%20x/certificateAuthorities?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -413,14 +489,52 @@ test "Go's privateca.projects.locations.caPools.certificateAuthorities.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_18)
+  gv_compare(gv_log_of(f), GO_20)
 }
 
-const GO_19: List[Str] = [
+const GO_21: List[Str] = [
+  "CALL privateca.projects.locations.caPools.certificateAuthorities.list pages",
+  "REQ GET https://privateca.googleapis.com/v1/id1/%20x/certificateAuthorities?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"certificateAuthorities\":[{\"accessUrls\":{\"caCertificateAccessUrl\":\"s-cacertificateaccessurl\"},\"config\":{},\"createTime\":\"s-createtime\",\"deleteTime\":\"s-deletetime\",\"expireTime\":\"s-expiretime\",\"gcsBucket\":\"s-gcsbucket\",\"keySpec\":{\"algorithm\":\"s-algorithm\",\"cloudKmsKeyVersion\":\"s-cloudkmskeyversion\"},\"labels\":{\"k1\":\"s-labels\"},\"lifetime\":\"s-lifetime\",\"name\":\"s-name\",\"pemCaCertificates\":[\"s-pemcacertificates\"],\"satisfiesPzi\":true,\"satisfiesPzs\":true,\"state\":\"s-state\",\"subordinateConfig\":{\"certificateAuthority\":\"s-certificateauthority\"},\"tier\":\"s-tier\",\"type\":\"s-type\",\"updateTime\":\"s-updatetime\",\"userDefinedAccessUrls\":{}}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"certificateAuthorities\":[{\"accessUrls\":{\"caCertificateAccessUrl\":\"s-cacertificateaccessurl\"},\"config\":{},\"createTime\":\"s-createtime\",\"deleteTime\":\"s-deletetime\",\"expireTime\":\"s-expiretime\",\"gcsBucket\":\"s-gcsbucket\",\"keySpec\":{\"algorithm\":\"s-algorithm\",\"cloudKmsKeyVersion\":\"s-cloudkmskeyversion\"},\"labels\":{\"k1\":\"s-labels\"},\"lifetime\":\"s-lifetime\",\"name\":\"s-name\",\"pemCaCertificates\":[\"s-pemcacertificates\"],\"satisfiesPzi\":true,\"satisfiesPzs\":true,\"state\":\"s-state\",\"subordinateConfig\":{\"certificateAuthority\":\"s-certificateauthority\"},\"tier\":\"s-tier\",\"type\":\"s-type\",\"updateTime\":\"s-updatetime\",\"userDefinedAccessUrls\":{}}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}",
+  "REQ GET https://privateca.googleapis.com/v1/id1/%20x/certificateAuthorities?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"certificateAuthorities\":[{\"accessUrls\":{\"caCertificateAccessUrl\":\"s-cacertificateaccessurl\"},\"config\":{},\"createTime\":\"s-createtime\",\"deleteTime\":\"s-deletetime\",\"expireTime\":\"s-expiretime\",\"gcsBucket\":\"s-gcsbucket\",\"keySpec\":{\"algorithm\":\"s-algorithm\",\"cloudKmsKeyVersion\":\"s-cloudkmskeyversion\"},\"labels\":{\"k1\":\"s-labels\"},\"lifetime\":\"s-lifetime\",\"name\":\"s-name\",\"pemCaCertificates\":[\"s-pemcacertificates\"],\"satisfiesPzi\":true,\"satisfiesPzs\":true,\"state\":\"s-state\",\"subordinateConfig\":{\"certificateAuthority\":\"s-certificateauthority\"},\"tier\":\"s-tier\",\"type\":\"s-type\",\"updateTime\":\"s-updatetime\",\"userDefinedAccessUrls\":{}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"certificateAuthorities\":[{\"accessUrls\":{\"caCertificateAccessUrl\":\"s-cacertificateaccessurl\"},\"config\":{},\"createTime\":\"s-createtime\",\"deleteTime\":\"s-deletetime\",\"expireTime\":\"s-expiretime\",\"gcsBucket\":\"s-gcsbucket\",\"keySpec\":{\"algorithm\":\"s-algorithm\",\"cloudKmsKeyVersion\":\"s-cloudkmskeyversion\"},\"labels\":{\"k1\":\"s-labels\"},\"lifetime\":\"s-lifetime\",\"name\":\"s-name\",\"pemCaCertificates\":[\"s-pemcacertificates\"],\"satisfiesPzi\":true,\"satisfiesPzs\":true,\"state\":\"s-state\",\"subordinateConfig\":{\"certificateAuthority\":\"s-certificateauthority\"},\"tier\":\"s-tier\",\"type\":\"s-type\",\"updateTime\":\"s-updatetime\",\"userDefinedAccessUrls\":{}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: ok",
+]
+
+test "Go's privateca.projects.locations.caPools.certificateAuthorities.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"certificateAuthorities\":[{\"accessUrls\":{\"caCertificateAccessUrl\":\"s-cacertificateaccessurl\"},\"config\":{},\"createTime\":\"s-createtime\",\"deleteTime\":\"s-deletetime\",\"expireTime\":\"s-expiretime\",\"gcsBucket\":\"s-gcsbucket\",\"keySpec\":{\"algorithm\":\"s-algorithm\",\"cloudKmsKeyVersion\":\"s-cloudkmskeyversion\"},\"labels\":{\"k1\":\"s-labels\"},\"lifetime\":\"s-lifetime\",\"name\":\"s-name\",\"pemCaCertificates\":[\"s-pemcacertificates\"],\"satisfiesPzi\":true,\"satisfiesPzs\":true,\"state\":\"s-state\",\"subordinateConfig\":{\"certificateAuthority\":\"s-certificateauthority\"},\"tier\":\"s-tier\",\"type\":\"s-type\",\"updateTime\":\"s-updatetime\",\"userDefinedAccessUrls\":{}}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}")
+  gv_queue(f, "{\"certificateAuthorities\":[{\"accessUrls\":{\"caCertificateAccessUrl\":\"s-cacertificateaccessurl\"},\"config\":{},\"createTime\":\"s-createtime\",\"deleteTime\":\"s-deletetime\",\"expireTime\":\"s-expiretime\",\"gcsBucket\":\"s-gcsbucket\",\"keySpec\":{\"algorithm\":\"s-algorithm\",\"cloudKmsKeyVersion\":\"s-cloudkmskeyversion\"},\"labels\":{\"k1\":\"s-labels\"},\"lifetime\":\"s-lifetime\",\"name\":\"s-name\",\"pemCaCertificates\":[\"s-pemcacertificates\"],\"satisfiesPzi\":true,\"satisfiesPzs\":true,\"state\":\"s-state\",\"subordinateConfig\":{\"certificateAuthority\":\"s-certificateauthority\"},\"tier\":\"s-tier\",\"type\":\"s-type\",\"updateTime\":\"s-updatetime\",\"userDefinedAccessUrls\":{}}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_note(f, "CALL privateca.projects.locations.caPools.certificateAuthorities.list pages")
+  var p = svc.projects.locations.ca_pools.certificate_authorities.list_pages("id1/ x", options: ProjectsLocationsCaPoolsCertificateAuthoritiesListOptions{filter: Some("s-filter"), order_by: Some("s-orderby"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_21)
+}
+
+const GO_22: List[Str] = [
   "CALL privateca.projects.locations.caPools.certificateAuthorities.patch",
   "REQ PATCH https://privateca.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&requestId=s-requestid&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"accessUrls\":{\"caCertificateAccessUrl\":\"s-cacertificateaccessurl\",\"crlAccessUrls\":[\"s-crlaccessurls\"]},\"caCertificateDescriptions\":[{\"aiaIssuingCertificateUrls\":[\"s-aiaissuingcertificateurls\"],\"authorityKeyId\":{\"keyId\":\"s-keyid\"},\"certFingerprint\":{\"sha256Hash\":\"s-sha256hash\"},\"crlDistributionPoints\":[\"s-crldistributionpoints\"],\"publicKey\":{\"format\":\"s-format\",\"key\":\"YWI=\"},\"subjectDescription\":{\"hexSerialNumber\":\"s-hexserialnumber\",\"lifetime\":\"s-lifetime\",\"notAfterTime\":\"s-notaftertime\",\"notBeforeTime\":\"s-notbeforetime\"},\"subjectKeyId\":{\"keyId\":\"s-keyid\"},\"tbsCertificateDigest\":\"s-tbscertificatedigest\",\"x509Description\":{}}],\"config\":{\"publicKey\":{\"format\":\"s-format\",\"key\":\"YWI=\"},\"subjectConfig\":{},\"subjectKeyId\":{\"keyId\":\"s-keyid\"},\"x509Config\":{\"aiaOcspServers\":[\"s-aiaocspservers\"]}},\"createTime\":\"s-createtime\",\"deleteTime\":\"s-deletetime\",\"expireTime\":\"s-expiretime\",\"gcsBucket\":\"s-gcsbucket\",\"keySpec\":{\"algorithm\":\"s-algorithm\",\"cloudKmsKeyVersion\":\"s-cloudkmskeyversion\"},\"labels\":{\"k1\":\"s-labels\"},\"lifetime\":\"s-lifetime\",\"name\":\"s-name\",\"pemCaCertificates\":[\"s-pemcacertificates\"],\"satisfiesPzi\":true,\"satisfiesPzs\":true,\"state\":\"s-state\",\"subordinateConfig\":{\"certificateAuthority\":\"s-certificateauthority\",\"pemIssuerChain\":{\"pemCertificates\":[\"s-pemcertificates\"]}},\"tier\":\"s-tier\",\"type\":\"s-type\",\"updateTime\":\"s-updatetime\",\"userDefinedAccessUrls\":{\"aiaIssuingCertificateUrls\":[\"s-aiaissuingcertificateurls\"],\"crlAccessUrls\":[\"s-crlaccessurls\"]}}",
+  "  B <1473 bytes> {\"accessUrls\":{\"caCertificateAcc...cessUrls\":[\"s-crlaccessurls\"]}}",
   "",
   "  SERVED 200 {\"done\":true,\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}",
   "OUT: {\"done\":true,\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}",
@@ -435,10 +549,10 @@ test "Go's privateca.projects.locations.caPools.certificateAuthorities.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_19)
+  gv_compare(gv_log_of(f), GO_22)
 }
 
-const GO_20: List[Str] = [
+const GO_23: List[Str] = [
   "CALL privateca.projects.locations.caPools.certificateAuthorities.undelete",
   "REQ POST https://privateca.googleapis.com/v1/id1/%20x:undelete?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -457,10 +571,10 @@ test "Go's privateca.projects.locations.caPools.certificateAuthorities.undelete"
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_20)
+  gv_compare(gv_log_of(f), GO_23)
 }
 
-const GO_21: List[Str] = [
+const GO_24: List[Str] = [
   "CALL privateca.projects.locations.caPools.certificateAuthorities.certificateRevocationLists.get",
   "REQ GET https://privateca.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -478,10 +592,10 @@ test "Go's privateca.projects.locations.caPools.certificateAuthorities.certifica
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_21)
+  gv_compare(gv_log_of(f), GO_24)
 }
 
-const GO_22: List[Str] = [
+const GO_25: List[Str] = [
   "CALL privateca.projects.locations.caPools.certificateAuthorities.certificateRevocationLists.getIamPolicy",
   "REQ GET https://privateca.googleapis.com/v1/id1/%20x:getIamPolicy?alt=json&fields=kind%2Cid&options.requestedPolicyVersion=7&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -499,10 +613,10 @@ test "Go's privateca.projects.locations.caPools.certificateAuthorities.certifica
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_22)
+  gv_compare(gv_log_of(f), GO_25)
 }
 
-const GO_23: List[Str] = [
+const GO_26: List[Str] = [
   "CALL privateca.projects.locations.caPools.certificateAuthorities.certificateRevocationLists.list",
   "REQ GET https://privateca.googleapis.com/v1/id1/%20x/certificateRevocationLists?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -520,10 +634,48 @@ test "Go's privateca.projects.locations.caPools.certificateAuthorities.certifica
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_23)
+  gv_compare(gv_log_of(f), GO_26)
 }
 
-const GO_24: List[Str] = [
+const GO_27: List[Str] = [
+  "CALL privateca.projects.locations.caPools.certificateAuthorities.certificateRevocationLists.list pages",
+  "REQ GET https://privateca.googleapis.com/v1/id1/%20x/certificateRevocationLists?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"certificateRevocationLists\":[{\"accessUrl\":\"s-accessurl\",\"createTime\":\"s-createtime\",\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"pemCrl\":\"s-pemcrl\",\"revisionId\":\"s-revisionid\",\"sequenceNumber\":\"7\",\"state\":\"s-state\",\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"certificateRevocationLists\":[{\"accessUrl\":\"s-accessurl\",\"createTime\":\"s-createtime\",\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"pemCrl\":\"s-pemcrl\",\"revisionId\":\"s-revisionid\",\"sequenceNumber\":\"7\",\"state\":\"s-state\",\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}",
+  "REQ GET https://privateca.googleapis.com/v1/id1/%20x/certificateRevocationLists?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"certificateRevocationLists\":[{\"accessUrl\":\"s-accessurl\",\"createTime\":\"s-createtime\",\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"pemCrl\":\"s-pemcrl\",\"revisionId\":\"s-revisionid\",\"sequenceNumber\":\"7\",\"state\":\"s-state\",\"updateTime\":\"s-updatetime\"}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"certificateRevocationLists\":[{\"accessUrl\":\"s-accessurl\",\"createTime\":\"s-createtime\",\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"pemCrl\":\"s-pemcrl\",\"revisionId\":\"s-revisionid\",\"sequenceNumber\":\"7\",\"state\":\"s-state\",\"updateTime\":\"s-updatetime\"}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: ok",
+]
+
+test "Go's privateca.projects.locations.caPools.certificateAuthorities.certificateRevocationLists.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"certificateRevocationLists\":[{\"accessUrl\":\"s-accessurl\",\"createTime\":\"s-createtime\",\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"pemCrl\":\"s-pemcrl\",\"revisionId\":\"s-revisionid\",\"sequenceNumber\":\"7\",\"state\":\"s-state\",\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}")
+  gv_queue(f, "{\"certificateRevocationLists\":[{\"accessUrl\":\"s-accessurl\",\"createTime\":\"s-createtime\",\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"pemCrl\":\"s-pemcrl\",\"revisionId\":\"s-revisionid\",\"sequenceNumber\":\"7\",\"state\":\"s-state\",\"updateTime\":\"s-updatetime\"}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_note(f, "CALL privateca.projects.locations.caPools.certificateAuthorities.certificateRevocationLists.list pages")
+  var p = svc.projects.locations.ca_pools.certificate_authorities.certificate_revocation_lists.list_pages("id1/ x", options: ProjectsLocationsCaPoolsCertificateAuthoritiesCertificateRevocationListsListOptions{filter: Some("s-filter"), order_by: Some("s-orderby"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_27)
+}
+
+const GO_28: List[Str] = [
   "CALL privateca.projects.locations.caPools.certificateAuthorities.certificateRevocationLists.patch",
   "REQ PATCH https://privateca.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&requestId=s-requestid&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
@@ -542,10 +694,10 @@ test "Go's privateca.projects.locations.caPools.certificateAuthorities.certifica
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_24)
+  gv_compare(gv_log_of(f), GO_28)
 }
 
-const GO_25: List[Str] = [
+const GO_29: List[Str] = [
   "CALL privateca.projects.locations.caPools.certificateAuthorities.certificateRevocationLists.setIamPolicy",
   "REQ POST https://privateca.googleapis.com/v1/id1/%20x:setIamPolicy?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -564,10 +716,10 @@ test "Go's privateca.projects.locations.caPools.certificateAuthorities.certifica
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_25)
+  gv_compare(gv_log_of(f), GO_29)
 }
 
-const GO_26: List[Str] = [
+const GO_30: List[Str] = [
   "CALL privateca.projects.locations.caPools.certificateAuthorities.certificateRevocationLists.testIamPermissions",
   "REQ POST https://privateca.googleapis.com/v1/id1/%20x:testIamPermissions?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -586,14 +738,14 @@ test "Go's privateca.projects.locations.caPools.certificateAuthorities.certifica
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_26)
+  gv_compare(gv_log_of(f), GO_30)
 }
 
-const GO_27: List[Str] = [
+const GO_31: List[Str] = [
   "CALL privateca.projects.locations.caPools.certificates.create",
   "REQ POST https://privateca.googleapis.com/v1/id1/%20x/certificates?alt=json&certificateId=s-certificateid&fields=kind%2Cid&issuingCertificateAuthorityId=s-issuingcertificateauthorityid&prettyPrint=false&requestId=s-requestid&validateOnly=true",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"certificateDescription\":{\"aiaIssuingCertificateUrls\":[\"s-aiaissuingcertificateurls\"],\"authorityKeyId\":{\"keyId\":\"s-keyid\"},\"certFingerprint\":{\"sha256Hash\":\"s-sha256hash\"},\"crlDistributionPoints\":[\"s-crldistributionpoints\"],\"publicKey\":{\"format\":\"s-format\",\"key\":\"YWI=\"},\"subjectDescription\":{\"hexSerialNumber\":\"s-hexserialnumber\",\"lifetime\":\"s-lifetime\",\"notAfterTime\":\"s-notaftertime\",\"notBeforeTime\":\"s-notbeforetime\"},\"subjectKeyId\":{\"keyId\":\"s-keyid\"},\"tbsCertificateDigest\":\"s-tbscertificatedigest\",\"x509Description\":{\"aiaOcspServers\":[\"s-aiaocspservers\"]}},\"certificateTemplate\":\"s-certificatetemplate\",\"config\":{\"publicKey\":{\"format\":\"s-format\",\"key\":\"YWI=\"},\"subjectConfig\":{},\"subjectKeyId\":{\"keyId\":\"s-keyid\"},\"x509Config\":{\"aiaOcspServers\":[\"s-aiaocspservers\"]}},\"createTime\":\"s-createtime\",\"issuerCertificateAuthority\":\"s-issuercertificateauthority\",\"labels\":{\"k1\":\"s-labels\"},\"lifetime\":\"s-lifetime\",\"name\":\"s-name\",\"pemCertificate\":\"s-pemcertificate\",\"pemCertificateChain\":[\"s-pemcertificatechain\"],\"pemCsr\":\"s-pemcsr\",\"requestedNotBeforeTime\":\"s-requestednotbeforetime\",\"revocationDetails\":{\"revocationState\":\"s-revocationstate\",\"revocationTime\":\"s-revocationtime\"},\"subjectMode\":\"s-subjectmode\",\"updateTime\":\"s-updatetime\"}",
+  "  B <1241 bytes> {\"certificateDescription\":{\"aiaI...e\",\"updateTime\":\"s-updatetime\"}",
   "",
   "  SERVED 200 {\"certificateDescription\":{\"aiaIssuingCertificateUrls\":[\"s-aiaissuingcertificateurls\"],\"authorityKeyId\":{\"keyId\":\"s-keyid\"},\"certFingerprint\":{\"sha256Hash\":\"s-sha256hash\"},\"crlDistributionPoints\":[\"s-crldistributionpoints\"],\"publicKey\":{\"format\":\"s-format\",\"key\":\"YWI=\"},\"subjectDescription\":{\"hexSerialNumber\":\"s-hexserialnumber\",\"lifetime\":\"s-lifetime\",\"notAfterTime\":\"s-notaftertime\",\"notBeforeTime\":\"s-notbeforetime\"},\"subjectKeyId\":{\"keyId\":\"s-keyid\"},\"tbsCertificateDigest\":\"s-tbscertificatedigest\",\"x509Description\":{\"aiaOcspServers\":[\"s-aiaocspservers\"]}},\"certificateTemplate\":\"s-certificatetemplate\",\"config\":{\"publicKey\":{\"format\":\"s-format\",\"key\":\"YWI=\"},\"subjectConfig\":{},\"subjectKeyId\":{\"keyId\":\"s-keyid\"},\"x509Config\":{\"aiaOcspServers\":[\"s-aiaocspservers\"]}},\"createTime\":\"s-createtime\",\"issuerCertificateAuthority\":\"s-issuercertificateauthority\",\"labels\":{\"k1\":\"s-labels\"},\"lifetime\":\"s-lifetime\",\"name\":\"s-name\",\"pemCertificate\":\"s-pemcertificate\",\"pemCertificateChain\":[\"s-pemcertificatechain\"],\"pemCsr\":\"s-pemcsr\",\"requestedNotBeforeTime\":\"s-requestednotbeforetime\",\"revocationDetails\":{\"revocationState\":\"s-revocationstate\",\"revocationTime\":\"s-revocationtime\"},\"subjectMode\":\"s-subjectmode\",\"updateTime\":\"s-updatetime\"}",
   "OUT: {\"certificateDescription\":{\"aiaIssuingCertificateUrls\":[\"s-aiaissuingcertificateurls\"],\"authorityKeyId\":{\"keyId\":\"s-keyid\"},\"certFingerprint\":{\"sha256Hash\":\"s-sha256hash\"},\"crlDistributionPoints\":[\"s-crldistributionpoints\"],\"publicKey\":{\"format\":\"s-format\",\"key\":\"YWI=\"},\"subjectDescription\":{\"hexSerialNumber\":\"s-hexserialnumber\",\"lifetime\":\"s-lifetime\",\"notAfterTime\":\"s-notaftertime\",\"notBeforeTime\":\"s-notbeforetime\"},\"subjectKeyId\":{\"keyId\":\"s-keyid\"},\"tbsCertificateDigest\":\"s-tbscertificatedigest\",\"x509Description\":{\"aiaOcspServers\":[\"s-aiaocspservers\"]}},\"certificateTemplate\":\"s-certificatetemplate\",\"config\":{\"publicKey\":{\"format\":\"s-format\",\"key\":\"YWI=\"},\"subjectConfig\":{},\"subjectKeyId\":{\"keyId\":\"s-keyid\"},\"x509Config\":{\"aiaOcspServers\":[\"s-aiaocspservers\"]}},\"createTime\":\"s-createtime\",\"issuerCertificateAuthority\":\"s-issuercertificateauthority\",\"labels\":{\"k1\":\"s-labels\"},\"lifetime\":\"s-lifetime\",\"name\":\"s-name\",\"pemCertificate\":\"s-pemcertificate\",\"pemCertificateChain\":[\"s-pemcertificatechain\"],\"pemCsr\":\"s-pemcsr\",\"requestedNotBeforeTime\":\"s-requestednotbeforetime\",\"revocationDetails\":{\"revocationState\":\"s-revocationstate\",\"revocationTime\":\"s-revocationtime\"},\"subjectMode\":\"s-subjectmode\",\"updateTime\":\"s-updatetime\"}",
@@ -608,10 +760,10 @@ test "Go's privateca.projects.locations.caPools.certificates.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_27)
+  gv_compare(gv_log_of(f), GO_31)
 }
 
-const GO_28: List[Str] = [
+const GO_32: List[Str] = [
   "CALL privateca.projects.locations.caPools.certificates.get",
   "REQ GET https://privateca.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -629,10 +781,10 @@ test "Go's privateca.projects.locations.caPools.certificates.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_28)
+  gv_compare(gv_log_of(f), GO_32)
 }
 
-const GO_29: List[Str] = [
+const GO_33: List[Str] = [
   "CALL privateca.projects.locations.caPools.certificates.list",
   "REQ GET https://privateca.googleapis.com/v1/id1/%20x/certificates?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -650,14 +802,52 @@ test "Go's privateca.projects.locations.caPools.certificates.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_29)
+  gv_compare(gv_log_of(f), GO_33)
 }
 
-const GO_30: List[Str] = [
+const GO_34: List[Str] = [
+  "CALL privateca.projects.locations.caPools.certificates.list pages",
+  "REQ GET https://privateca.googleapis.com/v1/id1/%20x/certificates?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"certificates\":[{\"certificateDescription\":{\"tbsCertificateDigest\":\"s-tbscertificatedigest\"},\"certificateTemplate\":\"s-certificatetemplate\",\"config\":{},\"createTime\":\"s-createtime\",\"issuerCertificateAuthority\":\"s-issuercertificateauthority\",\"labels\":{\"k1\":\"s-labels\"},\"lifetime\":\"s-lifetime\",\"name\":\"s-name\",\"pemCertificate\":\"s-pemcertificate\",\"pemCertificateChain\":[\"s-pemcertificatechain\"],\"pemCsr\":\"s-pemcsr\",\"requestedNotBeforeTime\":\"s-requestednotbeforetime\",\"revocationDetails\":{\"revocationState\":\"s-revocationstate\",\"revocationTime\":\"s-revocationtime\"},\"subjectMode\":\"s-subjectmode\",\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"certificates\":[{\"certificateDescription\":{\"tbsCertificateDigest\":\"s-tbscertificatedigest\"},\"certificateTemplate\":\"s-certificatetemplate\",\"config\":{},\"createTime\":\"s-createtime\",\"issuerCertificateAuthority\":\"s-issuercertificateauthority\",\"labels\":{\"k1\":\"s-labels\"},\"lifetime\":\"s-lifetime\",\"name\":\"s-name\",\"pemCertificate\":\"s-pemcertificate\",\"pemCertificateChain\":[\"s-pemcertificatechain\"],\"pemCsr\":\"s-pemcsr\",\"requestedNotBeforeTime\":\"s-requestednotbeforetime\",\"revocationDetails\":{\"revocationState\":\"s-revocationstate\",\"revocationTime\":\"s-revocationtime\"},\"subjectMode\":\"s-subjectmode\",\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}",
+  "REQ GET https://privateca.googleapis.com/v1/id1/%20x/certificates?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"certificates\":[{\"certificateDescription\":{\"tbsCertificateDigest\":\"s-tbscertificatedigest\"},\"certificateTemplate\":\"s-certificatetemplate\",\"config\":{},\"createTime\":\"s-createtime\",\"issuerCertificateAuthority\":\"s-issuercertificateauthority\",\"labels\":{\"k1\":\"s-labels\"},\"lifetime\":\"s-lifetime\",\"name\":\"s-name\",\"pemCertificate\":\"s-pemcertificate\",\"pemCertificateChain\":[\"s-pemcertificatechain\"],\"pemCsr\":\"s-pemcsr\",\"requestedNotBeforeTime\":\"s-requestednotbeforetime\",\"revocationDetails\":{\"revocationState\":\"s-revocationstate\",\"revocationTime\":\"s-revocationtime\"},\"subjectMode\":\"s-subjectmode\",\"updateTime\":\"s-updatetime\"}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"certificates\":[{\"certificateDescription\":{\"tbsCertificateDigest\":\"s-tbscertificatedigest\"},\"certificateTemplate\":\"s-certificatetemplate\",\"config\":{},\"createTime\":\"s-createtime\",\"issuerCertificateAuthority\":\"s-issuercertificateauthority\",\"labels\":{\"k1\":\"s-labels\"},\"lifetime\":\"s-lifetime\",\"name\":\"s-name\",\"pemCertificate\":\"s-pemcertificate\",\"pemCertificateChain\":[\"s-pemcertificatechain\"],\"pemCsr\":\"s-pemcsr\",\"requestedNotBeforeTime\":\"s-requestednotbeforetime\",\"revocationDetails\":{\"revocationState\":\"s-revocationstate\",\"revocationTime\":\"s-revocationtime\"},\"subjectMode\":\"s-subjectmode\",\"updateTime\":\"s-updatetime\"}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: ok",
+]
+
+test "Go's privateca.projects.locations.caPools.certificates.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"certificates\":[{\"certificateDescription\":{\"tbsCertificateDigest\":\"s-tbscertificatedigest\"},\"certificateTemplate\":\"s-certificatetemplate\",\"config\":{},\"createTime\":\"s-createtime\",\"issuerCertificateAuthority\":\"s-issuercertificateauthority\",\"labels\":{\"k1\":\"s-labels\"},\"lifetime\":\"s-lifetime\",\"name\":\"s-name\",\"pemCertificate\":\"s-pemcertificate\",\"pemCertificateChain\":[\"s-pemcertificatechain\"],\"pemCsr\":\"s-pemcsr\",\"requestedNotBeforeTime\":\"s-requestednotbeforetime\",\"revocationDetails\":{\"revocationState\":\"s-revocationstate\",\"revocationTime\":\"s-revocationtime\"},\"subjectMode\":\"s-subjectmode\",\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}")
+  gv_queue(f, "{\"certificates\":[{\"certificateDescription\":{\"tbsCertificateDigest\":\"s-tbscertificatedigest\"},\"certificateTemplate\":\"s-certificatetemplate\",\"config\":{},\"createTime\":\"s-createtime\",\"issuerCertificateAuthority\":\"s-issuercertificateauthority\",\"labels\":{\"k1\":\"s-labels\"},\"lifetime\":\"s-lifetime\",\"name\":\"s-name\",\"pemCertificate\":\"s-pemcertificate\",\"pemCertificateChain\":[\"s-pemcertificatechain\"],\"pemCsr\":\"s-pemcsr\",\"requestedNotBeforeTime\":\"s-requestednotbeforetime\",\"revocationDetails\":{\"revocationState\":\"s-revocationstate\",\"revocationTime\":\"s-revocationtime\"},\"subjectMode\":\"s-subjectmode\",\"updateTime\":\"s-updatetime\"}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_note(f, "CALL privateca.projects.locations.caPools.certificates.list pages")
+  var p = svc.projects.locations.ca_pools.certificates.list_pages("id1/ x", options: ProjectsLocationsCaPoolsCertificatesListOptions{filter: Some("s-filter"), order_by: Some("s-orderby"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_34)
+}
+
+const GO_35: List[Str] = [
   "CALL privateca.projects.locations.caPools.certificates.patch",
   "REQ PATCH https://privateca.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&requestId=s-requestid&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"certificateDescription\":{\"aiaIssuingCertificateUrls\":[\"s-aiaissuingcertificateurls\"],\"authorityKeyId\":{\"keyId\":\"s-keyid\"},\"certFingerprint\":{\"sha256Hash\":\"s-sha256hash\"},\"crlDistributionPoints\":[\"s-crldistributionpoints\"],\"publicKey\":{\"format\":\"s-format\",\"key\":\"YWI=\"},\"subjectDescription\":{\"hexSerialNumber\":\"s-hexserialnumber\",\"lifetime\":\"s-lifetime\",\"notAfterTime\":\"s-notaftertime\",\"notBeforeTime\":\"s-notbeforetime\"},\"subjectKeyId\":{\"keyId\":\"s-keyid\"},\"tbsCertificateDigest\":\"s-tbscertificatedigest\",\"x509Description\":{\"aiaOcspServers\":[\"s-aiaocspservers\"]}},\"certificateTemplate\":\"s-certificatetemplate\",\"config\":{\"publicKey\":{\"format\":\"s-format\",\"key\":\"YWI=\"},\"subjectConfig\":{},\"subjectKeyId\":{\"keyId\":\"s-keyid\"},\"x509Config\":{\"aiaOcspServers\":[\"s-aiaocspservers\"]}},\"createTime\":\"s-createtime\",\"issuerCertificateAuthority\":\"s-issuercertificateauthority\",\"labels\":{\"k1\":\"s-labels\"},\"lifetime\":\"s-lifetime\",\"name\":\"s-name\",\"pemCertificate\":\"s-pemcertificate\",\"pemCertificateChain\":[\"s-pemcertificatechain\"],\"pemCsr\":\"s-pemcsr\",\"requestedNotBeforeTime\":\"s-requestednotbeforetime\",\"revocationDetails\":{\"revocationState\":\"s-revocationstate\",\"revocationTime\":\"s-revocationtime\"},\"subjectMode\":\"s-subjectmode\",\"updateTime\":\"s-updatetime\"}",
+  "  B <1241 bytes> {\"certificateDescription\":{\"aiaI...e\",\"updateTime\":\"s-updatetime\"}",
   "",
   "  SERVED 200 {\"certificateDescription\":{\"aiaIssuingCertificateUrls\":[\"s-aiaissuingcertificateurls\"],\"authorityKeyId\":{\"keyId\":\"s-keyid\"},\"certFingerprint\":{\"sha256Hash\":\"s-sha256hash\"},\"crlDistributionPoints\":[\"s-crldistributionpoints\"],\"publicKey\":{\"format\":\"s-format\",\"key\":\"YWI=\"},\"subjectDescription\":{\"hexSerialNumber\":\"s-hexserialnumber\",\"lifetime\":\"s-lifetime\",\"notAfterTime\":\"s-notaftertime\",\"notBeforeTime\":\"s-notbeforetime\"},\"subjectKeyId\":{\"keyId\":\"s-keyid\"},\"tbsCertificateDigest\":\"s-tbscertificatedigest\",\"x509Description\":{\"aiaOcspServers\":[\"s-aiaocspservers\"]}},\"certificateTemplate\":\"s-certificatetemplate\",\"config\":{\"publicKey\":{\"format\":\"s-format\",\"key\":\"YWI=\"},\"subjectConfig\":{},\"subjectKeyId\":{\"keyId\":\"s-keyid\"},\"x509Config\":{\"aiaOcspServers\":[\"s-aiaocspservers\"]}},\"createTime\":\"s-createtime\",\"issuerCertificateAuthority\":\"s-issuercertificateauthority\",\"labels\":{\"k1\":\"s-labels\"},\"lifetime\":\"s-lifetime\",\"name\":\"s-name\",\"pemCertificate\":\"s-pemcertificate\",\"pemCertificateChain\":[\"s-pemcertificatechain\"],\"pemCsr\":\"s-pemcsr\",\"requestedNotBeforeTime\":\"s-requestednotbeforetime\",\"revocationDetails\":{\"revocationState\":\"s-revocationstate\",\"revocationTime\":\"s-revocationtime\"},\"subjectMode\":\"s-subjectmode\",\"updateTime\":\"s-updatetime\"}",
   "OUT: {\"certificateDescription\":{\"aiaIssuingCertificateUrls\":[\"s-aiaissuingcertificateurls\"],\"authorityKeyId\":{\"keyId\":\"s-keyid\"},\"certFingerprint\":{\"sha256Hash\":\"s-sha256hash\"},\"crlDistributionPoints\":[\"s-crldistributionpoints\"],\"publicKey\":{\"format\":\"s-format\",\"key\":\"YWI=\"},\"subjectDescription\":{\"hexSerialNumber\":\"s-hexserialnumber\",\"lifetime\":\"s-lifetime\",\"notAfterTime\":\"s-notaftertime\",\"notBeforeTime\":\"s-notbeforetime\"},\"subjectKeyId\":{\"keyId\":\"s-keyid\"},\"tbsCertificateDigest\":\"s-tbscertificatedigest\",\"x509Description\":{\"aiaOcspServers\":[\"s-aiaocspservers\"]}},\"certificateTemplate\":\"s-certificatetemplate\",\"config\":{\"publicKey\":{\"format\":\"s-format\",\"key\":\"YWI=\"},\"subjectConfig\":{},\"subjectKeyId\":{\"keyId\":\"s-keyid\"},\"x509Config\":{\"aiaOcspServers\":[\"s-aiaocspservers\"]}},\"createTime\":\"s-createtime\",\"issuerCertificateAuthority\":\"s-issuercertificateauthority\",\"labels\":{\"k1\":\"s-labels\"},\"lifetime\":\"s-lifetime\",\"name\":\"s-name\",\"pemCertificate\":\"s-pemcertificate\",\"pemCertificateChain\":[\"s-pemcertificatechain\"],\"pemCsr\":\"s-pemcsr\",\"requestedNotBeforeTime\":\"s-requestednotbeforetime\",\"revocationDetails\":{\"revocationState\":\"s-revocationstate\",\"revocationTime\":\"s-revocationtime\"},\"subjectMode\":\"s-subjectmode\",\"updateTime\":\"s-updatetime\"}",
@@ -672,10 +862,10 @@ test "Go's privateca.projects.locations.caPools.certificates.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_30)
+  gv_compare(gv_log_of(f), GO_35)
 }
 
-const GO_31: List[Str] = [
+const GO_36: List[Str] = [
   "CALL privateca.projects.locations.caPools.certificates.revoke",
   "REQ POST https://privateca.googleapis.com/v1/id1/%20x:revoke?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -694,14 +884,14 @@ test "Go's privateca.projects.locations.caPools.certificates.revoke" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_31)
+  gv_compare(gv_log_of(f), GO_36)
 }
 
-const GO_32: List[Str] = [
+const GO_37: List[Str] = [
   "CALL privateca.projects.locations.certificateTemplates.create",
   "REQ POST https://privateca.googleapis.com/v1/id1/%20x/certificateTemplates?alt=json&certificateTemplateId=s-certificatetemplateid&fields=kind%2Cid&prettyPrint=false&requestId=s-requestid",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"identityConstraints\":{\"allowSubjectAltNamesPassthrough\":true,\"allowSubjectPassthrough\":true,\"celExpression\":{\"description\":\"s-description\",\"expression\":\"s-expression\",\"location\":\"s-location\",\"title\":\"s-title\"}},\"labels\":{\"k1\":\"s-labels\"},\"maximumLifetime\":\"s-maximumlifetime\",\"name\":\"s-name\",\"passthroughExtensions\":{\"additionalExtensions\":[{}],\"knownExtensions\":[\"s-knownextensions\"]},\"predefinedValues\":{\"additionalExtensions\":[{\"critical\":true,\"value\":\"YWI=\"}],\"aiaOcspServers\":[\"s-aiaocspservers\"],\"caOptions\":{\"isCa\":true,\"maxIssuerPathLength\":7},\"keyUsage\":{},\"nameConstraints\":{\"critical\":true,\"excludedDnsNames\":[\"s-excludeddnsnames\"],\"excludedEmailAddresses\":[\"s-excludedemailaddresses\"],\"excludedIpRanges\":[\"s-excludedipranges\"],\"excludedUris\":[\"s-excludeduris\"],\"permittedDnsNames\":[\"s-permitteddnsnames\"],\"permittedEmailAddresses\":[\"s-permittedemailaddresses\"],\"permittedIpRanges\":[\"s-permittedipranges\"],\"permittedUris\":[\"s-permitteduris\"]},\"policyIds\":[{}]},\"updateTime\":\"s-updatetime\"}",
+  "  B <1061 bytes> {\"createTime\":\"s-createtime\",\"de...]},\"updateTime\":\"s-updatetime\"}",
   "",
   "  SERVED 200 {\"done\":true,\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}",
   "OUT: {\"done\":true,\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}",
@@ -716,10 +906,10 @@ test "Go's privateca.projects.locations.certificateTemplates.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_32)
+  gv_compare(gv_log_of(f), GO_37)
 }
 
-const GO_33: List[Str] = [
+const GO_38: List[Str] = [
   "CALL privateca.projects.locations.certificateTemplates.delete",
   "REQ DELETE https://privateca.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&requestId=s-requestid",
   "  H x-extra=v1",
@@ -737,10 +927,10 @@ test "Go's privateca.projects.locations.certificateTemplates.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_33)
+  gv_compare(gv_log_of(f), GO_38)
 }
 
-const GO_34: List[Str] = [
+const GO_39: List[Str] = [
   "CALL privateca.projects.locations.certificateTemplates.get",
   "REQ GET https://privateca.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -758,10 +948,10 @@ test "Go's privateca.projects.locations.certificateTemplates.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_34)
+  gv_compare(gv_log_of(f), GO_39)
 }
 
-const GO_35: List[Str] = [
+const GO_40: List[Str] = [
   "CALL privateca.projects.locations.certificateTemplates.getIamPolicy",
   "REQ GET https://privateca.googleapis.com/v1/id1/%20x:getIamPolicy?alt=json&fields=kind%2Cid&options.requestedPolicyVersion=7&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -779,10 +969,10 @@ test "Go's privateca.projects.locations.certificateTemplates.getIamPolicy" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_35)
+  gv_compare(gv_log_of(f), GO_40)
 }
 
-const GO_36: List[Str] = [
+const GO_41: List[Str] = [
   "CALL privateca.projects.locations.certificateTemplates.list",
   "REQ GET https://privateca.googleapis.com/v1/id1/%20x/certificateTemplates?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -800,14 +990,52 @@ test "Go's privateca.projects.locations.certificateTemplates.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_36)
+  gv_compare(gv_log_of(f), GO_41)
 }
 
-const GO_37: List[Str] = [
+const GO_42: List[Str] = [
+  "CALL privateca.projects.locations.certificateTemplates.list pages",
+  "REQ GET https://privateca.googleapis.com/v1/id1/%20x/certificateTemplates?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"certificateTemplates\":[{\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"identityConstraints\":{\"allowSubjectAltNamesPassthrough\":true,\"allowSubjectPassthrough\":true},\"labels\":{\"k1\":\"s-labels\"},\"maximumLifetime\":\"s-maximumlifetime\",\"name\":\"s-name\",\"passthroughExtensions\":{},\"predefinedValues\":{},\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"certificateTemplates\":[{\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"identityConstraints\":{\"allowSubjectAltNamesPassthrough\":true,\"allowSubjectPassthrough\":true},\"labels\":{\"k1\":\"s-labels\"},\"maximumLifetime\":\"s-maximumlifetime\",\"name\":\"s-name\",\"passthroughExtensions\":{},\"predefinedValues\":{},\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}",
+  "REQ GET https://privateca.googleapis.com/v1/id1/%20x/certificateTemplates?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"certificateTemplates\":[{\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"identityConstraints\":{\"allowSubjectAltNamesPassthrough\":true,\"allowSubjectPassthrough\":true},\"labels\":{\"k1\":\"s-labels\"},\"maximumLifetime\":\"s-maximumlifetime\",\"name\":\"s-name\",\"passthroughExtensions\":{},\"predefinedValues\":{},\"updateTime\":\"s-updatetime\"}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"certificateTemplates\":[{\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"identityConstraints\":{\"allowSubjectAltNamesPassthrough\":true,\"allowSubjectPassthrough\":true},\"labels\":{\"k1\":\"s-labels\"},\"maximumLifetime\":\"s-maximumlifetime\",\"name\":\"s-name\",\"passthroughExtensions\":{},\"predefinedValues\":{},\"updateTime\":\"s-updatetime\"}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: ok",
+]
+
+test "Go's privateca.projects.locations.certificateTemplates.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"certificateTemplates\":[{\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"identityConstraints\":{\"allowSubjectAltNamesPassthrough\":true,\"allowSubjectPassthrough\":true},\"labels\":{\"k1\":\"s-labels\"},\"maximumLifetime\":\"s-maximumlifetime\",\"name\":\"s-name\",\"passthroughExtensions\":{},\"predefinedValues\":{},\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}")
+  gv_queue(f, "{\"certificateTemplates\":[{\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"identityConstraints\":{\"allowSubjectAltNamesPassthrough\":true,\"allowSubjectPassthrough\":true},\"labels\":{\"k1\":\"s-labels\"},\"maximumLifetime\":\"s-maximumlifetime\",\"name\":\"s-name\",\"passthroughExtensions\":{},\"predefinedValues\":{},\"updateTime\":\"s-updatetime\"}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_note(f, "CALL privateca.projects.locations.certificateTemplates.list pages")
+  var p = svc.projects.locations.certificate_templates.list_pages("id1/ x", options: ProjectsLocationsCertificateTemplatesListOptions{filter: Some("s-filter"), order_by: Some("s-orderby"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_42)
+}
+
+const GO_43: List[Str] = [
   "CALL privateca.projects.locations.certificateTemplates.patch",
   "REQ PATCH https://privateca.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&requestId=s-requestid&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"identityConstraints\":{\"allowSubjectAltNamesPassthrough\":true,\"allowSubjectPassthrough\":true,\"celExpression\":{\"description\":\"s-description\",\"expression\":\"s-expression\",\"location\":\"s-location\",\"title\":\"s-title\"}},\"labels\":{\"k1\":\"s-labels\"},\"maximumLifetime\":\"s-maximumlifetime\",\"name\":\"s-name\",\"passthroughExtensions\":{\"additionalExtensions\":[{}],\"knownExtensions\":[\"s-knownextensions\"]},\"predefinedValues\":{\"additionalExtensions\":[{\"critical\":true,\"value\":\"YWI=\"}],\"aiaOcspServers\":[\"s-aiaocspservers\"],\"caOptions\":{\"isCa\":true,\"maxIssuerPathLength\":7},\"keyUsage\":{},\"nameConstraints\":{\"critical\":true,\"excludedDnsNames\":[\"s-excludeddnsnames\"],\"excludedEmailAddresses\":[\"s-excludedemailaddresses\"],\"excludedIpRanges\":[\"s-excludedipranges\"],\"excludedUris\":[\"s-excludeduris\"],\"permittedDnsNames\":[\"s-permitteddnsnames\"],\"permittedEmailAddresses\":[\"s-permittedemailaddresses\"],\"permittedIpRanges\":[\"s-permittedipranges\"],\"permittedUris\":[\"s-permitteduris\"]},\"policyIds\":[{}]},\"updateTime\":\"s-updatetime\"}",
+  "  B <1061 bytes> {\"createTime\":\"s-createtime\",\"de...]},\"updateTime\":\"s-updatetime\"}",
   "",
   "  SERVED 200 {\"done\":true,\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}",
   "OUT: {\"done\":true,\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}",
@@ -822,10 +1050,10 @@ test "Go's privateca.projects.locations.certificateTemplates.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_37)
+  gv_compare(gv_log_of(f), GO_43)
 }
 
-const GO_38: List[Str] = [
+const GO_44: List[Str] = [
   "CALL privateca.projects.locations.certificateTemplates.setIamPolicy",
   "REQ POST https://privateca.googleapis.com/v1/id1/%20x:setIamPolicy?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -844,10 +1072,10 @@ test "Go's privateca.projects.locations.certificateTemplates.setIamPolicy" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_38)
+  gv_compare(gv_log_of(f), GO_44)
 }
 
-const GO_39: List[Str] = [
+const GO_45: List[Str] = [
   "CALL privateca.projects.locations.certificateTemplates.testIamPermissions",
   "REQ POST https://privateca.googleapis.com/v1/id1/%20x:testIamPermissions?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -866,10 +1094,10 @@ test "Go's privateca.projects.locations.certificateTemplates.testIamPermissions"
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_39)
+  gv_compare(gv_log_of(f), GO_45)
 }
 
-const GO_40: List[Str] = [
+const GO_46: List[Str] = [
   "CALL privateca.projects.locations.operations.cancel",
   "REQ POST https://privateca.googleapis.com/v1/id1/%20x:cancel?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -888,10 +1116,10 @@ test "Go's privateca.projects.locations.operations.cancel" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_40)
+  gv_compare(gv_log_of(f), GO_46)
 }
 
-const GO_41: List[Str] = [
+const GO_47: List[Str] = [
   "CALL privateca.projects.locations.operations.delete",
   "REQ DELETE https://privateca.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -909,10 +1137,10 @@ test "Go's privateca.projects.locations.operations.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_41)
+  gv_compare(gv_log_of(f), GO_47)
 }
 
-const GO_42: List[Str] = [
+const GO_48: List[Str] = [
   "CALL privateca.projects.locations.operations.get",
   "REQ GET https://privateca.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -930,10 +1158,10 @@ test "Go's privateca.projects.locations.operations.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_42)
+  gv_compare(gv_log_of(f), GO_48)
 }
 
-const GO_43: List[Str] = [
+const GO_49: List[Str] = [
   "CALL privateca.projects.locations.operations.list",
   "REQ GET https://privateca.googleapis.com/v1/id1/%20x/operations?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&returnPartialSuccess=true",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -951,5 +1179,43 @@ test "Go's privateca.projects.locations.operations.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_43)
+  gv_compare(gv_log_of(f), GO_49)
+}
+
+const GO_50: List[Str] = [
+  "CALL privateca.projects.locations.operations.list pages",
+  "REQ GET https://privateca.googleapis.com/v1/id1/%20x/operations?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&returnPartialSuccess=true",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "REQ GET https://privateca.googleapis.com/v1/id1/%20x/operations?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false&returnPartialSuccess=true",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: ok",
+]
+
+test "Go's privateca.projects.locations.operations.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_queue(f, "{\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_note(f, "CALL privateca.projects.locations.operations.list pages")
+  var p = svc.projects.locations.operations.list_pages("id1/ x", options: ProjectsLocationsOperationsListOptions{filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), return_partial_success: Some(true), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_50)
 }

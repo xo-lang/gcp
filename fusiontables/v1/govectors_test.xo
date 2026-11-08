@@ -5,6 +5,7 @@
 // compares the request, the response served and the result.
 
 use std/json
+use github.com/xo-lang/gcp/gensupport
 
 const GV_HOST: Str = "https://www.googleapis.com"
 
@@ -94,6 +95,44 @@ test "Go's fusiontables.column.list" {
 }
 
 const GO_4: List[Str] = [
+  "CALL fusiontables.column.list pages",
+  "REQ GET https://www.googleapis.com/fusiontables/v1/tables/id1%2F%20x/columns?alt=json&fields=kind%2Cid&maxResults=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"items\":[{\"baseColumn\":{\"columnId\":7,\"tableIndex\":7},\"columnId\":7,\"description\":\"s-description\",\"graph_predicate\":\"s-graph_predicate\",\"kind\":\"s-kind\",\"name\":\"s-name\",\"type\":\"s-type\"}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\",\"totalItems\":7}",
+  "OUT: {\"items\":[{\"baseColumn\":{\"columnId\":7,\"tableIndex\":7},\"columnId\":7,\"description\":\"s-description\",\"graph_predicate\":\"s-graph_predicate\",\"kind\":\"s-kind\",\"name\":\"s-name\",\"type\":\"s-type\"}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\",\"totalItems\":7}",
+  "REQ GET https://www.googleapis.com/fusiontables/v1/tables/id1%2F%20x/columns?alt=json&fields=kind%2Cid&maxResults=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"items\":[{\"baseColumn\":{\"columnId\":7,\"tableIndex\":7},\"columnId\":7,\"description\":\"s-description\",\"graph_predicate\":\"s-graph_predicate\",\"kind\":\"s-kind\",\"name\":\"s-name\",\"type\":\"s-type\"}],\"kind\":\"s-kind\",\"totalItems\":7}",
+  "OUT: {\"items\":[{\"baseColumn\":{\"columnId\":7,\"tableIndex\":7},\"columnId\":7,\"description\":\"s-description\",\"graph_predicate\":\"s-graph_predicate\",\"kind\":\"s-kind\",\"name\":\"s-name\",\"type\":\"s-type\"}],\"kind\":\"s-kind\",\"totalItems\":7}",
+  "OUT: ok",
+]
+
+test "Go's fusiontables.column.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"items\":[{\"baseColumn\":{\"columnId\":7,\"tableIndex\":7},\"columnId\":7,\"description\":\"s-description\",\"graph_predicate\":\"s-graph_predicate\",\"kind\":\"s-kind\",\"name\":\"s-name\",\"type\":\"s-type\"}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\",\"totalItems\":7}")
+  gv_queue(f, "{\"items\":[{\"baseColumn\":{\"columnId\":7,\"tableIndex\":7},\"columnId\":7,\"description\":\"s-description\",\"graph_predicate\":\"s-graph_predicate\",\"kind\":\"s-kind\",\"name\":\"s-name\",\"type\":\"s-type\"}],\"kind\":\"s-kind\",\"totalItems\":7}")
+  gv_note(f, "CALL fusiontables.column.list pages")
+  var p = svc.column.list_pages("id1/ x", options: ColumnListOptions{max_results: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_4)
+}
+
+const GO_5: List[Str] = [
   "CALL fusiontables.column.patch",
   "REQ PATCH https://www.googleapis.com/fusiontables/v1/tables/id1%2F%20x/columns/id2%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -112,10 +151,10 @@ test "Go's fusiontables.column.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_4)
+  gv_compare(gv_log_of(f), GO_5)
 }
 
-const GO_5: List[Str] = [
+const GO_6: List[Str] = [
   "CALL fusiontables.column.update",
   "REQ PUT https://www.googleapis.com/fusiontables/v1/tables/id1%2F%20x/columns/id2%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -134,10 +173,10 @@ test "Go's fusiontables.column.update" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_5)
+  gv_compare(gv_log_of(f), GO_6)
 }
 
-const GO_6: List[Str] = [
+const GO_7: List[Str] = [
   "CALL fusiontables.query.sql",
   "REQ POST https://www.googleapis.com/fusiontables/v1/query?alt=json&fields=kind%2Cid&hdrs=true&prettyPrint=false&sql=s-sql&typed=true",
   "  H x-extra=v1",
@@ -155,10 +194,31 @@ test "Go's fusiontables.query.sql" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_6)
+  gv_compare(gv_log_of(f), GO_7)
 }
 
-const GO_7: List[Str] = [
+const GO_8: List[Str] = [
+  "CALL fusiontables.query.sql download",
+  "REQ POST https://www.googleapis.com/fusiontables/v1/query?alt=media&fields=kind%2Cid&hdrs=true&prettyPrint=false&sql=s-sql&typed=true",
+  "  H x-extra=v1",
+  "  B ",
+  "  SERVED 200 media-bytes \u{0001}ÿ",
+  "OUT: media 200 media-bytes \u{0001}ÿ",
+]
+
+test "Go's fusiontables.query.sql download" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "media-bytes \u{0001}ÿ")
+  gv_note(f, "CALL fusiontables.query.sql download")
+  match svc.query.sql_download("s-sql", options: QuerySqlOptions{hdrs: Some(true), typed: Some(true), fields: ["kind", "id"], headers: [("X-Extra", "v1")]}) {
+    Ok(r) => gv_note(f, "OUT: media ${r.status} ${r.body.to_str_lossy()}")
+    Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+  }
+  gv_compare(gv_log_of(f), GO_8)
+}
+
+const GO_9: List[Str] = [
   "CALL fusiontables.query.sqlGet",
   "REQ GET https://www.googleapis.com/fusiontables/v1/query?alt=json&fields=kind%2Cid&hdrs=true&prettyPrint=false&sql=s-sql&typed=true",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -176,10 +236,31 @@ test "Go's fusiontables.query.sqlGet" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_7)
+  gv_compare(gv_log_of(f), GO_9)
 }
 
-const GO_8: List[Str] = [
+const GO_10: List[Str] = [
+  "CALL fusiontables.query.sqlGet download",
+  "REQ GET https://www.googleapis.com/fusiontables/v1/query?alt=media&fields=kind%2Cid&hdrs=true&prettyPrint=false&sql=s-sql&typed=true",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 media-bytes \u{0001}ÿ",
+  "OUT: media 200 media-bytes \u{0001}ÿ",
+]
+
+test "Go's fusiontables.query.sqlGet download" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "media-bytes \u{0001}ÿ")
+  gv_note(f, "CALL fusiontables.query.sqlGet download")
+  match svc.query.sql_get_download("s-sql", options: QuerySqlGetOptions{hdrs: Some(true), typed: Some(true), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]}) {
+    Ok(r) => gv_note(f, "OUT: media ${r.status} ${r.body.to_str_lossy()}")
+    Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+  }
+  gv_compare(gv_log_of(f), GO_10)
+}
+
+const GO_11: List[Str] = [
   "CALL fusiontables.style.delete",
   "REQ DELETE https://www.googleapis.com/fusiontables/v1/tables/id1%2F%20x/styles/7?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -197,10 +278,10 @@ test "Go's fusiontables.style.delete" {
     Ok(_) => gv_note(f, "OUT: ok")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_8)
+  gv_compare(gv_log_of(f), GO_11)
 }
 
-const GO_9: List[Str] = [
+const GO_12: List[Str] = [
   "CALL fusiontables.style.get",
   "REQ GET https://www.googleapis.com/fusiontables/v1/tables/id1%2F%20x/styles/7?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -218,10 +299,10 @@ test "Go's fusiontables.style.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_9)
+  gv_compare(gv_log_of(f), GO_12)
 }
 
-const GO_10: List[Str] = [
+const GO_13: List[Str] = [
   "CALL fusiontables.style.insert",
   "REQ POST https://www.googleapis.com/fusiontables/v1/tables/id1%2F%20x/styles?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -240,10 +321,10 @@ test "Go's fusiontables.style.insert" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_10)
+  gv_compare(gv_log_of(f), GO_13)
 }
 
-const GO_11: List[Str] = [
+const GO_14: List[Str] = [
   "CALL fusiontables.style.list",
   "REQ GET https://www.googleapis.com/fusiontables/v1/tables/id1%2F%20x/styles?alt=json&fields=kind%2Cid&maxResults=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -261,10 +342,48 @@ test "Go's fusiontables.style.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_11)
+  gv_compare(gv_log_of(f), GO_14)
 }
 
-const GO_12: List[Str] = [
+const GO_15: List[Str] = [
+  "CALL fusiontables.style.list pages",
+  "REQ GET https://www.googleapis.com/fusiontables/v1/tables/id1%2F%20x/styles?alt=json&fields=kind%2Cid&maxResults=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"items\":[{\"kind\":\"s-kind\",\"markerOptions\":{\"iconName\":\"s-iconname\"},\"name\":\"s-name\",\"polygonOptions\":{\"fillColor\":\"s-fillcolor\",\"fillOpacity\":1.5,\"strokeColor\":\"s-strokecolor\",\"strokeOpacity\":1.5,\"strokeWeight\":7},\"polylineOptions\":{\"strokeColor\":\"s-strokecolor\",\"strokeOpacity\":1.5,\"strokeWeight\":7},\"styleId\":7,\"tableId\":\"s-tableid\"}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\",\"totalItems\":7}",
+  "OUT: {\"items\":[{\"kind\":\"s-kind\",\"markerOptions\":{\"iconName\":\"s-iconname\"},\"name\":\"s-name\",\"polygonOptions\":{\"fillColor\":\"s-fillcolor\",\"fillOpacity\":1.5,\"strokeColor\":\"s-strokecolor\",\"strokeOpacity\":1.5,\"strokeWeight\":7},\"polylineOptions\":{\"strokeColor\":\"s-strokecolor\",\"strokeOpacity\":1.5,\"strokeWeight\":7},\"styleId\":7,\"tableId\":\"s-tableid\"}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\",\"totalItems\":7}",
+  "REQ GET https://www.googleapis.com/fusiontables/v1/tables/id1%2F%20x/styles?alt=json&fields=kind%2Cid&maxResults=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"items\":[{\"kind\":\"s-kind\",\"markerOptions\":{\"iconName\":\"s-iconname\"},\"name\":\"s-name\",\"polygonOptions\":{\"fillColor\":\"s-fillcolor\",\"fillOpacity\":1.5,\"strokeColor\":\"s-strokecolor\",\"strokeOpacity\":1.5,\"strokeWeight\":7},\"polylineOptions\":{\"strokeColor\":\"s-strokecolor\",\"strokeOpacity\":1.5,\"strokeWeight\":7},\"styleId\":7,\"tableId\":\"s-tableid\"}],\"kind\":\"s-kind\",\"totalItems\":7}",
+  "OUT: {\"items\":[{\"kind\":\"s-kind\",\"markerOptions\":{\"iconName\":\"s-iconname\"},\"name\":\"s-name\",\"polygonOptions\":{\"fillColor\":\"s-fillcolor\",\"fillOpacity\":1.5,\"strokeColor\":\"s-strokecolor\",\"strokeOpacity\":1.5,\"strokeWeight\":7},\"polylineOptions\":{\"strokeColor\":\"s-strokecolor\",\"strokeOpacity\":1.5,\"strokeWeight\":7},\"styleId\":7,\"tableId\":\"s-tableid\"}],\"kind\":\"s-kind\",\"totalItems\":7}",
+  "OUT: ok",
+]
+
+test "Go's fusiontables.style.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"items\":[{\"kind\":\"s-kind\",\"markerOptions\":{\"iconName\":\"s-iconname\"},\"name\":\"s-name\",\"polygonOptions\":{\"fillColor\":\"s-fillcolor\",\"fillOpacity\":1.5,\"strokeColor\":\"s-strokecolor\",\"strokeOpacity\":1.5,\"strokeWeight\":7},\"polylineOptions\":{\"strokeColor\":\"s-strokecolor\",\"strokeOpacity\":1.5,\"strokeWeight\":7},\"styleId\":7,\"tableId\":\"s-tableid\"}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\",\"totalItems\":7}")
+  gv_queue(f, "{\"items\":[{\"kind\":\"s-kind\",\"markerOptions\":{\"iconName\":\"s-iconname\"},\"name\":\"s-name\",\"polygonOptions\":{\"fillColor\":\"s-fillcolor\",\"fillOpacity\":1.5,\"strokeColor\":\"s-strokecolor\",\"strokeOpacity\":1.5,\"strokeWeight\":7},\"polylineOptions\":{\"strokeColor\":\"s-strokecolor\",\"strokeOpacity\":1.5,\"strokeWeight\":7},\"styleId\":7,\"tableId\":\"s-tableid\"}],\"kind\":\"s-kind\",\"totalItems\":7}")
+  gv_note(f, "CALL fusiontables.style.list pages")
+  var p = svc.style.list_pages("id1/ x", options: StyleListOptions{max_results: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_15)
+}
+
+const GO_16: List[Str] = [
   "CALL fusiontables.style.patch",
   "REQ PATCH https://www.googleapis.com/fusiontables/v1/tables/id1%2F%20x/styles/7?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -283,10 +402,10 @@ test "Go's fusiontables.style.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_12)
+  gv_compare(gv_log_of(f), GO_16)
 }
 
-const GO_13: List[Str] = [
+const GO_17: List[Str] = [
   "CALL fusiontables.style.update",
   "REQ PUT https://www.googleapis.com/fusiontables/v1/tables/id1%2F%20x/styles/7?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -305,10 +424,10 @@ test "Go's fusiontables.style.update" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_13)
+  gv_compare(gv_log_of(f), GO_17)
 }
 
-const GO_14: List[Str] = [
+const GO_18: List[Str] = [
   "CALL fusiontables.table.copy",
   "REQ POST https://www.googleapis.com/fusiontables/v1/tables/id1%2F%20x/copy?alt=json&copyPresentation=true&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -326,10 +445,10 @@ test "Go's fusiontables.table.copy" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_14)
+  gv_compare(gv_log_of(f), GO_18)
 }
 
-const GO_15: List[Str] = [
+const GO_19: List[Str] = [
   "CALL fusiontables.table.delete",
   "REQ DELETE https://www.googleapis.com/fusiontables/v1/tables/id1%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -347,10 +466,10 @@ test "Go's fusiontables.table.delete" {
     Ok(_) => gv_note(f, "OUT: ok")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_15)
+  gv_compare(gv_log_of(f), GO_19)
 }
 
-const GO_16: List[Str] = [
+const GO_20: List[Str] = [
   "CALL fusiontables.table.get",
   "REQ GET https://www.googleapis.com/fusiontables/v1/tables/id1%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -368,10 +487,10 @@ test "Go's fusiontables.table.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_16)
+  gv_compare(gv_log_of(f), GO_20)
 }
 
-const GO_17: List[Str] = [
+const GO_21: List[Str] = [
   "CALL fusiontables.table.importRows",
   "REQ POST https://www.googleapis.com/fusiontables/v1/tables/id1%2F%20x/import?alt=json&delimiter=s-delimiter&encoding=s-encoding&endLine=7&fields=kind%2Cid&isStrict=true&prettyPrint=false&startLine=7",
   "  H content-type=application/json | x-extra=v1",
@@ -389,10 +508,71 @@ test "Go's fusiontables.table.importRows" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_17)
+  gv_compare(gv_log_of(f), GO_21)
 }
 
-const GO_18: List[Str] = [
+const GO_22: List[Str] = [
+  "CALL fusiontables.table.importRows media",
+  "REQ POST https://www.googleapis.com/upload/fusiontables/v1/tables/id1%2F%20x/import?alt=json&delimiter=s-delimiter&encoding=s-encoding&endLine=7&fields=kind%2Cid&isStrict=true&prettyPrint=false&startLine=7&uploadType=multipart",
+  "  H content-type=multipart/related; boundary=BOUNDARY | x-extra=v1",
+  "  B --BOUNDARY\u{000d}",
+  "Content-Type: application/json\u{000d}",
+  "\u{000d}",
+  "\u{000d}",
+  "--BOUNDARY\u{000d}",
+  "Content-Type: text/plain\u{000d}",
+  "\u{000d}",
+  "hello media\u{000d}",
+  "--BOUNDARY--\u{000d}",
+  "",
+  "  SERVED 200 {\"kind\":\"s-kind\",\"numRowsReceived\":\"7\"}",
+  "OUT: {\"kind\":\"s-kind\",\"numRowsReceived\":\"7\"}",
+]
+
+test "Go's fusiontables.table.importRows media" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"kind\":\"s-kind\",\"numRowsReceived\":\"7\"}")
+  gv_note(f, "CALL fusiontables.table.importRows media")
+  match svc.table.import_rows_media(os.clock, os.rand, "id1/ x", media: gensupport.Media{data: "hello media".bytes(), content_type: "text/plain"}, options: TableImportRowsOptions{delimiter: Some("s-delimiter"), encoding: Some("s-encoding"), end_line: Some(7), is_strict: Some(true), start_line: Some(7), fields: ["kind", "id"], headers: [("X-Extra", "v1")]}) {
+    Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+    Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+  }
+  gv_compare(gv_log_of(f), GO_22)
+}
+
+const GO_23: List[Str] = [
+  "CALL fusiontables.table.importRows resumable",
+  "REQ POST https://www.googleapis.com/upload/fusiontables/v1/tables/id1%2F%20x/import?alt=json&delimiter=s-delimiter&encoding=s-encoding&endLine=7&fields=kind%2Cid&isStrict=true&prettyPrint=false&startLine=7&uploadType=resumable",
+  "  H content-type=application/json | x-extra=v1 | x-upload-content-type=text/plain",
+  "  B ",
+  "  SERVED 200 @H Location=https://www.googleapis.com/upload/session-1 @B ",
+  "REQ POST https://www.googleapis.com/upload/session-1",
+  "  H content-range=bytes 0-262143/* | content-type=text/plain | x-goog-gcs-idempotency-token=UUID | x-guploader-no-308=yes",
+  "  B <262144 bytes> 0123456789abcdef0123456789abcdef...0123456789abcdef0123456789abcdef",
+  "  SERVED 200 @H X-Http-Status-Code-Override=308 @B ",
+  "REQ POST https://www.googleapis.com/upload/session-1",
+  "  H content-range=bytes 262144-262153/262154 | content-type=text/plain | x-goog-gcs-idempotency-token=UUID | x-guploader-no-308=yes",
+  "  B 0123456789",
+  "  SERVED 200 {\"kind\":\"s-kind\",\"numRowsReceived\":\"7\"}",
+  "OUT: {\"kind\":\"s-kind\",\"numRowsReceived\":\"7\"}",
+]
+
+test "Go's fusiontables.table.importRows resumable" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "@H Location=https://www.googleapis.com/upload/session-1 @B ")
+  gv_queue(f, "@H X-Http-Status-Code-Override=308 @B ")
+  gv_queue(f, "{\"kind\":\"s-kind\",\"numRowsReceived\":\"7\"}")
+  gv_note(f, "CALL fusiontables.table.importRows resumable")
+  match svc.table.import_rows_media(os.clock, os.rand, "id1/ x", media: gensupport.Media{data: gv_big(), content_type: "text/plain", chunk_size: 262144}, options: TableImportRowsOptions{delimiter: Some("s-delimiter"), encoding: Some("s-encoding"), end_line: Some(7), is_strict: Some(true), start_line: Some(7), fields: ["kind", "id"], headers: [("X-Extra", "v1")]}) {
+    Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+    Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+  }
+  gv_compare(gv_log_of(f), GO_23)
+}
+
+const GO_24: List[Str] = [
   "CALL fusiontables.table.importTable",
   "REQ POST https://www.googleapis.com/fusiontables/v1/tables/import?alt=json&delimiter=s-delimiter&encoding=s-encoding&fields=kind%2Cid&name=s-name&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -410,10 +590,71 @@ test "Go's fusiontables.table.importTable" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_18)
+  gv_compare(gv_log_of(f), GO_24)
 }
 
-const GO_19: List[Str] = [
+const GO_25: List[Str] = [
+  "CALL fusiontables.table.importTable media",
+  "REQ POST https://www.googleapis.com/upload/fusiontables/v1/tables/import?alt=json&delimiter=s-delimiter&encoding=s-encoding&fields=kind%2Cid&name=s-name&prettyPrint=false&uploadType=multipart",
+  "  H content-type=multipart/related; boundary=BOUNDARY | x-extra=v1",
+  "  B --BOUNDARY\u{000d}",
+  "Content-Type: application/json\u{000d}",
+  "\u{000d}",
+  "\u{000d}",
+  "--BOUNDARY\u{000d}",
+  "Content-Type: text/plain\u{000d}",
+  "\u{000d}",
+  "hello media\u{000d}",
+  "--BOUNDARY--\u{000d}",
+  "",
+  "  SERVED 200 {\"attribution\":\"s-attribution\",\"attributionLink\":\"s-attributionlink\",\"baseTableIds\":[\"s-basetableids\"],\"columns\":[{\"baseColumn\":{\"columnId\":7,\"tableIndex\":7},\"columnId\":7,\"description\":\"s-description\",\"graph_predicate\":\"s-graph_predicate\",\"kind\":\"s-kind\",\"name\":\"s-name\",\"type\":\"s-type\"}],\"description\":\"s-description\",\"isExportable\":true,\"kind\":\"s-kind\",\"name\":\"s-name\",\"sql\":\"s-sql\",\"tableId\":\"s-tableid\"}",
+  "OUT: {\"attribution\":\"s-attribution\",\"attributionLink\":\"s-attributionlink\",\"baseTableIds\":[\"s-basetableids\"],\"columns\":[{\"baseColumn\":{\"columnId\":7,\"tableIndex\":7},\"columnId\":7,\"description\":\"s-description\",\"graph_predicate\":\"s-graph_predicate\",\"kind\":\"s-kind\",\"name\":\"s-name\",\"type\":\"s-type\"}],\"description\":\"s-description\",\"isExportable\":true,\"kind\":\"s-kind\",\"name\":\"s-name\",\"sql\":\"s-sql\",\"tableId\":\"s-tableid\"}",
+]
+
+test "Go's fusiontables.table.importTable media" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"attribution\":\"s-attribution\",\"attributionLink\":\"s-attributionlink\",\"baseTableIds\":[\"s-basetableids\"],\"columns\":[{\"baseColumn\":{\"columnId\":7,\"tableIndex\":7},\"columnId\":7,\"description\":\"s-description\",\"graph_predicate\":\"s-graph_predicate\",\"kind\":\"s-kind\",\"name\":\"s-name\",\"type\":\"s-type\"}],\"description\":\"s-description\",\"isExportable\":true,\"kind\":\"s-kind\",\"name\":\"s-name\",\"sql\":\"s-sql\",\"tableId\":\"s-tableid\"}")
+  gv_note(f, "CALL fusiontables.table.importTable media")
+  match svc.table.import_table_media(os.clock, os.rand, "s-name", media: gensupport.Media{data: "hello media".bytes(), content_type: "text/plain"}, options: TableImportTableOptions{delimiter: Some("s-delimiter"), encoding: Some("s-encoding"), fields: ["kind", "id"], headers: [("X-Extra", "v1")]}) {
+    Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+    Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+  }
+  gv_compare(gv_log_of(f), GO_25)
+}
+
+const GO_26: List[Str] = [
+  "CALL fusiontables.table.importTable resumable",
+  "REQ POST https://www.googleapis.com/upload/fusiontables/v1/tables/import?alt=json&delimiter=s-delimiter&encoding=s-encoding&fields=kind%2Cid&name=s-name&prettyPrint=false&uploadType=resumable",
+  "  H content-type=application/json | x-extra=v1 | x-upload-content-type=text/plain",
+  "  B ",
+  "  SERVED 200 @H Location=https://www.googleapis.com/upload/session-1 @B ",
+  "REQ POST https://www.googleapis.com/upload/session-1",
+  "  H content-range=bytes 0-262143/* | content-type=text/plain | x-goog-gcs-idempotency-token=UUID | x-guploader-no-308=yes",
+  "  B <262144 bytes> 0123456789abcdef0123456789abcdef...0123456789abcdef0123456789abcdef",
+  "  SERVED 200 @H X-Http-Status-Code-Override=308 @B ",
+  "REQ POST https://www.googleapis.com/upload/session-1",
+  "  H content-range=bytes 262144-262153/262154 | content-type=text/plain | x-goog-gcs-idempotency-token=UUID | x-guploader-no-308=yes",
+  "  B 0123456789",
+  "  SERVED 200 {\"attribution\":\"s-attribution\",\"attributionLink\":\"s-attributionlink\",\"baseTableIds\":[\"s-basetableids\"],\"columns\":[{\"baseColumn\":{\"columnId\":7,\"tableIndex\":7},\"columnId\":7,\"description\":\"s-description\",\"graph_predicate\":\"s-graph_predicate\",\"kind\":\"s-kind\",\"name\":\"s-name\",\"type\":\"s-type\"}],\"description\":\"s-description\",\"isExportable\":true,\"kind\":\"s-kind\",\"name\":\"s-name\",\"sql\":\"s-sql\",\"tableId\":\"s-tableid\"}",
+  "OUT: {\"attribution\":\"s-attribution\",\"attributionLink\":\"s-attributionlink\",\"baseTableIds\":[\"s-basetableids\"],\"columns\":[{\"baseColumn\":{\"columnId\":7,\"tableIndex\":7},\"columnId\":7,\"description\":\"s-description\",\"graph_predicate\":\"s-graph_predicate\",\"kind\":\"s-kind\",\"name\":\"s-name\",\"type\":\"s-type\"}],\"description\":\"s-description\",\"isExportable\":true,\"kind\":\"s-kind\",\"name\":\"s-name\",\"sql\":\"s-sql\",\"tableId\":\"s-tableid\"}",
+]
+
+test "Go's fusiontables.table.importTable resumable" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "@H Location=https://www.googleapis.com/upload/session-1 @B ")
+  gv_queue(f, "@H X-Http-Status-Code-Override=308 @B ")
+  gv_queue(f, "{\"attribution\":\"s-attribution\",\"attributionLink\":\"s-attributionlink\",\"baseTableIds\":[\"s-basetableids\"],\"columns\":[{\"baseColumn\":{\"columnId\":7,\"tableIndex\":7},\"columnId\":7,\"description\":\"s-description\",\"graph_predicate\":\"s-graph_predicate\",\"kind\":\"s-kind\",\"name\":\"s-name\",\"type\":\"s-type\"}],\"description\":\"s-description\",\"isExportable\":true,\"kind\":\"s-kind\",\"name\":\"s-name\",\"sql\":\"s-sql\",\"tableId\":\"s-tableid\"}")
+  gv_note(f, "CALL fusiontables.table.importTable resumable")
+  match svc.table.import_table_media(os.clock, os.rand, "s-name", media: gensupport.Media{data: gv_big(), content_type: "text/plain", chunk_size: 262144}, options: TableImportTableOptions{delimiter: Some("s-delimiter"), encoding: Some("s-encoding"), fields: ["kind", "id"], headers: [("X-Extra", "v1")]}) {
+    Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+    Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+  }
+  gv_compare(gv_log_of(f), GO_26)
+}
+
+const GO_27: List[Str] = [
   "CALL fusiontables.table.insert",
   "REQ POST https://www.googleapis.com/fusiontables/v1/tables?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -432,10 +673,10 @@ test "Go's fusiontables.table.insert" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_19)
+  gv_compare(gv_log_of(f), GO_27)
 }
 
-const GO_20: List[Str] = [
+const GO_28: List[Str] = [
   "CALL fusiontables.table.list",
   "REQ GET https://www.googleapis.com/fusiontables/v1/tables?alt=json&fields=kind%2Cid&maxResults=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -453,10 +694,48 @@ test "Go's fusiontables.table.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_20)
+  gv_compare(gv_log_of(f), GO_28)
 }
 
-const GO_21: List[Str] = [
+const GO_29: List[Str] = [
+  "CALL fusiontables.table.list pages",
+  "REQ GET https://www.googleapis.com/fusiontables/v1/tables?alt=json&fields=kind%2Cid&maxResults=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"items\":[{\"attribution\":\"s-attribution\",\"attributionLink\":\"s-attributionlink\",\"baseTableIds\":[\"s-basetableids\"],\"description\":\"s-description\",\"isExportable\":true,\"kind\":\"s-kind\",\"name\":\"s-name\",\"sql\":\"s-sql\",\"tableId\":\"s-tableid\"}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"items\":[{\"attribution\":\"s-attribution\",\"attributionLink\":\"s-attributionlink\",\"baseTableIds\":[\"s-basetableids\"],\"description\":\"s-description\",\"isExportable\":true,\"kind\":\"s-kind\",\"name\":\"s-name\",\"sql\":\"s-sql\",\"tableId\":\"s-tableid\"}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://www.googleapis.com/fusiontables/v1/tables?alt=json&fields=kind%2Cid&maxResults=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"items\":[{\"attribution\":\"s-attribution\",\"attributionLink\":\"s-attributionlink\",\"baseTableIds\":[\"s-basetableids\"],\"description\":\"s-description\",\"isExportable\":true,\"kind\":\"s-kind\",\"name\":\"s-name\",\"sql\":\"s-sql\",\"tableId\":\"s-tableid\"}],\"kind\":\"s-kind\"}",
+  "OUT: {\"items\":[{\"attribution\":\"s-attribution\",\"attributionLink\":\"s-attributionlink\",\"baseTableIds\":[\"s-basetableids\"],\"description\":\"s-description\",\"isExportable\":true,\"kind\":\"s-kind\",\"name\":\"s-name\",\"sql\":\"s-sql\",\"tableId\":\"s-tableid\"}],\"kind\":\"s-kind\"}",
+  "OUT: ok",
+]
+
+test "Go's fusiontables.table.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"items\":[{\"attribution\":\"s-attribution\",\"attributionLink\":\"s-attributionlink\",\"baseTableIds\":[\"s-basetableids\"],\"description\":\"s-description\",\"isExportable\":true,\"kind\":\"s-kind\",\"name\":\"s-name\",\"sql\":\"s-sql\",\"tableId\":\"s-tableid\"}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"items\":[{\"attribution\":\"s-attribution\",\"attributionLink\":\"s-attributionlink\",\"baseTableIds\":[\"s-basetableids\"],\"description\":\"s-description\",\"isExportable\":true,\"kind\":\"s-kind\",\"name\":\"s-name\",\"sql\":\"s-sql\",\"tableId\":\"s-tableid\"}],\"kind\":\"s-kind\"}")
+  gv_note(f, "CALL fusiontables.table.list pages")
+  var p = svc.table.list_pages(options: TableListOptions{max_results: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_29)
+}
+
+const GO_30: List[Str] = [
   "CALL fusiontables.table.patch",
   "REQ PATCH https://www.googleapis.com/fusiontables/v1/tables/id1%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false&replaceViewDefinition=true",
   "  H content-type=application/json | x-extra=v1",
@@ -475,10 +754,10 @@ test "Go's fusiontables.table.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_21)
+  gv_compare(gv_log_of(f), GO_30)
 }
 
-const GO_22: List[Str] = [
+const GO_31: List[Str] = [
   "CALL fusiontables.table.update",
   "REQ PUT https://www.googleapis.com/fusiontables/v1/tables/id1%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false&replaceViewDefinition=true",
   "  H content-type=application/json | x-extra=v1",
@@ -497,10 +776,10 @@ test "Go's fusiontables.table.update" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_22)
+  gv_compare(gv_log_of(f), GO_31)
 }
 
-const GO_23: List[Str] = [
+const GO_32: List[Str] = [
   "CALL fusiontables.task.delete",
   "REQ DELETE https://www.googleapis.com/fusiontables/v1/tables/id1%2F%20x/tasks/id2%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -518,10 +797,10 @@ test "Go's fusiontables.task.delete" {
     Ok(_) => gv_note(f, "OUT: ok")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_23)
+  gv_compare(gv_log_of(f), GO_32)
 }
 
-const GO_24: List[Str] = [
+const GO_33: List[Str] = [
   "CALL fusiontables.task.get",
   "REQ GET https://www.googleapis.com/fusiontables/v1/tables/id1%2F%20x/tasks/id2%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -539,10 +818,10 @@ test "Go's fusiontables.task.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_24)
+  gv_compare(gv_log_of(f), GO_33)
 }
 
-const GO_25: List[Str] = [
+const GO_34: List[Str] = [
   "CALL fusiontables.task.list",
   "REQ GET https://www.googleapis.com/fusiontables/v1/tables/id1%2F%20x/tasks?alt=json&fields=kind%2Cid&maxResults=7&pageToken=s-pagetoken&prettyPrint=false&startIndex=7",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -560,10 +839,48 @@ test "Go's fusiontables.task.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_25)
+  gv_compare(gv_log_of(f), GO_34)
 }
 
-const GO_26: List[Str] = [
+const GO_35: List[Str] = [
+  "CALL fusiontables.task.list pages",
+  "REQ GET https://www.googleapis.com/fusiontables/v1/tables/id1%2F%20x/tasks?alt=json&fields=kind%2Cid&maxResults=7&pageToken=s-pagetoken&prettyPrint=false&startIndex=7",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"items\":[{\"kind\":\"s-kind\",\"progress\":\"s-progress\",\"started\":true,\"taskId\":\"7\",\"type\":\"s-type\"}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\",\"totalItems\":7}",
+  "OUT: {\"items\":[{\"kind\":\"s-kind\",\"progress\":\"s-progress\",\"started\":true,\"taskId\":\"7\",\"type\":\"s-type\"}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\",\"totalItems\":7}",
+  "REQ GET https://www.googleapis.com/fusiontables/v1/tables/id1%2F%20x/tasks?alt=json&fields=kind%2Cid&maxResults=7&pageToken=s-nextpagetoken&prettyPrint=false&startIndex=7",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"items\":[{\"kind\":\"s-kind\",\"progress\":\"s-progress\",\"started\":true,\"taskId\":\"7\",\"type\":\"s-type\"}],\"kind\":\"s-kind\",\"totalItems\":7}",
+  "OUT: {\"items\":[{\"kind\":\"s-kind\",\"progress\":\"s-progress\",\"started\":true,\"taskId\":\"7\",\"type\":\"s-type\"}],\"kind\":\"s-kind\",\"totalItems\":7}",
+  "OUT: ok",
+]
+
+test "Go's fusiontables.task.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"items\":[{\"kind\":\"s-kind\",\"progress\":\"s-progress\",\"started\":true,\"taskId\":\"7\",\"type\":\"s-type\"}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\",\"totalItems\":7}")
+  gv_queue(f, "{\"items\":[{\"kind\":\"s-kind\",\"progress\":\"s-progress\",\"started\":true,\"taskId\":\"7\",\"type\":\"s-type\"}],\"kind\":\"s-kind\",\"totalItems\":7}")
+  gv_note(f, "CALL fusiontables.task.list pages")
+  var p = svc.task.list_pages("id1/ x", options: TaskListOptions{max_results: Some(7), page_token: Some("s-pagetoken"), start_index: Some(7), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_35)
+}
+
+const GO_36: List[Str] = [
   "CALL fusiontables.template.delete",
   "REQ DELETE https://www.googleapis.com/fusiontables/v1/tables/id1%2F%20x/templates/7?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -581,10 +898,10 @@ test "Go's fusiontables.template.delete" {
     Ok(_) => gv_note(f, "OUT: ok")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_26)
+  gv_compare(gv_log_of(f), GO_36)
 }
 
-const GO_27: List[Str] = [
+const GO_37: List[Str] = [
   "CALL fusiontables.template.get",
   "REQ GET https://www.googleapis.com/fusiontables/v1/tables/id1%2F%20x/templates/7?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -602,10 +919,10 @@ test "Go's fusiontables.template.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_27)
+  gv_compare(gv_log_of(f), GO_37)
 }
 
-const GO_28: List[Str] = [
+const GO_38: List[Str] = [
   "CALL fusiontables.template.insert",
   "REQ POST https://www.googleapis.com/fusiontables/v1/tables/id1%2F%20x/templates?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -624,10 +941,10 @@ test "Go's fusiontables.template.insert" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_28)
+  gv_compare(gv_log_of(f), GO_38)
 }
 
-const GO_29: List[Str] = [
+const GO_39: List[Str] = [
   "CALL fusiontables.template.list",
   "REQ GET https://www.googleapis.com/fusiontables/v1/tables/id1%2F%20x/templates?alt=json&fields=kind%2Cid&maxResults=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -645,10 +962,48 @@ test "Go's fusiontables.template.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_29)
+  gv_compare(gv_log_of(f), GO_39)
 }
 
-const GO_30: List[Str] = [
+const GO_40: List[Str] = [
+  "CALL fusiontables.template.list pages",
+  "REQ GET https://www.googleapis.com/fusiontables/v1/tables/id1%2F%20x/templates?alt=json&fields=kind%2Cid&maxResults=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"items\":[{\"automaticColumnNames\":[\"s-automaticcolumnnames\"],\"body\":\"s-body\",\"kind\":\"s-kind\",\"name\":\"s-name\",\"tableId\":\"s-tableid\",\"templateId\":7}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\",\"totalItems\":7}",
+  "OUT: {\"items\":[{\"automaticColumnNames\":[\"s-automaticcolumnnames\"],\"body\":\"s-body\",\"kind\":\"s-kind\",\"name\":\"s-name\",\"tableId\":\"s-tableid\",\"templateId\":7}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\",\"totalItems\":7}",
+  "REQ GET https://www.googleapis.com/fusiontables/v1/tables/id1%2F%20x/templates?alt=json&fields=kind%2Cid&maxResults=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"items\":[{\"automaticColumnNames\":[\"s-automaticcolumnnames\"],\"body\":\"s-body\",\"kind\":\"s-kind\",\"name\":\"s-name\",\"tableId\":\"s-tableid\",\"templateId\":7}],\"kind\":\"s-kind\",\"totalItems\":7}",
+  "OUT: {\"items\":[{\"automaticColumnNames\":[\"s-automaticcolumnnames\"],\"body\":\"s-body\",\"kind\":\"s-kind\",\"name\":\"s-name\",\"tableId\":\"s-tableid\",\"templateId\":7}],\"kind\":\"s-kind\",\"totalItems\":7}",
+  "OUT: ok",
+]
+
+test "Go's fusiontables.template.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"items\":[{\"automaticColumnNames\":[\"s-automaticcolumnnames\"],\"body\":\"s-body\",\"kind\":\"s-kind\",\"name\":\"s-name\",\"tableId\":\"s-tableid\",\"templateId\":7}],\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\",\"totalItems\":7}")
+  gv_queue(f, "{\"items\":[{\"automaticColumnNames\":[\"s-automaticcolumnnames\"],\"body\":\"s-body\",\"kind\":\"s-kind\",\"name\":\"s-name\",\"tableId\":\"s-tableid\",\"templateId\":7}],\"kind\":\"s-kind\",\"totalItems\":7}")
+  gv_note(f, "CALL fusiontables.template.list pages")
+  var p = svc.template.list_pages("id1/ x", options: TemplateListOptions{max_results: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_40)
+}
+
+const GO_41: List[Str] = [
   "CALL fusiontables.template.patch",
   "REQ PATCH https://www.googleapis.com/fusiontables/v1/tables/id1%2F%20x/templates/7?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -667,10 +1022,10 @@ test "Go's fusiontables.template.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_30)
+  gv_compare(gv_log_of(f), GO_41)
 }
 
-const GO_31: List[Str] = [
+const GO_42: List[Str] = [
   "CALL fusiontables.template.update",
   "REQ PUT https://www.googleapis.com/fusiontables/v1/tables/id1%2F%20x/templates/7?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -689,5 +1044,5 @@ test "Go's fusiontables.template.update" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_31)
+  gv_compare(gv_log_of(f), GO_42)
 }

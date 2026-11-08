@@ -158,6 +158,44 @@ test "Go's gmailpostmastertools.domains.list" {
 }
 
 const GO_7: List[Str] = [
+  "CALL gmailpostmastertools.domains.list pages",
+  "REQ GET https://gmailpostmastertools.googleapis.com/v2/domains?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"domains\":[{\"createTime\":\"s-createtime\",\"lastVerifyTime\":\"s-lastverifytime\",\"name\":\"s-name\",\"permission\":\"s-permission\",\"verificationState\":\"s-verificationstate\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"domains\":[{\"createTime\":\"s-createtime\",\"lastVerifyTime\":\"s-lastverifytime\",\"name\":\"s-name\",\"permission\":\"s-permission\",\"verificationState\":\"s-verificationstate\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://gmailpostmastertools.googleapis.com/v2/domains?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"domains\":[{\"createTime\":\"s-createtime\",\"lastVerifyTime\":\"s-lastverifytime\",\"name\":\"s-name\",\"permission\":\"s-permission\",\"verificationState\":\"s-verificationstate\"}]}",
+  "OUT: {\"domains\":[{\"createTime\":\"s-createtime\",\"lastVerifyTime\":\"s-lastverifytime\",\"name\":\"s-name\",\"permission\":\"s-permission\",\"verificationState\":\"s-verificationstate\"}]}",
+  "OUT: ok",
+]
+
+test "Go's gmailpostmastertools.domains.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"domains\":[{\"createTime\":\"s-createtime\",\"lastVerifyTime\":\"s-lastverifytime\",\"name\":\"s-name\",\"permission\":\"s-permission\",\"verificationState\":\"s-verificationstate\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"domains\":[{\"createTime\":\"s-createtime\",\"lastVerifyTime\":\"s-lastverifytime\",\"name\":\"s-name\",\"permission\":\"s-permission\",\"verificationState\":\"s-verificationstate\"}]}")
+  gv_note(f, "CALL gmailpostmastertools.domains.list pages")
+  var p = svc.domains.list_pages(options: DomainsListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_7)
+}
+
+const GO_8: List[Str] = [
   "CALL gmailpostmastertools.domains.verify",
   "REQ POST https://gmailpostmastertools.googleapis.com/v2/id1/%20x:verify?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -176,10 +214,10 @@ test "Go's gmailpostmastertools.domains.verify" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_7)
+  gv_compare(gv_log_of(f), GO_8)
 }
 
-const GO_8: List[Str] = [
+const GO_9: List[Str] = [
   "CALL gmailpostmastertools.domains.domainStats.query",
   "REQ POST https://gmailpostmastertools.googleapis.com/v2/id1/%20x/domainStats:query?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -198,10 +236,50 @@ test "Go's gmailpostmastertools.domains.domainStats.query" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_8)
+  gv_compare(gv_log_of(f), GO_9)
 }
 
-const GO_9: List[Str] = [
+const GO_10: List[Str] = [
+  "CALL gmailpostmastertools.domains.domainStats.query pages",
+  "REQ POST https://gmailpostmastertools.googleapis.com/v2/id1/%20x/domainStats:query?alt=json&fields=kind%2Cid&prettyPrint=false",
+  "  H content-type=application/json | x-extra=v1",
+  "  B {\"aggregationGranularity\":\"s-aggregationgranularity\",\"metricDefinitions\":[{\"baseMetric\":{\"standardMetric\":\"s-standardmetric\"},\"filter\":\"s-filter\",\"name\":\"s-name\"}],\"pageSize\":7,\"pageToken\":\"s-pagetoken\",\"parent\":\"s-parent\",\"timeQuery\":{\"dateList\":{},\"dateRanges\":{}}}",
+  "",
+  "  SERVED 200 {\"domainStats\":[{\"date\":{\"day\":7,\"month\":7,\"year\":7},\"metric\":\"s-metric\",\"name\":\"s-name\",\"value\":{\"doubleValue\":1.5,\"floatValue\":1.5,\"intValue\":\"7\",\"stringValue\":\"s-stringvalue\"}}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"domainStats\":[{\"date\":{\"day\":7,\"month\":7,\"year\":7},\"metric\":\"s-metric\",\"name\":\"s-name\",\"value\":{\"doubleValue\":1.5,\"floatValue\":1.5,\"intValue\":\"7\",\"stringValue\":\"s-stringvalue\"}}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ POST https://gmailpostmastertools.googleapis.com/v2/id1/%20x/domainStats:query?alt=json&fields=kind%2Cid&prettyPrint=false",
+  "  H content-type=application/json | x-extra=v1",
+  "  B {\"aggregationGranularity\":\"s-aggregationgranularity\",\"metricDefinitions\":[{\"baseMetric\":{\"standardMetric\":\"s-standardmetric\"},\"filter\":\"s-filter\",\"name\":\"s-name\"}],\"pageSize\":7,\"pageToken\":\"s-nextpagetoken\",\"parent\":\"s-parent\",\"timeQuery\":{\"dateList\":{},\"dateRanges\":{}}}",
+  "",
+  "  SERVED 200 {\"domainStats\":[{\"date\":{\"day\":7,\"month\":7,\"year\":7},\"metric\":\"s-metric\",\"name\":\"s-name\",\"value\":{\"doubleValue\":1.5,\"floatValue\":1.5,\"intValue\":\"7\",\"stringValue\":\"s-stringvalue\"}}]}",
+  "OUT: {\"domainStats\":[{\"date\":{\"day\":7,\"month\":7,\"year\":7},\"metric\":\"s-metric\",\"name\":\"s-name\",\"value\":{\"doubleValue\":1.5,\"floatValue\":1.5,\"intValue\":\"7\",\"stringValue\":\"s-stringvalue\"}}]}",
+  "OUT: ok",
+]
+
+test "Go's gmailpostmastertools.domains.domainStats.query pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"domainStats\":[{\"date\":{\"day\":7,\"month\":7,\"year\":7},\"metric\":\"s-metric\",\"name\":\"s-name\",\"value\":{\"doubleValue\":1.5,\"floatValue\":1.5,\"intValue\":\"7\",\"stringValue\":\"s-stringvalue\"}}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"domainStats\":[{\"date\":{\"day\":7,\"month\":7,\"year\":7},\"metric\":\"s-metric\",\"name\":\"s-name\",\"value\":{\"doubleValue\":1.5,\"floatValue\":1.5,\"intValue\":\"7\",\"stringValue\":\"s-stringvalue\"}}]}")
+  gv_note(f, "CALL gmailpostmastertools.domains.domainStats.query pages")
+  var p = svc.domains.domain_stats.query_pages("id1/ x", json.decode_str[QueryDomainStatsRequest]("{\"aggregationGranularity\":\"s-aggregationgranularity\",\"metricDefinitions\":[{\"baseMetric\":{\"standardMetric\":\"s-standardmetric\"},\"filter\":\"s-filter\",\"name\":\"s-name\"}],\"pageSize\":7,\"pageToken\":\"s-pagetoken\",\"parent\":\"s-parent\",\"timeQuery\":{\"dateList\":{},\"dateRanges\":{}}}") ?? e => fault(e.display()), options: DomainsDomainStatsQueryOptions{fields: ["kind", "id"], headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_10)
+}
+
+const GO_11: List[Str] = [
   "CALL gmailpostmastertools.domains.users.create",
   "REQ POST https://gmailpostmastertools.googleapis.com/v2/id1/%20x/users?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -220,10 +298,10 @@ test "Go's gmailpostmastertools.domains.users.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_9)
+  gv_compare(gv_log_of(f), GO_11)
 }
 
-const GO_10: List[Str] = [
+const GO_12: List[Str] = [
   "CALL gmailpostmastertools.domains.users.delete",
   "REQ DELETE https://gmailpostmastertools.googleapis.com/v2/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -241,10 +319,10 @@ test "Go's gmailpostmastertools.domains.users.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_10)
+  gv_compare(gv_log_of(f), GO_12)
 }
 
-const GO_11: List[Str] = [
+const GO_13: List[Str] = [
   "CALL gmailpostmastertools.domains.users.get",
   "REQ GET https://gmailpostmastertools.googleapis.com/v2/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -262,10 +340,10 @@ test "Go's gmailpostmastertools.domains.users.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_11)
+  gv_compare(gv_log_of(f), GO_13)
 }
 
-const GO_12: List[Str] = [
+const GO_14: List[Str] = [
   "CALL gmailpostmastertools.domains.users.list",
   "REQ GET https://gmailpostmastertools.googleapis.com/v2/id1/%20x/users?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -283,10 +361,48 @@ test "Go's gmailpostmastertools.domains.users.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_12)
+  gv_compare(gv_log_of(f), GO_14)
 }
 
-const GO_13: List[Str] = [
+const GO_15: List[Str] = [
+  "CALL gmailpostmastertools.domains.users.list pages",
+  "REQ GET https://gmailpostmastertools.googleapis.com/v2/id1/%20x/users?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"users\":[{\"accessGranter\":\"s-accessgranter\",\"createTime\":\"s-createtime\",\"name\":\"s-name\",\"permission\":\"s-permission\",\"user\":\"s-user\"}]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"users\":[{\"accessGranter\":\"s-accessgranter\",\"createTime\":\"s-createtime\",\"name\":\"s-name\",\"permission\":\"s-permission\",\"user\":\"s-user\"}]}",
+  "REQ GET https://gmailpostmastertools.googleapis.com/v2/id1/%20x/users?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"users\":[{\"accessGranter\":\"s-accessgranter\",\"createTime\":\"s-createtime\",\"name\":\"s-name\",\"permission\":\"s-permission\",\"user\":\"s-user\"}]}",
+  "OUT: {\"users\":[{\"accessGranter\":\"s-accessgranter\",\"createTime\":\"s-createtime\",\"name\":\"s-name\",\"permission\":\"s-permission\",\"user\":\"s-user\"}]}",
+  "OUT: ok",
+]
+
+test "Go's gmailpostmastertools.domains.users.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"users\":[{\"accessGranter\":\"s-accessgranter\",\"createTime\":\"s-createtime\",\"name\":\"s-name\",\"permission\":\"s-permission\",\"user\":\"s-user\"}]}")
+  gv_queue(f, "{\"users\":[{\"accessGranter\":\"s-accessgranter\",\"createTime\":\"s-createtime\",\"name\":\"s-name\",\"permission\":\"s-permission\",\"user\":\"s-user\"}]}")
+  gv_note(f, "CALL gmailpostmastertools.domains.users.list pages")
+  var p = svc.domains.users.list_pages("id1/ x", options: DomainsUsersListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_15)
+}
+
+const GO_16: List[Str] = [
   "CALL gmailpostmastertools.domains.users.patch",
   "REQ PATCH https://gmailpostmastertools.googleapis.com/v2/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
@@ -305,5 +421,5 @@ test "Go's gmailpostmastertools.domains.users.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_13)
+  gv_compare(gv_log_of(f), GO_16)
 }

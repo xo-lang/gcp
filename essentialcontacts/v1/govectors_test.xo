@@ -30,6 +30,44 @@ test "Go's essentialcontacts.folders.contacts.compute" {
 }
 
 const GO_1: List[Str] = [
+  "CALL essentialcontacts.folders.contacts.compute pages",
+  "REQ GET https://essentialcontacts.googleapis.com/v1/id1/%20x/contacts:compute?alt=json&fields=kind%2Cid&notificationCategories=s-notificationcategories&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"contacts\":[{\"email\":\"s-email\",\"languageTag\":\"s-languagetag\",\"name\":\"s-name\",\"notificationCategorySubscriptions\":[\"s-notificationcategorysubscriptions\"],\"validateTime\":\"s-validatetime\",\"validationState\":\"s-validationstate\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"contacts\":[{\"email\":\"s-email\",\"languageTag\":\"s-languagetag\",\"name\":\"s-name\",\"notificationCategorySubscriptions\":[\"s-notificationcategorysubscriptions\"],\"validateTime\":\"s-validatetime\",\"validationState\":\"s-validationstate\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://essentialcontacts.googleapis.com/v1/id1/%20x/contacts:compute?alt=json&fields=kind%2Cid&notificationCategories=s-notificationcategories&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"contacts\":[{\"email\":\"s-email\",\"languageTag\":\"s-languagetag\",\"name\":\"s-name\",\"notificationCategorySubscriptions\":[\"s-notificationcategorysubscriptions\"],\"validateTime\":\"s-validatetime\",\"validationState\":\"s-validationstate\"}]}",
+  "OUT: {\"contacts\":[{\"email\":\"s-email\",\"languageTag\":\"s-languagetag\",\"name\":\"s-name\",\"notificationCategorySubscriptions\":[\"s-notificationcategorysubscriptions\"],\"validateTime\":\"s-validatetime\",\"validationState\":\"s-validationstate\"}]}",
+  "OUT: ok",
+]
+
+test "Go's essentialcontacts.folders.contacts.compute pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"contacts\":[{\"email\":\"s-email\",\"languageTag\":\"s-languagetag\",\"name\":\"s-name\",\"notificationCategorySubscriptions\":[\"s-notificationcategorysubscriptions\"],\"validateTime\":\"s-validatetime\",\"validationState\":\"s-validationstate\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"contacts\":[{\"email\":\"s-email\",\"languageTag\":\"s-languagetag\",\"name\":\"s-name\",\"notificationCategorySubscriptions\":[\"s-notificationcategorysubscriptions\"],\"validateTime\":\"s-validatetime\",\"validationState\":\"s-validationstate\"}]}")
+  gv_note(f, "CALL essentialcontacts.folders.contacts.compute pages")
+  var p = svc.folders.contacts.compute_pages("id1/ x", options: FoldersContactsComputeOptions{notification_categories: ["s-notificationcategories"], page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_1)
+}
+
+const GO_2: List[Str] = [
   "CALL essentialcontacts.folders.contacts.create",
   "REQ POST https://essentialcontacts.googleapis.com/v1/id1/%20x/contacts?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -48,10 +86,10 @@ test "Go's essentialcontacts.folders.contacts.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_1)
+  gv_compare(gv_log_of(f), GO_2)
 }
 
-const GO_2: List[Str] = [
+const GO_3: List[Str] = [
   "CALL essentialcontacts.folders.contacts.delete",
   "REQ DELETE https://essentialcontacts.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -69,10 +107,10 @@ test "Go's essentialcontacts.folders.contacts.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_2)
+  gv_compare(gv_log_of(f), GO_3)
 }
 
-const GO_3: List[Str] = [
+const GO_4: List[Str] = [
   "CALL essentialcontacts.folders.contacts.get",
   "REQ GET https://essentialcontacts.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -90,10 +128,10 @@ test "Go's essentialcontacts.folders.contacts.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_3)
+  gv_compare(gv_log_of(f), GO_4)
 }
 
-const GO_4: List[Str] = [
+const GO_5: List[Str] = [
   "CALL essentialcontacts.folders.contacts.list",
   "REQ GET https://essentialcontacts.googleapis.com/v1/id1/%20x/contacts?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -111,10 +149,48 @@ test "Go's essentialcontacts.folders.contacts.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_4)
+  gv_compare(gv_log_of(f), GO_5)
 }
 
-const GO_5: List[Str] = [
+const GO_6: List[Str] = [
+  "CALL essentialcontacts.folders.contacts.list pages",
+  "REQ GET https://essentialcontacts.googleapis.com/v1/id1/%20x/contacts?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"contacts\":[{\"email\":\"s-email\",\"languageTag\":\"s-languagetag\",\"name\":\"s-name\",\"notificationCategorySubscriptions\":[\"s-notificationcategorysubscriptions\"],\"validateTime\":\"s-validatetime\",\"validationState\":\"s-validationstate\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"contacts\":[{\"email\":\"s-email\",\"languageTag\":\"s-languagetag\",\"name\":\"s-name\",\"notificationCategorySubscriptions\":[\"s-notificationcategorysubscriptions\"],\"validateTime\":\"s-validatetime\",\"validationState\":\"s-validationstate\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://essentialcontacts.googleapis.com/v1/id1/%20x/contacts?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"contacts\":[{\"email\":\"s-email\",\"languageTag\":\"s-languagetag\",\"name\":\"s-name\",\"notificationCategorySubscriptions\":[\"s-notificationcategorysubscriptions\"],\"validateTime\":\"s-validatetime\",\"validationState\":\"s-validationstate\"}]}",
+  "OUT: {\"contacts\":[{\"email\":\"s-email\",\"languageTag\":\"s-languagetag\",\"name\":\"s-name\",\"notificationCategorySubscriptions\":[\"s-notificationcategorysubscriptions\"],\"validateTime\":\"s-validatetime\",\"validationState\":\"s-validationstate\"}]}",
+  "OUT: ok",
+]
+
+test "Go's essentialcontacts.folders.contacts.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"contacts\":[{\"email\":\"s-email\",\"languageTag\":\"s-languagetag\",\"name\":\"s-name\",\"notificationCategorySubscriptions\":[\"s-notificationcategorysubscriptions\"],\"validateTime\":\"s-validatetime\",\"validationState\":\"s-validationstate\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"contacts\":[{\"email\":\"s-email\",\"languageTag\":\"s-languagetag\",\"name\":\"s-name\",\"notificationCategorySubscriptions\":[\"s-notificationcategorysubscriptions\"],\"validateTime\":\"s-validatetime\",\"validationState\":\"s-validationstate\"}]}")
+  gv_note(f, "CALL essentialcontacts.folders.contacts.list pages")
+  var p = svc.folders.contacts.list_pages("id1/ x", options: FoldersContactsListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_6)
+}
+
+const GO_7: List[Str] = [
   "CALL essentialcontacts.folders.contacts.patch",
   "REQ PATCH https://essentialcontacts.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
@@ -133,10 +209,10 @@ test "Go's essentialcontacts.folders.contacts.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_5)
+  gv_compare(gv_log_of(f), GO_7)
 }
 
-const GO_6: List[Str] = [
+const GO_8: List[Str] = [
   "CALL essentialcontacts.folders.contacts.sendTestMessage",
   "REQ POST https://essentialcontacts.googleapis.com/v1/id1/%20x/contacts:sendTestMessage?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -155,10 +231,10 @@ test "Go's essentialcontacts.folders.contacts.sendTestMessage" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_6)
+  gv_compare(gv_log_of(f), GO_8)
 }
 
-const GO_7: List[Str] = [
+const GO_9: List[Str] = [
   "CALL essentialcontacts.organizations.contacts.compute",
   "REQ GET https://essentialcontacts.googleapis.com/v1/id1/%20x/contacts:compute?alt=json&fields=kind%2Cid&notificationCategories=s-notificationcategories&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -176,10 +252,48 @@ test "Go's essentialcontacts.organizations.contacts.compute" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_7)
+  gv_compare(gv_log_of(f), GO_9)
 }
 
-const GO_8: List[Str] = [
+const GO_10: List[Str] = [
+  "CALL essentialcontacts.organizations.contacts.compute pages",
+  "REQ GET https://essentialcontacts.googleapis.com/v1/id1/%20x/contacts:compute?alt=json&fields=kind%2Cid&notificationCategories=s-notificationcategories&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"contacts\":[{\"email\":\"s-email\",\"languageTag\":\"s-languagetag\",\"name\":\"s-name\",\"notificationCategorySubscriptions\":[\"s-notificationcategorysubscriptions\"],\"validateTime\":\"s-validatetime\",\"validationState\":\"s-validationstate\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"contacts\":[{\"email\":\"s-email\",\"languageTag\":\"s-languagetag\",\"name\":\"s-name\",\"notificationCategorySubscriptions\":[\"s-notificationcategorysubscriptions\"],\"validateTime\":\"s-validatetime\",\"validationState\":\"s-validationstate\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://essentialcontacts.googleapis.com/v1/id1/%20x/contacts:compute?alt=json&fields=kind%2Cid&notificationCategories=s-notificationcategories&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"contacts\":[{\"email\":\"s-email\",\"languageTag\":\"s-languagetag\",\"name\":\"s-name\",\"notificationCategorySubscriptions\":[\"s-notificationcategorysubscriptions\"],\"validateTime\":\"s-validatetime\",\"validationState\":\"s-validationstate\"}]}",
+  "OUT: {\"contacts\":[{\"email\":\"s-email\",\"languageTag\":\"s-languagetag\",\"name\":\"s-name\",\"notificationCategorySubscriptions\":[\"s-notificationcategorysubscriptions\"],\"validateTime\":\"s-validatetime\",\"validationState\":\"s-validationstate\"}]}",
+  "OUT: ok",
+]
+
+test "Go's essentialcontacts.organizations.contacts.compute pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"contacts\":[{\"email\":\"s-email\",\"languageTag\":\"s-languagetag\",\"name\":\"s-name\",\"notificationCategorySubscriptions\":[\"s-notificationcategorysubscriptions\"],\"validateTime\":\"s-validatetime\",\"validationState\":\"s-validationstate\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"contacts\":[{\"email\":\"s-email\",\"languageTag\":\"s-languagetag\",\"name\":\"s-name\",\"notificationCategorySubscriptions\":[\"s-notificationcategorysubscriptions\"],\"validateTime\":\"s-validatetime\",\"validationState\":\"s-validationstate\"}]}")
+  gv_note(f, "CALL essentialcontacts.organizations.contacts.compute pages")
+  var p = svc.organizations.contacts.compute_pages("id1/ x", options: OrganizationsContactsComputeOptions{notification_categories: ["s-notificationcategories"], page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_10)
+}
+
+const GO_11: List[Str] = [
   "CALL essentialcontacts.organizations.contacts.create",
   "REQ POST https://essentialcontacts.googleapis.com/v1/id1/%20x/contacts?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -198,10 +312,10 @@ test "Go's essentialcontacts.organizations.contacts.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_8)
+  gv_compare(gv_log_of(f), GO_11)
 }
 
-const GO_9: List[Str] = [
+const GO_12: List[Str] = [
   "CALL essentialcontacts.organizations.contacts.delete",
   "REQ DELETE https://essentialcontacts.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -219,10 +333,10 @@ test "Go's essentialcontacts.organizations.contacts.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_9)
+  gv_compare(gv_log_of(f), GO_12)
 }
 
-const GO_10: List[Str] = [
+const GO_13: List[Str] = [
   "CALL essentialcontacts.organizations.contacts.get",
   "REQ GET https://essentialcontacts.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -240,10 +354,10 @@ test "Go's essentialcontacts.organizations.contacts.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_10)
+  gv_compare(gv_log_of(f), GO_13)
 }
 
-const GO_11: List[Str] = [
+const GO_14: List[Str] = [
   "CALL essentialcontacts.organizations.contacts.list",
   "REQ GET https://essentialcontacts.googleapis.com/v1/id1/%20x/contacts?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -261,10 +375,48 @@ test "Go's essentialcontacts.organizations.contacts.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_11)
+  gv_compare(gv_log_of(f), GO_14)
 }
 
-const GO_12: List[Str] = [
+const GO_15: List[Str] = [
+  "CALL essentialcontacts.organizations.contacts.list pages",
+  "REQ GET https://essentialcontacts.googleapis.com/v1/id1/%20x/contacts?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"contacts\":[{\"email\":\"s-email\",\"languageTag\":\"s-languagetag\",\"name\":\"s-name\",\"notificationCategorySubscriptions\":[\"s-notificationcategorysubscriptions\"],\"validateTime\":\"s-validatetime\",\"validationState\":\"s-validationstate\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"contacts\":[{\"email\":\"s-email\",\"languageTag\":\"s-languagetag\",\"name\":\"s-name\",\"notificationCategorySubscriptions\":[\"s-notificationcategorysubscriptions\"],\"validateTime\":\"s-validatetime\",\"validationState\":\"s-validationstate\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://essentialcontacts.googleapis.com/v1/id1/%20x/contacts?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"contacts\":[{\"email\":\"s-email\",\"languageTag\":\"s-languagetag\",\"name\":\"s-name\",\"notificationCategorySubscriptions\":[\"s-notificationcategorysubscriptions\"],\"validateTime\":\"s-validatetime\",\"validationState\":\"s-validationstate\"}]}",
+  "OUT: {\"contacts\":[{\"email\":\"s-email\",\"languageTag\":\"s-languagetag\",\"name\":\"s-name\",\"notificationCategorySubscriptions\":[\"s-notificationcategorysubscriptions\"],\"validateTime\":\"s-validatetime\",\"validationState\":\"s-validationstate\"}]}",
+  "OUT: ok",
+]
+
+test "Go's essentialcontacts.organizations.contacts.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"contacts\":[{\"email\":\"s-email\",\"languageTag\":\"s-languagetag\",\"name\":\"s-name\",\"notificationCategorySubscriptions\":[\"s-notificationcategorysubscriptions\"],\"validateTime\":\"s-validatetime\",\"validationState\":\"s-validationstate\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"contacts\":[{\"email\":\"s-email\",\"languageTag\":\"s-languagetag\",\"name\":\"s-name\",\"notificationCategorySubscriptions\":[\"s-notificationcategorysubscriptions\"],\"validateTime\":\"s-validatetime\",\"validationState\":\"s-validationstate\"}]}")
+  gv_note(f, "CALL essentialcontacts.organizations.contacts.list pages")
+  var p = svc.organizations.contacts.list_pages("id1/ x", options: OrganizationsContactsListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_15)
+}
+
+const GO_16: List[Str] = [
   "CALL essentialcontacts.organizations.contacts.patch",
   "REQ PATCH https://essentialcontacts.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
@@ -283,10 +435,10 @@ test "Go's essentialcontacts.organizations.contacts.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_12)
+  gv_compare(gv_log_of(f), GO_16)
 }
 
-const GO_13: List[Str] = [
+const GO_17: List[Str] = [
   "CALL essentialcontacts.organizations.contacts.sendTestMessage",
   "REQ POST https://essentialcontacts.googleapis.com/v1/id1/%20x/contacts:sendTestMessage?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -305,10 +457,10 @@ test "Go's essentialcontacts.organizations.contacts.sendTestMessage" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_13)
+  gv_compare(gv_log_of(f), GO_17)
 }
 
-const GO_14: List[Str] = [
+const GO_18: List[Str] = [
   "CALL essentialcontacts.projects.contacts.compute",
   "REQ GET https://essentialcontacts.googleapis.com/v1/id1/%20x/contacts:compute?alt=json&fields=kind%2Cid&notificationCategories=s-notificationcategories&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -326,10 +478,48 @@ test "Go's essentialcontacts.projects.contacts.compute" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_14)
+  gv_compare(gv_log_of(f), GO_18)
 }
 
-const GO_15: List[Str] = [
+const GO_19: List[Str] = [
+  "CALL essentialcontacts.projects.contacts.compute pages",
+  "REQ GET https://essentialcontacts.googleapis.com/v1/id1/%20x/contacts:compute?alt=json&fields=kind%2Cid&notificationCategories=s-notificationcategories&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"contacts\":[{\"email\":\"s-email\",\"languageTag\":\"s-languagetag\",\"name\":\"s-name\",\"notificationCategorySubscriptions\":[\"s-notificationcategorysubscriptions\"],\"validateTime\":\"s-validatetime\",\"validationState\":\"s-validationstate\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"contacts\":[{\"email\":\"s-email\",\"languageTag\":\"s-languagetag\",\"name\":\"s-name\",\"notificationCategorySubscriptions\":[\"s-notificationcategorysubscriptions\"],\"validateTime\":\"s-validatetime\",\"validationState\":\"s-validationstate\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://essentialcontacts.googleapis.com/v1/id1/%20x/contacts:compute?alt=json&fields=kind%2Cid&notificationCategories=s-notificationcategories&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"contacts\":[{\"email\":\"s-email\",\"languageTag\":\"s-languagetag\",\"name\":\"s-name\",\"notificationCategorySubscriptions\":[\"s-notificationcategorysubscriptions\"],\"validateTime\":\"s-validatetime\",\"validationState\":\"s-validationstate\"}]}",
+  "OUT: {\"contacts\":[{\"email\":\"s-email\",\"languageTag\":\"s-languagetag\",\"name\":\"s-name\",\"notificationCategorySubscriptions\":[\"s-notificationcategorysubscriptions\"],\"validateTime\":\"s-validatetime\",\"validationState\":\"s-validationstate\"}]}",
+  "OUT: ok",
+]
+
+test "Go's essentialcontacts.projects.contacts.compute pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"contacts\":[{\"email\":\"s-email\",\"languageTag\":\"s-languagetag\",\"name\":\"s-name\",\"notificationCategorySubscriptions\":[\"s-notificationcategorysubscriptions\"],\"validateTime\":\"s-validatetime\",\"validationState\":\"s-validationstate\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"contacts\":[{\"email\":\"s-email\",\"languageTag\":\"s-languagetag\",\"name\":\"s-name\",\"notificationCategorySubscriptions\":[\"s-notificationcategorysubscriptions\"],\"validateTime\":\"s-validatetime\",\"validationState\":\"s-validationstate\"}]}")
+  gv_note(f, "CALL essentialcontacts.projects.contacts.compute pages")
+  var p = svc.projects.contacts.compute_pages("id1/ x", options: ProjectsContactsComputeOptions{notification_categories: ["s-notificationcategories"], page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_19)
+}
+
+const GO_20: List[Str] = [
   "CALL essentialcontacts.projects.contacts.create",
   "REQ POST https://essentialcontacts.googleapis.com/v1/id1/%20x/contacts?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -348,10 +538,10 @@ test "Go's essentialcontacts.projects.contacts.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_15)
+  gv_compare(gv_log_of(f), GO_20)
 }
 
-const GO_16: List[Str] = [
+const GO_21: List[Str] = [
   "CALL essentialcontacts.projects.contacts.delete",
   "REQ DELETE https://essentialcontacts.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -369,10 +559,10 @@ test "Go's essentialcontacts.projects.contacts.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_16)
+  gv_compare(gv_log_of(f), GO_21)
 }
 
-const GO_17: List[Str] = [
+const GO_22: List[Str] = [
   "CALL essentialcontacts.projects.contacts.get",
   "REQ GET https://essentialcontacts.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -390,10 +580,10 @@ test "Go's essentialcontacts.projects.contacts.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_17)
+  gv_compare(gv_log_of(f), GO_22)
 }
 
-const GO_18: List[Str] = [
+const GO_23: List[Str] = [
   "CALL essentialcontacts.projects.contacts.list",
   "REQ GET https://essentialcontacts.googleapis.com/v1/id1/%20x/contacts?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -411,10 +601,48 @@ test "Go's essentialcontacts.projects.contacts.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_18)
+  gv_compare(gv_log_of(f), GO_23)
 }
 
-const GO_19: List[Str] = [
+const GO_24: List[Str] = [
+  "CALL essentialcontacts.projects.contacts.list pages",
+  "REQ GET https://essentialcontacts.googleapis.com/v1/id1/%20x/contacts?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"contacts\":[{\"email\":\"s-email\",\"languageTag\":\"s-languagetag\",\"name\":\"s-name\",\"notificationCategorySubscriptions\":[\"s-notificationcategorysubscriptions\"],\"validateTime\":\"s-validatetime\",\"validationState\":\"s-validationstate\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"contacts\":[{\"email\":\"s-email\",\"languageTag\":\"s-languagetag\",\"name\":\"s-name\",\"notificationCategorySubscriptions\":[\"s-notificationcategorysubscriptions\"],\"validateTime\":\"s-validatetime\",\"validationState\":\"s-validationstate\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://essentialcontacts.googleapis.com/v1/id1/%20x/contacts?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"contacts\":[{\"email\":\"s-email\",\"languageTag\":\"s-languagetag\",\"name\":\"s-name\",\"notificationCategorySubscriptions\":[\"s-notificationcategorysubscriptions\"],\"validateTime\":\"s-validatetime\",\"validationState\":\"s-validationstate\"}]}",
+  "OUT: {\"contacts\":[{\"email\":\"s-email\",\"languageTag\":\"s-languagetag\",\"name\":\"s-name\",\"notificationCategorySubscriptions\":[\"s-notificationcategorysubscriptions\"],\"validateTime\":\"s-validatetime\",\"validationState\":\"s-validationstate\"}]}",
+  "OUT: ok",
+]
+
+test "Go's essentialcontacts.projects.contacts.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"contacts\":[{\"email\":\"s-email\",\"languageTag\":\"s-languagetag\",\"name\":\"s-name\",\"notificationCategorySubscriptions\":[\"s-notificationcategorysubscriptions\"],\"validateTime\":\"s-validatetime\",\"validationState\":\"s-validationstate\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"contacts\":[{\"email\":\"s-email\",\"languageTag\":\"s-languagetag\",\"name\":\"s-name\",\"notificationCategorySubscriptions\":[\"s-notificationcategorysubscriptions\"],\"validateTime\":\"s-validatetime\",\"validationState\":\"s-validationstate\"}]}")
+  gv_note(f, "CALL essentialcontacts.projects.contacts.list pages")
+  var p = svc.projects.contacts.list_pages("id1/ x", options: ProjectsContactsListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_24)
+}
+
+const GO_25: List[Str] = [
   "CALL essentialcontacts.projects.contacts.patch",
   "REQ PATCH https://essentialcontacts.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
@@ -433,10 +661,10 @@ test "Go's essentialcontacts.projects.contacts.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_19)
+  gv_compare(gv_log_of(f), GO_25)
 }
 
-const GO_20: List[Str] = [
+const GO_26: List[Str] = [
   "CALL essentialcontacts.projects.contacts.sendTestMessage",
   "REQ POST https://essentialcontacts.googleapis.com/v1/id1/%20x/contacts:sendTestMessage?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -455,5 +683,5 @@ test "Go's essentialcontacts.projects.contacts.sendTestMessage" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_20)
+  gv_compare(gv_log_of(f), GO_26)
 }

@@ -5,6 +5,7 @@
 // compares the request, the response served and the result.
 
 use std/json
+use github.com/xo-lang/gcp/gensupport
 
 const GV_HOST: Str = "https://artifactregistry.googleapis.com"
 
@@ -94,6 +95,44 @@ test "Go's artifactregistry.projects.locations.list" {
 }
 
 const GO_4: List[Str] = [
+  "CALL artifactregistry.projects.locations.list pages",
+  "REQ GET https://artifactregistry.googleapis.com/v1beta2/id1/%20x/locations?alt=json&extraLocationTypes=s-extralocationtypes&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://artifactregistry.googleapis.com/v1beta2/id1/%20x/locations?alt=json&extraLocationTypes=s-extralocationtypes&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}]}",
+  "OUT: {\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}]}",
+  "OUT: ok",
+]
+
+test "Go's artifactregistry.projects.locations.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}]}")
+  gv_note(f, "CALL artifactregistry.projects.locations.list pages")
+  var p = svc.projects.locations.list_pages("id1/ x", options: ProjectsLocationsListOptions{extra_location_types: ["s-extralocationtypes"], filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_4)
+}
+
+const GO_5: List[Str] = [
   "CALL artifactregistry.projects.locations.operations.get",
   "REQ GET https://artifactregistry.googleapis.com/v1beta2/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -111,10 +150,10 @@ test "Go's artifactregistry.projects.locations.operations.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_4)
+  gv_compare(gv_log_of(f), GO_5)
 }
 
-const GO_5: List[Str] = [
+const GO_6: List[Str] = [
   "CALL artifactregistry.projects.locations.repositories.create",
   "REQ POST https://artifactregistry.googleapis.com/v1beta2/id1/%20x/repositories?alt=json&fields=kind%2Cid&prettyPrint=false&repositoryId=s-repositoryid",
   "  H content-type=application/json | x-extra=v1",
@@ -133,10 +172,10 @@ test "Go's artifactregistry.projects.locations.repositories.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_5)
+  gv_compare(gv_log_of(f), GO_6)
 }
 
-const GO_6: List[Str] = [
+const GO_7: List[Str] = [
   "CALL artifactregistry.projects.locations.repositories.delete",
   "REQ DELETE https://artifactregistry.googleapis.com/v1beta2/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -154,10 +193,10 @@ test "Go's artifactregistry.projects.locations.repositories.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_6)
+  gv_compare(gv_log_of(f), GO_7)
 }
 
-const GO_7: List[Str] = [
+const GO_8: List[Str] = [
   "CALL artifactregistry.projects.locations.repositories.get",
   "REQ GET https://artifactregistry.googleapis.com/v1beta2/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -175,10 +214,10 @@ test "Go's artifactregistry.projects.locations.repositories.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_7)
+  gv_compare(gv_log_of(f), GO_8)
 }
 
-const GO_8: List[Str] = [
+const GO_9: List[Str] = [
   "CALL artifactregistry.projects.locations.repositories.getIamPolicy",
   "REQ GET https://artifactregistry.googleapis.com/v1beta2/id1/%20x:getIamPolicy?alt=json&fields=kind%2Cid&options.requestedPolicyVersion=7&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -196,10 +235,10 @@ test "Go's artifactregistry.projects.locations.repositories.getIamPolicy" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_8)
+  gv_compare(gv_log_of(f), GO_9)
 }
 
-const GO_9: List[Str] = [
+const GO_10: List[Str] = [
   "CALL artifactregistry.projects.locations.repositories.list",
   "REQ GET https://artifactregistry.googleapis.com/v1beta2/id1/%20x/repositories?alt=json&fields=kind%2Cid&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -217,10 +256,48 @@ test "Go's artifactregistry.projects.locations.repositories.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_9)
+  gv_compare(gv_log_of(f), GO_10)
 }
 
-const GO_10: List[Str] = [
+const GO_11: List[Str] = [
+  "CALL artifactregistry.projects.locations.repositories.list pages",
+  "REQ GET https://artifactregistry.googleapis.com/v1beta2/id1/%20x/repositories?alt=json&fields=kind%2Cid&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"repositories\":[{\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"format\":\"s-format\",\"kmsKeyName\":\"s-kmskeyname\",\"labels\":{\"k1\":\"s-labels\"},\"mavenConfig\":{\"allowSnapshotOverwrites\":true,\"versionPolicy\":\"s-versionpolicy\"},\"name\":\"s-name\",\"satisfiesPzi\":true,\"satisfiesPzs\":true,\"sizeBytes\":\"7\",\"updateTime\":\"s-updatetime\"}]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"repositories\":[{\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"format\":\"s-format\",\"kmsKeyName\":\"s-kmskeyname\",\"labels\":{\"k1\":\"s-labels\"},\"mavenConfig\":{\"allowSnapshotOverwrites\":true,\"versionPolicy\":\"s-versionpolicy\"},\"name\":\"s-name\",\"satisfiesPzi\":true,\"satisfiesPzs\":true,\"sizeBytes\":\"7\",\"updateTime\":\"s-updatetime\"}]}",
+  "REQ GET https://artifactregistry.googleapis.com/v1beta2/id1/%20x/repositories?alt=json&fields=kind%2Cid&orderBy=s-orderby&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"repositories\":[{\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"format\":\"s-format\",\"kmsKeyName\":\"s-kmskeyname\",\"labels\":{\"k1\":\"s-labels\"},\"mavenConfig\":{\"allowSnapshotOverwrites\":true,\"versionPolicy\":\"s-versionpolicy\"},\"name\":\"s-name\",\"satisfiesPzi\":true,\"satisfiesPzs\":true,\"sizeBytes\":\"7\",\"updateTime\":\"s-updatetime\"}]}",
+  "OUT: {\"repositories\":[{\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"format\":\"s-format\",\"kmsKeyName\":\"s-kmskeyname\",\"labels\":{\"k1\":\"s-labels\"},\"mavenConfig\":{\"allowSnapshotOverwrites\":true,\"versionPolicy\":\"s-versionpolicy\"},\"name\":\"s-name\",\"satisfiesPzi\":true,\"satisfiesPzs\":true,\"sizeBytes\":\"7\",\"updateTime\":\"s-updatetime\"}]}",
+  "OUT: ok",
+]
+
+test "Go's artifactregistry.projects.locations.repositories.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"repositories\":[{\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"format\":\"s-format\",\"kmsKeyName\":\"s-kmskeyname\",\"labels\":{\"k1\":\"s-labels\"},\"mavenConfig\":{\"allowSnapshotOverwrites\":true,\"versionPolicy\":\"s-versionpolicy\"},\"name\":\"s-name\",\"satisfiesPzi\":true,\"satisfiesPzs\":true,\"sizeBytes\":\"7\",\"updateTime\":\"s-updatetime\"}]}")
+  gv_queue(f, "{\"repositories\":[{\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"format\":\"s-format\",\"kmsKeyName\":\"s-kmskeyname\",\"labels\":{\"k1\":\"s-labels\"},\"mavenConfig\":{\"allowSnapshotOverwrites\":true,\"versionPolicy\":\"s-versionpolicy\"},\"name\":\"s-name\",\"satisfiesPzi\":true,\"satisfiesPzs\":true,\"sizeBytes\":\"7\",\"updateTime\":\"s-updatetime\"}]}")
+  gv_note(f, "CALL artifactregistry.projects.locations.repositories.list pages")
+  var p = svc.projects.locations.repositories.list_pages("id1/ x", options: ProjectsLocationsRepositoriesListOptions{order_by: Some("s-orderby"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_11)
+}
+
+const GO_12: List[Str] = [
   "CALL artifactregistry.projects.locations.repositories.patch",
   "REQ PATCH https://artifactregistry.googleapis.com/v1beta2/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
@@ -239,10 +316,10 @@ test "Go's artifactregistry.projects.locations.repositories.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_10)
+  gv_compare(gv_log_of(f), GO_12)
 }
 
-const GO_11: List[Str] = [
+const GO_13: List[Str] = [
   "CALL artifactregistry.projects.locations.repositories.setIamPolicy",
   "REQ POST https://artifactregistry.googleapis.com/v1beta2/id1/%20x:setIamPolicy?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -261,10 +338,10 @@ test "Go's artifactregistry.projects.locations.repositories.setIamPolicy" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_11)
+  gv_compare(gv_log_of(f), GO_13)
 }
 
-const GO_12: List[Str] = [
+const GO_14: List[Str] = [
   "CALL artifactregistry.projects.locations.repositories.testIamPermissions",
   "REQ POST https://artifactregistry.googleapis.com/v1beta2/id1/%20x:testIamPermissions?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -283,10 +360,10 @@ test "Go's artifactregistry.projects.locations.repositories.testIamPermissions" 
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_12)
+  gv_compare(gv_log_of(f), GO_14)
 }
 
-const GO_13: List[Str] = [
+const GO_15: List[Str] = [
   "CALL artifactregistry.projects.locations.repositories.aptArtifacts.import",
   "REQ POST https://artifactregistry.googleapis.com/v1beta2/id1/%20x/aptArtifacts:import?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -305,10 +382,10 @@ test "Go's artifactregistry.projects.locations.repositories.aptArtifacts.import"
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_13)
+  gv_compare(gv_log_of(f), GO_15)
 }
 
-const GO_14: List[Str] = [
+const GO_16: List[Str] = [
   "CALL artifactregistry.projects.locations.repositories.aptArtifacts.upload",
   "REQ POST https://artifactregistry.googleapis.com/v1beta2/id1/%20x/aptArtifacts:create?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -327,10 +404,73 @@ test "Go's artifactregistry.projects.locations.repositories.aptArtifacts.upload"
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_14)
+  gv_compare(gv_log_of(f), GO_16)
 }
 
-const GO_15: List[Str] = [
+const GO_17: List[Str] = [
+  "CALL artifactregistry.projects.locations.repositories.aptArtifacts.upload media",
+  "REQ POST https://artifactregistry.googleapis.com/upload/v1beta2/id1/%20x/aptArtifacts:create?alt=json&fields=kind%2Cid&prettyPrint=false&uploadType=multipart",
+  "  H content-type=multipart/related; boundary=BOUNDARY | x-extra=v1",
+  "  B --BOUNDARY\u{000d}",
+  "Content-Type: application/json\u{000d}",
+  "\u{000d}",
+  "{}",
+  "\u{000d}",
+  "--BOUNDARY\u{000d}",
+  "Content-Type: text/plain\u{000d}",
+  "\u{000d}",
+  "hello media\u{000d}",
+  "--BOUNDARY--\u{000d}",
+  "",
+  "  SERVED 200 {\"operation\":{\"done\":true,\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}}",
+  "OUT: {\"operation\":{\"done\":true,\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}}",
+]
+
+test "Go's artifactregistry.projects.locations.repositories.aptArtifacts.upload media" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"operation\":{\"done\":true,\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}}")
+  gv_note(f, "CALL artifactregistry.projects.locations.repositories.aptArtifacts.upload media")
+  match svc.projects.locations.repositories.apt_artifacts.upload_media(os.clock, os.rand, "id1/ x", json.decode_str[UploadAptArtifactRequest]("{}") ?? e => fault(e.display()), media: gensupport.Media{data: "hello media".bytes(), content_type: "text/plain"}, options: ProjectsLocationsRepositoriesAptArtifactsUploadOptions{fields: ["kind", "id"], headers: [("X-Extra", "v1")]}) {
+    Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+    Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+  }
+  gv_compare(gv_log_of(f), GO_17)
+}
+
+const GO_18: List[Str] = [
+  "CALL artifactregistry.projects.locations.repositories.aptArtifacts.upload resumable",
+  "REQ POST https://artifactregistry.googleapis.com/upload/v1beta2/id1/%20x/aptArtifacts:create?alt=json&fields=kind%2Cid&prettyPrint=false&uploadType=resumable",
+  "  H content-type=application/json | x-extra=v1 | x-upload-content-type=text/plain",
+  "  B {}",
+  "",
+  "  SERVED 200 @H Location=https://artifactregistry.googleapis.com/upload/session-1 @B ",
+  "REQ POST https://artifactregistry.googleapis.com/upload/session-1",
+  "  H content-range=bytes 0-262143/* | content-type=text/plain | x-goog-gcs-idempotency-token=UUID | x-guploader-no-308=yes",
+  "  B <262144 bytes> 0123456789abcdef0123456789abcdef...0123456789abcdef0123456789abcdef",
+  "  SERVED 200 @H X-Http-Status-Code-Override=308 @B ",
+  "REQ POST https://artifactregistry.googleapis.com/upload/session-1",
+  "  H content-range=bytes 262144-262153/262154 | content-type=text/plain | x-goog-gcs-idempotency-token=UUID | x-guploader-no-308=yes",
+  "  B 0123456789",
+  "  SERVED 200 {\"operation\":{\"done\":true,\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}}",
+  "OUT: {\"operation\":{\"done\":true,\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}}",
+]
+
+test "Go's artifactregistry.projects.locations.repositories.aptArtifacts.upload resumable" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "@H Location=https://artifactregistry.googleapis.com/upload/session-1 @B ")
+  gv_queue(f, "@H X-Http-Status-Code-Override=308 @B ")
+  gv_queue(f, "{\"operation\":{\"done\":true,\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}}")
+  gv_note(f, "CALL artifactregistry.projects.locations.repositories.aptArtifacts.upload resumable")
+  match svc.projects.locations.repositories.apt_artifacts.upload_media(os.clock, os.rand, "id1/ x", json.decode_str[UploadAptArtifactRequest]("{}") ?? e => fault(e.display()), media: gensupport.Media{data: gv_big(), content_type: "text/plain", chunk_size: 262144}, options: ProjectsLocationsRepositoriesAptArtifactsUploadOptions{fields: ["kind", "id"], headers: [("X-Extra", "v1")]}) {
+    Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+    Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+  }
+  gv_compare(gv_log_of(f), GO_18)
+}
+
+const GO_19: List[Str] = [
   "CALL artifactregistry.projects.locations.repositories.files.download",
   "REQ GET https://artifactregistry.googleapis.com/v1beta2/id1/%20x:download?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -348,10 +488,31 @@ test "Go's artifactregistry.projects.locations.repositories.files.download" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_15)
+  gv_compare(gv_log_of(f), GO_19)
 }
 
-const GO_16: List[Str] = [
+const GO_20: List[Str] = [
+  "CALL artifactregistry.projects.locations.repositories.files.download download",
+  "REQ GET https://artifactregistry.googleapis.com/v1beta2/id1/%20x:download?alt=media&fields=kind%2Cid&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 media-bytes \u{0001}ÿ",
+  "OUT: media 200 media-bytes \u{0001}ÿ",
+]
+
+test "Go's artifactregistry.projects.locations.repositories.files.download download" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "media-bytes \u{0001}ÿ")
+  gv_note(f, "CALL artifactregistry.projects.locations.repositories.files.download download")
+  match svc.projects.locations.repositories.files.download_download("id1/ x", options: ProjectsLocationsRepositoriesFilesDownloadOptions{fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]}) {
+    Ok(r) => gv_note(f, "OUT: media ${r.status} ${r.body.to_str_lossy()}")
+    Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+  }
+  gv_compare(gv_log_of(f), GO_20)
+}
+
+const GO_21: List[Str] = [
   "CALL artifactregistry.projects.locations.repositories.files.get",
   "REQ GET https://artifactregistry.googleapis.com/v1beta2/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -369,10 +530,10 @@ test "Go's artifactregistry.projects.locations.repositories.files.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_16)
+  gv_compare(gv_log_of(f), GO_21)
 }
 
-const GO_17: List[Str] = [
+const GO_22: List[Str] = [
   "CALL artifactregistry.projects.locations.repositories.files.list",
   "REQ GET https://artifactregistry.googleapis.com/v1beta2/id1/%20x/files?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -390,10 +551,48 @@ test "Go's artifactregistry.projects.locations.repositories.files.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_17)
+  gv_compare(gv_log_of(f), GO_22)
 }
 
-const GO_18: List[Str] = [
+const GO_23: List[Str] = [
+  "CALL artifactregistry.projects.locations.repositories.files.list pages",
+  "REQ GET https://artifactregistry.googleapis.com/v1beta2/id1/%20x/files?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"files\":[{\"createTime\":\"s-createtime\",\"name\":\"s-name\",\"owner\":\"s-owner\",\"sizeBytes\":\"7\",\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"files\":[{\"createTime\":\"s-createtime\",\"name\":\"s-name\",\"owner\":\"s-owner\",\"sizeBytes\":\"7\",\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://artifactregistry.googleapis.com/v1beta2/id1/%20x/files?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"files\":[{\"createTime\":\"s-createtime\",\"name\":\"s-name\",\"owner\":\"s-owner\",\"sizeBytes\":\"7\",\"updateTime\":\"s-updatetime\"}]}",
+  "OUT: {\"files\":[{\"createTime\":\"s-createtime\",\"name\":\"s-name\",\"owner\":\"s-owner\",\"sizeBytes\":\"7\",\"updateTime\":\"s-updatetime\"}]}",
+  "OUT: ok",
+]
+
+test "Go's artifactregistry.projects.locations.repositories.files.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"files\":[{\"createTime\":\"s-createtime\",\"name\":\"s-name\",\"owner\":\"s-owner\",\"sizeBytes\":\"7\",\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"files\":[{\"createTime\":\"s-createtime\",\"name\":\"s-name\",\"owner\":\"s-owner\",\"sizeBytes\":\"7\",\"updateTime\":\"s-updatetime\"}]}")
+  gv_note(f, "CALL artifactregistry.projects.locations.repositories.files.list pages")
+  var p = svc.projects.locations.repositories.files.list_pages("id1/ x", options: ProjectsLocationsRepositoriesFilesListOptions{filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_23)
+}
+
+const GO_24: List[Str] = [
   "CALL artifactregistry.projects.locations.repositories.packages.delete",
   "REQ DELETE https://artifactregistry.googleapis.com/v1beta2/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -411,10 +610,10 @@ test "Go's artifactregistry.projects.locations.repositories.packages.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_18)
+  gv_compare(gv_log_of(f), GO_24)
 }
 
-const GO_19: List[Str] = [
+const GO_25: List[Str] = [
   "CALL artifactregistry.projects.locations.repositories.packages.get",
   "REQ GET https://artifactregistry.googleapis.com/v1beta2/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -432,10 +631,10 @@ test "Go's artifactregistry.projects.locations.repositories.packages.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_19)
+  gv_compare(gv_log_of(f), GO_25)
 }
 
-const GO_20: List[Str] = [
+const GO_26: List[Str] = [
   "CALL artifactregistry.projects.locations.repositories.packages.list",
   "REQ GET https://artifactregistry.googleapis.com/v1beta2/id1/%20x/packages?alt=json&fields=kind%2Cid&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -453,10 +652,48 @@ test "Go's artifactregistry.projects.locations.repositories.packages.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_20)
+  gv_compare(gv_log_of(f), GO_26)
 }
 
-const GO_21: List[Str] = [
+const GO_27: List[Str] = [
+  "CALL artifactregistry.projects.locations.repositories.packages.list pages",
+  "REQ GET https://artifactregistry.googleapis.com/v1beta2/id1/%20x/packages?alt=json&fields=kind%2Cid&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"packages\":[{\"annotations\":{\"k1\":\"s-annotations\"},\"createTime\":\"s-createtime\",\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"updateTime\":\"s-updatetime\"}]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"packages\":[{\"annotations\":{\"k1\":\"s-annotations\"},\"createTime\":\"s-createtime\",\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"updateTime\":\"s-updatetime\"}]}",
+  "REQ GET https://artifactregistry.googleapis.com/v1beta2/id1/%20x/packages?alt=json&fields=kind%2Cid&orderBy=s-orderby&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"packages\":[{\"annotations\":{\"k1\":\"s-annotations\"},\"createTime\":\"s-createtime\",\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"updateTime\":\"s-updatetime\"}]}",
+  "OUT: {\"packages\":[{\"annotations\":{\"k1\":\"s-annotations\"},\"createTime\":\"s-createtime\",\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"updateTime\":\"s-updatetime\"}]}",
+  "OUT: ok",
+]
+
+test "Go's artifactregistry.projects.locations.repositories.packages.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"packages\":[{\"annotations\":{\"k1\":\"s-annotations\"},\"createTime\":\"s-createtime\",\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"updateTime\":\"s-updatetime\"}]}")
+  gv_queue(f, "{\"packages\":[{\"annotations\":{\"k1\":\"s-annotations\"},\"createTime\":\"s-createtime\",\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"updateTime\":\"s-updatetime\"}]}")
+  gv_note(f, "CALL artifactregistry.projects.locations.repositories.packages.list pages")
+  var p = svc.projects.locations.repositories.packages.list_pages("id1/ x", options: ProjectsLocationsRepositoriesPackagesListOptions{order_by: Some("s-orderby"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_27)
+}
+
+const GO_28: List[Str] = [
   "CALL artifactregistry.projects.locations.repositories.packages.patch",
   "REQ PATCH https://artifactregistry.googleapis.com/v1beta2/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
@@ -475,10 +712,10 @@ test "Go's artifactregistry.projects.locations.repositories.packages.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_21)
+  gv_compare(gv_log_of(f), GO_28)
 }
 
-const GO_22: List[Str] = [
+const GO_29: List[Str] = [
   "CALL artifactregistry.projects.locations.repositories.packages.tags.create",
   "REQ POST https://artifactregistry.googleapis.com/v1beta2/id1/%20x/tags?alt=json&fields=kind%2Cid&prettyPrint=false&tagId=s-tagid",
   "  H content-type=application/json | x-extra=v1",
@@ -497,10 +734,10 @@ test "Go's artifactregistry.projects.locations.repositories.packages.tags.create
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_22)
+  gv_compare(gv_log_of(f), GO_29)
 }
 
-const GO_23: List[Str] = [
+const GO_30: List[Str] = [
   "CALL artifactregistry.projects.locations.repositories.packages.tags.delete",
   "REQ DELETE https://artifactregistry.googleapis.com/v1beta2/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -518,10 +755,10 @@ test "Go's artifactregistry.projects.locations.repositories.packages.tags.delete
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_23)
+  gv_compare(gv_log_of(f), GO_30)
 }
 
-const GO_24: List[Str] = [
+const GO_31: List[Str] = [
   "CALL artifactregistry.projects.locations.repositories.packages.tags.get",
   "REQ GET https://artifactregistry.googleapis.com/v1beta2/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -539,10 +776,10 @@ test "Go's artifactregistry.projects.locations.repositories.packages.tags.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_24)
+  gv_compare(gv_log_of(f), GO_31)
 }
 
-const GO_25: List[Str] = [
+const GO_32: List[Str] = [
   "CALL artifactregistry.projects.locations.repositories.packages.tags.list",
   "REQ GET https://artifactregistry.googleapis.com/v1beta2/id1/%20x/tags?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -560,10 +797,48 @@ test "Go's artifactregistry.projects.locations.repositories.packages.tags.list" 
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_25)
+  gv_compare(gv_log_of(f), GO_32)
 }
 
-const GO_26: List[Str] = [
+const GO_33: List[Str] = [
+  "CALL artifactregistry.projects.locations.repositories.packages.tags.list pages",
+  "REQ GET https://artifactregistry.googleapis.com/v1beta2/id1/%20x/tags?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"tags\":[{\"name\":\"s-name\",\"version\":\"s-version\"}]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"tags\":[{\"name\":\"s-name\",\"version\":\"s-version\"}]}",
+  "REQ GET https://artifactregistry.googleapis.com/v1beta2/id1/%20x/tags?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"tags\":[{\"name\":\"s-name\",\"version\":\"s-version\"}]}",
+  "OUT: {\"tags\":[{\"name\":\"s-name\",\"version\":\"s-version\"}]}",
+  "OUT: ok",
+]
+
+test "Go's artifactregistry.projects.locations.repositories.packages.tags.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"tags\":[{\"name\":\"s-name\",\"version\":\"s-version\"}]}")
+  gv_queue(f, "{\"tags\":[{\"name\":\"s-name\",\"version\":\"s-version\"}]}")
+  gv_note(f, "CALL artifactregistry.projects.locations.repositories.packages.tags.list pages")
+  var p = svc.projects.locations.repositories.packages.tags.list_pages("id1/ x", options: ProjectsLocationsRepositoriesPackagesTagsListOptions{filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_33)
+}
+
+const GO_34: List[Str] = [
   "CALL artifactregistry.projects.locations.repositories.packages.tags.patch",
   "REQ PATCH https://artifactregistry.googleapis.com/v1beta2/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
@@ -582,10 +857,10 @@ test "Go's artifactregistry.projects.locations.repositories.packages.tags.patch"
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_26)
+  gv_compare(gv_log_of(f), GO_34)
 }
 
-const GO_27: List[Str] = [
+const GO_35: List[Str] = [
   "CALL artifactregistry.projects.locations.repositories.packages.versions.delete",
   "REQ DELETE https://artifactregistry.googleapis.com/v1beta2/id1/%20x?alt=json&fields=kind%2Cid&force=true&prettyPrint=false",
   "  H x-extra=v1",
@@ -603,10 +878,10 @@ test "Go's artifactregistry.projects.locations.repositories.packages.versions.de
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_27)
+  gv_compare(gv_log_of(f), GO_35)
 }
 
-const GO_28: List[Str] = [
+const GO_36: List[Str] = [
   "CALL artifactregistry.projects.locations.repositories.packages.versions.get",
   "REQ GET https://artifactregistry.googleapis.com/v1beta2/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&view=s-view",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -624,10 +899,10 @@ test "Go's artifactregistry.projects.locations.repositories.packages.versions.ge
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_28)
+  gv_compare(gv_log_of(f), GO_36)
 }
 
-const GO_29: List[Str] = [
+const GO_37: List[Str] = [
   "CALL artifactregistry.projects.locations.repositories.packages.versions.list",
   "REQ GET https://artifactregistry.googleapis.com/v1beta2/id1/%20x/versions?alt=json&fields=kind%2Cid&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&view=s-view",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -645,10 +920,48 @@ test "Go's artifactregistry.projects.locations.repositories.packages.versions.li
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_29)
+  gv_compare(gv_log_of(f), GO_37)
 }
 
-const GO_30: List[Str] = [
+const GO_38: List[Str] = [
+  "CALL artifactregistry.projects.locations.repositories.packages.versions.list pages",
+  "REQ GET https://artifactregistry.googleapis.com/v1beta2/id1/%20x/versions?alt=json&fields=kind%2Cid&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&view=s-view",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"versions\":[{\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"updateTime\":\"s-updatetime\"}]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"versions\":[{\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"updateTime\":\"s-updatetime\"}]}",
+  "REQ GET https://artifactregistry.googleapis.com/v1beta2/id1/%20x/versions?alt=json&fields=kind%2Cid&orderBy=s-orderby&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false&view=s-view",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"versions\":[{\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"updateTime\":\"s-updatetime\"}]}",
+  "OUT: {\"versions\":[{\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"updateTime\":\"s-updatetime\"}]}",
+  "OUT: ok",
+]
+
+test "Go's artifactregistry.projects.locations.repositories.packages.versions.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"versions\":[{\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"updateTime\":\"s-updatetime\"}]}")
+  gv_queue(f, "{\"versions\":[{\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"updateTime\":\"s-updatetime\"}]}")
+  gv_note(f, "CALL artifactregistry.projects.locations.repositories.packages.versions.list pages")
+  var p = svc.projects.locations.repositories.packages.versions.list_pages("id1/ x", options: ProjectsLocationsRepositoriesPackagesVersionsListOptions{order_by: Some("s-orderby"), page_size: Some(7), page_token: Some("s-pagetoken"), view: Some("s-view"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_38)
+}
+
+const GO_39: List[Str] = [
   "CALL artifactregistry.projects.locations.repositories.yumArtifacts.import",
   "REQ POST https://artifactregistry.googleapis.com/v1beta2/id1/%20x/yumArtifacts:import?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -667,10 +980,10 @@ test "Go's artifactregistry.projects.locations.repositories.yumArtifacts.import"
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_30)
+  gv_compare(gv_log_of(f), GO_39)
 }
 
-const GO_31: List[Str] = [
+const GO_40: List[Str] = [
   "CALL artifactregistry.projects.locations.repositories.yumArtifacts.upload",
   "REQ POST https://artifactregistry.googleapis.com/v1beta2/id1/%20x/yumArtifacts:create?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -689,5 +1002,68 @@ test "Go's artifactregistry.projects.locations.repositories.yumArtifacts.upload"
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_31)
+  gv_compare(gv_log_of(f), GO_40)
+}
+
+const GO_41: List[Str] = [
+  "CALL artifactregistry.projects.locations.repositories.yumArtifacts.upload media",
+  "REQ POST https://artifactregistry.googleapis.com/upload/v1beta2/id1/%20x/yumArtifacts:create?alt=json&fields=kind%2Cid&prettyPrint=false&uploadType=multipart",
+  "  H content-type=multipart/related; boundary=BOUNDARY | x-extra=v1",
+  "  B --BOUNDARY\u{000d}",
+  "Content-Type: application/json\u{000d}",
+  "\u{000d}",
+  "{}",
+  "\u{000d}",
+  "--BOUNDARY\u{000d}",
+  "Content-Type: text/plain\u{000d}",
+  "\u{000d}",
+  "hello media\u{000d}",
+  "--BOUNDARY--\u{000d}",
+  "",
+  "  SERVED 200 {\"operation\":{\"done\":true,\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}}",
+  "OUT: {\"operation\":{\"done\":true,\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}}",
+]
+
+test "Go's artifactregistry.projects.locations.repositories.yumArtifacts.upload media" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"operation\":{\"done\":true,\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}}")
+  gv_note(f, "CALL artifactregistry.projects.locations.repositories.yumArtifacts.upload media")
+  match svc.projects.locations.repositories.yum_artifacts.upload_media(os.clock, os.rand, "id1/ x", json.decode_str[UploadYumArtifactRequest]("{}") ?? e => fault(e.display()), media: gensupport.Media{data: "hello media".bytes(), content_type: "text/plain"}, options: ProjectsLocationsRepositoriesYumArtifactsUploadOptions{fields: ["kind", "id"], headers: [("X-Extra", "v1")]}) {
+    Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+    Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+  }
+  gv_compare(gv_log_of(f), GO_41)
+}
+
+const GO_42: List[Str] = [
+  "CALL artifactregistry.projects.locations.repositories.yumArtifacts.upload resumable",
+  "REQ POST https://artifactregistry.googleapis.com/upload/v1beta2/id1/%20x/yumArtifacts:create?alt=json&fields=kind%2Cid&prettyPrint=false&uploadType=resumable",
+  "  H content-type=application/json | x-extra=v1 | x-upload-content-type=text/plain",
+  "  B {}",
+  "",
+  "  SERVED 200 @H Location=https://artifactregistry.googleapis.com/upload/session-1 @B ",
+  "REQ POST https://artifactregistry.googleapis.com/upload/session-1",
+  "  H content-range=bytes 0-262143/* | content-type=text/plain | x-goog-gcs-idempotency-token=UUID | x-guploader-no-308=yes",
+  "  B <262144 bytes> 0123456789abcdef0123456789abcdef...0123456789abcdef0123456789abcdef",
+  "  SERVED 200 @H X-Http-Status-Code-Override=308 @B ",
+  "REQ POST https://artifactregistry.googleapis.com/upload/session-1",
+  "  H content-range=bytes 262144-262153/262154 | content-type=text/plain | x-goog-gcs-idempotency-token=UUID | x-guploader-no-308=yes",
+  "  B 0123456789",
+  "  SERVED 200 {\"operation\":{\"done\":true,\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}}",
+  "OUT: {\"operation\":{\"done\":true,\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}}",
+]
+
+test "Go's artifactregistry.projects.locations.repositories.yumArtifacts.upload resumable" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "@H Location=https://artifactregistry.googleapis.com/upload/session-1 @B ")
+  gv_queue(f, "@H X-Http-Status-Code-Override=308 @B ")
+  gv_queue(f, "{\"operation\":{\"done\":true,\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}}")
+  gv_note(f, "CALL artifactregistry.projects.locations.repositories.yumArtifacts.upload resumable")
+  match svc.projects.locations.repositories.yum_artifacts.upload_media(os.clock, os.rand, "id1/ x", json.decode_str[UploadYumArtifactRequest]("{}") ?? e => fault(e.display()), media: gensupport.Media{data: gv_big(), content_type: "text/plain", chunk_size: 262144}, options: ProjectsLocationsRepositoriesYumArtifactsUploadOptions{fields: ["kind", "id"], headers: [("X-Extra", "v1")]}) {
+    Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+    Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+  }
+  gv_compare(gv_log_of(f), GO_42)
 }

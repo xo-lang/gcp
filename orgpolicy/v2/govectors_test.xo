@@ -30,6 +30,44 @@ test "Go's orgpolicy.folders.constraints.list" {
 }
 
 const GO_1: List[Str] = [
+  "CALL orgpolicy.folders.constraints.list pages",
+  "REQ GET https://orgpolicy.googleapis.com/v2/id1/%20x/constraints?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"constraints\":[{\"booleanConstraint\":{},\"constraintDefault\":\"s-constraintdefault\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"equivalentConstraint\":\"s-equivalentconstraint\",\"listConstraint\":{\"supportsIn\":true,\"supportsUnder\":true},\"name\":\"s-name\",\"supportsDryRun\":true,\"supportsSimulation\":true}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"constraints\":[{\"booleanConstraint\":{},\"constraintDefault\":\"s-constraintdefault\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"equivalentConstraint\":\"s-equivalentconstraint\",\"listConstraint\":{\"supportsIn\":true,\"supportsUnder\":true},\"name\":\"s-name\",\"supportsDryRun\":true,\"supportsSimulation\":true}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://orgpolicy.googleapis.com/v2/id1/%20x/constraints?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"constraints\":[{\"booleanConstraint\":{},\"constraintDefault\":\"s-constraintdefault\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"equivalentConstraint\":\"s-equivalentconstraint\",\"listConstraint\":{\"supportsIn\":true,\"supportsUnder\":true},\"name\":\"s-name\",\"supportsDryRun\":true,\"supportsSimulation\":true}]}",
+  "OUT: {\"constraints\":[{\"booleanConstraint\":{},\"constraintDefault\":\"s-constraintdefault\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"equivalentConstraint\":\"s-equivalentconstraint\",\"listConstraint\":{\"supportsIn\":true,\"supportsUnder\":true},\"name\":\"s-name\",\"supportsDryRun\":true,\"supportsSimulation\":true}]}",
+  "OUT: ok",
+]
+
+test "Go's orgpolicy.folders.constraints.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"constraints\":[{\"booleanConstraint\":{},\"constraintDefault\":\"s-constraintdefault\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"equivalentConstraint\":\"s-equivalentconstraint\",\"listConstraint\":{\"supportsIn\":true,\"supportsUnder\":true},\"name\":\"s-name\",\"supportsDryRun\":true,\"supportsSimulation\":true}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"constraints\":[{\"booleanConstraint\":{},\"constraintDefault\":\"s-constraintdefault\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"equivalentConstraint\":\"s-equivalentconstraint\",\"listConstraint\":{\"supportsIn\":true,\"supportsUnder\":true},\"name\":\"s-name\",\"supportsDryRun\":true,\"supportsSimulation\":true}]}")
+  gv_note(f, "CALL orgpolicy.folders.constraints.list pages")
+  var p = svc.folders.constraints.list_pages("id1/ x", options: FoldersConstraintsListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_1)
+}
+
+const GO_2: List[Str] = [
   "CALL orgpolicy.folders.policies.create",
   "REQ POST https://orgpolicy.googleapis.com/v2/id1/%20x/policies?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -48,10 +86,10 @@ test "Go's orgpolicy.folders.policies.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_1)
+  gv_compare(gv_log_of(f), GO_2)
 }
 
-const GO_2: List[Str] = [
+const GO_3: List[Str] = [
   "CALL orgpolicy.folders.policies.delete",
   "REQ DELETE https://orgpolicy.googleapis.com/v2/id1/%20x?alt=json&etag=s-etag&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -69,10 +107,10 @@ test "Go's orgpolicy.folders.policies.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_2)
+  gv_compare(gv_log_of(f), GO_3)
 }
 
-const GO_3: List[Str] = [
+const GO_4: List[Str] = [
   "CALL orgpolicy.folders.policies.get",
   "REQ GET https://orgpolicy.googleapis.com/v2/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -90,10 +128,10 @@ test "Go's orgpolicy.folders.policies.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_3)
+  gv_compare(gv_log_of(f), GO_4)
 }
 
-const GO_4: List[Str] = [
+const GO_5: List[Str] = [
   "CALL orgpolicy.folders.policies.getEffectivePolicy",
   "REQ GET https://orgpolicy.googleapis.com/v2/id1/%20x:getEffectivePolicy?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -111,10 +149,10 @@ test "Go's orgpolicy.folders.policies.getEffectivePolicy" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_4)
+  gv_compare(gv_log_of(f), GO_5)
 }
 
-const GO_5: List[Str] = [
+const GO_6: List[Str] = [
   "CALL orgpolicy.folders.policies.list",
   "REQ GET https://orgpolicy.googleapis.com/v2/id1/%20x/policies?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -132,10 +170,48 @@ test "Go's orgpolicy.folders.policies.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_5)
+  gv_compare(gv_log_of(f), GO_6)
 }
 
-const GO_6: List[Str] = [
+const GO_7: List[Str] = [
+  "CALL orgpolicy.folders.policies.list pages",
+  "REQ GET https://orgpolicy.googleapis.com/v2/id1/%20x/policies?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"policies\":[{\"alternate\":{\"launch\":\"s-launch\"},\"dryRunSpec\":{\"etag\":\"s-etag\",\"inheritFromParent\":true,\"reset\":true,\"updateTime\":\"s-updatetime\"},\"etag\":\"s-etag\",\"name\":\"s-name\",\"spec\":{\"etag\":\"s-etag\",\"inheritFromParent\":true,\"reset\":true,\"updateTime\":\"s-updatetime\"}}]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"policies\":[{\"alternate\":{\"launch\":\"s-launch\"},\"dryRunSpec\":{\"etag\":\"s-etag\",\"inheritFromParent\":true,\"reset\":true,\"updateTime\":\"s-updatetime\"},\"etag\":\"s-etag\",\"name\":\"s-name\",\"spec\":{\"etag\":\"s-etag\",\"inheritFromParent\":true,\"reset\":true,\"updateTime\":\"s-updatetime\"}}]}",
+  "REQ GET https://orgpolicy.googleapis.com/v2/id1/%20x/policies?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"policies\":[{\"alternate\":{\"launch\":\"s-launch\"},\"dryRunSpec\":{\"etag\":\"s-etag\",\"inheritFromParent\":true,\"reset\":true,\"updateTime\":\"s-updatetime\"},\"etag\":\"s-etag\",\"name\":\"s-name\",\"spec\":{\"etag\":\"s-etag\",\"inheritFromParent\":true,\"reset\":true,\"updateTime\":\"s-updatetime\"}}]}",
+  "OUT: {\"policies\":[{\"alternate\":{\"launch\":\"s-launch\"},\"dryRunSpec\":{\"etag\":\"s-etag\",\"inheritFromParent\":true,\"reset\":true,\"updateTime\":\"s-updatetime\"},\"etag\":\"s-etag\",\"name\":\"s-name\",\"spec\":{\"etag\":\"s-etag\",\"inheritFromParent\":true,\"reset\":true,\"updateTime\":\"s-updatetime\"}}]}",
+  "OUT: ok",
+]
+
+test "Go's orgpolicy.folders.policies.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"policies\":[{\"alternate\":{\"launch\":\"s-launch\"},\"dryRunSpec\":{\"etag\":\"s-etag\",\"inheritFromParent\":true,\"reset\":true,\"updateTime\":\"s-updatetime\"},\"etag\":\"s-etag\",\"name\":\"s-name\",\"spec\":{\"etag\":\"s-etag\",\"inheritFromParent\":true,\"reset\":true,\"updateTime\":\"s-updatetime\"}}]}")
+  gv_queue(f, "{\"policies\":[{\"alternate\":{\"launch\":\"s-launch\"},\"dryRunSpec\":{\"etag\":\"s-etag\",\"inheritFromParent\":true,\"reset\":true,\"updateTime\":\"s-updatetime\"},\"etag\":\"s-etag\",\"name\":\"s-name\",\"spec\":{\"etag\":\"s-etag\",\"inheritFromParent\":true,\"reset\":true,\"updateTime\":\"s-updatetime\"}}]}")
+  gv_note(f, "CALL orgpolicy.folders.policies.list pages")
+  var p = svc.folders.policies.list_pages("id1/ x", options: FoldersPoliciesListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_7)
+}
+
+const GO_8: List[Str] = [
   "CALL orgpolicy.folders.policies.patch",
   "REQ PATCH https://orgpolicy.googleapis.com/v2/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
@@ -154,10 +230,10 @@ test "Go's orgpolicy.folders.policies.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_6)
+  gv_compare(gv_log_of(f), GO_8)
 }
 
-const GO_7: List[Str] = [
+const GO_9: List[Str] = [
   "CALL orgpolicy.organizations.constraints.list",
   "REQ GET https://orgpolicy.googleapis.com/v2/id1/%20x/constraints?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -175,10 +251,48 @@ test "Go's orgpolicy.organizations.constraints.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_7)
+  gv_compare(gv_log_of(f), GO_9)
 }
 
-const GO_8: List[Str] = [
+const GO_10: List[Str] = [
+  "CALL orgpolicy.organizations.constraints.list pages",
+  "REQ GET https://orgpolicy.googleapis.com/v2/id1/%20x/constraints?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"constraints\":[{\"booleanConstraint\":{},\"constraintDefault\":\"s-constraintdefault\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"equivalentConstraint\":\"s-equivalentconstraint\",\"listConstraint\":{\"supportsIn\":true,\"supportsUnder\":true},\"name\":\"s-name\",\"supportsDryRun\":true,\"supportsSimulation\":true}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"constraints\":[{\"booleanConstraint\":{},\"constraintDefault\":\"s-constraintdefault\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"equivalentConstraint\":\"s-equivalentconstraint\",\"listConstraint\":{\"supportsIn\":true,\"supportsUnder\":true},\"name\":\"s-name\",\"supportsDryRun\":true,\"supportsSimulation\":true}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://orgpolicy.googleapis.com/v2/id1/%20x/constraints?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"constraints\":[{\"booleanConstraint\":{},\"constraintDefault\":\"s-constraintdefault\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"equivalentConstraint\":\"s-equivalentconstraint\",\"listConstraint\":{\"supportsIn\":true,\"supportsUnder\":true},\"name\":\"s-name\",\"supportsDryRun\":true,\"supportsSimulation\":true}]}",
+  "OUT: {\"constraints\":[{\"booleanConstraint\":{},\"constraintDefault\":\"s-constraintdefault\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"equivalentConstraint\":\"s-equivalentconstraint\",\"listConstraint\":{\"supportsIn\":true,\"supportsUnder\":true},\"name\":\"s-name\",\"supportsDryRun\":true,\"supportsSimulation\":true}]}",
+  "OUT: ok",
+]
+
+test "Go's orgpolicy.organizations.constraints.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"constraints\":[{\"booleanConstraint\":{},\"constraintDefault\":\"s-constraintdefault\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"equivalentConstraint\":\"s-equivalentconstraint\",\"listConstraint\":{\"supportsIn\":true,\"supportsUnder\":true},\"name\":\"s-name\",\"supportsDryRun\":true,\"supportsSimulation\":true}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"constraints\":[{\"booleanConstraint\":{},\"constraintDefault\":\"s-constraintdefault\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"equivalentConstraint\":\"s-equivalentconstraint\",\"listConstraint\":{\"supportsIn\":true,\"supportsUnder\":true},\"name\":\"s-name\",\"supportsDryRun\":true,\"supportsSimulation\":true}]}")
+  gv_note(f, "CALL orgpolicy.organizations.constraints.list pages")
+  var p = svc.organizations.constraints.list_pages("id1/ x", options: OrganizationsConstraintsListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_10)
+}
+
+const GO_11: List[Str] = [
   "CALL orgpolicy.organizations.customConstraints.create",
   "REQ POST https://orgpolicy.googleapis.com/v2/id1/%20x/customConstraints?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -197,10 +311,10 @@ test "Go's orgpolicy.organizations.customConstraints.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_8)
+  gv_compare(gv_log_of(f), GO_11)
 }
 
-const GO_9: List[Str] = [
+const GO_12: List[Str] = [
   "CALL orgpolicy.organizations.customConstraints.delete",
   "REQ DELETE https://orgpolicy.googleapis.com/v2/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -218,10 +332,10 @@ test "Go's orgpolicy.organizations.customConstraints.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_9)
+  gv_compare(gv_log_of(f), GO_12)
 }
 
-const GO_10: List[Str] = [
+const GO_13: List[Str] = [
   "CALL orgpolicy.organizations.customConstraints.get",
   "REQ GET https://orgpolicy.googleapis.com/v2/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -239,10 +353,10 @@ test "Go's orgpolicy.organizations.customConstraints.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_10)
+  gv_compare(gv_log_of(f), GO_13)
 }
 
-const GO_11: List[Str] = [
+const GO_14: List[Str] = [
   "CALL orgpolicy.organizations.customConstraints.list",
   "REQ GET https://orgpolicy.googleapis.com/v2/id1/%20x/customConstraints?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -260,10 +374,48 @@ test "Go's orgpolicy.organizations.customConstraints.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_11)
+  gv_compare(gv_log_of(f), GO_14)
 }
 
-const GO_12: List[Str] = [
+const GO_15: List[Str] = [
+  "CALL orgpolicy.organizations.customConstraints.list pages",
+  "REQ GET https://orgpolicy.googleapis.com/v2/id1/%20x/customConstraints?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"customConstraints\":[{\"actionType\":\"s-actiontype\",\"condition\":\"s-condition\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"methodTypes\":[\"s-methodtypes\"],\"name\":\"s-name\",\"resourceTypes\":[\"s-resourcetypes\"],\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"customConstraints\":[{\"actionType\":\"s-actiontype\",\"condition\":\"s-condition\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"methodTypes\":[\"s-methodtypes\"],\"name\":\"s-name\",\"resourceTypes\":[\"s-resourcetypes\"],\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://orgpolicy.googleapis.com/v2/id1/%20x/customConstraints?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"customConstraints\":[{\"actionType\":\"s-actiontype\",\"condition\":\"s-condition\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"methodTypes\":[\"s-methodtypes\"],\"name\":\"s-name\",\"resourceTypes\":[\"s-resourcetypes\"],\"updateTime\":\"s-updatetime\"}]}",
+  "OUT: {\"customConstraints\":[{\"actionType\":\"s-actiontype\",\"condition\":\"s-condition\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"methodTypes\":[\"s-methodtypes\"],\"name\":\"s-name\",\"resourceTypes\":[\"s-resourcetypes\"],\"updateTime\":\"s-updatetime\"}]}",
+  "OUT: ok",
+]
+
+test "Go's orgpolicy.organizations.customConstraints.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"customConstraints\":[{\"actionType\":\"s-actiontype\",\"condition\":\"s-condition\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"methodTypes\":[\"s-methodtypes\"],\"name\":\"s-name\",\"resourceTypes\":[\"s-resourcetypes\"],\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"customConstraints\":[{\"actionType\":\"s-actiontype\",\"condition\":\"s-condition\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"methodTypes\":[\"s-methodtypes\"],\"name\":\"s-name\",\"resourceTypes\":[\"s-resourcetypes\"],\"updateTime\":\"s-updatetime\"}]}")
+  gv_note(f, "CALL orgpolicy.organizations.customConstraints.list pages")
+  var p = svc.organizations.custom_constraints.list_pages("id1/ x", options: OrganizationsCustomConstraintsListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_15)
+}
+
+const GO_16: List[Str] = [
   "CALL orgpolicy.organizations.customConstraints.patch",
   "REQ PATCH https://orgpolicy.googleapis.com/v2/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -282,10 +434,10 @@ test "Go's orgpolicy.organizations.customConstraints.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_12)
+  gv_compare(gv_log_of(f), GO_16)
 }
 
-const GO_13: List[Str] = [
+const GO_17: List[Str] = [
   "CALL orgpolicy.organizations.policies.create",
   "REQ POST https://orgpolicy.googleapis.com/v2/id1/%20x/policies?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -304,10 +456,10 @@ test "Go's orgpolicy.organizations.policies.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_13)
+  gv_compare(gv_log_of(f), GO_17)
 }
 
-const GO_14: List[Str] = [
+const GO_18: List[Str] = [
   "CALL orgpolicy.organizations.policies.delete",
   "REQ DELETE https://orgpolicy.googleapis.com/v2/id1/%20x?alt=json&etag=s-etag&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -325,10 +477,10 @@ test "Go's orgpolicy.organizations.policies.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_14)
+  gv_compare(gv_log_of(f), GO_18)
 }
 
-const GO_15: List[Str] = [
+const GO_19: List[Str] = [
   "CALL orgpolicy.organizations.policies.get",
   "REQ GET https://orgpolicy.googleapis.com/v2/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -346,10 +498,10 @@ test "Go's orgpolicy.organizations.policies.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_15)
+  gv_compare(gv_log_of(f), GO_19)
 }
 
-const GO_16: List[Str] = [
+const GO_20: List[Str] = [
   "CALL orgpolicy.organizations.policies.getEffectivePolicy",
   "REQ GET https://orgpolicy.googleapis.com/v2/id1/%20x:getEffectivePolicy?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -367,10 +519,10 @@ test "Go's orgpolicy.organizations.policies.getEffectivePolicy" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_16)
+  gv_compare(gv_log_of(f), GO_20)
 }
 
-const GO_17: List[Str] = [
+const GO_21: List[Str] = [
   "CALL orgpolicy.organizations.policies.list",
   "REQ GET https://orgpolicy.googleapis.com/v2/id1/%20x/policies?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -388,10 +540,48 @@ test "Go's orgpolicy.organizations.policies.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_17)
+  gv_compare(gv_log_of(f), GO_21)
 }
 
-const GO_18: List[Str] = [
+const GO_22: List[Str] = [
+  "CALL orgpolicy.organizations.policies.list pages",
+  "REQ GET https://orgpolicy.googleapis.com/v2/id1/%20x/policies?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"policies\":[{\"alternate\":{\"launch\":\"s-launch\"},\"dryRunSpec\":{\"etag\":\"s-etag\",\"inheritFromParent\":true,\"reset\":true,\"updateTime\":\"s-updatetime\"},\"etag\":\"s-etag\",\"name\":\"s-name\",\"spec\":{\"etag\":\"s-etag\",\"inheritFromParent\":true,\"reset\":true,\"updateTime\":\"s-updatetime\"}}]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"policies\":[{\"alternate\":{\"launch\":\"s-launch\"},\"dryRunSpec\":{\"etag\":\"s-etag\",\"inheritFromParent\":true,\"reset\":true,\"updateTime\":\"s-updatetime\"},\"etag\":\"s-etag\",\"name\":\"s-name\",\"spec\":{\"etag\":\"s-etag\",\"inheritFromParent\":true,\"reset\":true,\"updateTime\":\"s-updatetime\"}}]}",
+  "REQ GET https://orgpolicy.googleapis.com/v2/id1/%20x/policies?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"policies\":[{\"alternate\":{\"launch\":\"s-launch\"},\"dryRunSpec\":{\"etag\":\"s-etag\",\"inheritFromParent\":true,\"reset\":true,\"updateTime\":\"s-updatetime\"},\"etag\":\"s-etag\",\"name\":\"s-name\",\"spec\":{\"etag\":\"s-etag\",\"inheritFromParent\":true,\"reset\":true,\"updateTime\":\"s-updatetime\"}}]}",
+  "OUT: {\"policies\":[{\"alternate\":{\"launch\":\"s-launch\"},\"dryRunSpec\":{\"etag\":\"s-etag\",\"inheritFromParent\":true,\"reset\":true,\"updateTime\":\"s-updatetime\"},\"etag\":\"s-etag\",\"name\":\"s-name\",\"spec\":{\"etag\":\"s-etag\",\"inheritFromParent\":true,\"reset\":true,\"updateTime\":\"s-updatetime\"}}]}",
+  "OUT: ok",
+]
+
+test "Go's orgpolicy.organizations.policies.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"policies\":[{\"alternate\":{\"launch\":\"s-launch\"},\"dryRunSpec\":{\"etag\":\"s-etag\",\"inheritFromParent\":true,\"reset\":true,\"updateTime\":\"s-updatetime\"},\"etag\":\"s-etag\",\"name\":\"s-name\",\"spec\":{\"etag\":\"s-etag\",\"inheritFromParent\":true,\"reset\":true,\"updateTime\":\"s-updatetime\"}}]}")
+  gv_queue(f, "{\"policies\":[{\"alternate\":{\"launch\":\"s-launch\"},\"dryRunSpec\":{\"etag\":\"s-etag\",\"inheritFromParent\":true,\"reset\":true,\"updateTime\":\"s-updatetime\"},\"etag\":\"s-etag\",\"name\":\"s-name\",\"spec\":{\"etag\":\"s-etag\",\"inheritFromParent\":true,\"reset\":true,\"updateTime\":\"s-updatetime\"}}]}")
+  gv_note(f, "CALL orgpolicy.organizations.policies.list pages")
+  var p = svc.organizations.policies.list_pages("id1/ x", options: OrganizationsPoliciesListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_22)
+}
+
+const GO_23: List[Str] = [
   "CALL orgpolicy.organizations.policies.patch",
   "REQ PATCH https://orgpolicy.googleapis.com/v2/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
@@ -410,10 +600,10 @@ test "Go's orgpolicy.organizations.policies.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_18)
+  gv_compare(gv_log_of(f), GO_23)
 }
 
-const GO_19: List[Str] = [
+const GO_24: List[Str] = [
   "CALL orgpolicy.projects.constraints.list",
   "REQ GET https://orgpolicy.googleapis.com/v2/id1/%20x/constraints?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -431,10 +621,48 @@ test "Go's orgpolicy.projects.constraints.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_19)
+  gv_compare(gv_log_of(f), GO_24)
 }
 
-const GO_20: List[Str] = [
+const GO_25: List[Str] = [
+  "CALL orgpolicy.projects.constraints.list pages",
+  "REQ GET https://orgpolicy.googleapis.com/v2/id1/%20x/constraints?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"constraints\":[{\"booleanConstraint\":{},\"constraintDefault\":\"s-constraintdefault\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"equivalentConstraint\":\"s-equivalentconstraint\",\"listConstraint\":{\"supportsIn\":true,\"supportsUnder\":true},\"name\":\"s-name\",\"supportsDryRun\":true,\"supportsSimulation\":true}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"constraints\":[{\"booleanConstraint\":{},\"constraintDefault\":\"s-constraintdefault\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"equivalentConstraint\":\"s-equivalentconstraint\",\"listConstraint\":{\"supportsIn\":true,\"supportsUnder\":true},\"name\":\"s-name\",\"supportsDryRun\":true,\"supportsSimulation\":true}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://orgpolicy.googleapis.com/v2/id1/%20x/constraints?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"constraints\":[{\"booleanConstraint\":{},\"constraintDefault\":\"s-constraintdefault\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"equivalentConstraint\":\"s-equivalentconstraint\",\"listConstraint\":{\"supportsIn\":true,\"supportsUnder\":true},\"name\":\"s-name\",\"supportsDryRun\":true,\"supportsSimulation\":true}]}",
+  "OUT: {\"constraints\":[{\"booleanConstraint\":{},\"constraintDefault\":\"s-constraintdefault\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"equivalentConstraint\":\"s-equivalentconstraint\",\"listConstraint\":{\"supportsIn\":true,\"supportsUnder\":true},\"name\":\"s-name\",\"supportsDryRun\":true,\"supportsSimulation\":true}]}",
+  "OUT: ok",
+]
+
+test "Go's orgpolicy.projects.constraints.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"constraints\":[{\"booleanConstraint\":{},\"constraintDefault\":\"s-constraintdefault\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"equivalentConstraint\":\"s-equivalentconstraint\",\"listConstraint\":{\"supportsIn\":true,\"supportsUnder\":true},\"name\":\"s-name\",\"supportsDryRun\":true,\"supportsSimulation\":true}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"constraints\":[{\"booleanConstraint\":{},\"constraintDefault\":\"s-constraintdefault\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"equivalentConstraint\":\"s-equivalentconstraint\",\"listConstraint\":{\"supportsIn\":true,\"supportsUnder\":true},\"name\":\"s-name\",\"supportsDryRun\":true,\"supportsSimulation\":true}]}")
+  gv_note(f, "CALL orgpolicy.projects.constraints.list pages")
+  var p = svc.projects.constraints.list_pages("id1/ x", options: ProjectsConstraintsListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_25)
+}
+
+const GO_26: List[Str] = [
   "CALL orgpolicy.projects.policies.create",
   "REQ POST https://orgpolicy.googleapis.com/v2/id1/%20x/policies?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -453,10 +681,10 @@ test "Go's orgpolicy.projects.policies.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_20)
+  gv_compare(gv_log_of(f), GO_26)
 }
 
-const GO_21: List[Str] = [
+const GO_27: List[Str] = [
   "CALL orgpolicy.projects.policies.delete",
   "REQ DELETE https://orgpolicy.googleapis.com/v2/id1/%20x?alt=json&etag=s-etag&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -474,10 +702,10 @@ test "Go's orgpolicy.projects.policies.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_21)
+  gv_compare(gv_log_of(f), GO_27)
 }
 
-const GO_22: List[Str] = [
+const GO_28: List[Str] = [
   "CALL orgpolicy.projects.policies.get",
   "REQ GET https://orgpolicy.googleapis.com/v2/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -495,10 +723,10 @@ test "Go's orgpolicy.projects.policies.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_22)
+  gv_compare(gv_log_of(f), GO_28)
 }
 
-const GO_23: List[Str] = [
+const GO_29: List[Str] = [
   "CALL orgpolicy.projects.policies.getEffectivePolicy",
   "REQ GET https://orgpolicy.googleapis.com/v2/id1/%20x:getEffectivePolicy?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -516,10 +744,10 @@ test "Go's orgpolicy.projects.policies.getEffectivePolicy" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_23)
+  gv_compare(gv_log_of(f), GO_29)
 }
 
-const GO_24: List[Str] = [
+const GO_30: List[Str] = [
   "CALL orgpolicy.projects.policies.list",
   "REQ GET https://orgpolicy.googleapis.com/v2/id1/%20x/policies?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -537,10 +765,48 @@ test "Go's orgpolicy.projects.policies.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_24)
+  gv_compare(gv_log_of(f), GO_30)
 }
 
-const GO_25: List[Str] = [
+const GO_31: List[Str] = [
+  "CALL orgpolicy.projects.policies.list pages",
+  "REQ GET https://orgpolicy.googleapis.com/v2/id1/%20x/policies?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"policies\":[{\"alternate\":{\"launch\":\"s-launch\"},\"dryRunSpec\":{\"etag\":\"s-etag\",\"inheritFromParent\":true,\"reset\":true,\"updateTime\":\"s-updatetime\"},\"etag\":\"s-etag\",\"name\":\"s-name\",\"spec\":{\"etag\":\"s-etag\",\"inheritFromParent\":true,\"reset\":true,\"updateTime\":\"s-updatetime\"}}]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"policies\":[{\"alternate\":{\"launch\":\"s-launch\"},\"dryRunSpec\":{\"etag\":\"s-etag\",\"inheritFromParent\":true,\"reset\":true,\"updateTime\":\"s-updatetime\"},\"etag\":\"s-etag\",\"name\":\"s-name\",\"spec\":{\"etag\":\"s-etag\",\"inheritFromParent\":true,\"reset\":true,\"updateTime\":\"s-updatetime\"}}]}",
+  "REQ GET https://orgpolicy.googleapis.com/v2/id1/%20x/policies?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"policies\":[{\"alternate\":{\"launch\":\"s-launch\"},\"dryRunSpec\":{\"etag\":\"s-etag\",\"inheritFromParent\":true,\"reset\":true,\"updateTime\":\"s-updatetime\"},\"etag\":\"s-etag\",\"name\":\"s-name\",\"spec\":{\"etag\":\"s-etag\",\"inheritFromParent\":true,\"reset\":true,\"updateTime\":\"s-updatetime\"}}]}",
+  "OUT: {\"policies\":[{\"alternate\":{\"launch\":\"s-launch\"},\"dryRunSpec\":{\"etag\":\"s-etag\",\"inheritFromParent\":true,\"reset\":true,\"updateTime\":\"s-updatetime\"},\"etag\":\"s-etag\",\"name\":\"s-name\",\"spec\":{\"etag\":\"s-etag\",\"inheritFromParent\":true,\"reset\":true,\"updateTime\":\"s-updatetime\"}}]}",
+  "OUT: ok",
+]
+
+test "Go's orgpolicy.projects.policies.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"policies\":[{\"alternate\":{\"launch\":\"s-launch\"},\"dryRunSpec\":{\"etag\":\"s-etag\",\"inheritFromParent\":true,\"reset\":true,\"updateTime\":\"s-updatetime\"},\"etag\":\"s-etag\",\"name\":\"s-name\",\"spec\":{\"etag\":\"s-etag\",\"inheritFromParent\":true,\"reset\":true,\"updateTime\":\"s-updatetime\"}}]}")
+  gv_queue(f, "{\"policies\":[{\"alternate\":{\"launch\":\"s-launch\"},\"dryRunSpec\":{\"etag\":\"s-etag\",\"inheritFromParent\":true,\"reset\":true,\"updateTime\":\"s-updatetime\"},\"etag\":\"s-etag\",\"name\":\"s-name\",\"spec\":{\"etag\":\"s-etag\",\"inheritFromParent\":true,\"reset\":true,\"updateTime\":\"s-updatetime\"}}]}")
+  gv_note(f, "CALL orgpolicy.projects.policies.list pages")
+  var p = svc.projects.policies.list_pages("id1/ x", options: ProjectsPoliciesListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_31)
+}
+
+const GO_32: List[Str] = [
   "CALL orgpolicy.projects.policies.patch",
   "REQ PATCH https://orgpolicy.googleapis.com/v2/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
@@ -559,5 +825,5 @@ test "Go's orgpolicy.projects.policies.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_25)
+  gv_compare(gv_log_of(f), GO_32)
 }

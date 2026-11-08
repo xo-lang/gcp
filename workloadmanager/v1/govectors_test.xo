@@ -51,10 +51,48 @@ test "Go's workloadmanager.projects.locations.list" {
 }
 
 const GO_2: List[Str] = [
+  "CALL workloadmanager.projects.locations.list pages",
+  "REQ GET https://workloadmanager.googleapis.com/v1/id1/%20x/locations?alt=json&extraLocationTypes=s-extralocationtypes&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://workloadmanager.googleapis.com/v1/id1/%20x/locations?alt=json&extraLocationTypes=s-extralocationtypes&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}]}",
+  "OUT: {\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}]}",
+  "OUT: ok",
+]
+
+test "Go's workloadmanager.projects.locations.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}]}")
+  gv_note(f, "CALL workloadmanager.projects.locations.list pages")
+  var p = svc.projects.locations.list_pages("id1/ x", options: ProjectsLocationsListOptions{extra_location_types: ["s-extralocationtypes"], filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_2)
+}
+
+const GO_3: List[Str] = [
   "CALL workloadmanager.projects.locations.deployments.create",
   "REQ POST https://workloadmanager.googleapis.com/v1/id1/%20x/deployments?alt=json&deploymentId=s-deploymentid&fields=kind%2Cid&prettyPrint=false&requestId=s-requestid",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"name\":\"s-name\",\"sapSystemS4Config\":{\"allowStoppingForUpdate\":true,\"ansibleRunnerServiceAccount\":\"s-ansiblerunnerserviceaccount\",\"app\":{\"appInstanceId\":\"s-appinstanceid\",\"appServiceAccount\":\"s-appserviceaccount\",\"appVmNames\":[\"s-appvmnames\"],\"ascsImage\":\"s-ascsimage\",\"ascsInstanceId\":\"s-ascsinstanceid\",\"ascsMachineType\":\"s-ascsmachinetype\",\"ascsServiceAccount\":\"s-ascsserviceaccount\",\"ascsVm\":\"s-ascsvm\",\"ersInstanceId\":\"s-ersinstanceid\",\"ersVm\":\"s-ersvm\",\"image\":\"s-image\",\"machineType\":\"s-machinetype\",\"secretManagerSecret\":\"s-secretmanagersecret\",\"sharedStorage\":\"s-sharedstorage\",\"sid\":\"s-sid\",\"vmsMultiplier\":7},\"database\":{\"databaseServiceAccount\":\"s-databaseserviceaccount\",\"diskType\":\"s-disktype\",\"image\":\"s-image\",\"instanceId\":\"s-instanceid\",\"machineType\":\"s-machinetype\",\"primaryDbVm\":\"s-primarydbvm\",\"secondaryDbVm\":\"s-secondarydbvm\",\"secretManagerSecret\":\"s-secretmanagersecret\",\"sid\":\"s-sid\"},\"deploymentModel\":\"s-deploymentmodel\",\"environmentType\":\"s-environmenttype\",\"gcpProjectId\":\"s-gcpprojectid\",\"location\":{\"createCommsFirewall\":true,\"customTags\":[\"s-customtags\"],\"deploymentDnsEnabled\":true,\"dnsZone\":\"s-dnszone\",\"dnsZoneNameSuffix\":\"s-dnszonenamesuffix\",\"internetAccess\":\"s-internetaccess\",\"networkProject\":\"s-networkproject\",\"regionName\":\"s-regionname\",\"subnetName\":\"s-subnetname\",\"vpcName\":\"s-vpcname\",\"zone1Name\":\"s-zone1name\",\"zone2Name\":\"s-zone2name\"},\"mediaBucketName\":\"s-mediabucketname\",\"sapBootDiskImage\":\"s-sapbootdiskimage\",\"scalingMethod\":\"s-scalingmethod\",\"version\":\"s-version\",\"vmPrefix\":\"s-vmprefix\"},\"serviceAccount\":\"s-serviceaccount\",\"sqlServerWorkload\":{\"activeDirectory\":{\"dnsAddress\":\"s-dnsaddress\",\"domain\":\"s-domain\",\"domainUsername\":\"s-domainusername\",\"secretManagerSecret\":\"s-secretmanagersecret\",\"type\":\"s-type\"},\"computeEngineServiceAccount\":\"s-computeengineserviceaccount\",\"database\":{\"diskType\":\"s-disktype\",\"floatingIpAddress\":\"s-floatingipaddress\",\"machineType\":\"s-machinetype\",\"secondarySoleTenantNode\":\"s-secondarysoletenantnode\",\"secondarySoleTenantNodeType\":\"s-secondarysoletenantnodetype\",\"secretManagerSecret\":\"s-secretmanagersecret\",\"smt\":true,\"soleTenantNode\":\"s-soletenantnode\",\"soleTenantNodeType\":\"s-soletenantnodetype\",\"tempdbOnSsd\":true,\"tenancyModel\":\"s-tenancymodel\"},\"deploymentModel\":\"s-deploymentmodel\",\"environmentType\":\"s-environmenttype\",\"fciType\":\"s-fcitype\",\"haType\":\"s-hatype\",\"isSqlPayg\":true,\"location\":{\"dnsZone\":\"s-dnszone\",\"gcpProjectId\":\"s-gcpprojectid\",\"internetAccess\":\"s-internetaccess\",\"network\":\"s-network\",\"primaryZone\":\"s-primaryzone\",\"region\":\"s-region\",\"secondaryZone\":\"s-secondaryzone\",\"subnetwork\":\"s-subnetwork\",\"tertiaryZone\":\"s-tertiaryzone\"},\"mediaBucket\":\"s-mediabucket\",\"operatingSystemType\":\"s-operatingsystemtype\",\"osImage\":\"s-osimage\",\"osImageType\":\"s-osimagetype\",\"pacemaker\":{\"bucketNameNodeCertificates\":\"s-bucketnamenodecertificates\",\"pacemakerCluster\":\"s-pacemakercluster\",\"pacemakerClusterSecret\":\"s-pacemakerclustersecret\",\"pacemakerClusterUsername\":\"s-pacemakerclusterusername\",\"sqlPacemakerSecret\":\"s-sqlpacemakersecret\",\"sqlPacemakerUsername\":\"s-sqlpacemakerusername\"},\"sqlServerEdition\":\"s-sqlserveredition\",\"sqlServerVersion\":\"s-sqlserverversion\",\"vmPrefix\":\"s-vmprefix\"},\"state\":\"s-state\",\"terraformVariables\":{\"k1\":{\"inputValue\":{\"k\":\"v\"}}},\"updateTime\":\"s-updatetime\",\"workerPool\":\"s-workerpool\",\"workloadType\":\"s-workloadtype\"}",
+  "  B <3407 bytes> {\"createTime\":\"s-createtime\",\"de...workloadType\":\"s-workloadtype\"}",
   "",
   "  SERVED 200 {\"done\":true,\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}",
   "OUT: {\"done\":true,\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}",
@@ -69,10 +107,10 @@ test "Go's workloadmanager.projects.locations.deployments.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_2)
+  gv_compare(gv_log_of(f), GO_3)
 }
 
-const GO_3: List[Str] = [
+const GO_4: List[Str] = [
   "CALL workloadmanager.projects.locations.deployments.delete",
   "REQ DELETE https://workloadmanager.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&force=true&prettyPrint=false",
   "  H x-extra=v1",
@@ -90,10 +128,10 @@ test "Go's workloadmanager.projects.locations.deployments.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_3)
+  gv_compare(gv_log_of(f), GO_4)
 }
 
-const GO_4: List[Str] = [
+const GO_5: List[Str] = [
   "CALL workloadmanager.projects.locations.deployments.get",
   "REQ GET https://workloadmanager.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -111,10 +149,10 @@ test "Go's workloadmanager.projects.locations.deployments.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_4)
+  gv_compare(gv_log_of(f), GO_5)
 }
 
-const GO_5: List[Str] = [
+const GO_6: List[Str] = [
   "CALL workloadmanager.projects.locations.deployments.list",
   "REQ GET https://workloadmanager.googleapis.com/v1/id1/%20x/deployments?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -132,10 +170,48 @@ test "Go's workloadmanager.projects.locations.deployments.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_5)
+  gv_compare(gv_log_of(f), GO_6)
 }
 
-const GO_6: List[Str] = [
+const GO_7: List[Str] = [
+  "CALL workloadmanager.projects.locations.deployments.list pages",
+  "REQ GET https://workloadmanager.googleapis.com/v1/id1/%20x/deployments?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"deployments\":[{\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"name\":\"s-name\",\"sapSystemS4Config\":{\"allowStoppingForUpdate\":true,\"ansibleRunnerServiceAccount\":\"s-ansiblerunnerserviceaccount\",\"deploymentModel\":\"s-deploymentmodel\",\"environmentType\":\"s-environmenttype\",\"gcpProjectId\":\"s-gcpprojectid\",\"mediaBucketName\":\"s-mediabucketname\",\"sapBootDiskImage\":\"s-sapbootdiskimage\",\"scalingMethod\":\"s-scalingmethod\",\"version\":\"s-version\",\"vmPrefix\":\"s-vmprefix\"},\"serviceAccount\":\"s-serviceaccount\",\"sqlServerWorkload\":{\"computeEngineServiceAccount\":\"s-computeengineserviceaccount\",\"deploymentModel\":\"s-deploymentmodel\",\"environmentType\":\"s-environmenttype\",\"fciType\":\"s-fcitype\",\"haType\":\"s-hatype\",\"isSqlPayg\":true,\"mediaBucket\":\"s-mediabucket\",\"operatingSystemType\":\"s-operatingsystemtype\",\"osImage\":\"s-osimage\",\"osImageType\":\"s-osimagetype\",\"sqlServerEdition\":\"s-sqlserveredition\",\"sqlServerVersion\":\"s-sqlserverversion\",\"vmPrefix\":\"s-vmprefix\"},\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"workerPool\":\"s-workerpool\",\"workloadType\":\"s-workloadtype\"}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"deployments\":[{\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"name\":\"s-name\",\"sapSystemS4Config\":{\"allowStoppingForUpdate\":true,\"ansibleRunnerServiceAccount\":\"s-ansiblerunnerserviceaccount\",\"deploymentModel\":\"s-deploymentmodel\",\"environmentType\":\"s-environmenttype\",\"gcpProjectId\":\"s-gcpprojectid\",\"mediaBucketName\":\"s-mediabucketname\",\"sapBootDiskImage\":\"s-sapbootdiskimage\",\"scalingMethod\":\"s-scalingmethod\",\"version\":\"s-version\",\"vmPrefix\":\"s-vmprefix\"},\"serviceAccount\":\"s-serviceaccount\",\"sqlServerWorkload\":{\"computeEngineServiceAccount\":\"s-computeengineserviceaccount\",\"deploymentModel\":\"s-deploymentmodel\",\"environmentType\":\"s-environmenttype\",\"fciType\":\"s-fcitype\",\"haType\":\"s-hatype\",\"isSqlPayg\":true,\"mediaBucket\":\"s-mediabucket\",\"operatingSystemType\":\"s-operatingsystemtype\",\"osImage\":\"s-osimage\",\"osImageType\":\"s-osimagetype\",\"sqlServerEdition\":\"s-sqlserveredition\",\"sqlServerVersion\":\"s-sqlserverversion\",\"vmPrefix\":\"s-vmprefix\"},\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"workerPool\":\"s-workerpool\",\"workloadType\":\"s-workloadtype\"}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}",
+  "REQ GET https://workloadmanager.googleapis.com/v1/id1/%20x/deployments?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"deployments\":[{\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"name\":\"s-name\",\"sapSystemS4Config\":{\"allowStoppingForUpdate\":true,\"ansibleRunnerServiceAccount\":\"s-ansiblerunnerserviceaccount\",\"deploymentModel\":\"s-deploymentmodel\",\"environmentType\":\"s-environmenttype\",\"gcpProjectId\":\"s-gcpprojectid\",\"mediaBucketName\":\"s-mediabucketname\",\"sapBootDiskImage\":\"s-sapbootdiskimage\",\"scalingMethod\":\"s-scalingmethod\",\"version\":\"s-version\",\"vmPrefix\":\"s-vmprefix\"},\"serviceAccount\":\"s-serviceaccount\",\"sqlServerWorkload\":{\"computeEngineServiceAccount\":\"s-computeengineserviceaccount\",\"deploymentModel\":\"s-deploymentmodel\",\"environmentType\":\"s-environmenttype\",\"fciType\":\"s-fcitype\",\"haType\":\"s-hatype\",\"isSqlPayg\":true,\"mediaBucket\":\"s-mediabucket\",\"operatingSystemType\":\"s-operatingsystemtype\",\"osImage\":\"s-osimage\",\"osImageType\":\"s-osimagetype\",\"sqlServerEdition\":\"s-sqlserveredition\",\"sqlServerVersion\":\"s-sqlserverversion\",\"vmPrefix\":\"s-vmprefix\"},\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"workerPool\":\"s-workerpool\",\"workloadType\":\"s-workloadtype\"}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"deployments\":[{\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"name\":\"s-name\",\"sapSystemS4Config\":{\"allowStoppingForUpdate\":true,\"ansibleRunnerServiceAccount\":\"s-ansiblerunnerserviceaccount\",\"deploymentModel\":\"s-deploymentmodel\",\"environmentType\":\"s-environmenttype\",\"gcpProjectId\":\"s-gcpprojectid\",\"mediaBucketName\":\"s-mediabucketname\",\"sapBootDiskImage\":\"s-sapbootdiskimage\",\"scalingMethod\":\"s-scalingmethod\",\"version\":\"s-version\",\"vmPrefix\":\"s-vmprefix\"},\"serviceAccount\":\"s-serviceaccount\",\"sqlServerWorkload\":{\"computeEngineServiceAccount\":\"s-computeengineserviceaccount\",\"deploymentModel\":\"s-deploymentmodel\",\"environmentType\":\"s-environmenttype\",\"fciType\":\"s-fcitype\",\"haType\":\"s-hatype\",\"isSqlPayg\":true,\"mediaBucket\":\"s-mediabucket\",\"operatingSystemType\":\"s-operatingsystemtype\",\"osImage\":\"s-osimage\",\"osImageType\":\"s-osimagetype\",\"sqlServerEdition\":\"s-sqlserveredition\",\"sqlServerVersion\":\"s-sqlserverversion\",\"vmPrefix\":\"s-vmprefix\"},\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"workerPool\":\"s-workerpool\",\"workloadType\":\"s-workloadtype\"}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: ok",
+]
+
+test "Go's workloadmanager.projects.locations.deployments.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"deployments\":[{\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"name\":\"s-name\",\"sapSystemS4Config\":{\"allowStoppingForUpdate\":true,\"ansibleRunnerServiceAccount\":\"s-ansiblerunnerserviceaccount\",\"deploymentModel\":\"s-deploymentmodel\",\"environmentType\":\"s-environmenttype\",\"gcpProjectId\":\"s-gcpprojectid\",\"mediaBucketName\":\"s-mediabucketname\",\"sapBootDiskImage\":\"s-sapbootdiskimage\",\"scalingMethod\":\"s-scalingmethod\",\"version\":\"s-version\",\"vmPrefix\":\"s-vmprefix\"},\"serviceAccount\":\"s-serviceaccount\",\"sqlServerWorkload\":{\"computeEngineServiceAccount\":\"s-computeengineserviceaccount\",\"deploymentModel\":\"s-deploymentmodel\",\"environmentType\":\"s-environmenttype\",\"fciType\":\"s-fcitype\",\"haType\":\"s-hatype\",\"isSqlPayg\":true,\"mediaBucket\":\"s-mediabucket\",\"operatingSystemType\":\"s-operatingsystemtype\",\"osImage\":\"s-osimage\",\"osImageType\":\"s-osimagetype\",\"sqlServerEdition\":\"s-sqlserveredition\",\"sqlServerVersion\":\"s-sqlserverversion\",\"vmPrefix\":\"s-vmprefix\"},\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"workerPool\":\"s-workerpool\",\"workloadType\":\"s-workloadtype\"}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}")
+  gv_queue(f, "{\"deployments\":[{\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"name\":\"s-name\",\"sapSystemS4Config\":{\"allowStoppingForUpdate\":true,\"ansibleRunnerServiceAccount\":\"s-ansiblerunnerserviceaccount\",\"deploymentModel\":\"s-deploymentmodel\",\"environmentType\":\"s-environmenttype\",\"gcpProjectId\":\"s-gcpprojectid\",\"mediaBucketName\":\"s-mediabucketname\",\"sapBootDiskImage\":\"s-sapbootdiskimage\",\"scalingMethod\":\"s-scalingmethod\",\"version\":\"s-version\",\"vmPrefix\":\"s-vmprefix\"},\"serviceAccount\":\"s-serviceaccount\",\"sqlServerWorkload\":{\"computeEngineServiceAccount\":\"s-computeengineserviceaccount\",\"deploymentModel\":\"s-deploymentmodel\",\"environmentType\":\"s-environmenttype\",\"fciType\":\"s-fcitype\",\"haType\":\"s-hatype\",\"isSqlPayg\":true,\"mediaBucket\":\"s-mediabucket\",\"operatingSystemType\":\"s-operatingsystemtype\",\"osImage\":\"s-osimage\",\"osImageType\":\"s-osimagetype\",\"sqlServerEdition\":\"s-sqlserveredition\",\"sqlServerVersion\":\"s-sqlserverversion\",\"vmPrefix\":\"s-vmprefix\"},\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"workerPool\":\"s-workerpool\",\"workloadType\":\"s-workloadtype\"}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_note(f, "CALL workloadmanager.projects.locations.deployments.list pages")
+  var p = svc.projects.locations.deployments.list_pages("id1/ x", options: ProjectsLocationsDeploymentsListOptions{filter: Some("s-filter"), order_by: Some("s-orderby"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_7)
+}
+
+const GO_8: List[Str] = [
   "CALL workloadmanager.projects.locations.deployments.actuations.create",
   "REQ POST https://workloadmanager.googleapis.com/v1/id1/%20x/actuations?alt=json&fields=kind%2Cid&prettyPrint=false&requestId=s-requestid",
   "  H content-type=application/json | x-extra=v1",
@@ -154,10 +230,10 @@ test "Go's workloadmanager.projects.locations.deployments.actuations.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_6)
+  gv_compare(gv_log_of(f), GO_8)
 }
 
-const GO_7: List[Str] = [
+const GO_9: List[Str] = [
   "CALL workloadmanager.projects.locations.deployments.actuations.delete",
   "REQ DELETE https://workloadmanager.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -175,10 +251,10 @@ test "Go's workloadmanager.projects.locations.deployments.actuations.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_7)
+  gv_compare(gv_log_of(f), GO_9)
 }
 
-const GO_8: List[Str] = [
+const GO_10: List[Str] = [
   "CALL workloadmanager.projects.locations.deployments.actuations.get",
   "REQ GET https://workloadmanager.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -196,10 +272,10 @@ test "Go's workloadmanager.projects.locations.deployments.actuations.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_8)
+  gv_compare(gv_log_of(f), GO_10)
 }
 
-const GO_9: List[Str] = [
+const GO_11: List[Str] = [
   "CALL workloadmanager.projects.locations.deployments.actuations.list",
   "REQ GET https://workloadmanager.googleapis.com/v1/id1/%20x/actuations?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -217,10 +293,48 @@ test "Go's workloadmanager.projects.locations.deployments.actuations.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_9)
+  gv_compare(gv_log_of(f), GO_11)
 }
 
-const GO_10: List[Str] = [
+const GO_12: List[Str] = [
+  "CALL workloadmanager.projects.locations.deployments.actuations.list pages",
+  "REQ GET https://workloadmanager.googleapis.com/v1/id1/%20x/actuations?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"actuations\":[{\"actuationOutput\":{\"actuateLogs\":\"s-actuatelogs\",\"ansibleError\":\"s-ansibleerror\",\"blueprintId\":\"s-blueprintid\",\"cloudbuildId\":\"s-cloudbuildid\",\"errorCode\":\"s-errorcode\",\"errorLogs\":\"s-errorlogs\",\"hasUserFacingErrorMsg\":true,\"terraformError\":\"s-terraformerror\",\"terraformTemplate\":\"s-terraformtemplate\"},\"endTime\":\"s-endtime\",\"name\":\"s-name\",\"startTime\":\"s-starttime\",\"state\":\"s-state\"}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"actuations\":[{\"actuationOutput\":{\"actuateLogs\":\"s-actuatelogs\",\"ansibleError\":\"s-ansibleerror\",\"blueprintId\":\"s-blueprintid\",\"cloudbuildId\":\"s-cloudbuildid\",\"errorCode\":\"s-errorcode\",\"errorLogs\":\"s-errorlogs\",\"hasUserFacingErrorMsg\":true,\"terraformError\":\"s-terraformerror\",\"terraformTemplate\":\"s-terraformtemplate\"},\"endTime\":\"s-endtime\",\"name\":\"s-name\",\"startTime\":\"s-starttime\",\"state\":\"s-state\"}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}",
+  "REQ GET https://workloadmanager.googleapis.com/v1/id1/%20x/actuations?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"actuations\":[{\"actuationOutput\":{\"actuateLogs\":\"s-actuatelogs\",\"ansibleError\":\"s-ansibleerror\",\"blueprintId\":\"s-blueprintid\",\"cloudbuildId\":\"s-cloudbuildid\",\"errorCode\":\"s-errorcode\",\"errorLogs\":\"s-errorlogs\",\"hasUserFacingErrorMsg\":true,\"terraformError\":\"s-terraformerror\",\"terraformTemplate\":\"s-terraformtemplate\"},\"endTime\":\"s-endtime\",\"name\":\"s-name\",\"startTime\":\"s-starttime\",\"state\":\"s-state\"}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"actuations\":[{\"actuationOutput\":{\"actuateLogs\":\"s-actuatelogs\",\"ansibleError\":\"s-ansibleerror\",\"blueprintId\":\"s-blueprintid\",\"cloudbuildId\":\"s-cloudbuildid\",\"errorCode\":\"s-errorcode\",\"errorLogs\":\"s-errorlogs\",\"hasUserFacingErrorMsg\":true,\"terraformError\":\"s-terraformerror\",\"terraformTemplate\":\"s-terraformtemplate\"},\"endTime\":\"s-endtime\",\"name\":\"s-name\",\"startTime\":\"s-starttime\",\"state\":\"s-state\"}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: ok",
+]
+
+test "Go's workloadmanager.projects.locations.deployments.actuations.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"actuations\":[{\"actuationOutput\":{\"actuateLogs\":\"s-actuatelogs\",\"ansibleError\":\"s-ansibleerror\",\"blueprintId\":\"s-blueprintid\",\"cloudbuildId\":\"s-cloudbuildid\",\"errorCode\":\"s-errorcode\",\"errorLogs\":\"s-errorlogs\",\"hasUserFacingErrorMsg\":true,\"terraformError\":\"s-terraformerror\",\"terraformTemplate\":\"s-terraformtemplate\"},\"endTime\":\"s-endtime\",\"name\":\"s-name\",\"startTime\":\"s-starttime\",\"state\":\"s-state\"}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}")
+  gv_queue(f, "{\"actuations\":[{\"actuationOutput\":{\"actuateLogs\":\"s-actuatelogs\",\"ansibleError\":\"s-ansibleerror\",\"blueprintId\":\"s-blueprintid\",\"cloudbuildId\":\"s-cloudbuildid\",\"errorCode\":\"s-errorcode\",\"errorLogs\":\"s-errorlogs\",\"hasUserFacingErrorMsg\":true,\"terraformError\":\"s-terraformerror\",\"terraformTemplate\":\"s-terraformtemplate\"},\"endTime\":\"s-endtime\",\"name\":\"s-name\",\"startTime\":\"s-starttime\",\"state\":\"s-state\"}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_note(f, "CALL workloadmanager.projects.locations.deployments.actuations.list pages")
+  var p = svc.projects.locations.deployments.actuations.list_pages("id1/ x", options: ProjectsLocationsDeploymentsActuationsListOptions{filter: Some("s-filter"), order_by: Some("s-orderby"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_12)
+}
+
+const GO_13: List[Str] = [
   "CALL workloadmanager.projects.locations.discoveredprofiles.get",
   "REQ GET https://workloadmanager.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -238,10 +352,10 @@ test "Go's workloadmanager.projects.locations.discoveredprofiles.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_10)
+  gv_compare(gv_log_of(f), GO_13)
 }
 
-const GO_11: List[Str] = [
+const GO_14: List[Str] = [
   "CALL workloadmanager.projects.locations.discoveredprofiles.list",
   "REQ GET https://workloadmanager.googleapis.com/v1/id1/%20x/discoveredprofiles?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -259,10 +373,48 @@ test "Go's workloadmanager.projects.locations.discoveredprofiles.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_11)
+  gv_compare(gv_log_of(f), GO_14)
 }
 
-const GO_12: List[Str] = [
+const GO_15: List[Str] = [
+  "CALL workloadmanager.projects.locations.discoveredprofiles.list pages",
+  "REQ GET https://workloadmanager.googleapis.com/v1/id1/%20x/discoveredprofiles?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"],\"workloadProfiles\":[{\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"refreshedTime\":\"s-refreshedtime\",\"sapWorkload\":{\"architecture\":\"s-architecture\"},\"workloadType\":\"s-workloadtype\"}]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"],\"workloadProfiles\":[{\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"refreshedTime\":\"s-refreshedtime\",\"sapWorkload\":{\"architecture\":\"s-architecture\"},\"workloadType\":\"s-workloadtype\"}]}",
+  "REQ GET https://workloadmanager.googleapis.com/v1/id1/%20x/discoveredprofiles?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"unreachable\":[\"s-unreachable\"],\"workloadProfiles\":[{\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"refreshedTime\":\"s-refreshedtime\",\"sapWorkload\":{\"architecture\":\"s-architecture\"},\"workloadType\":\"s-workloadtype\"}]}",
+  "OUT: {\"unreachable\":[\"s-unreachable\"],\"workloadProfiles\":[{\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"refreshedTime\":\"s-refreshedtime\",\"sapWorkload\":{\"architecture\":\"s-architecture\"},\"workloadType\":\"s-workloadtype\"}]}",
+  "OUT: ok",
+]
+
+test "Go's workloadmanager.projects.locations.discoveredprofiles.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"],\"workloadProfiles\":[{\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"refreshedTime\":\"s-refreshedtime\",\"sapWorkload\":{\"architecture\":\"s-architecture\"},\"workloadType\":\"s-workloadtype\"}]}")
+  gv_queue(f, "{\"unreachable\":[\"s-unreachable\"],\"workloadProfiles\":[{\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"refreshedTime\":\"s-refreshedtime\",\"sapWorkload\":{\"architecture\":\"s-architecture\"},\"workloadType\":\"s-workloadtype\"}]}")
+  gv_note(f, "CALL workloadmanager.projects.locations.discoveredprofiles.list pages")
+  var p = svc.projects.locations.discoveredprofiles.list_pages("id1/ x", options: ProjectsLocationsDiscoveredprofilesListOptions{filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_15)
+}
+
+const GO_16: List[Str] = [
   "CALL workloadmanager.projects.locations.discoveredprofiles.health.get",
   "REQ GET https://workloadmanager.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -280,10 +432,10 @@ test "Go's workloadmanager.projects.locations.discoveredprofiles.health.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_12)
+  gv_compare(gv_log_of(f), GO_16)
 }
 
-const GO_13: List[Str] = [
+const GO_17: List[Str] = [
   "CALL workloadmanager.projects.locations.evaluations.create",
   "REQ POST https://workloadmanager.googleapis.com/v1/id1/%20x/evaluations?alt=json&evaluationId=s-evaluationid&fields=kind%2Cid&prettyPrint=false&requestId=s-requestid",
   "  H content-type=application/json | x-extra=v1",
@@ -302,10 +454,10 @@ test "Go's workloadmanager.projects.locations.evaluations.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_13)
+  gv_compare(gv_log_of(f), GO_17)
 }
 
-const GO_14: List[Str] = [
+const GO_18: List[Str] = [
   "CALL workloadmanager.projects.locations.evaluations.delete",
   "REQ DELETE https://workloadmanager.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&force=true&prettyPrint=false&requestId=s-requestid",
   "  H x-extra=v1",
@@ -323,10 +475,10 @@ test "Go's workloadmanager.projects.locations.evaluations.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_14)
+  gv_compare(gv_log_of(f), GO_18)
 }
 
-const GO_15: List[Str] = [
+const GO_19: List[Str] = [
   "CALL workloadmanager.projects.locations.evaluations.get",
   "REQ GET https://workloadmanager.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -344,10 +496,10 @@ test "Go's workloadmanager.projects.locations.evaluations.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_15)
+  gv_compare(gv_log_of(f), GO_19)
 }
 
-const GO_16: List[Str] = [
+const GO_20: List[Str] = [
   "CALL workloadmanager.projects.locations.evaluations.list",
   "REQ GET https://workloadmanager.googleapis.com/v1/id1/%20x/evaluations?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -365,10 +517,48 @@ test "Go's workloadmanager.projects.locations.evaluations.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_16)
+  gv_compare(gv_log_of(f), GO_20)
 }
 
-const GO_17: List[Str] = [
+const GO_21: List[Str] = [
+  "CALL workloadmanager.projects.locations.evaluations.list pages",
+  "REQ GET https://workloadmanager.googleapis.com/v1/id1/%20x/evaluations?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"evaluations\":[{\"bigQueryDestination\":{\"createNewResultsTable\":true,\"destinationDataset\":\"s-destinationdataset\"},\"createTime\":\"s-createtime\",\"customRulesBucket\":\"s-customrulesbucket\",\"description\":\"s-description\",\"evaluationType\":\"s-evaluationtype\",\"kmsKey\":\"s-kmskey\",\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"resourceFilter\":{},\"resourceStatus\":{\"state\":\"s-state\"},\"ruleNames\":[\"s-rulenames\"],\"schedule\":\"s-schedule\",\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"evaluations\":[{\"bigQueryDestination\":{\"createNewResultsTable\":true,\"destinationDataset\":\"s-destinationdataset\"},\"createTime\":\"s-createtime\",\"customRulesBucket\":\"s-customrulesbucket\",\"description\":\"s-description\",\"evaluationType\":\"s-evaluationtype\",\"kmsKey\":\"s-kmskey\",\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"resourceFilter\":{},\"resourceStatus\":{\"state\":\"s-state\"},\"ruleNames\":[\"s-rulenames\"],\"schedule\":\"s-schedule\",\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}",
+  "REQ GET https://workloadmanager.googleapis.com/v1/id1/%20x/evaluations?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"evaluations\":[{\"bigQueryDestination\":{\"createNewResultsTable\":true,\"destinationDataset\":\"s-destinationdataset\"},\"createTime\":\"s-createtime\",\"customRulesBucket\":\"s-customrulesbucket\",\"description\":\"s-description\",\"evaluationType\":\"s-evaluationtype\",\"kmsKey\":\"s-kmskey\",\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"resourceFilter\":{},\"resourceStatus\":{\"state\":\"s-state\"},\"ruleNames\":[\"s-rulenames\"],\"schedule\":\"s-schedule\",\"updateTime\":\"s-updatetime\"}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"evaluations\":[{\"bigQueryDestination\":{\"createNewResultsTable\":true,\"destinationDataset\":\"s-destinationdataset\"},\"createTime\":\"s-createtime\",\"customRulesBucket\":\"s-customrulesbucket\",\"description\":\"s-description\",\"evaluationType\":\"s-evaluationtype\",\"kmsKey\":\"s-kmskey\",\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"resourceFilter\":{},\"resourceStatus\":{\"state\":\"s-state\"},\"ruleNames\":[\"s-rulenames\"],\"schedule\":\"s-schedule\",\"updateTime\":\"s-updatetime\"}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: ok",
+]
+
+test "Go's workloadmanager.projects.locations.evaluations.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"evaluations\":[{\"bigQueryDestination\":{\"createNewResultsTable\":true,\"destinationDataset\":\"s-destinationdataset\"},\"createTime\":\"s-createtime\",\"customRulesBucket\":\"s-customrulesbucket\",\"description\":\"s-description\",\"evaluationType\":\"s-evaluationtype\",\"kmsKey\":\"s-kmskey\",\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"resourceFilter\":{},\"resourceStatus\":{\"state\":\"s-state\"},\"ruleNames\":[\"s-rulenames\"],\"schedule\":\"s-schedule\",\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}")
+  gv_queue(f, "{\"evaluations\":[{\"bigQueryDestination\":{\"createNewResultsTable\":true,\"destinationDataset\":\"s-destinationdataset\"},\"createTime\":\"s-createtime\",\"customRulesBucket\":\"s-customrulesbucket\",\"description\":\"s-description\",\"evaluationType\":\"s-evaluationtype\",\"kmsKey\":\"s-kmskey\",\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"resourceFilter\":{},\"resourceStatus\":{\"state\":\"s-state\"},\"ruleNames\":[\"s-rulenames\"],\"schedule\":\"s-schedule\",\"updateTime\":\"s-updatetime\"}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_note(f, "CALL workloadmanager.projects.locations.evaluations.list pages")
+  var p = svc.projects.locations.evaluations.list_pages("id1/ x", options: ProjectsLocationsEvaluationsListOptions{filter: Some("s-filter"), order_by: Some("s-orderby"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_21)
+}
+
+const GO_22: List[Str] = [
   "CALL workloadmanager.projects.locations.evaluations.patch",
   "REQ PATCH https://workloadmanager.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&requestId=s-requestid&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
@@ -387,10 +577,10 @@ test "Go's workloadmanager.projects.locations.evaluations.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_17)
+  gv_compare(gv_log_of(f), GO_22)
 }
 
-const GO_18: List[Str] = [
+const GO_23: List[Str] = [
   "CALL workloadmanager.projects.locations.evaluations.executions.delete",
   "REQ DELETE https://workloadmanager.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&requestId=s-requestid",
   "  H x-extra=v1",
@@ -408,10 +598,10 @@ test "Go's workloadmanager.projects.locations.evaluations.executions.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_18)
+  gv_compare(gv_log_of(f), GO_23)
 }
 
-const GO_19: List[Str] = [
+const GO_24: List[Str] = [
   "CALL workloadmanager.projects.locations.evaluations.executions.get",
   "REQ GET https://workloadmanager.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -429,10 +619,10 @@ test "Go's workloadmanager.projects.locations.evaluations.executions.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_19)
+  gv_compare(gv_log_of(f), GO_24)
 }
 
-const GO_20: List[Str] = [
+const GO_25: List[Str] = [
   "CALL workloadmanager.projects.locations.evaluations.executions.list",
   "REQ GET https://workloadmanager.googleapis.com/v1/id1/%20x/executions?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -450,10 +640,48 @@ test "Go's workloadmanager.projects.locations.evaluations.executions.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_20)
+  gv_compare(gv_log_of(f), GO_25)
 }
 
-const GO_21: List[Str] = [
+const GO_26: List[Str] = [
+  "CALL workloadmanager.projects.locations.evaluations.executions.list pages",
+  "REQ GET https://workloadmanager.googleapis.com/v1/id1/%20x/executions?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"executions\":[{\"endTime\":\"s-endtime\",\"engine\":\"s-engine\",\"evaluationId\":\"s-evaluationid\",\"inventoryTime\":\"s-inventorytime\",\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"resultSummary\":{\"failures\":\"7\",\"newFailures\":\"7\",\"newFixes\":\"7\"},\"runType\":\"s-runtype\",\"startTime\":\"s-starttime\",\"state\":\"s-state\"}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"executions\":[{\"endTime\":\"s-endtime\",\"engine\":\"s-engine\",\"evaluationId\":\"s-evaluationid\",\"inventoryTime\":\"s-inventorytime\",\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"resultSummary\":{\"failures\":\"7\",\"newFailures\":\"7\",\"newFixes\":\"7\"},\"runType\":\"s-runtype\",\"startTime\":\"s-starttime\",\"state\":\"s-state\"}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}",
+  "REQ GET https://workloadmanager.googleapis.com/v1/id1/%20x/executions?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"executions\":[{\"endTime\":\"s-endtime\",\"engine\":\"s-engine\",\"evaluationId\":\"s-evaluationid\",\"inventoryTime\":\"s-inventorytime\",\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"resultSummary\":{\"failures\":\"7\",\"newFailures\":\"7\",\"newFixes\":\"7\"},\"runType\":\"s-runtype\",\"startTime\":\"s-starttime\",\"state\":\"s-state\"}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"executions\":[{\"endTime\":\"s-endtime\",\"engine\":\"s-engine\",\"evaluationId\":\"s-evaluationid\",\"inventoryTime\":\"s-inventorytime\",\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"resultSummary\":{\"failures\":\"7\",\"newFailures\":\"7\",\"newFixes\":\"7\"},\"runType\":\"s-runtype\",\"startTime\":\"s-starttime\",\"state\":\"s-state\"}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: ok",
+]
+
+test "Go's workloadmanager.projects.locations.evaluations.executions.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"executions\":[{\"endTime\":\"s-endtime\",\"engine\":\"s-engine\",\"evaluationId\":\"s-evaluationid\",\"inventoryTime\":\"s-inventorytime\",\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"resultSummary\":{\"failures\":\"7\",\"newFailures\":\"7\",\"newFixes\":\"7\"},\"runType\":\"s-runtype\",\"startTime\":\"s-starttime\",\"state\":\"s-state\"}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}")
+  gv_queue(f, "{\"executions\":[{\"endTime\":\"s-endtime\",\"engine\":\"s-engine\",\"evaluationId\":\"s-evaluationid\",\"inventoryTime\":\"s-inventorytime\",\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"resultSummary\":{\"failures\":\"7\",\"newFailures\":\"7\",\"newFixes\":\"7\"},\"runType\":\"s-runtype\",\"startTime\":\"s-starttime\",\"state\":\"s-state\"}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_note(f, "CALL workloadmanager.projects.locations.evaluations.executions.list pages")
+  var p = svc.projects.locations.evaluations.executions.list_pages("id1/ x", options: ProjectsLocationsEvaluationsExecutionsListOptions{filter: Some("s-filter"), order_by: Some("s-orderby"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_26)
+}
+
+const GO_27: List[Str] = [
   "CALL workloadmanager.projects.locations.evaluations.executions.run",
   "REQ POST https://workloadmanager.googleapis.com/v1/id1/%20x/executions:run?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -472,10 +700,10 @@ test "Go's workloadmanager.projects.locations.evaluations.executions.run" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_21)
+  gv_compare(gv_log_of(f), GO_27)
 }
 
-const GO_22: List[Str] = [
+const GO_28: List[Str] = [
   "CALL workloadmanager.projects.locations.evaluations.executions.results.list",
   "REQ GET https://workloadmanager.googleapis.com/v1/id1/%20x/results?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -493,10 +721,48 @@ test "Go's workloadmanager.projects.locations.evaluations.executions.results.lis
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_22)
+  gv_compare(gv_log_of(f), GO_28)
 }
 
-const GO_23: List[Str] = [
+const GO_29: List[Str] = [
+  "CALL workloadmanager.projects.locations.evaluations.executions.results.list pages",
+  "REQ GET https://workloadmanager.googleapis.com/v1/id1/%20x/results?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"executionResults\":[{\"documentationUrl\":\"s-documentationurl\",\"resource\":{\"name\":\"s-name\",\"serviceAccount\":\"s-serviceaccount\",\"type\":\"s-type\"},\"rule\":\"s-rule\",\"severity\":\"s-severity\",\"type\":\"s-type\",\"violationDetails\":{\"asset\":\"s-asset\",\"serviceAccount\":\"s-serviceaccount\"},\"violationMessage\":\"s-violationmessage\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"executionResults\":[{\"documentationUrl\":\"s-documentationurl\",\"resource\":{\"name\":\"s-name\",\"serviceAccount\":\"s-serviceaccount\",\"type\":\"s-type\"},\"rule\":\"s-rule\",\"severity\":\"s-severity\",\"type\":\"s-type\",\"violationDetails\":{\"asset\":\"s-asset\",\"serviceAccount\":\"s-serviceaccount\"},\"violationMessage\":\"s-violationmessage\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://workloadmanager.googleapis.com/v1/id1/%20x/results?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"executionResults\":[{\"documentationUrl\":\"s-documentationurl\",\"resource\":{\"name\":\"s-name\",\"serviceAccount\":\"s-serviceaccount\",\"type\":\"s-type\"},\"rule\":\"s-rule\",\"severity\":\"s-severity\",\"type\":\"s-type\",\"violationDetails\":{\"asset\":\"s-asset\",\"serviceAccount\":\"s-serviceaccount\"},\"violationMessage\":\"s-violationmessage\"}]}",
+  "OUT: {\"executionResults\":[{\"documentationUrl\":\"s-documentationurl\",\"resource\":{\"name\":\"s-name\",\"serviceAccount\":\"s-serviceaccount\",\"type\":\"s-type\"},\"rule\":\"s-rule\",\"severity\":\"s-severity\",\"type\":\"s-type\",\"violationDetails\":{\"asset\":\"s-asset\",\"serviceAccount\":\"s-serviceaccount\"},\"violationMessage\":\"s-violationmessage\"}]}",
+  "OUT: ok",
+]
+
+test "Go's workloadmanager.projects.locations.evaluations.executions.results.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"executionResults\":[{\"documentationUrl\":\"s-documentationurl\",\"resource\":{\"name\":\"s-name\",\"serviceAccount\":\"s-serviceaccount\",\"type\":\"s-type\"},\"rule\":\"s-rule\",\"severity\":\"s-severity\",\"type\":\"s-type\",\"violationDetails\":{\"asset\":\"s-asset\",\"serviceAccount\":\"s-serviceaccount\"},\"violationMessage\":\"s-violationmessage\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"executionResults\":[{\"documentationUrl\":\"s-documentationurl\",\"resource\":{\"name\":\"s-name\",\"serviceAccount\":\"s-serviceaccount\",\"type\":\"s-type\"},\"rule\":\"s-rule\",\"severity\":\"s-severity\",\"type\":\"s-type\",\"violationDetails\":{\"asset\":\"s-asset\",\"serviceAccount\":\"s-serviceaccount\"},\"violationMessage\":\"s-violationmessage\"}]}")
+  gv_note(f, "CALL workloadmanager.projects.locations.evaluations.executions.results.list pages")
+  var p = svc.projects.locations.evaluations.executions.results.list_pages("id1/ x", options: ProjectsLocationsEvaluationsExecutionsResultsListOptions{filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_29)
+}
+
+const GO_30: List[Str] = [
   "CALL workloadmanager.projects.locations.evaluations.executions.scannedResources.list",
   "REQ GET https://workloadmanager.googleapis.com/v1/id1/%20x/scannedResources?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&rule=s-rule",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -514,10 +780,48 @@ test "Go's workloadmanager.projects.locations.evaluations.executions.scannedReso
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_23)
+  gv_compare(gv_log_of(f), GO_30)
 }
 
-const GO_24: List[Str] = [
+const GO_31: List[Str] = [
+  "CALL workloadmanager.projects.locations.evaluations.executions.scannedResources.list pages",
+  "REQ GET https://workloadmanager.googleapis.com/v1/id1/%20x/scannedResources?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&rule=s-rule",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"scannedResources\":[{\"resource\":\"s-resource\",\"type\":\"s-type\"}]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"scannedResources\":[{\"resource\":\"s-resource\",\"type\":\"s-type\"}]}",
+  "REQ GET https://workloadmanager.googleapis.com/v1/id1/%20x/scannedResources?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false&rule=s-rule",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"scannedResources\":[{\"resource\":\"s-resource\",\"type\":\"s-type\"}]}",
+  "OUT: {\"scannedResources\":[{\"resource\":\"s-resource\",\"type\":\"s-type\"}]}",
+  "OUT: ok",
+]
+
+test "Go's workloadmanager.projects.locations.evaluations.executions.scannedResources.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"scannedResources\":[{\"resource\":\"s-resource\",\"type\":\"s-type\"}]}")
+  gv_queue(f, "{\"scannedResources\":[{\"resource\":\"s-resource\",\"type\":\"s-type\"}]}")
+  gv_note(f, "CALL workloadmanager.projects.locations.evaluations.executions.scannedResources.list pages")
+  var p = svc.projects.locations.evaluations.executions.scanned_resources.list_pages("id1/ x", options: ProjectsLocationsEvaluationsExecutionsScannedResourcesListOptions{filter: Some("s-filter"), order_by: Some("s-orderby"), page_size: Some(7), page_token: Some("s-pagetoken"), rule: Some("s-rule"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_31)
+}
+
+const GO_32: List[Str] = [
   "CALL workloadmanager.projects.locations.insights.delete",
   "REQ DELETE https://workloadmanager.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&requestId=s-requestid",
   "  H x-extra=v1",
@@ -535,14 +839,14 @@ test "Go's workloadmanager.projects.locations.insights.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_24)
+  gv_compare(gv_log_of(f), GO_32)
 }
 
-const GO_25: List[Str] = [
+const GO_33: List[Str] = [
   "CALL workloadmanager.projects.locations.insights.writeInsight",
   "REQ POST https://workloadmanager.googleapis.com/v1/id1/%20x/insights:writeInsight?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"agentVersion\":\"s-agentversion\",\"insight\":{\"agentStatus\":{\"agentName\":\"s-agentname\",\"availableVersion\":\"s-availableversion\",\"cloudApiAccessFullScopesGranted\":\"s-cloudapiaccessfullscopesgranted\",\"configurationErrorMessage\":\"s-configurationerrormessage\",\"configurationFilePath\":\"s-configurationfilepath\",\"configurationValid\":\"s-configurationvalid\",\"installedVersion\":\"s-installedversion\",\"instanceUri\":\"s-instanceuri\",\"systemdServiceEnabled\":\"s-systemdserviceenabled\",\"systemdServiceRunning\":\"s-systemdservicerunning\"},\"instanceId\":\"s-instanceid\",\"openShiftValidation\":{\"clusterId\":\"s-clusterid\",\"validationDetails\":{\"k\":\"v\"}},\"sapDiscovery\":{\"projectNumber\":\"s-projectnumber\",\"systemId\":\"s-systemid\",\"updateTime\":\"s-updatetime\",\"useDrReconciliation\":true},\"sapValidation\":{\"projectId\":\"s-projectid\",\"zone\":\"s-zone\"},\"sentTime\":\"s-senttime\",\"sqlserverValidation\":{\"agentVersion\":\"s-agentversion\",\"instance\":\"s-instance\",\"projectId\":\"s-projectid\"},\"torsoValidation\":{\"agentVersion\":\"s-agentversion\",\"instanceName\":\"s-instancename\",\"projectId\":\"s-projectid\",\"validationDetails\":{\"k1\":\"s-validationdetails\"},\"workloadType\":\"s-workloadtype\"}},\"requestId\":\"s-requestid\"}",
+  "  B <1165 bytes> {\"agentVersion\":\"s-agentversion\"...e\"}},\"requestId\":\"s-requestid\"}",
   "",
   "  SERVED 200 {}",
   "OUT: {}",
@@ -557,10 +861,10 @@ test "Go's workloadmanager.projects.locations.insights.writeInsight" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_25)
+  gv_compare(gv_log_of(f), GO_33)
 }
 
-const GO_26: List[Str] = [
+const GO_34: List[Str] = [
   "CALL workloadmanager.projects.locations.operations.cancel",
   "REQ POST https://workloadmanager.googleapis.com/v1/id1/%20x:cancel?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -579,10 +883,10 @@ test "Go's workloadmanager.projects.locations.operations.cancel" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_26)
+  gv_compare(gv_log_of(f), GO_34)
 }
 
-const GO_27: List[Str] = [
+const GO_35: List[Str] = [
   "CALL workloadmanager.projects.locations.operations.delete",
   "REQ DELETE https://workloadmanager.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -600,10 +904,10 @@ test "Go's workloadmanager.projects.locations.operations.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_27)
+  gv_compare(gv_log_of(f), GO_35)
 }
 
-const GO_28: List[Str] = [
+const GO_36: List[Str] = [
   "CALL workloadmanager.projects.locations.operations.get",
   "REQ GET https://workloadmanager.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -621,10 +925,10 @@ test "Go's workloadmanager.projects.locations.operations.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_28)
+  gv_compare(gv_log_of(f), GO_36)
 }
 
-const GO_29: List[Str] = [
+const GO_37: List[Str] = [
   "CALL workloadmanager.projects.locations.operations.list",
   "REQ GET https://workloadmanager.googleapis.com/v1/id1/%20x/operations?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&returnPartialSuccess=true",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -642,10 +946,48 @@ test "Go's workloadmanager.projects.locations.operations.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_29)
+  gv_compare(gv_log_of(f), GO_37)
 }
 
-const GO_30: List[Str] = [
+const GO_38: List[Str] = [
+  "CALL workloadmanager.projects.locations.operations.list pages",
+  "REQ GET https://workloadmanager.googleapis.com/v1/id1/%20x/operations?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&returnPartialSuccess=true",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "REQ GET https://workloadmanager.googleapis.com/v1/id1/%20x/operations?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false&returnPartialSuccess=true",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: ok",
+]
+
+test "Go's workloadmanager.projects.locations.operations.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_queue(f, "{\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_note(f, "CALL workloadmanager.projects.locations.operations.list pages")
+  var p = svc.projects.locations.operations.list_pages("id1/ x", options: ProjectsLocationsOperationsListOptions{filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), return_partial_success: Some(true), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_38)
+}
+
+const GO_39: List[Str] = [
   "CALL workloadmanager.projects.locations.rules.list",
   "REQ GET https://workloadmanager.googleapis.com/v1/id1/%20x/rules?alt=json&customRulesBucket=s-customrulesbucket&evaluationType=s-evaluationtype&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -663,5 +1005,5 @@ test "Go's workloadmanager.projects.locations.rules.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_30)
+  gv_compare(gv_log_of(f), GO_39)
 }

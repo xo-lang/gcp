@@ -28,3 +28,41 @@ test "Go's merchantapi.accounts.quotas.list" {
   }
   gv_compare(gv_log_of(f), GO_0)
 }
+
+const GO_1: List[Str] = [
+  "CALL merchantapi.accounts.quotas.list pages",
+  "REQ GET https://merchantapi.googleapis.com/quota/v1beta/id1/%20x/quotas?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"quotaGroups\":[{\"name\":\"s-name\",\"quotaLimit\":\"7\",\"quotaMinuteLimit\":\"7\",\"quotaUsage\":\"7\"}]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"quotaGroups\":[{\"name\":\"s-name\",\"quotaLimit\":\"7\",\"quotaMinuteLimit\":\"7\",\"quotaUsage\":\"7\"}]}",
+  "REQ GET https://merchantapi.googleapis.com/quota/v1beta/id1/%20x/quotas?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"quotaGroups\":[{\"name\":\"s-name\",\"quotaLimit\":\"7\",\"quotaMinuteLimit\":\"7\",\"quotaUsage\":\"7\"}]}",
+  "OUT: {\"quotaGroups\":[{\"name\":\"s-name\",\"quotaLimit\":\"7\",\"quotaMinuteLimit\":\"7\",\"quotaUsage\":\"7\"}]}",
+  "OUT: ok",
+]
+
+test "Go's merchantapi.accounts.quotas.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"quotaGroups\":[{\"name\":\"s-name\",\"quotaLimit\":\"7\",\"quotaMinuteLimit\":\"7\",\"quotaUsage\":\"7\"}]}")
+  gv_queue(f, "{\"quotaGroups\":[{\"name\":\"s-name\",\"quotaLimit\":\"7\",\"quotaMinuteLimit\":\"7\",\"quotaUsage\":\"7\"}]}")
+  gv_note(f, "CALL merchantapi.accounts.quotas.list pages")
+  var p = svc.accounts.quotas.list_pages("id1/ x", options: AccountsQuotasListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_1)
+}

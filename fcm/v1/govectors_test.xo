@@ -116,6 +116,44 @@ test "Go's fcm.projects.registrations.topicSubscriptions.list" {
 }
 
 const GO_5: List[Str] = [
+  "CALL fcm.projects.registrations.topicSubscriptions.list pages",
+  "REQ GET https://fcm.googleapis.com/v1/id1/%20x/topicSubscriptions?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"topicSubscriptions\":[{\"createTime\":\"s-createtime\",\"name\":\"s-name\",\"topicName\":\"s-topicname\"}]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"topicSubscriptions\":[{\"createTime\":\"s-createtime\",\"name\":\"s-name\",\"topicName\":\"s-topicname\"}]}",
+  "REQ GET https://fcm.googleapis.com/v1/id1/%20x/topicSubscriptions?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"topicSubscriptions\":[{\"createTime\":\"s-createtime\",\"name\":\"s-name\",\"topicName\":\"s-topicname\"}]}",
+  "OUT: {\"topicSubscriptions\":[{\"createTime\":\"s-createtime\",\"name\":\"s-name\",\"topicName\":\"s-topicname\"}]}",
+  "OUT: ok",
+]
+
+test "Go's fcm.projects.registrations.topicSubscriptions.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"topicSubscriptions\":[{\"createTime\":\"s-createtime\",\"name\":\"s-name\",\"topicName\":\"s-topicname\"}]}")
+  gv_queue(f, "{\"topicSubscriptions\":[{\"createTime\":\"s-createtime\",\"name\":\"s-name\",\"topicName\":\"s-topicname\"}]}")
+  gv_note(f, "CALL fcm.projects.registrations.topicSubscriptions.list pages")
+  var p = svc.projects.registrations.topic_subscriptions.list_pages("id1/ x", options: ProjectsRegistrationsTopicSubscriptionsListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_5)
+}
+
+const GO_6: List[Str] = [
   "CALL fcm.projects.registrations.topicSubscriptions.patch",
   "REQ PATCH https://fcm.googleapis.com/v1/id1/%20x?allowMissing=true&alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -134,5 +172,5 @@ test "Go's fcm.projects.registrations.topicSubscriptions.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_5)
+  gv_compare(gv_log_of(f), GO_6)
 }

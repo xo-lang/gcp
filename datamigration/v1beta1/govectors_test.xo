@@ -51,6 +51,44 @@ test "Go's datamigration.projects.locations.list" {
 }
 
 const GO_2: List[Str] = [
+  "CALL datamigration.projects.locations.list pages",
+  "REQ GET https://datamigration.googleapis.com/v1beta1/id1/%20x/locations?alt=json&extraLocationTypes=s-extralocationtypes&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://datamigration.googleapis.com/v1beta1/id1/%20x/locations?alt=json&extraLocationTypes=s-extralocationtypes&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}]}",
+  "OUT: {\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}]}",
+  "OUT: ok",
+]
+
+test "Go's datamigration.projects.locations.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}]}")
+  gv_note(f, "CALL datamigration.projects.locations.list pages")
+  var p = svc.projects.locations.list_pages("id1/ x", options: ProjectsLocationsListOptions{extra_location_types: ["s-extralocationtypes"], filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_2)
+}
+
+const GO_3: List[Str] = [
   "CALL datamigration.projects.locations.connectionProfiles.create",
   "REQ POST https://datamigration.googleapis.com/v1beta1/id1/%20x/connectionProfiles?alt=json&connectionProfileId=s-connectionprofileid&fields=kind%2Cid&prettyPrint=false&requestId=s-requestid",
   "  H content-type=application/json | x-extra=v1",
@@ -69,10 +107,10 @@ test "Go's datamigration.projects.locations.connectionProfiles.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_2)
+  gv_compare(gv_log_of(f), GO_3)
 }
 
-const GO_3: List[Str] = [
+const GO_4: List[Str] = [
   "CALL datamigration.projects.locations.connectionProfiles.delete",
   "REQ DELETE https://datamigration.googleapis.com/v1beta1/id1/%20x?alt=json&fields=kind%2Cid&force=true&prettyPrint=false&requestId=s-requestid",
   "  H x-extra=v1",
@@ -90,10 +128,10 @@ test "Go's datamigration.projects.locations.connectionProfiles.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_3)
+  gv_compare(gv_log_of(f), GO_4)
 }
 
-const GO_4: List[Str] = [
+const GO_5: List[Str] = [
   "CALL datamigration.projects.locations.connectionProfiles.get",
   "REQ GET https://datamigration.googleapis.com/v1beta1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -111,10 +149,10 @@ test "Go's datamigration.projects.locations.connectionProfiles.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_4)
+  gv_compare(gv_log_of(f), GO_5)
 }
 
-const GO_5: List[Str] = [
+const GO_6: List[Str] = [
   "CALL datamigration.projects.locations.connectionProfiles.getIamPolicy",
   "REQ GET https://datamigration.googleapis.com/v1beta1/id1/%20x:getIamPolicy?alt=json&fields=kind%2Cid&options.requestedPolicyVersion=7&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -132,10 +170,10 @@ test "Go's datamigration.projects.locations.connectionProfiles.getIamPolicy" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_5)
+  gv_compare(gv_log_of(f), GO_6)
 }
 
-const GO_6: List[Str] = [
+const GO_7: List[Str] = [
   "CALL datamigration.projects.locations.connectionProfiles.list",
   "REQ GET https://datamigration.googleapis.com/v1beta1/id1/%20x/connectionProfiles?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -153,10 +191,48 @@ test "Go's datamigration.projects.locations.connectionProfiles.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_6)
+  gv_compare(gv_log_of(f), GO_7)
 }
 
-const GO_7: List[Str] = [
+const GO_8: List[Str] = [
+  "CALL datamigration.projects.locations.connectionProfiles.list pages",
+  "REQ GET https://datamigration.googleapis.com/v1beta1/id1/%20x/connectionProfiles?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"connectionProfiles\":[{\"cloudsql\":{\"cloudSqlId\":\"s-cloudsqlid\",\"privateIp\":\"s-privateip\",\"publicIp\":\"s-publicip\"},\"createTime\":\"s-createtime\",\"displayName\":\"s-displayname\",\"error\":{\"code\":7,\"message\":\"s-message\"},\"labels\":{\"k1\":\"s-labels\"},\"mysql\":{\"cloudSqlId\":\"s-cloudsqlid\",\"host\":\"s-host\",\"password\":\"s-password\",\"passwordSet\":true,\"port\":7,\"username\":\"s-username\"},\"name\":\"s-name\",\"provider\":\"s-provider\",\"state\":\"s-state\",\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"connectionProfiles\":[{\"cloudsql\":{\"cloudSqlId\":\"s-cloudsqlid\",\"privateIp\":\"s-privateip\",\"publicIp\":\"s-publicip\"},\"createTime\":\"s-createtime\",\"displayName\":\"s-displayname\",\"error\":{\"code\":7,\"message\":\"s-message\"},\"labels\":{\"k1\":\"s-labels\"},\"mysql\":{\"cloudSqlId\":\"s-cloudsqlid\",\"host\":\"s-host\",\"password\":\"s-password\",\"passwordSet\":true,\"port\":7,\"username\":\"s-username\"},\"name\":\"s-name\",\"provider\":\"s-provider\",\"state\":\"s-state\",\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}",
+  "REQ GET https://datamigration.googleapis.com/v1beta1/id1/%20x/connectionProfiles?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"connectionProfiles\":[{\"cloudsql\":{\"cloudSqlId\":\"s-cloudsqlid\",\"privateIp\":\"s-privateip\",\"publicIp\":\"s-publicip\"},\"createTime\":\"s-createtime\",\"displayName\":\"s-displayname\",\"error\":{\"code\":7,\"message\":\"s-message\"},\"labels\":{\"k1\":\"s-labels\"},\"mysql\":{\"cloudSqlId\":\"s-cloudsqlid\",\"host\":\"s-host\",\"password\":\"s-password\",\"passwordSet\":true,\"port\":7,\"username\":\"s-username\"},\"name\":\"s-name\",\"provider\":\"s-provider\",\"state\":\"s-state\",\"updateTime\":\"s-updatetime\"}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"connectionProfiles\":[{\"cloudsql\":{\"cloudSqlId\":\"s-cloudsqlid\",\"privateIp\":\"s-privateip\",\"publicIp\":\"s-publicip\"},\"createTime\":\"s-createtime\",\"displayName\":\"s-displayname\",\"error\":{\"code\":7,\"message\":\"s-message\"},\"labels\":{\"k1\":\"s-labels\"},\"mysql\":{\"cloudSqlId\":\"s-cloudsqlid\",\"host\":\"s-host\",\"password\":\"s-password\",\"passwordSet\":true,\"port\":7,\"username\":\"s-username\"},\"name\":\"s-name\",\"provider\":\"s-provider\",\"state\":\"s-state\",\"updateTime\":\"s-updatetime\"}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: ok",
+]
+
+test "Go's datamigration.projects.locations.connectionProfiles.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"connectionProfiles\":[{\"cloudsql\":{\"cloudSqlId\":\"s-cloudsqlid\",\"privateIp\":\"s-privateip\",\"publicIp\":\"s-publicip\"},\"createTime\":\"s-createtime\",\"displayName\":\"s-displayname\",\"error\":{\"code\":7,\"message\":\"s-message\"},\"labels\":{\"k1\":\"s-labels\"},\"mysql\":{\"cloudSqlId\":\"s-cloudsqlid\",\"host\":\"s-host\",\"password\":\"s-password\",\"passwordSet\":true,\"port\":7,\"username\":\"s-username\"},\"name\":\"s-name\",\"provider\":\"s-provider\",\"state\":\"s-state\",\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}")
+  gv_queue(f, "{\"connectionProfiles\":[{\"cloudsql\":{\"cloudSqlId\":\"s-cloudsqlid\",\"privateIp\":\"s-privateip\",\"publicIp\":\"s-publicip\"},\"createTime\":\"s-createtime\",\"displayName\":\"s-displayname\",\"error\":{\"code\":7,\"message\":\"s-message\"},\"labels\":{\"k1\":\"s-labels\"},\"mysql\":{\"cloudSqlId\":\"s-cloudsqlid\",\"host\":\"s-host\",\"password\":\"s-password\",\"passwordSet\":true,\"port\":7,\"username\":\"s-username\"},\"name\":\"s-name\",\"provider\":\"s-provider\",\"state\":\"s-state\",\"updateTime\":\"s-updatetime\"}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_note(f, "CALL datamigration.projects.locations.connectionProfiles.list pages")
+  var p = svc.projects.locations.connection_profiles.list_pages("id1/ x", options: ProjectsLocationsConnectionProfilesListOptions{filter: Some("s-filter"), order_by: Some("s-orderby"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_8)
+}
+
+const GO_9: List[Str] = [
   "CALL datamigration.projects.locations.connectionProfiles.patch",
   "REQ PATCH https://datamigration.googleapis.com/v1beta1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&requestId=s-requestid&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
@@ -175,10 +251,10 @@ test "Go's datamigration.projects.locations.connectionProfiles.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_7)
+  gv_compare(gv_log_of(f), GO_9)
 }
 
-const GO_8: List[Str] = [
+const GO_10: List[Str] = [
   "CALL datamigration.projects.locations.connectionProfiles.setIamPolicy",
   "REQ POST https://datamigration.googleapis.com/v1beta1/id1/%20x:setIamPolicy?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -197,10 +273,10 @@ test "Go's datamigration.projects.locations.connectionProfiles.setIamPolicy" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_8)
+  gv_compare(gv_log_of(f), GO_10)
 }
 
-const GO_9: List[Str] = [
+const GO_11: List[Str] = [
   "CALL datamigration.projects.locations.connectionProfiles.testIamPermissions",
   "REQ POST https://datamigration.googleapis.com/v1beta1/id1/%20x:testIamPermissions?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -219,10 +295,10 @@ test "Go's datamigration.projects.locations.connectionProfiles.testIamPermission
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_9)
+  gv_compare(gv_log_of(f), GO_11)
 }
 
-const GO_10: List[Str] = [
+const GO_12: List[Str] = [
   "CALL datamigration.projects.locations.migrationJobs.create",
   "REQ POST https://datamigration.googleapis.com/v1beta1/id1/%20x/migrationJobs?alt=json&fields=kind%2Cid&migrationJobId=s-migrationjobid&prettyPrint=false&requestId=s-requestid",
   "  H content-type=application/json | x-extra=v1",
@@ -241,10 +317,10 @@ test "Go's datamigration.projects.locations.migrationJobs.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_10)
+  gv_compare(gv_log_of(f), GO_12)
 }
 
-const GO_11: List[Str] = [
+const GO_13: List[Str] = [
   "CALL datamigration.projects.locations.migrationJobs.delete",
   "REQ DELETE https://datamigration.googleapis.com/v1beta1/id1/%20x?alt=json&fields=kind%2Cid&force=true&prettyPrint=false&requestId=s-requestid",
   "  H x-extra=v1",
@@ -262,10 +338,10 @@ test "Go's datamigration.projects.locations.migrationJobs.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_11)
+  gv_compare(gv_log_of(f), GO_13)
 }
 
-const GO_12: List[Str] = [
+const GO_14: List[Str] = [
   "CALL datamigration.projects.locations.migrationJobs.generateSshScript",
   "REQ POST https://datamigration.googleapis.com/v1beta1/id1/%20x:generateSshScript?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -284,10 +360,10 @@ test "Go's datamigration.projects.locations.migrationJobs.generateSshScript" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_12)
+  gv_compare(gv_log_of(f), GO_14)
 }
 
-const GO_13: List[Str] = [
+const GO_15: List[Str] = [
   "CALL datamigration.projects.locations.migrationJobs.get",
   "REQ GET https://datamigration.googleapis.com/v1beta1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -305,10 +381,10 @@ test "Go's datamigration.projects.locations.migrationJobs.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_13)
+  gv_compare(gv_log_of(f), GO_15)
 }
 
-const GO_14: List[Str] = [
+const GO_16: List[Str] = [
   "CALL datamigration.projects.locations.migrationJobs.getIamPolicy",
   "REQ GET https://datamigration.googleapis.com/v1beta1/id1/%20x:getIamPolicy?alt=json&fields=kind%2Cid&options.requestedPolicyVersion=7&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -326,10 +402,10 @@ test "Go's datamigration.projects.locations.migrationJobs.getIamPolicy" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_14)
+  gv_compare(gv_log_of(f), GO_16)
 }
 
-const GO_15: List[Str] = [
+const GO_17: List[Str] = [
   "CALL datamigration.projects.locations.migrationJobs.list",
   "REQ GET https://datamigration.googleapis.com/v1beta1/id1/%20x/migrationJobs?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -347,10 +423,48 @@ test "Go's datamigration.projects.locations.migrationJobs.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_15)
+  gv_compare(gv_log_of(f), GO_17)
 }
 
-const GO_16: List[Str] = [
+const GO_18: List[Str] = [
+  "CALL datamigration.projects.locations.migrationJobs.list pages",
+  "REQ GET https://datamigration.googleapis.com/v1beta1/id1/%20x/migrationJobs?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"migrationJobs\":[{\"createTime\":\"s-createtime\",\"destination\":\"s-destination\",\"destinationDatabase\":{\"engine\":\"s-engine\",\"provider\":\"s-provider\"},\"displayName\":\"s-displayname\",\"dumpPath\":\"s-dumppath\",\"duration\":\"s-duration\",\"endTime\":\"s-endtime\",\"error\":{\"code\":7,\"message\":\"s-message\"},\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"phase\":\"s-phase\",\"reverseSshConnectivity\":{\"vm\":\"s-vm\",\"vmIp\":\"s-vmip\",\"vmPort\":7,\"vpc\":\"s-vpc\"},\"source\":\"s-source\",\"sourceDatabase\":{\"engine\":\"s-engine\",\"provider\":\"s-provider\"},\"state\":\"s-state\",\"staticIpConnectivity\":{},\"type\":\"s-type\",\"updateTime\":\"s-updatetime\",\"vpcPeeringConnectivity\":{\"vpc\":\"s-vpc\"}}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"migrationJobs\":[{\"createTime\":\"s-createtime\",\"destination\":\"s-destination\",\"destinationDatabase\":{\"engine\":\"s-engine\",\"provider\":\"s-provider\"},\"displayName\":\"s-displayname\",\"dumpPath\":\"s-dumppath\",\"duration\":\"s-duration\",\"endTime\":\"s-endtime\",\"error\":{\"code\":7,\"message\":\"s-message\"},\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"phase\":\"s-phase\",\"reverseSshConnectivity\":{\"vm\":\"s-vm\",\"vmIp\":\"s-vmip\",\"vmPort\":7,\"vpc\":\"s-vpc\"},\"source\":\"s-source\",\"sourceDatabase\":{\"engine\":\"s-engine\",\"provider\":\"s-provider\"},\"state\":\"s-state\",\"staticIpConnectivity\":{},\"type\":\"s-type\",\"updateTime\":\"s-updatetime\",\"vpcPeeringConnectivity\":{\"vpc\":\"s-vpc\"}}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}",
+  "REQ GET https://datamigration.googleapis.com/v1beta1/id1/%20x/migrationJobs?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"migrationJobs\":[{\"createTime\":\"s-createtime\",\"destination\":\"s-destination\",\"destinationDatabase\":{\"engine\":\"s-engine\",\"provider\":\"s-provider\"},\"displayName\":\"s-displayname\",\"dumpPath\":\"s-dumppath\",\"duration\":\"s-duration\",\"endTime\":\"s-endtime\",\"error\":{\"code\":7,\"message\":\"s-message\"},\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"phase\":\"s-phase\",\"reverseSshConnectivity\":{\"vm\":\"s-vm\",\"vmIp\":\"s-vmip\",\"vmPort\":7,\"vpc\":\"s-vpc\"},\"source\":\"s-source\",\"sourceDatabase\":{\"engine\":\"s-engine\",\"provider\":\"s-provider\"},\"state\":\"s-state\",\"staticIpConnectivity\":{},\"type\":\"s-type\",\"updateTime\":\"s-updatetime\",\"vpcPeeringConnectivity\":{\"vpc\":\"s-vpc\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"migrationJobs\":[{\"createTime\":\"s-createtime\",\"destination\":\"s-destination\",\"destinationDatabase\":{\"engine\":\"s-engine\",\"provider\":\"s-provider\"},\"displayName\":\"s-displayname\",\"dumpPath\":\"s-dumppath\",\"duration\":\"s-duration\",\"endTime\":\"s-endtime\",\"error\":{\"code\":7,\"message\":\"s-message\"},\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"phase\":\"s-phase\",\"reverseSshConnectivity\":{\"vm\":\"s-vm\",\"vmIp\":\"s-vmip\",\"vmPort\":7,\"vpc\":\"s-vpc\"},\"source\":\"s-source\",\"sourceDatabase\":{\"engine\":\"s-engine\",\"provider\":\"s-provider\"},\"state\":\"s-state\",\"staticIpConnectivity\":{},\"type\":\"s-type\",\"updateTime\":\"s-updatetime\",\"vpcPeeringConnectivity\":{\"vpc\":\"s-vpc\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: ok",
+]
+
+test "Go's datamigration.projects.locations.migrationJobs.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"migrationJobs\":[{\"createTime\":\"s-createtime\",\"destination\":\"s-destination\",\"destinationDatabase\":{\"engine\":\"s-engine\",\"provider\":\"s-provider\"},\"displayName\":\"s-displayname\",\"dumpPath\":\"s-dumppath\",\"duration\":\"s-duration\",\"endTime\":\"s-endtime\",\"error\":{\"code\":7,\"message\":\"s-message\"},\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"phase\":\"s-phase\",\"reverseSshConnectivity\":{\"vm\":\"s-vm\",\"vmIp\":\"s-vmip\",\"vmPort\":7,\"vpc\":\"s-vpc\"},\"source\":\"s-source\",\"sourceDatabase\":{\"engine\":\"s-engine\",\"provider\":\"s-provider\"},\"state\":\"s-state\",\"staticIpConnectivity\":{},\"type\":\"s-type\",\"updateTime\":\"s-updatetime\",\"vpcPeeringConnectivity\":{\"vpc\":\"s-vpc\"}}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}")
+  gv_queue(f, "{\"migrationJobs\":[{\"createTime\":\"s-createtime\",\"destination\":\"s-destination\",\"destinationDatabase\":{\"engine\":\"s-engine\",\"provider\":\"s-provider\"},\"displayName\":\"s-displayname\",\"dumpPath\":\"s-dumppath\",\"duration\":\"s-duration\",\"endTime\":\"s-endtime\",\"error\":{\"code\":7,\"message\":\"s-message\"},\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"phase\":\"s-phase\",\"reverseSshConnectivity\":{\"vm\":\"s-vm\",\"vmIp\":\"s-vmip\",\"vmPort\":7,\"vpc\":\"s-vpc\"},\"source\":\"s-source\",\"sourceDatabase\":{\"engine\":\"s-engine\",\"provider\":\"s-provider\"},\"state\":\"s-state\",\"staticIpConnectivity\":{},\"type\":\"s-type\",\"updateTime\":\"s-updatetime\",\"vpcPeeringConnectivity\":{\"vpc\":\"s-vpc\"}}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_note(f, "CALL datamigration.projects.locations.migrationJobs.list pages")
+  var p = svc.projects.locations.migration_jobs.list_pages("id1/ x", options: ProjectsLocationsMigrationJobsListOptions{filter: Some("s-filter"), order_by: Some("s-orderby"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_18)
+}
+
+const GO_19: List[Str] = [
   "CALL datamigration.projects.locations.migrationJobs.patch",
   "REQ PATCH https://datamigration.googleapis.com/v1beta1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&requestId=s-requestid&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
@@ -369,10 +483,10 @@ test "Go's datamigration.projects.locations.migrationJobs.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_16)
+  gv_compare(gv_log_of(f), GO_19)
 }
 
-const GO_17: List[Str] = [
+const GO_20: List[Str] = [
   "CALL datamigration.projects.locations.migrationJobs.promote",
   "REQ POST https://datamigration.googleapis.com/v1beta1/id1/%20x:promote?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -391,10 +505,10 @@ test "Go's datamigration.projects.locations.migrationJobs.promote" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_17)
+  gv_compare(gv_log_of(f), GO_20)
 }
 
-const GO_18: List[Str] = [
+const GO_21: List[Str] = [
   "CALL datamigration.projects.locations.migrationJobs.restart",
   "REQ POST https://datamigration.googleapis.com/v1beta1/id1/%20x:restart?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -413,10 +527,10 @@ test "Go's datamigration.projects.locations.migrationJobs.restart" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_18)
+  gv_compare(gv_log_of(f), GO_21)
 }
 
-const GO_19: List[Str] = [
+const GO_22: List[Str] = [
   "CALL datamigration.projects.locations.migrationJobs.resume",
   "REQ POST https://datamigration.googleapis.com/v1beta1/id1/%20x:resume?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -435,10 +549,10 @@ test "Go's datamigration.projects.locations.migrationJobs.resume" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_19)
+  gv_compare(gv_log_of(f), GO_22)
 }
 
-const GO_20: List[Str] = [
+const GO_23: List[Str] = [
   "CALL datamigration.projects.locations.migrationJobs.setIamPolicy",
   "REQ POST https://datamigration.googleapis.com/v1beta1/id1/%20x:setIamPolicy?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -457,10 +571,10 @@ test "Go's datamigration.projects.locations.migrationJobs.setIamPolicy" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_20)
+  gv_compare(gv_log_of(f), GO_23)
 }
 
-const GO_21: List[Str] = [
+const GO_24: List[Str] = [
   "CALL datamigration.projects.locations.migrationJobs.start",
   "REQ POST https://datamigration.googleapis.com/v1beta1/id1/%20x:start?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -479,10 +593,10 @@ test "Go's datamigration.projects.locations.migrationJobs.start" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_21)
+  gv_compare(gv_log_of(f), GO_24)
 }
 
-const GO_22: List[Str] = [
+const GO_25: List[Str] = [
   "CALL datamigration.projects.locations.migrationJobs.stop",
   "REQ POST https://datamigration.googleapis.com/v1beta1/id1/%20x:stop?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -501,10 +615,10 @@ test "Go's datamigration.projects.locations.migrationJobs.stop" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_22)
+  gv_compare(gv_log_of(f), GO_25)
 }
 
-const GO_23: List[Str] = [
+const GO_26: List[Str] = [
   "CALL datamigration.projects.locations.migrationJobs.testIamPermissions",
   "REQ POST https://datamigration.googleapis.com/v1beta1/id1/%20x:testIamPermissions?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -523,10 +637,10 @@ test "Go's datamigration.projects.locations.migrationJobs.testIamPermissions" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_23)
+  gv_compare(gv_log_of(f), GO_26)
 }
 
-const GO_24: List[Str] = [
+const GO_27: List[Str] = [
   "CALL datamigration.projects.locations.migrationJobs.verify",
   "REQ POST https://datamigration.googleapis.com/v1beta1/id1/%20x:verify?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -545,10 +659,10 @@ test "Go's datamigration.projects.locations.migrationJobs.verify" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_24)
+  gv_compare(gv_log_of(f), GO_27)
 }
 
-const GO_25: List[Str] = [
+const GO_28: List[Str] = [
   "CALL datamigration.projects.locations.operations.cancel",
   "REQ POST https://datamigration.googleapis.com/v1beta1/id1/%20x:cancel?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -567,10 +681,10 @@ test "Go's datamigration.projects.locations.operations.cancel" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_25)
+  gv_compare(gv_log_of(f), GO_28)
 }
 
-const GO_26: List[Str] = [
+const GO_29: List[Str] = [
   "CALL datamigration.projects.locations.operations.delete",
   "REQ DELETE https://datamigration.googleapis.com/v1beta1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -588,10 +702,10 @@ test "Go's datamigration.projects.locations.operations.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_26)
+  gv_compare(gv_log_of(f), GO_29)
 }
 
-const GO_27: List[Str] = [
+const GO_30: List[Str] = [
   "CALL datamigration.projects.locations.operations.get",
   "REQ GET https://datamigration.googleapis.com/v1beta1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -609,10 +723,10 @@ test "Go's datamigration.projects.locations.operations.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_27)
+  gv_compare(gv_log_of(f), GO_30)
 }
 
-const GO_28: List[Str] = [
+const GO_31: List[Str] = [
   "CALL datamigration.projects.locations.operations.list",
   "REQ GET https://datamigration.googleapis.com/v1beta1/id1/%20x/operations?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&returnPartialSuccess=true",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -630,5 +744,43 @@ test "Go's datamigration.projects.locations.operations.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_28)
+  gv_compare(gv_log_of(f), GO_31)
+}
+
+const GO_32: List[Str] = [
+  "CALL datamigration.projects.locations.operations.list pages",
+  "REQ GET https://datamigration.googleapis.com/v1beta1/id1/%20x/operations?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&returnPartialSuccess=true",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "REQ GET https://datamigration.googleapis.com/v1beta1/id1/%20x/operations?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false&returnPartialSuccess=true",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: ok",
+]
+
+test "Go's datamigration.projects.locations.operations.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_queue(f, "{\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_note(f, "CALL datamigration.projects.locations.operations.list pages")
+  var p = svc.projects.locations.operations.list_pages("id1/ x", options: ProjectsLocationsOperationsListOptions{filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), return_partial_success: Some(true), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_32)
 }

@@ -51,6 +51,44 @@ test "Go's prod_tt_sasportal.customers.list" {
 }
 
 const GO_2: List[Str] = [
+  "CALL prod_tt_sasportal.customers.list pages",
+  "REQ GET https://prod-tt-sasportal.googleapis.com/v1alpha1/customers?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"customers\":[{\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"sasUserIds\":[\"s-sasuserids\"]}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"customers\":[{\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"sasUserIds\":[\"s-sasuserids\"]}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://prod-tt-sasportal.googleapis.com/v1alpha1/customers?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"customers\":[{\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"sasUserIds\":[\"s-sasuserids\"]}]}",
+  "OUT: {\"customers\":[{\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"sasUserIds\":[\"s-sasuserids\"]}]}",
+  "OUT: ok",
+]
+
+test "Go's prod_tt_sasportal.customers.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"customers\":[{\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"sasUserIds\":[\"s-sasuserids\"]}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"customers\":[{\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"sasUserIds\":[\"s-sasuserids\"]}]}")
+  gv_note(f, "CALL prod_tt_sasportal.customers.list pages")
+  var p = svc.customers.list_pages(options: CustomersListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_2)
+}
+
+const GO_3: List[Str] = [
   "CALL prod_tt_sasportal.customers.listGcpProjectDeployments",
   "REQ GET https://prod-tt-sasportal.googleapis.com/v1alpha1/customers:listGcpProjectDeployments?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -68,10 +106,10 @@ test "Go's prod_tt_sasportal.customers.listGcpProjectDeployments" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_2)
+  gv_compare(gv_log_of(f), GO_3)
 }
 
-const GO_3: List[Str] = [
+const GO_4: List[Str] = [
   "CALL prod_tt_sasportal.customers.listLegacyOrganizations",
   "REQ GET https://prod-tt-sasportal.googleapis.com/v1alpha1/customers:listLegacyOrganizations?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -89,10 +127,10 @@ test "Go's prod_tt_sasportal.customers.listLegacyOrganizations" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_3)
+  gv_compare(gv_log_of(f), GO_4)
 }
 
-const GO_4: List[Str] = [
+const GO_5: List[Str] = [
   "CALL prod_tt_sasportal.customers.migrateOrganization",
   "REQ POST https://prod-tt-sasportal.googleapis.com/v1alpha1/customers:migrateOrganization?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -111,10 +149,10 @@ test "Go's prod_tt_sasportal.customers.migrateOrganization" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_4)
+  gv_compare(gv_log_of(f), GO_5)
 }
 
-const GO_5: List[Str] = [
+const GO_6: List[Str] = [
   "CALL prod_tt_sasportal.customers.patch",
   "REQ PATCH https://prod-tt-sasportal.googleapis.com/v1alpha1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
@@ -133,10 +171,10 @@ test "Go's prod_tt_sasportal.customers.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_5)
+  gv_compare(gv_log_of(f), GO_6)
 }
 
-const GO_6: List[Str] = [
+const GO_7: List[Str] = [
   "CALL prod_tt_sasportal.customers.provisionDeployment",
   "REQ POST https://prod-tt-sasportal.googleapis.com/v1alpha1/customers:provisionDeployment?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -155,10 +193,10 @@ test "Go's prod_tt_sasportal.customers.provisionDeployment" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_6)
+  gv_compare(gv_log_of(f), GO_7)
 }
 
-const GO_7: List[Str] = [
+const GO_8: List[Str] = [
   "CALL prod_tt_sasportal.customers.setupSasAnalytics",
   "REQ POST https://prod-tt-sasportal.googleapis.com/v1alpha1/customers:setupSasAnalytics?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -177,10 +215,10 @@ test "Go's prod_tt_sasportal.customers.setupSasAnalytics" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_7)
+  gv_compare(gv_log_of(f), GO_8)
 }
 
-const GO_8: List[Str] = [
+const GO_9: List[Str] = [
   "CALL prod_tt_sasportal.customers.deployments.create",
   "REQ POST https://prod-tt-sasportal.googleapis.com/v1alpha1/id1/%20x/deployments?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -199,10 +237,10 @@ test "Go's prod_tt_sasportal.customers.deployments.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_8)
+  gv_compare(gv_log_of(f), GO_9)
 }
 
-const GO_9: List[Str] = [
+const GO_10: List[Str] = [
   "CALL prod_tt_sasportal.customers.deployments.delete",
   "REQ DELETE https://prod-tt-sasportal.googleapis.com/v1alpha1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -220,10 +258,10 @@ test "Go's prod_tt_sasportal.customers.deployments.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_9)
+  gv_compare(gv_log_of(f), GO_10)
 }
 
-const GO_10: List[Str] = [
+const GO_11: List[Str] = [
   "CALL prod_tt_sasportal.customers.deployments.get",
   "REQ GET https://prod-tt-sasportal.googleapis.com/v1alpha1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -241,10 +279,10 @@ test "Go's prod_tt_sasportal.customers.deployments.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_10)
+  gv_compare(gv_log_of(f), GO_11)
 }
 
-const GO_11: List[Str] = [
+const GO_12: List[Str] = [
   "CALL prod_tt_sasportal.customers.deployments.list",
   "REQ GET https://prod-tt-sasportal.googleapis.com/v1alpha1/id1/%20x/deployments?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -262,10 +300,48 @@ test "Go's prod_tt_sasportal.customers.deployments.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_11)
+  gv_compare(gv_log_of(f), GO_12)
 }
 
-const GO_12: List[Str] = [
+const GO_13: List[Str] = [
+  "CALL prod_tt_sasportal.customers.deployments.list pages",
+  "REQ GET https://prod-tt-sasportal.googleapis.com/v1alpha1/id1/%20x/deployments?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"deployments\":[{\"displayName\":\"s-displayname\",\"frns\":[\"s-frns\"],\"name\":\"s-name\",\"sasUserIds\":[\"s-sasuserids\"]}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"deployments\":[{\"displayName\":\"s-displayname\",\"frns\":[\"s-frns\"],\"name\":\"s-name\",\"sasUserIds\":[\"s-sasuserids\"]}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://prod-tt-sasportal.googleapis.com/v1alpha1/id1/%20x/deployments?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"deployments\":[{\"displayName\":\"s-displayname\",\"frns\":[\"s-frns\"],\"name\":\"s-name\",\"sasUserIds\":[\"s-sasuserids\"]}]}",
+  "OUT: {\"deployments\":[{\"displayName\":\"s-displayname\",\"frns\":[\"s-frns\"],\"name\":\"s-name\",\"sasUserIds\":[\"s-sasuserids\"]}]}",
+  "OUT: ok",
+]
+
+test "Go's prod_tt_sasportal.customers.deployments.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"deployments\":[{\"displayName\":\"s-displayname\",\"frns\":[\"s-frns\"],\"name\":\"s-name\",\"sasUserIds\":[\"s-sasuserids\"]}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"deployments\":[{\"displayName\":\"s-displayname\",\"frns\":[\"s-frns\"],\"name\":\"s-name\",\"sasUserIds\":[\"s-sasuserids\"]}]}")
+  gv_note(f, "CALL prod_tt_sasportal.customers.deployments.list pages")
+  var p = svc.customers.deployments.list_pages("id1/ x", options: CustomersDeploymentsListOptions{filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_13)
+}
+
+const GO_14: List[Str] = [
   "CALL prod_tt_sasportal.customers.deployments.move",
   "REQ POST https://prod-tt-sasportal.googleapis.com/v1alpha1/id1/%20x:move?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -284,10 +360,10 @@ test "Go's prod_tt_sasportal.customers.deployments.move" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_12)
+  gv_compare(gv_log_of(f), GO_14)
 }
 
-const GO_13: List[Str] = [
+const GO_15: List[Str] = [
   "CALL prod_tt_sasportal.customers.deployments.patch",
   "REQ PATCH https://prod-tt-sasportal.googleapis.com/v1alpha1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
@@ -306,14 +382,14 @@ test "Go's prod_tt_sasportal.customers.deployments.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_13)
+  gv_compare(gv_log_of(f), GO_15)
 }
 
-const GO_14: List[Str] = [
+const GO_16: List[Str] = [
   "CALL prod_tt_sasportal.customers.deployments.devices.create",
   "REQ POST https://prod-tt-sasportal.googleapis.com/v1alpha1/id1/%20x/devices?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"activeConfig\":{\"airInterface\":{\"radioTechnology\":\"s-radiotechnology\",\"supportedSpec\":\"s-supportedspec\"},\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"installationParams\":{\"antennaAzimuth\":7,\"antennaBeamwidth\":7,\"antennaDowntilt\":7,\"antennaGain\":1.5,\"antennaModel\":\"s-antennamodel\",\"cpeCbsdIndication\":true,\"eirpCapability\":7,\"height\":1.5,\"heightType\":\"s-heighttype\",\"horizontalAccuracy\":1.5,\"indoorDeployment\":true,\"latitude\":1.5,\"longitude\":1.5,\"verticalAccuracy\":1.5},\"isSigned\":true,\"measurementCapabilities\":[\"s-measurementcapabilities\"],\"model\":{\"firmwareVersion\":\"s-firmwareversion\",\"hardwareVersion\":\"s-hardwareversion\",\"name\":\"s-name\",\"softwareVersion\":\"s-softwareversion\",\"vendor\":\"s-vendor\"},\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"currentChannels\":[{\"frequencyRange\":{\"highFrequencyMhz\":1.5,\"lowFrequencyMhz\":1.5},\"score\":1.5}],\"deviceMetadata\":{\"antennaModel\":\"s-antennamodel\",\"commonChannelGroup\":\"s-commonchannelgroup\",\"interferenceCoordinationGroup\":\"s-interferencecoordinationgroup\",\"nrqzValidated\":true,\"nrqzValidation\":{\"caseId\":\"s-caseid\",\"cpiId\":\"s-cpiid\",\"latitude\":1.5,\"longitude\":1.5,\"state\":\"s-state\"}},\"displayName\":\"s-displayname\",\"fccId\":\"s-fccid\",\"grantRangeAllowlists\":[{\"highFrequencyMhz\":1.5,\"lowFrequencyMhz\":1.5}],\"grants\":[{\"channelType\":\"s-channeltype\",\"expireTime\":\"s-expiretime\",\"frequencyRange\":{\"highFrequencyMhz\":1.5,\"lowFrequencyMhz\":1.5},\"grantId\":\"s-grantid\",\"lastHeartbeatTransmitExpireTime\":\"s-lastheartbeattransmitexpiretime\",\"maxEirp\":1.5,\"state\":\"s-state\",\"suspensionReason\":[\"s-suspensionreason\"]}],\"name\":\"s-name\",\"preloadedConfig\":{\"airInterface\":{\"radioTechnology\":\"s-radiotechnology\",\"supportedSpec\":\"s-supportedspec\"},\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"installationParams\":{\"antennaAzimuth\":7,\"antennaBeamwidth\":7,\"antennaDowntilt\":7,\"antennaGain\":1.5,\"antennaModel\":\"s-antennamodel\",\"cpeCbsdIndication\":true,\"eirpCapability\":7,\"height\":1.5,\"heightType\":\"s-heighttype\",\"horizontalAccuracy\":1.5,\"indoorDeployment\":true,\"latitude\":1.5,\"longitude\":1.5,\"verticalAccuracy\":1.5},\"isSigned\":true,\"measurementCapabilities\":[\"s-measurementcapabilities\"],\"model\":{\"firmwareVersion\":\"s-firmwareversion\",\"hardwareVersion\":\"s-hardwareversion\",\"name\":\"s-name\",\"softwareVersion\":\"s-softwareversion\",\"vendor\":\"s-vendor\"},\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"serialNumber\":\"s-serialnumber\",\"state\":\"s-state\"}",
+  "  B <2424 bytes> {\"activeConfig\":{\"airInterface\":...erialnumber\",\"state\":\"s-state\"}",
   "",
   "  SERVED 200 {\"activeConfig\":{\"airInterface\":{\"radioTechnology\":\"s-radiotechnology\",\"supportedSpec\":\"s-supportedspec\"},\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"installationParams\":{\"antennaAzimuth\":7,\"antennaBeamwidth\":7,\"antennaDowntilt\":7,\"antennaGain\":1.5,\"antennaModel\":\"s-antennamodel\",\"cpeCbsdIndication\":true,\"eirpCapability\":7,\"height\":1.5,\"heightType\":\"s-heighttype\",\"horizontalAccuracy\":1.5,\"indoorDeployment\":true,\"latitude\":1.5,\"longitude\":1.5,\"verticalAccuracy\":1.5},\"isSigned\":true,\"measurementCapabilities\":[\"s-measurementcapabilities\"],\"model\":{\"firmwareVersion\":\"s-firmwareversion\",\"hardwareVersion\":\"s-hardwareversion\",\"name\":\"s-name\",\"softwareVersion\":\"s-softwareversion\",\"vendor\":\"s-vendor\"},\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"currentChannels\":[{\"frequencyRange\":{\"highFrequencyMhz\":1.5,\"lowFrequencyMhz\":1.5},\"score\":1.5}],\"deviceMetadata\":{\"antennaModel\":\"s-antennamodel\",\"commonChannelGroup\":\"s-commonchannelgroup\",\"interferenceCoordinationGroup\":\"s-interferencecoordinationgroup\",\"nrqzValidated\":true,\"nrqzValidation\":{\"caseId\":\"s-caseid\",\"cpiId\":\"s-cpiid\",\"latitude\":1.5,\"longitude\":1.5,\"state\":\"s-state\"}},\"displayName\":\"s-displayname\",\"fccId\":\"s-fccid\",\"grantRangeAllowlists\":[{\"highFrequencyMhz\":1.5,\"lowFrequencyMhz\":1.5}],\"grants\":[{\"channelType\":\"s-channeltype\",\"expireTime\":\"s-expiretime\",\"frequencyRange\":{\"highFrequencyMhz\":1.5,\"lowFrequencyMhz\":1.5},\"grantId\":\"s-grantid\",\"lastHeartbeatTransmitExpireTime\":\"s-lastheartbeattransmitexpiretime\",\"maxEirp\":1.5,\"state\":\"s-state\",\"suspensionReason\":[\"s-suspensionreason\"]}],\"name\":\"s-name\",\"preloadedConfig\":{\"airInterface\":{\"radioTechnology\":\"s-radiotechnology\",\"supportedSpec\":\"s-supportedspec\"},\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"installationParams\":{\"antennaAzimuth\":7,\"antennaBeamwidth\":7,\"antennaDowntilt\":7,\"antennaGain\":1.5,\"antennaModel\":\"s-antennamodel\",\"cpeCbsdIndication\":true,\"eirpCapability\":7,\"height\":1.5,\"heightType\":\"s-heighttype\",\"horizontalAccuracy\":1.5,\"indoorDeployment\":true,\"latitude\":1.5,\"longitude\":1.5,\"verticalAccuracy\":1.5},\"isSigned\":true,\"measurementCapabilities\":[\"s-measurementcapabilities\"],\"model\":{\"firmwareVersion\":\"s-firmwareversion\",\"hardwareVersion\":\"s-hardwareversion\",\"name\":\"s-name\",\"softwareVersion\":\"s-softwareversion\",\"vendor\":\"s-vendor\"},\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"serialNumber\":\"s-serialnumber\",\"state\":\"s-state\"}",
   "OUT: {\"activeConfig\":{\"airInterface\":{\"radioTechnology\":\"s-radiotechnology\",\"supportedSpec\":\"s-supportedspec\"},\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"installationParams\":{\"antennaAzimuth\":7,\"antennaBeamwidth\":7,\"antennaDowntilt\":7,\"antennaGain\":1.5,\"antennaModel\":\"s-antennamodel\",\"cpeCbsdIndication\":true,\"eirpCapability\":7,\"height\":1.5,\"heightType\":\"s-heighttype\",\"horizontalAccuracy\":1.5,\"indoorDeployment\":true,\"latitude\":1.5,\"longitude\":1.5,\"verticalAccuracy\":1.5},\"isSigned\":true,\"measurementCapabilities\":[\"s-measurementcapabilities\"],\"model\":{\"firmwareVersion\":\"s-firmwareversion\",\"hardwareVersion\":\"s-hardwareversion\",\"name\":\"s-name\",\"softwareVersion\":\"s-softwareversion\",\"vendor\":\"s-vendor\"},\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"currentChannels\":[{\"frequencyRange\":{\"highFrequencyMhz\":1.5,\"lowFrequencyMhz\":1.5},\"score\":1.5}],\"deviceMetadata\":{\"antennaModel\":\"s-antennamodel\",\"commonChannelGroup\":\"s-commonchannelgroup\",\"interferenceCoordinationGroup\":\"s-interferencecoordinationgroup\",\"nrqzValidated\":true,\"nrqzValidation\":{\"caseId\":\"s-caseid\",\"cpiId\":\"s-cpiid\",\"latitude\":1.5,\"longitude\":1.5,\"state\":\"s-state\"}},\"displayName\":\"s-displayname\",\"fccId\":\"s-fccid\",\"grantRangeAllowlists\":[{\"highFrequencyMhz\":1.5,\"lowFrequencyMhz\":1.5}],\"grants\":[{\"channelType\":\"s-channeltype\",\"expireTime\":\"s-expiretime\",\"frequencyRange\":{\"highFrequencyMhz\":1.5,\"lowFrequencyMhz\":1.5},\"grantId\":\"s-grantid\",\"lastHeartbeatTransmitExpireTime\":\"s-lastheartbeattransmitexpiretime\",\"maxEirp\":1.5,\"state\":\"s-state\",\"suspensionReason\":[\"s-suspensionreason\"]}],\"name\":\"s-name\",\"preloadedConfig\":{\"airInterface\":{\"radioTechnology\":\"s-radiotechnology\",\"supportedSpec\":\"s-supportedspec\"},\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"installationParams\":{\"antennaAzimuth\":7,\"antennaBeamwidth\":7,\"antennaDowntilt\":7,\"antennaGain\":1.5,\"antennaModel\":\"s-antennamodel\",\"cpeCbsdIndication\":true,\"eirpCapability\":7,\"height\":1.5,\"heightType\":\"s-heighttype\",\"horizontalAccuracy\":1.5,\"indoorDeployment\":true,\"latitude\":1.5,\"longitude\":1.5,\"verticalAccuracy\":1.5},\"isSigned\":true,\"measurementCapabilities\":[\"s-measurementcapabilities\"],\"model\":{\"firmwareVersion\":\"s-firmwareversion\",\"hardwareVersion\":\"s-hardwareversion\",\"name\":\"s-name\",\"softwareVersion\":\"s-softwareversion\",\"vendor\":\"s-vendor\"},\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"serialNumber\":\"s-serialnumber\",\"state\":\"s-state\"}",
@@ -328,10 +404,10 @@ test "Go's prod_tt_sasportal.customers.deployments.devices.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_14)
+  gv_compare(gv_log_of(f), GO_16)
 }
 
-const GO_15: List[Str] = [
+const GO_17: List[Str] = [
   "CALL prod_tt_sasportal.customers.deployments.devices.createSigned",
   "REQ POST https://prod-tt-sasportal.googleapis.com/v1alpha1/id1/%20x/devices:createSigned?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -350,10 +426,10 @@ test "Go's prod_tt_sasportal.customers.deployments.devices.createSigned" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_15)
+  gv_compare(gv_log_of(f), GO_17)
 }
 
-const GO_16: List[Str] = [
+const GO_18: List[Str] = [
   "CALL prod_tt_sasportal.customers.deployments.devices.list",
   "REQ GET https://prod-tt-sasportal.googleapis.com/v1alpha1/id1/%20x/devices?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -371,14 +447,52 @@ test "Go's prod_tt_sasportal.customers.deployments.devices.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_16)
+  gv_compare(gv_log_of(f), GO_18)
 }
 
-const GO_17: List[Str] = [
+const GO_19: List[Str] = [
+  "CALL prod_tt_sasportal.customers.deployments.devices.list pages",
+  "REQ GET https://prod-tt-sasportal.googleapis.com/v1alpha1/id1/%20x/devices?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"devices\":[{\"activeConfig\":{\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"isSigned\":true,\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"deviceMetadata\":{\"antennaModel\":\"s-antennamodel\",\"commonChannelGroup\":\"s-commonchannelgroup\",\"interferenceCoordinationGroup\":\"s-interferencecoordinationgroup\",\"nrqzValidated\":true},\"displayName\":\"s-displayname\",\"fccId\":\"s-fccid\",\"name\":\"s-name\",\"preloadedConfig\":{\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"isSigned\":true,\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"serialNumber\":\"s-serialnumber\",\"state\":\"s-state\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"devices\":[{\"activeConfig\":{\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"isSigned\":true,\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"deviceMetadata\":{\"antennaModel\":\"s-antennamodel\",\"commonChannelGroup\":\"s-commonchannelgroup\",\"interferenceCoordinationGroup\":\"s-interferencecoordinationgroup\",\"nrqzValidated\":true},\"displayName\":\"s-displayname\",\"fccId\":\"s-fccid\",\"name\":\"s-name\",\"preloadedConfig\":{\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"isSigned\":true,\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"serialNumber\":\"s-serialnumber\",\"state\":\"s-state\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://prod-tt-sasportal.googleapis.com/v1alpha1/id1/%20x/devices?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"devices\":[{\"activeConfig\":{\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"isSigned\":true,\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"deviceMetadata\":{\"antennaModel\":\"s-antennamodel\",\"commonChannelGroup\":\"s-commonchannelgroup\",\"interferenceCoordinationGroup\":\"s-interferencecoordinationgroup\",\"nrqzValidated\":true},\"displayName\":\"s-displayname\",\"fccId\":\"s-fccid\",\"name\":\"s-name\",\"preloadedConfig\":{\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"isSigned\":true,\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"serialNumber\":\"s-serialnumber\",\"state\":\"s-state\"}]}",
+  "OUT: {\"devices\":[{\"activeConfig\":{\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"isSigned\":true,\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"deviceMetadata\":{\"antennaModel\":\"s-antennamodel\",\"commonChannelGroup\":\"s-commonchannelgroup\",\"interferenceCoordinationGroup\":\"s-interferencecoordinationgroup\",\"nrqzValidated\":true},\"displayName\":\"s-displayname\",\"fccId\":\"s-fccid\",\"name\":\"s-name\",\"preloadedConfig\":{\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"isSigned\":true,\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"serialNumber\":\"s-serialnumber\",\"state\":\"s-state\"}]}",
+  "OUT: ok",
+]
+
+test "Go's prod_tt_sasportal.customers.deployments.devices.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"devices\":[{\"activeConfig\":{\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"isSigned\":true,\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"deviceMetadata\":{\"antennaModel\":\"s-antennamodel\",\"commonChannelGroup\":\"s-commonchannelgroup\",\"interferenceCoordinationGroup\":\"s-interferencecoordinationgroup\",\"nrqzValidated\":true},\"displayName\":\"s-displayname\",\"fccId\":\"s-fccid\",\"name\":\"s-name\",\"preloadedConfig\":{\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"isSigned\":true,\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"serialNumber\":\"s-serialnumber\",\"state\":\"s-state\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"devices\":[{\"activeConfig\":{\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"isSigned\":true,\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"deviceMetadata\":{\"antennaModel\":\"s-antennamodel\",\"commonChannelGroup\":\"s-commonchannelgroup\",\"interferenceCoordinationGroup\":\"s-interferencecoordinationgroup\",\"nrqzValidated\":true},\"displayName\":\"s-displayname\",\"fccId\":\"s-fccid\",\"name\":\"s-name\",\"preloadedConfig\":{\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"isSigned\":true,\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"serialNumber\":\"s-serialnumber\",\"state\":\"s-state\"}]}")
+  gv_note(f, "CALL prod_tt_sasportal.customers.deployments.devices.list pages")
+  var p = svc.customers.deployments.devices.list_pages("id1/ x", options: CustomersDeploymentsDevicesListOptions{filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_19)
+}
+
+const GO_20: List[Str] = [
   "CALL prod_tt_sasportal.customers.devices.create",
   "REQ POST https://prod-tt-sasportal.googleapis.com/v1alpha1/id1/%20x/devices?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"activeConfig\":{\"airInterface\":{\"radioTechnology\":\"s-radiotechnology\",\"supportedSpec\":\"s-supportedspec\"},\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"installationParams\":{\"antennaAzimuth\":7,\"antennaBeamwidth\":7,\"antennaDowntilt\":7,\"antennaGain\":1.5,\"antennaModel\":\"s-antennamodel\",\"cpeCbsdIndication\":true,\"eirpCapability\":7,\"height\":1.5,\"heightType\":\"s-heighttype\",\"horizontalAccuracy\":1.5,\"indoorDeployment\":true,\"latitude\":1.5,\"longitude\":1.5,\"verticalAccuracy\":1.5},\"isSigned\":true,\"measurementCapabilities\":[\"s-measurementcapabilities\"],\"model\":{\"firmwareVersion\":\"s-firmwareversion\",\"hardwareVersion\":\"s-hardwareversion\",\"name\":\"s-name\",\"softwareVersion\":\"s-softwareversion\",\"vendor\":\"s-vendor\"},\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"currentChannels\":[{\"frequencyRange\":{\"highFrequencyMhz\":1.5,\"lowFrequencyMhz\":1.5},\"score\":1.5}],\"deviceMetadata\":{\"antennaModel\":\"s-antennamodel\",\"commonChannelGroup\":\"s-commonchannelgroup\",\"interferenceCoordinationGroup\":\"s-interferencecoordinationgroup\",\"nrqzValidated\":true,\"nrqzValidation\":{\"caseId\":\"s-caseid\",\"cpiId\":\"s-cpiid\",\"latitude\":1.5,\"longitude\":1.5,\"state\":\"s-state\"}},\"displayName\":\"s-displayname\",\"fccId\":\"s-fccid\",\"grantRangeAllowlists\":[{\"highFrequencyMhz\":1.5,\"lowFrequencyMhz\":1.5}],\"grants\":[{\"channelType\":\"s-channeltype\",\"expireTime\":\"s-expiretime\",\"frequencyRange\":{\"highFrequencyMhz\":1.5,\"lowFrequencyMhz\":1.5},\"grantId\":\"s-grantid\",\"lastHeartbeatTransmitExpireTime\":\"s-lastheartbeattransmitexpiretime\",\"maxEirp\":1.5,\"state\":\"s-state\",\"suspensionReason\":[\"s-suspensionreason\"]}],\"name\":\"s-name\",\"preloadedConfig\":{\"airInterface\":{\"radioTechnology\":\"s-radiotechnology\",\"supportedSpec\":\"s-supportedspec\"},\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"installationParams\":{\"antennaAzimuth\":7,\"antennaBeamwidth\":7,\"antennaDowntilt\":7,\"antennaGain\":1.5,\"antennaModel\":\"s-antennamodel\",\"cpeCbsdIndication\":true,\"eirpCapability\":7,\"height\":1.5,\"heightType\":\"s-heighttype\",\"horizontalAccuracy\":1.5,\"indoorDeployment\":true,\"latitude\":1.5,\"longitude\":1.5,\"verticalAccuracy\":1.5},\"isSigned\":true,\"measurementCapabilities\":[\"s-measurementcapabilities\"],\"model\":{\"firmwareVersion\":\"s-firmwareversion\",\"hardwareVersion\":\"s-hardwareversion\",\"name\":\"s-name\",\"softwareVersion\":\"s-softwareversion\",\"vendor\":\"s-vendor\"},\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"serialNumber\":\"s-serialnumber\",\"state\":\"s-state\"}",
+  "  B <2424 bytes> {\"activeConfig\":{\"airInterface\":...erialnumber\",\"state\":\"s-state\"}",
   "",
   "  SERVED 200 {\"activeConfig\":{\"airInterface\":{\"radioTechnology\":\"s-radiotechnology\",\"supportedSpec\":\"s-supportedspec\"},\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"installationParams\":{\"antennaAzimuth\":7,\"antennaBeamwidth\":7,\"antennaDowntilt\":7,\"antennaGain\":1.5,\"antennaModel\":\"s-antennamodel\",\"cpeCbsdIndication\":true,\"eirpCapability\":7,\"height\":1.5,\"heightType\":\"s-heighttype\",\"horizontalAccuracy\":1.5,\"indoorDeployment\":true,\"latitude\":1.5,\"longitude\":1.5,\"verticalAccuracy\":1.5},\"isSigned\":true,\"measurementCapabilities\":[\"s-measurementcapabilities\"],\"model\":{\"firmwareVersion\":\"s-firmwareversion\",\"hardwareVersion\":\"s-hardwareversion\",\"name\":\"s-name\",\"softwareVersion\":\"s-softwareversion\",\"vendor\":\"s-vendor\"},\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"currentChannels\":[{\"frequencyRange\":{\"highFrequencyMhz\":1.5,\"lowFrequencyMhz\":1.5},\"score\":1.5}],\"deviceMetadata\":{\"antennaModel\":\"s-antennamodel\",\"commonChannelGroup\":\"s-commonchannelgroup\",\"interferenceCoordinationGroup\":\"s-interferencecoordinationgroup\",\"nrqzValidated\":true,\"nrqzValidation\":{\"caseId\":\"s-caseid\",\"cpiId\":\"s-cpiid\",\"latitude\":1.5,\"longitude\":1.5,\"state\":\"s-state\"}},\"displayName\":\"s-displayname\",\"fccId\":\"s-fccid\",\"grantRangeAllowlists\":[{\"highFrequencyMhz\":1.5,\"lowFrequencyMhz\":1.5}],\"grants\":[{\"channelType\":\"s-channeltype\",\"expireTime\":\"s-expiretime\",\"frequencyRange\":{\"highFrequencyMhz\":1.5,\"lowFrequencyMhz\":1.5},\"grantId\":\"s-grantid\",\"lastHeartbeatTransmitExpireTime\":\"s-lastheartbeattransmitexpiretime\",\"maxEirp\":1.5,\"state\":\"s-state\",\"suspensionReason\":[\"s-suspensionreason\"]}],\"name\":\"s-name\",\"preloadedConfig\":{\"airInterface\":{\"radioTechnology\":\"s-radiotechnology\",\"supportedSpec\":\"s-supportedspec\"},\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"installationParams\":{\"antennaAzimuth\":7,\"antennaBeamwidth\":7,\"antennaDowntilt\":7,\"antennaGain\":1.5,\"antennaModel\":\"s-antennamodel\",\"cpeCbsdIndication\":true,\"eirpCapability\":7,\"height\":1.5,\"heightType\":\"s-heighttype\",\"horizontalAccuracy\":1.5,\"indoorDeployment\":true,\"latitude\":1.5,\"longitude\":1.5,\"verticalAccuracy\":1.5},\"isSigned\":true,\"measurementCapabilities\":[\"s-measurementcapabilities\"],\"model\":{\"firmwareVersion\":\"s-firmwareversion\",\"hardwareVersion\":\"s-hardwareversion\",\"name\":\"s-name\",\"softwareVersion\":\"s-softwareversion\",\"vendor\":\"s-vendor\"},\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"serialNumber\":\"s-serialnumber\",\"state\":\"s-state\"}",
   "OUT: {\"activeConfig\":{\"airInterface\":{\"radioTechnology\":\"s-radiotechnology\",\"supportedSpec\":\"s-supportedspec\"},\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"installationParams\":{\"antennaAzimuth\":7,\"antennaBeamwidth\":7,\"antennaDowntilt\":7,\"antennaGain\":1.5,\"antennaModel\":\"s-antennamodel\",\"cpeCbsdIndication\":true,\"eirpCapability\":7,\"height\":1.5,\"heightType\":\"s-heighttype\",\"horizontalAccuracy\":1.5,\"indoorDeployment\":true,\"latitude\":1.5,\"longitude\":1.5,\"verticalAccuracy\":1.5},\"isSigned\":true,\"measurementCapabilities\":[\"s-measurementcapabilities\"],\"model\":{\"firmwareVersion\":\"s-firmwareversion\",\"hardwareVersion\":\"s-hardwareversion\",\"name\":\"s-name\",\"softwareVersion\":\"s-softwareversion\",\"vendor\":\"s-vendor\"},\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"currentChannels\":[{\"frequencyRange\":{\"highFrequencyMhz\":1.5,\"lowFrequencyMhz\":1.5},\"score\":1.5}],\"deviceMetadata\":{\"antennaModel\":\"s-antennamodel\",\"commonChannelGroup\":\"s-commonchannelgroup\",\"interferenceCoordinationGroup\":\"s-interferencecoordinationgroup\",\"nrqzValidated\":true,\"nrqzValidation\":{\"caseId\":\"s-caseid\",\"cpiId\":\"s-cpiid\",\"latitude\":1.5,\"longitude\":1.5,\"state\":\"s-state\"}},\"displayName\":\"s-displayname\",\"fccId\":\"s-fccid\",\"grantRangeAllowlists\":[{\"highFrequencyMhz\":1.5,\"lowFrequencyMhz\":1.5}],\"grants\":[{\"channelType\":\"s-channeltype\",\"expireTime\":\"s-expiretime\",\"frequencyRange\":{\"highFrequencyMhz\":1.5,\"lowFrequencyMhz\":1.5},\"grantId\":\"s-grantid\",\"lastHeartbeatTransmitExpireTime\":\"s-lastheartbeattransmitexpiretime\",\"maxEirp\":1.5,\"state\":\"s-state\",\"suspensionReason\":[\"s-suspensionreason\"]}],\"name\":\"s-name\",\"preloadedConfig\":{\"airInterface\":{\"radioTechnology\":\"s-radiotechnology\",\"supportedSpec\":\"s-supportedspec\"},\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"installationParams\":{\"antennaAzimuth\":7,\"antennaBeamwidth\":7,\"antennaDowntilt\":7,\"antennaGain\":1.5,\"antennaModel\":\"s-antennamodel\",\"cpeCbsdIndication\":true,\"eirpCapability\":7,\"height\":1.5,\"heightType\":\"s-heighttype\",\"horizontalAccuracy\":1.5,\"indoorDeployment\":true,\"latitude\":1.5,\"longitude\":1.5,\"verticalAccuracy\":1.5},\"isSigned\":true,\"measurementCapabilities\":[\"s-measurementcapabilities\"],\"model\":{\"firmwareVersion\":\"s-firmwareversion\",\"hardwareVersion\":\"s-hardwareversion\",\"name\":\"s-name\",\"softwareVersion\":\"s-softwareversion\",\"vendor\":\"s-vendor\"},\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"serialNumber\":\"s-serialnumber\",\"state\":\"s-state\"}",
@@ -393,10 +507,10 @@ test "Go's prod_tt_sasportal.customers.devices.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_17)
+  gv_compare(gv_log_of(f), GO_20)
 }
 
-const GO_18: List[Str] = [
+const GO_21: List[Str] = [
   "CALL prod_tt_sasportal.customers.devices.createSigned",
   "REQ POST https://prod-tt-sasportal.googleapis.com/v1alpha1/id1/%20x/devices:createSigned?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -415,10 +529,10 @@ test "Go's prod_tt_sasportal.customers.devices.createSigned" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_18)
+  gv_compare(gv_log_of(f), GO_21)
 }
 
-const GO_19: List[Str] = [
+const GO_22: List[Str] = [
   "CALL prod_tt_sasportal.customers.devices.delete",
   "REQ DELETE https://prod-tt-sasportal.googleapis.com/v1alpha1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -436,10 +550,10 @@ test "Go's prod_tt_sasportal.customers.devices.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_19)
+  gv_compare(gv_log_of(f), GO_22)
 }
 
-const GO_20: List[Str] = [
+const GO_23: List[Str] = [
   "CALL prod_tt_sasportal.customers.devices.get",
   "REQ GET https://prod-tt-sasportal.googleapis.com/v1alpha1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -457,10 +571,10 @@ test "Go's prod_tt_sasportal.customers.devices.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_20)
+  gv_compare(gv_log_of(f), GO_23)
 }
 
-const GO_21: List[Str] = [
+const GO_24: List[Str] = [
   "CALL prod_tt_sasportal.customers.devices.list",
   "REQ GET https://prod-tt-sasportal.googleapis.com/v1alpha1/id1/%20x/devices?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -478,10 +592,48 @@ test "Go's prod_tt_sasportal.customers.devices.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_21)
+  gv_compare(gv_log_of(f), GO_24)
 }
 
-const GO_22: List[Str] = [
+const GO_25: List[Str] = [
+  "CALL prod_tt_sasportal.customers.devices.list pages",
+  "REQ GET https://prod-tt-sasportal.googleapis.com/v1alpha1/id1/%20x/devices?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"devices\":[{\"activeConfig\":{\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"isSigned\":true,\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"deviceMetadata\":{\"antennaModel\":\"s-antennamodel\",\"commonChannelGroup\":\"s-commonchannelgroup\",\"interferenceCoordinationGroup\":\"s-interferencecoordinationgroup\",\"nrqzValidated\":true},\"displayName\":\"s-displayname\",\"fccId\":\"s-fccid\",\"name\":\"s-name\",\"preloadedConfig\":{\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"isSigned\":true,\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"serialNumber\":\"s-serialnumber\",\"state\":\"s-state\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"devices\":[{\"activeConfig\":{\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"isSigned\":true,\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"deviceMetadata\":{\"antennaModel\":\"s-antennamodel\",\"commonChannelGroup\":\"s-commonchannelgroup\",\"interferenceCoordinationGroup\":\"s-interferencecoordinationgroup\",\"nrqzValidated\":true},\"displayName\":\"s-displayname\",\"fccId\":\"s-fccid\",\"name\":\"s-name\",\"preloadedConfig\":{\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"isSigned\":true,\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"serialNumber\":\"s-serialnumber\",\"state\":\"s-state\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://prod-tt-sasportal.googleapis.com/v1alpha1/id1/%20x/devices?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"devices\":[{\"activeConfig\":{\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"isSigned\":true,\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"deviceMetadata\":{\"antennaModel\":\"s-antennamodel\",\"commonChannelGroup\":\"s-commonchannelgroup\",\"interferenceCoordinationGroup\":\"s-interferencecoordinationgroup\",\"nrqzValidated\":true},\"displayName\":\"s-displayname\",\"fccId\":\"s-fccid\",\"name\":\"s-name\",\"preloadedConfig\":{\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"isSigned\":true,\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"serialNumber\":\"s-serialnumber\",\"state\":\"s-state\"}]}",
+  "OUT: {\"devices\":[{\"activeConfig\":{\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"isSigned\":true,\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"deviceMetadata\":{\"antennaModel\":\"s-antennamodel\",\"commonChannelGroup\":\"s-commonchannelgroup\",\"interferenceCoordinationGroup\":\"s-interferencecoordinationgroup\",\"nrqzValidated\":true},\"displayName\":\"s-displayname\",\"fccId\":\"s-fccid\",\"name\":\"s-name\",\"preloadedConfig\":{\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"isSigned\":true,\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"serialNumber\":\"s-serialnumber\",\"state\":\"s-state\"}]}",
+  "OUT: ok",
+]
+
+test "Go's prod_tt_sasportal.customers.devices.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"devices\":[{\"activeConfig\":{\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"isSigned\":true,\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"deviceMetadata\":{\"antennaModel\":\"s-antennamodel\",\"commonChannelGroup\":\"s-commonchannelgroup\",\"interferenceCoordinationGroup\":\"s-interferencecoordinationgroup\",\"nrqzValidated\":true},\"displayName\":\"s-displayname\",\"fccId\":\"s-fccid\",\"name\":\"s-name\",\"preloadedConfig\":{\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"isSigned\":true,\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"serialNumber\":\"s-serialnumber\",\"state\":\"s-state\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"devices\":[{\"activeConfig\":{\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"isSigned\":true,\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"deviceMetadata\":{\"antennaModel\":\"s-antennamodel\",\"commonChannelGroup\":\"s-commonchannelgroup\",\"interferenceCoordinationGroup\":\"s-interferencecoordinationgroup\",\"nrqzValidated\":true},\"displayName\":\"s-displayname\",\"fccId\":\"s-fccid\",\"name\":\"s-name\",\"preloadedConfig\":{\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"isSigned\":true,\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"serialNumber\":\"s-serialnumber\",\"state\":\"s-state\"}]}")
+  gv_note(f, "CALL prod_tt_sasportal.customers.devices.list pages")
+  var p = svc.customers.devices.list_pages("id1/ x", options: CustomersDevicesListOptions{filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_25)
+}
+
+const GO_26: List[Str] = [
   "CALL prod_tt_sasportal.customers.devices.move",
   "REQ POST https://prod-tt-sasportal.googleapis.com/v1alpha1/id1/%20x:move?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -500,14 +652,14 @@ test "Go's prod_tt_sasportal.customers.devices.move" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_22)
+  gv_compare(gv_log_of(f), GO_26)
 }
 
-const GO_23: List[Str] = [
+const GO_27: List[Str] = [
   "CALL prod_tt_sasportal.customers.devices.patch",
   "REQ PATCH https://prod-tt-sasportal.googleapis.com/v1alpha1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"activeConfig\":{\"airInterface\":{\"radioTechnology\":\"s-radiotechnology\",\"supportedSpec\":\"s-supportedspec\"},\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"installationParams\":{\"antennaAzimuth\":7,\"antennaBeamwidth\":7,\"antennaDowntilt\":7,\"antennaGain\":1.5,\"antennaModel\":\"s-antennamodel\",\"cpeCbsdIndication\":true,\"eirpCapability\":7,\"height\":1.5,\"heightType\":\"s-heighttype\",\"horizontalAccuracy\":1.5,\"indoorDeployment\":true,\"latitude\":1.5,\"longitude\":1.5,\"verticalAccuracy\":1.5},\"isSigned\":true,\"measurementCapabilities\":[\"s-measurementcapabilities\"],\"model\":{\"firmwareVersion\":\"s-firmwareversion\",\"hardwareVersion\":\"s-hardwareversion\",\"name\":\"s-name\",\"softwareVersion\":\"s-softwareversion\",\"vendor\":\"s-vendor\"},\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"currentChannels\":[{\"frequencyRange\":{\"highFrequencyMhz\":1.5,\"lowFrequencyMhz\":1.5},\"score\":1.5}],\"deviceMetadata\":{\"antennaModel\":\"s-antennamodel\",\"commonChannelGroup\":\"s-commonchannelgroup\",\"interferenceCoordinationGroup\":\"s-interferencecoordinationgroup\",\"nrqzValidated\":true,\"nrqzValidation\":{\"caseId\":\"s-caseid\",\"cpiId\":\"s-cpiid\",\"latitude\":1.5,\"longitude\":1.5,\"state\":\"s-state\"}},\"displayName\":\"s-displayname\",\"fccId\":\"s-fccid\",\"grantRangeAllowlists\":[{\"highFrequencyMhz\":1.5,\"lowFrequencyMhz\":1.5}],\"grants\":[{\"channelType\":\"s-channeltype\",\"expireTime\":\"s-expiretime\",\"frequencyRange\":{\"highFrequencyMhz\":1.5,\"lowFrequencyMhz\":1.5},\"grantId\":\"s-grantid\",\"lastHeartbeatTransmitExpireTime\":\"s-lastheartbeattransmitexpiretime\",\"maxEirp\":1.5,\"state\":\"s-state\",\"suspensionReason\":[\"s-suspensionreason\"]}],\"name\":\"s-name\",\"preloadedConfig\":{\"airInterface\":{\"radioTechnology\":\"s-radiotechnology\",\"supportedSpec\":\"s-supportedspec\"},\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"installationParams\":{\"antennaAzimuth\":7,\"antennaBeamwidth\":7,\"antennaDowntilt\":7,\"antennaGain\":1.5,\"antennaModel\":\"s-antennamodel\",\"cpeCbsdIndication\":true,\"eirpCapability\":7,\"height\":1.5,\"heightType\":\"s-heighttype\",\"horizontalAccuracy\":1.5,\"indoorDeployment\":true,\"latitude\":1.5,\"longitude\":1.5,\"verticalAccuracy\":1.5},\"isSigned\":true,\"measurementCapabilities\":[\"s-measurementcapabilities\"],\"model\":{\"firmwareVersion\":\"s-firmwareversion\",\"hardwareVersion\":\"s-hardwareversion\",\"name\":\"s-name\",\"softwareVersion\":\"s-softwareversion\",\"vendor\":\"s-vendor\"},\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"serialNumber\":\"s-serialnumber\",\"state\":\"s-state\"}",
+  "  B <2424 bytes> {\"activeConfig\":{\"airInterface\":...erialnumber\",\"state\":\"s-state\"}",
   "",
   "  SERVED 200 {\"activeConfig\":{\"airInterface\":{\"radioTechnology\":\"s-radiotechnology\",\"supportedSpec\":\"s-supportedspec\"},\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"installationParams\":{\"antennaAzimuth\":7,\"antennaBeamwidth\":7,\"antennaDowntilt\":7,\"antennaGain\":1.5,\"antennaModel\":\"s-antennamodel\",\"cpeCbsdIndication\":true,\"eirpCapability\":7,\"height\":1.5,\"heightType\":\"s-heighttype\",\"horizontalAccuracy\":1.5,\"indoorDeployment\":true,\"latitude\":1.5,\"longitude\":1.5,\"verticalAccuracy\":1.5},\"isSigned\":true,\"measurementCapabilities\":[\"s-measurementcapabilities\"],\"model\":{\"firmwareVersion\":\"s-firmwareversion\",\"hardwareVersion\":\"s-hardwareversion\",\"name\":\"s-name\",\"softwareVersion\":\"s-softwareversion\",\"vendor\":\"s-vendor\"},\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"currentChannels\":[{\"frequencyRange\":{\"highFrequencyMhz\":1.5,\"lowFrequencyMhz\":1.5},\"score\":1.5}],\"deviceMetadata\":{\"antennaModel\":\"s-antennamodel\",\"commonChannelGroup\":\"s-commonchannelgroup\",\"interferenceCoordinationGroup\":\"s-interferencecoordinationgroup\",\"nrqzValidated\":true,\"nrqzValidation\":{\"caseId\":\"s-caseid\",\"cpiId\":\"s-cpiid\",\"latitude\":1.5,\"longitude\":1.5,\"state\":\"s-state\"}},\"displayName\":\"s-displayname\",\"fccId\":\"s-fccid\",\"grantRangeAllowlists\":[{\"highFrequencyMhz\":1.5,\"lowFrequencyMhz\":1.5}],\"grants\":[{\"channelType\":\"s-channeltype\",\"expireTime\":\"s-expiretime\",\"frequencyRange\":{\"highFrequencyMhz\":1.5,\"lowFrequencyMhz\":1.5},\"grantId\":\"s-grantid\",\"lastHeartbeatTransmitExpireTime\":\"s-lastheartbeattransmitexpiretime\",\"maxEirp\":1.5,\"state\":\"s-state\",\"suspensionReason\":[\"s-suspensionreason\"]}],\"name\":\"s-name\",\"preloadedConfig\":{\"airInterface\":{\"radioTechnology\":\"s-radiotechnology\",\"supportedSpec\":\"s-supportedspec\"},\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"installationParams\":{\"antennaAzimuth\":7,\"antennaBeamwidth\":7,\"antennaDowntilt\":7,\"antennaGain\":1.5,\"antennaModel\":\"s-antennamodel\",\"cpeCbsdIndication\":true,\"eirpCapability\":7,\"height\":1.5,\"heightType\":\"s-heighttype\",\"horizontalAccuracy\":1.5,\"indoorDeployment\":true,\"latitude\":1.5,\"longitude\":1.5,\"verticalAccuracy\":1.5},\"isSigned\":true,\"measurementCapabilities\":[\"s-measurementcapabilities\"],\"model\":{\"firmwareVersion\":\"s-firmwareversion\",\"hardwareVersion\":\"s-hardwareversion\",\"name\":\"s-name\",\"softwareVersion\":\"s-softwareversion\",\"vendor\":\"s-vendor\"},\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"serialNumber\":\"s-serialnumber\",\"state\":\"s-state\"}",
   "OUT: {\"activeConfig\":{\"airInterface\":{\"radioTechnology\":\"s-radiotechnology\",\"supportedSpec\":\"s-supportedspec\"},\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"installationParams\":{\"antennaAzimuth\":7,\"antennaBeamwidth\":7,\"antennaDowntilt\":7,\"antennaGain\":1.5,\"antennaModel\":\"s-antennamodel\",\"cpeCbsdIndication\":true,\"eirpCapability\":7,\"height\":1.5,\"heightType\":\"s-heighttype\",\"horizontalAccuracy\":1.5,\"indoorDeployment\":true,\"latitude\":1.5,\"longitude\":1.5,\"verticalAccuracy\":1.5},\"isSigned\":true,\"measurementCapabilities\":[\"s-measurementcapabilities\"],\"model\":{\"firmwareVersion\":\"s-firmwareversion\",\"hardwareVersion\":\"s-hardwareversion\",\"name\":\"s-name\",\"softwareVersion\":\"s-softwareversion\",\"vendor\":\"s-vendor\"},\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"currentChannels\":[{\"frequencyRange\":{\"highFrequencyMhz\":1.5,\"lowFrequencyMhz\":1.5},\"score\":1.5}],\"deviceMetadata\":{\"antennaModel\":\"s-antennamodel\",\"commonChannelGroup\":\"s-commonchannelgroup\",\"interferenceCoordinationGroup\":\"s-interferencecoordinationgroup\",\"nrqzValidated\":true,\"nrqzValidation\":{\"caseId\":\"s-caseid\",\"cpiId\":\"s-cpiid\",\"latitude\":1.5,\"longitude\":1.5,\"state\":\"s-state\"}},\"displayName\":\"s-displayname\",\"fccId\":\"s-fccid\",\"grantRangeAllowlists\":[{\"highFrequencyMhz\":1.5,\"lowFrequencyMhz\":1.5}],\"grants\":[{\"channelType\":\"s-channeltype\",\"expireTime\":\"s-expiretime\",\"frequencyRange\":{\"highFrequencyMhz\":1.5,\"lowFrequencyMhz\":1.5},\"grantId\":\"s-grantid\",\"lastHeartbeatTransmitExpireTime\":\"s-lastheartbeattransmitexpiretime\",\"maxEirp\":1.5,\"state\":\"s-state\",\"suspensionReason\":[\"s-suspensionreason\"]}],\"name\":\"s-name\",\"preloadedConfig\":{\"airInterface\":{\"radioTechnology\":\"s-radiotechnology\",\"supportedSpec\":\"s-supportedspec\"},\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"installationParams\":{\"antennaAzimuth\":7,\"antennaBeamwidth\":7,\"antennaDowntilt\":7,\"antennaGain\":1.5,\"antennaModel\":\"s-antennamodel\",\"cpeCbsdIndication\":true,\"eirpCapability\":7,\"height\":1.5,\"heightType\":\"s-heighttype\",\"horizontalAccuracy\":1.5,\"indoorDeployment\":true,\"latitude\":1.5,\"longitude\":1.5,\"verticalAccuracy\":1.5},\"isSigned\":true,\"measurementCapabilities\":[\"s-measurementcapabilities\"],\"model\":{\"firmwareVersion\":\"s-firmwareversion\",\"hardwareVersion\":\"s-hardwareversion\",\"name\":\"s-name\",\"softwareVersion\":\"s-softwareversion\",\"vendor\":\"s-vendor\"},\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"serialNumber\":\"s-serialnumber\",\"state\":\"s-state\"}",
@@ -522,10 +674,10 @@ test "Go's prod_tt_sasportal.customers.devices.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_23)
+  gv_compare(gv_log_of(f), GO_27)
 }
 
-const GO_24: List[Str] = [
+const GO_28: List[Str] = [
   "CALL prod_tt_sasportal.customers.devices.signDevice",
   "REQ POST https://prod-tt-sasportal.googleapis.com/v1alpha1/id1/%20x:signDevice?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -544,10 +696,10 @@ test "Go's prod_tt_sasportal.customers.devices.signDevice" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_24)
+  gv_compare(gv_log_of(f), GO_28)
 }
 
-const GO_25: List[Str] = [
+const GO_29: List[Str] = [
   "CALL prod_tt_sasportal.customers.devices.updateSigned",
   "REQ PATCH https://prod-tt-sasportal.googleapis.com/v1alpha1/id1/%20x:updateSigned?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -566,10 +718,10 @@ test "Go's prod_tt_sasportal.customers.devices.updateSigned" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_25)
+  gv_compare(gv_log_of(f), GO_29)
 }
 
-const GO_26: List[Str] = [
+const GO_30: List[Str] = [
   "CALL prod_tt_sasportal.customers.nodes.create",
   "REQ POST https://prod-tt-sasportal.googleapis.com/v1alpha1/id1/%20x/nodes?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -588,10 +740,10 @@ test "Go's prod_tt_sasportal.customers.nodes.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_26)
+  gv_compare(gv_log_of(f), GO_30)
 }
 
-const GO_27: List[Str] = [
+const GO_31: List[Str] = [
   "CALL prod_tt_sasportal.customers.nodes.delete",
   "REQ DELETE https://prod-tt-sasportal.googleapis.com/v1alpha1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -609,10 +761,10 @@ test "Go's prod_tt_sasportal.customers.nodes.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_27)
+  gv_compare(gv_log_of(f), GO_31)
 }
 
-const GO_28: List[Str] = [
+const GO_32: List[Str] = [
   "CALL prod_tt_sasportal.customers.nodes.get",
   "REQ GET https://prod-tt-sasportal.googleapis.com/v1alpha1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -630,10 +782,10 @@ test "Go's prod_tt_sasportal.customers.nodes.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_28)
+  gv_compare(gv_log_of(f), GO_32)
 }
 
-const GO_29: List[Str] = [
+const GO_33: List[Str] = [
   "CALL prod_tt_sasportal.customers.nodes.list",
   "REQ GET https://prod-tt-sasportal.googleapis.com/v1alpha1/id1/%20x/nodes?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -651,10 +803,48 @@ test "Go's prod_tt_sasportal.customers.nodes.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_29)
+  gv_compare(gv_log_of(f), GO_33)
 }
 
-const GO_30: List[Str] = [
+const GO_34: List[Str] = [
+  "CALL prod_tt_sasportal.customers.nodes.list pages",
+  "REQ GET https://prod-tt-sasportal.googleapis.com/v1alpha1/id1/%20x/nodes?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"nodes\":[{\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"sasUserIds\":[\"s-sasuserids\"]}]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"nodes\":[{\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"sasUserIds\":[\"s-sasuserids\"]}]}",
+  "REQ GET https://prod-tt-sasportal.googleapis.com/v1alpha1/id1/%20x/nodes?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nodes\":[{\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"sasUserIds\":[\"s-sasuserids\"]}]}",
+  "OUT: {\"nodes\":[{\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"sasUserIds\":[\"s-sasuserids\"]}]}",
+  "OUT: ok",
+]
+
+test "Go's prod_tt_sasportal.customers.nodes.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"nodes\":[{\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"sasUserIds\":[\"s-sasuserids\"]}]}")
+  gv_queue(f, "{\"nodes\":[{\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"sasUserIds\":[\"s-sasuserids\"]}]}")
+  gv_note(f, "CALL prod_tt_sasportal.customers.nodes.list pages")
+  var p = svc.customers.nodes.list_pages("id1/ x", options: CustomersNodesListOptions{filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_34)
+}
+
+const GO_35: List[Str] = [
   "CALL prod_tt_sasportal.customers.nodes.move",
   "REQ POST https://prod-tt-sasportal.googleapis.com/v1alpha1/id1/%20x:move?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -673,10 +863,10 @@ test "Go's prod_tt_sasportal.customers.nodes.move" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_30)
+  gv_compare(gv_log_of(f), GO_35)
 }
 
-const GO_31: List[Str] = [
+const GO_36: List[Str] = [
   "CALL prod_tt_sasportal.customers.nodes.patch",
   "REQ PATCH https://prod-tt-sasportal.googleapis.com/v1alpha1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
@@ -695,10 +885,10 @@ test "Go's prod_tt_sasportal.customers.nodes.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_31)
+  gv_compare(gv_log_of(f), GO_36)
 }
 
-const GO_32: List[Str] = [
+const GO_37: List[Str] = [
   "CALL prod_tt_sasportal.customers.nodes.deployments.create",
   "REQ POST https://prod-tt-sasportal.googleapis.com/v1alpha1/id1/%20x/deployments?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -717,10 +907,10 @@ test "Go's prod_tt_sasportal.customers.nodes.deployments.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_32)
+  gv_compare(gv_log_of(f), GO_37)
 }
 
-const GO_33: List[Str] = [
+const GO_38: List[Str] = [
   "CALL prod_tt_sasportal.customers.nodes.deployments.list",
   "REQ GET https://prod-tt-sasportal.googleapis.com/v1alpha1/id1/%20x/deployments?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -738,14 +928,52 @@ test "Go's prod_tt_sasportal.customers.nodes.deployments.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_33)
+  gv_compare(gv_log_of(f), GO_38)
 }
 
-const GO_34: List[Str] = [
+const GO_39: List[Str] = [
+  "CALL prod_tt_sasportal.customers.nodes.deployments.list pages",
+  "REQ GET https://prod-tt-sasportal.googleapis.com/v1alpha1/id1/%20x/deployments?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"deployments\":[{\"displayName\":\"s-displayname\",\"frns\":[\"s-frns\"],\"name\":\"s-name\",\"sasUserIds\":[\"s-sasuserids\"]}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"deployments\":[{\"displayName\":\"s-displayname\",\"frns\":[\"s-frns\"],\"name\":\"s-name\",\"sasUserIds\":[\"s-sasuserids\"]}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://prod-tt-sasportal.googleapis.com/v1alpha1/id1/%20x/deployments?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"deployments\":[{\"displayName\":\"s-displayname\",\"frns\":[\"s-frns\"],\"name\":\"s-name\",\"sasUserIds\":[\"s-sasuserids\"]}]}",
+  "OUT: {\"deployments\":[{\"displayName\":\"s-displayname\",\"frns\":[\"s-frns\"],\"name\":\"s-name\",\"sasUserIds\":[\"s-sasuserids\"]}]}",
+  "OUT: ok",
+]
+
+test "Go's prod_tt_sasportal.customers.nodes.deployments.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"deployments\":[{\"displayName\":\"s-displayname\",\"frns\":[\"s-frns\"],\"name\":\"s-name\",\"sasUserIds\":[\"s-sasuserids\"]}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"deployments\":[{\"displayName\":\"s-displayname\",\"frns\":[\"s-frns\"],\"name\":\"s-name\",\"sasUserIds\":[\"s-sasuserids\"]}]}")
+  gv_note(f, "CALL prod_tt_sasportal.customers.nodes.deployments.list pages")
+  var p = svc.customers.nodes.deployments.list_pages("id1/ x", options: CustomersNodesDeploymentsListOptions{filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_39)
+}
+
+const GO_40: List[Str] = [
   "CALL prod_tt_sasportal.customers.nodes.devices.create",
   "REQ POST https://prod-tt-sasportal.googleapis.com/v1alpha1/id1/%20x/devices?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"activeConfig\":{\"airInterface\":{\"radioTechnology\":\"s-radiotechnology\",\"supportedSpec\":\"s-supportedspec\"},\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"installationParams\":{\"antennaAzimuth\":7,\"antennaBeamwidth\":7,\"antennaDowntilt\":7,\"antennaGain\":1.5,\"antennaModel\":\"s-antennamodel\",\"cpeCbsdIndication\":true,\"eirpCapability\":7,\"height\":1.5,\"heightType\":\"s-heighttype\",\"horizontalAccuracy\":1.5,\"indoorDeployment\":true,\"latitude\":1.5,\"longitude\":1.5,\"verticalAccuracy\":1.5},\"isSigned\":true,\"measurementCapabilities\":[\"s-measurementcapabilities\"],\"model\":{\"firmwareVersion\":\"s-firmwareversion\",\"hardwareVersion\":\"s-hardwareversion\",\"name\":\"s-name\",\"softwareVersion\":\"s-softwareversion\",\"vendor\":\"s-vendor\"},\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"currentChannels\":[{\"frequencyRange\":{\"highFrequencyMhz\":1.5,\"lowFrequencyMhz\":1.5},\"score\":1.5}],\"deviceMetadata\":{\"antennaModel\":\"s-antennamodel\",\"commonChannelGroup\":\"s-commonchannelgroup\",\"interferenceCoordinationGroup\":\"s-interferencecoordinationgroup\",\"nrqzValidated\":true,\"nrqzValidation\":{\"caseId\":\"s-caseid\",\"cpiId\":\"s-cpiid\",\"latitude\":1.5,\"longitude\":1.5,\"state\":\"s-state\"}},\"displayName\":\"s-displayname\",\"fccId\":\"s-fccid\",\"grantRangeAllowlists\":[{\"highFrequencyMhz\":1.5,\"lowFrequencyMhz\":1.5}],\"grants\":[{\"channelType\":\"s-channeltype\",\"expireTime\":\"s-expiretime\",\"frequencyRange\":{\"highFrequencyMhz\":1.5,\"lowFrequencyMhz\":1.5},\"grantId\":\"s-grantid\",\"lastHeartbeatTransmitExpireTime\":\"s-lastheartbeattransmitexpiretime\",\"maxEirp\":1.5,\"state\":\"s-state\",\"suspensionReason\":[\"s-suspensionreason\"]}],\"name\":\"s-name\",\"preloadedConfig\":{\"airInterface\":{\"radioTechnology\":\"s-radiotechnology\",\"supportedSpec\":\"s-supportedspec\"},\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"installationParams\":{\"antennaAzimuth\":7,\"antennaBeamwidth\":7,\"antennaDowntilt\":7,\"antennaGain\":1.5,\"antennaModel\":\"s-antennamodel\",\"cpeCbsdIndication\":true,\"eirpCapability\":7,\"height\":1.5,\"heightType\":\"s-heighttype\",\"horizontalAccuracy\":1.5,\"indoorDeployment\":true,\"latitude\":1.5,\"longitude\":1.5,\"verticalAccuracy\":1.5},\"isSigned\":true,\"measurementCapabilities\":[\"s-measurementcapabilities\"],\"model\":{\"firmwareVersion\":\"s-firmwareversion\",\"hardwareVersion\":\"s-hardwareversion\",\"name\":\"s-name\",\"softwareVersion\":\"s-softwareversion\",\"vendor\":\"s-vendor\"},\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"serialNumber\":\"s-serialnumber\",\"state\":\"s-state\"}",
+  "  B <2424 bytes> {\"activeConfig\":{\"airInterface\":...erialnumber\",\"state\":\"s-state\"}",
   "",
   "  SERVED 200 {\"activeConfig\":{\"airInterface\":{\"radioTechnology\":\"s-radiotechnology\",\"supportedSpec\":\"s-supportedspec\"},\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"installationParams\":{\"antennaAzimuth\":7,\"antennaBeamwidth\":7,\"antennaDowntilt\":7,\"antennaGain\":1.5,\"antennaModel\":\"s-antennamodel\",\"cpeCbsdIndication\":true,\"eirpCapability\":7,\"height\":1.5,\"heightType\":\"s-heighttype\",\"horizontalAccuracy\":1.5,\"indoorDeployment\":true,\"latitude\":1.5,\"longitude\":1.5,\"verticalAccuracy\":1.5},\"isSigned\":true,\"measurementCapabilities\":[\"s-measurementcapabilities\"],\"model\":{\"firmwareVersion\":\"s-firmwareversion\",\"hardwareVersion\":\"s-hardwareversion\",\"name\":\"s-name\",\"softwareVersion\":\"s-softwareversion\",\"vendor\":\"s-vendor\"},\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"currentChannels\":[{\"frequencyRange\":{\"highFrequencyMhz\":1.5,\"lowFrequencyMhz\":1.5},\"score\":1.5}],\"deviceMetadata\":{\"antennaModel\":\"s-antennamodel\",\"commonChannelGroup\":\"s-commonchannelgroup\",\"interferenceCoordinationGroup\":\"s-interferencecoordinationgroup\",\"nrqzValidated\":true,\"nrqzValidation\":{\"caseId\":\"s-caseid\",\"cpiId\":\"s-cpiid\",\"latitude\":1.5,\"longitude\":1.5,\"state\":\"s-state\"}},\"displayName\":\"s-displayname\",\"fccId\":\"s-fccid\",\"grantRangeAllowlists\":[{\"highFrequencyMhz\":1.5,\"lowFrequencyMhz\":1.5}],\"grants\":[{\"channelType\":\"s-channeltype\",\"expireTime\":\"s-expiretime\",\"frequencyRange\":{\"highFrequencyMhz\":1.5,\"lowFrequencyMhz\":1.5},\"grantId\":\"s-grantid\",\"lastHeartbeatTransmitExpireTime\":\"s-lastheartbeattransmitexpiretime\",\"maxEirp\":1.5,\"state\":\"s-state\",\"suspensionReason\":[\"s-suspensionreason\"]}],\"name\":\"s-name\",\"preloadedConfig\":{\"airInterface\":{\"radioTechnology\":\"s-radiotechnology\",\"supportedSpec\":\"s-supportedspec\"},\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"installationParams\":{\"antennaAzimuth\":7,\"antennaBeamwidth\":7,\"antennaDowntilt\":7,\"antennaGain\":1.5,\"antennaModel\":\"s-antennamodel\",\"cpeCbsdIndication\":true,\"eirpCapability\":7,\"height\":1.5,\"heightType\":\"s-heighttype\",\"horizontalAccuracy\":1.5,\"indoorDeployment\":true,\"latitude\":1.5,\"longitude\":1.5,\"verticalAccuracy\":1.5},\"isSigned\":true,\"measurementCapabilities\":[\"s-measurementcapabilities\"],\"model\":{\"firmwareVersion\":\"s-firmwareversion\",\"hardwareVersion\":\"s-hardwareversion\",\"name\":\"s-name\",\"softwareVersion\":\"s-softwareversion\",\"vendor\":\"s-vendor\"},\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"serialNumber\":\"s-serialnumber\",\"state\":\"s-state\"}",
   "OUT: {\"activeConfig\":{\"airInterface\":{\"radioTechnology\":\"s-radiotechnology\",\"supportedSpec\":\"s-supportedspec\"},\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"installationParams\":{\"antennaAzimuth\":7,\"antennaBeamwidth\":7,\"antennaDowntilt\":7,\"antennaGain\":1.5,\"antennaModel\":\"s-antennamodel\",\"cpeCbsdIndication\":true,\"eirpCapability\":7,\"height\":1.5,\"heightType\":\"s-heighttype\",\"horizontalAccuracy\":1.5,\"indoorDeployment\":true,\"latitude\":1.5,\"longitude\":1.5,\"verticalAccuracy\":1.5},\"isSigned\":true,\"measurementCapabilities\":[\"s-measurementcapabilities\"],\"model\":{\"firmwareVersion\":\"s-firmwareversion\",\"hardwareVersion\":\"s-hardwareversion\",\"name\":\"s-name\",\"softwareVersion\":\"s-softwareversion\",\"vendor\":\"s-vendor\"},\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"currentChannels\":[{\"frequencyRange\":{\"highFrequencyMhz\":1.5,\"lowFrequencyMhz\":1.5},\"score\":1.5}],\"deviceMetadata\":{\"antennaModel\":\"s-antennamodel\",\"commonChannelGroup\":\"s-commonchannelgroup\",\"interferenceCoordinationGroup\":\"s-interferencecoordinationgroup\",\"nrqzValidated\":true,\"nrqzValidation\":{\"caseId\":\"s-caseid\",\"cpiId\":\"s-cpiid\",\"latitude\":1.5,\"longitude\":1.5,\"state\":\"s-state\"}},\"displayName\":\"s-displayname\",\"fccId\":\"s-fccid\",\"grantRangeAllowlists\":[{\"highFrequencyMhz\":1.5,\"lowFrequencyMhz\":1.5}],\"grants\":[{\"channelType\":\"s-channeltype\",\"expireTime\":\"s-expiretime\",\"frequencyRange\":{\"highFrequencyMhz\":1.5,\"lowFrequencyMhz\":1.5},\"grantId\":\"s-grantid\",\"lastHeartbeatTransmitExpireTime\":\"s-lastheartbeattransmitexpiretime\",\"maxEirp\":1.5,\"state\":\"s-state\",\"suspensionReason\":[\"s-suspensionreason\"]}],\"name\":\"s-name\",\"preloadedConfig\":{\"airInterface\":{\"radioTechnology\":\"s-radiotechnology\",\"supportedSpec\":\"s-supportedspec\"},\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"installationParams\":{\"antennaAzimuth\":7,\"antennaBeamwidth\":7,\"antennaDowntilt\":7,\"antennaGain\":1.5,\"antennaModel\":\"s-antennamodel\",\"cpeCbsdIndication\":true,\"eirpCapability\":7,\"height\":1.5,\"heightType\":\"s-heighttype\",\"horizontalAccuracy\":1.5,\"indoorDeployment\":true,\"latitude\":1.5,\"longitude\":1.5,\"verticalAccuracy\":1.5},\"isSigned\":true,\"measurementCapabilities\":[\"s-measurementcapabilities\"],\"model\":{\"firmwareVersion\":\"s-firmwareversion\",\"hardwareVersion\":\"s-hardwareversion\",\"name\":\"s-name\",\"softwareVersion\":\"s-softwareversion\",\"vendor\":\"s-vendor\"},\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"serialNumber\":\"s-serialnumber\",\"state\":\"s-state\"}",
@@ -760,10 +988,10 @@ test "Go's prod_tt_sasportal.customers.nodes.devices.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_34)
+  gv_compare(gv_log_of(f), GO_40)
 }
 
-const GO_35: List[Str] = [
+const GO_41: List[Str] = [
   "CALL prod_tt_sasportal.customers.nodes.devices.createSigned",
   "REQ POST https://prod-tt-sasportal.googleapis.com/v1alpha1/id1/%20x/devices:createSigned?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -782,10 +1010,10 @@ test "Go's prod_tt_sasportal.customers.nodes.devices.createSigned" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_35)
+  gv_compare(gv_log_of(f), GO_41)
 }
 
-const GO_36: List[Str] = [
+const GO_42: List[Str] = [
   "CALL prod_tt_sasportal.customers.nodes.devices.list",
   "REQ GET https://prod-tt-sasportal.googleapis.com/v1alpha1/id1/%20x/devices?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -803,10 +1031,48 @@ test "Go's prod_tt_sasportal.customers.nodes.devices.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_36)
+  gv_compare(gv_log_of(f), GO_42)
 }
 
-const GO_37: List[Str] = [
+const GO_43: List[Str] = [
+  "CALL prod_tt_sasportal.customers.nodes.devices.list pages",
+  "REQ GET https://prod-tt-sasportal.googleapis.com/v1alpha1/id1/%20x/devices?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"devices\":[{\"activeConfig\":{\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"isSigned\":true,\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"deviceMetadata\":{\"antennaModel\":\"s-antennamodel\",\"commonChannelGroup\":\"s-commonchannelgroup\",\"interferenceCoordinationGroup\":\"s-interferencecoordinationgroup\",\"nrqzValidated\":true},\"displayName\":\"s-displayname\",\"fccId\":\"s-fccid\",\"name\":\"s-name\",\"preloadedConfig\":{\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"isSigned\":true,\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"serialNumber\":\"s-serialnumber\",\"state\":\"s-state\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"devices\":[{\"activeConfig\":{\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"isSigned\":true,\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"deviceMetadata\":{\"antennaModel\":\"s-antennamodel\",\"commonChannelGroup\":\"s-commonchannelgroup\",\"interferenceCoordinationGroup\":\"s-interferencecoordinationgroup\",\"nrqzValidated\":true},\"displayName\":\"s-displayname\",\"fccId\":\"s-fccid\",\"name\":\"s-name\",\"preloadedConfig\":{\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"isSigned\":true,\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"serialNumber\":\"s-serialnumber\",\"state\":\"s-state\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://prod-tt-sasportal.googleapis.com/v1alpha1/id1/%20x/devices?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"devices\":[{\"activeConfig\":{\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"isSigned\":true,\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"deviceMetadata\":{\"antennaModel\":\"s-antennamodel\",\"commonChannelGroup\":\"s-commonchannelgroup\",\"interferenceCoordinationGroup\":\"s-interferencecoordinationgroup\",\"nrqzValidated\":true},\"displayName\":\"s-displayname\",\"fccId\":\"s-fccid\",\"name\":\"s-name\",\"preloadedConfig\":{\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"isSigned\":true,\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"serialNumber\":\"s-serialnumber\",\"state\":\"s-state\"}]}",
+  "OUT: {\"devices\":[{\"activeConfig\":{\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"isSigned\":true,\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"deviceMetadata\":{\"antennaModel\":\"s-antennamodel\",\"commonChannelGroup\":\"s-commonchannelgroup\",\"interferenceCoordinationGroup\":\"s-interferencecoordinationgroup\",\"nrqzValidated\":true},\"displayName\":\"s-displayname\",\"fccId\":\"s-fccid\",\"name\":\"s-name\",\"preloadedConfig\":{\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"isSigned\":true,\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"serialNumber\":\"s-serialnumber\",\"state\":\"s-state\"}]}",
+  "OUT: ok",
+]
+
+test "Go's prod_tt_sasportal.customers.nodes.devices.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"devices\":[{\"activeConfig\":{\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"isSigned\":true,\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"deviceMetadata\":{\"antennaModel\":\"s-antennamodel\",\"commonChannelGroup\":\"s-commonchannelgroup\",\"interferenceCoordinationGroup\":\"s-interferencecoordinationgroup\",\"nrqzValidated\":true},\"displayName\":\"s-displayname\",\"fccId\":\"s-fccid\",\"name\":\"s-name\",\"preloadedConfig\":{\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"isSigned\":true,\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"serialNumber\":\"s-serialnumber\",\"state\":\"s-state\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"devices\":[{\"activeConfig\":{\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"isSigned\":true,\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"deviceMetadata\":{\"antennaModel\":\"s-antennamodel\",\"commonChannelGroup\":\"s-commonchannelgroup\",\"interferenceCoordinationGroup\":\"s-interferencecoordinationgroup\",\"nrqzValidated\":true},\"displayName\":\"s-displayname\",\"fccId\":\"s-fccid\",\"name\":\"s-name\",\"preloadedConfig\":{\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"isSigned\":true,\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"serialNumber\":\"s-serialnumber\",\"state\":\"s-state\"}]}")
+  gv_note(f, "CALL prod_tt_sasportal.customers.nodes.devices.list pages")
+  var p = svc.customers.nodes.devices.list_pages("id1/ x", options: CustomersNodesDevicesListOptions{filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_43)
+}
+
+const GO_44: List[Str] = [
   "CALL prod_tt_sasportal.customers.nodes.nodes.create",
   "REQ POST https://prod-tt-sasportal.googleapis.com/v1alpha1/id1/%20x/nodes?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -825,10 +1091,10 @@ test "Go's prod_tt_sasportal.customers.nodes.nodes.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_37)
+  gv_compare(gv_log_of(f), GO_44)
 }
 
-const GO_38: List[Str] = [
+const GO_45: List[Str] = [
   "CALL prod_tt_sasportal.customers.nodes.nodes.list",
   "REQ GET https://prod-tt-sasportal.googleapis.com/v1alpha1/id1/%20x/nodes?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -846,10 +1112,48 @@ test "Go's prod_tt_sasportal.customers.nodes.nodes.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_38)
+  gv_compare(gv_log_of(f), GO_45)
 }
 
-const GO_39: List[Str] = [
+const GO_46: List[Str] = [
+  "CALL prod_tt_sasportal.customers.nodes.nodes.list pages",
+  "REQ GET https://prod-tt-sasportal.googleapis.com/v1alpha1/id1/%20x/nodes?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"nodes\":[{\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"sasUserIds\":[\"s-sasuserids\"]}]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"nodes\":[{\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"sasUserIds\":[\"s-sasuserids\"]}]}",
+  "REQ GET https://prod-tt-sasportal.googleapis.com/v1alpha1/id1/%20x/nodes?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nodes\":[{\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"sasUserIds\":[\"s-sasuserids\"]}]}",
+  "OUT: {\"nodes\":[{\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"sasUserIds\":[\"s-sasuserids\"]}]}",
+  "OUT: ok",
+]
+
+test "Go's prod_tt_sasportal.customers.nodes.nodes.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"nodes\":[{\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"sasUserIds\":[\"s-sasuserids\"]}]}")
+  gv_queue(f, "{\"nodes\":[{\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"sasUserIds\":[\"s-sasuserids\"]}]}")
+  gv_note(f, "CALL prod_tt_sasportal.customers.nodes.nodes.list pages")
+  var p = svc.customers.nodes.nodes.list_pages("id1/ x", options: CustomersNodesNodesListOptions{filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_46)
+}
+
+const GO_47: List[Str] = [
   "CALL prod_tt_sasportal.deployments.get",
   "REQ GET https://prod-tt-sasportal.googleapis.com/v1alpha1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -867,10 +1171,10 @@ test "Go's prod_tt_sasportal.deployments.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_39)
+  gv_compare(gv_log_of(f), GO_47)
 }
 
-const GO_40: List[Str] = [
+const GO_48: List[Str] = [
   "CALL prod_tt_sasportal.deployments.devices.delete",
   "REQ DELETE https://prod-tt-sasportal.googleapis.com/v1alpha1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -888,10 +1192,10 @@ test "Go's prod_tt_sasportal.deployments.devices.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_40)
+  gv_compare(gv_log_of(f), GO_48)
 }
 
-const GO_41: List[Str] = [
+const GO_49: List[Str] = [
   "CALL prod_tt_sasportal.deployments.devices.get",
   "REQ GET https://prod-tt-sasportal.googleapis.com/v1alpha1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -909,10 +1213,10 @@ test "Go's prod_tt_sasportal.deployments.devices.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_41)
+  gv_compare(gv_log_of(f), GO_49)
 }
 
-const GO_42: List[Str] = [
+const GO_50: List[Str] = [
   "CALL prod_tt_sasportal.deployments.devices.move",
   "REQ POST https://prod-tt-sasportal.googleapis.com/v1alpha1/id1/%20x:move?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -931,14 +1235,14 @@ test "Go's prod_tt_sasportal.deployments.devices.move" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_42)
+  gv_compare(gv_log_of(f), GO_50)
 }
 
-const GO_43: List[Str] = [
+const GO_51: List[Str] = [
   "CALL prod_tt_sasportal.deployments.devices.patch",
   "REQ PATCH https://prod-tt-sasportal.googleapis.com/v1alpha1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"activeConfig\":{\"airInterface\":{\"radioTechnology\":\"s-radiotechnology\",\"supportedSpec\":\"s-supportedspec\"},\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"installationParams\":{\"antennaAzimuth\":7,\"antennaBeamwidth\":7,\"antennaDowntilt\":7,\"antennaGain\":1.5,\"antennaModel\":\"s-antennamodel\",\"cpeCbsdIndication\":true,\"eirpCapability\":7,\"height\":1.5,\"heightType\":\"s-heighttype\",\"horizontalAccuracy\":1.5,\"indoorDeployment\":true,\"latitude\":1.5,\"longitude\":1.5,\"verticalAccuracy\":1.5},\"isSigned\":true,\"measurementCapabilities\":[\"s-measurementcapabilities\"],\"model\":{\"firmwareVersion\":\"s-firmwareversion\",\"hardwareVersion\":\"s-hardwareversion\",\"name\":\"s-name\",\"softwareVersion\":\"s-softwareversion\",\"vendor\":\"s-vendor\"},\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"currentChannels\":[{\"frequencyRange\":{\"highFrequencyMhz\":1.5,\"lowFrequencyMhz\":1.5},\"score\":1.5}],\"deviceMetadata\":{\"antennaModel\":\"s-antennamodel\",\"commonChannelGroup\":\"s-commonchannelgroup\",\"interferenceCoordinationGroup\":\"s-interferencecoordinationgroup\",\"nrqzValidated\":true,\"nrqzValidation\":{\"caseId\":\"s-caseid\",\"cpiId\":\"s-cpiid\",\"latitude\":1.5,\"longitude\":1.5,\"state\":\"s-state\"}},\"displayName\":\"s-displayname\",\"fccId\":\"s-fccid\",\"grantRangeAllowlists\":[{\"highFrequencyMhz\":1.5,\"lowFrequencyMhz\":1.5}],\"grants\":[{\"channelType\":\"s-channeltype\",\"expireTime\":\"s-expiretime\",\"frequencyRange\":{\"highFrequencyMhz\":1.5,\"lowFrequencyMhz\":1.5},\"grantId\":\"s-grantid\",\"lastHeartbeatTransmitExpireTime\":\"s-lastheartbeattransmitexpiretime\",\"maxEirp\":1.5,\"state\":\"s-state\",\"suspensionReason\":[\"s-suspensionreason\"]}],\"name\":\"s-name\",\"preloadedConfig\":{\"airInterface\":{\"radioTechnology\":\"s-radiotechnology\",\"supportedSpec\":\"s-supportedspec\"},\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"installationParams\":{\"antennaAzimuth\":7,\"antennaBeamwidth\":7,\"antennaDowntilt\":7,\"antennaGain\":1.5,\"antennaModel\":\"s-antennamodel\",\"cpeCbsdIndication\":true,\"eirpCapability\":7,\"height\":1.5,\"heightType\":\"s-heighttype\",\"horizontalAccuracy\":1.5,\"indoorDeployment\":true,\"latitude\":1.5,\"longitude\":1.5,\"verticalAccuracy\":1.5},\"isSigned\":true,\"measurementCapabilities\":[\"s-measurementcapabilities\"],\"model\":{\"firmwareVersion\":\"s-firmwareversion\",\"hardwareVersion\":\"s-hardwareversion\",\"name\":\"s-name\",\"softwareVersion\":\"s-softwareversion\",\"vendor\":\"s-vendor\"},\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"serialNumber\":\"s-serialnumber\",\"state\":\"s-state\"}",
+  "  B <2424 bytes> {\"activeConfig\":{\"airInterface\":...erialnumber\",\"state\":\"s-state\"}",
   "",
   "  SERVED 200 {\"activeConfig\":{\"airInterface\":{\"radioTechnology\":\"s-radiotechnology\",\"supportedSpec\":\"s-supportedspec\"},\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"installationParams\":{\"antennaAzimuth\":7,\"antennaBeamwidth\":7,\"antennaDowntilt\":7,\"antennaGain\":1.5,\"antennaModel\":\"s-antennamodel\",\"cpeCbsdIndication\":true,\"eirpCapability\":7,\"height\":1.5,\"heightType\":\"s-heighttype\",\"horizontalAccuracy\":1.5,\"indoorDeployment\":true,\"latitude\":1.5,\"longitude\":1.5,\"verticalAccuracy\":1.5},\"isSigned\":true,\"measurementCapabilities\":[\"s-measurementcapabilities\"],\"model\":{\"firmwareVersion\":\"s-firmwareversion\",\"hardwareVersion\":\"s-hardwareversion\",\"name\":\"s-name\",\"softwareVersion\":\"s-softwareversion\",\"vendor\":\"s-vendor\"},\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"currentChannels\":[{\"frequencyRange\":{\"highFrequencyMhz\":1.5,\"lowFrequencyMhz\":1.5},\"score\":1.5}],\"deviceMetadata\":{\"antennaModel\":\"s-antennamodel\",\"commonChannelGroup\":\"s-commonchannelgroup\",\"interferenceCoordinationGroup\":\"s-interferencecoordinationgroup\",\"nrqzValidated\":true,\"nrqzValidation\":{\"caseId\":\"s-caseid\",\"cpiId\":\"s-cpiid\",\"latitude\":1.5,\"longitude\":1.5,\"state\":\"s-state\"}},\"displayName\":\"s-displayname\",\"fccId\":\"s-fccid\",\"grantRangeAllowlists\":[{\"highFrequencyMhz\":1.5,\"lowFrequencyMhz\":1.5}],\"grants\":[{\"channelType\":\"s-channeltype\",\"expireTime\":\"s-expiretime\",\"frequencyRange\":{\"highFrequencyMhz\":1.5,\"lowFrequencyMhz\":1.5},\"grantId\":\"s-grantid\",\"lastHeartbeatTransmitExpireTime\":\"s-lastheartbeattransmitexpiretime\",\"maxEirp\":1.5,\"state\":\"s-state\",\"suspensionReason\":[\"s-suspensionreason\"]}],\"name\":\"s-name\",\"preloadedConfig\":{\"airInterface\":{\"radioTechnology\":\"s-radiotechnology\",\"supportedSpec\":\"s-supportedspec\"},\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"installationParams\":{\"antennaAzimuth\":7,\"antennaBeamwidth\":7,\"antennaDowntilt\":7,\"antennaGain\":1.5,\"antennaModel\":\"s-antennamodel\",\"cpeCbsdIndication\":true,\"eirpCapability\":7,\"height\":1.5,\"heightType\":\"s-heighttype\",\"horizontalAccuracy\":1.5,\"indoorDeployment\":true,\"latitude\":1.5,\"longitude\":1.5,\"verticalAccuracy\":1.5},\"isSigned\":true,\"measurementCapabilities\":[\"s-measurementcapabilities\"],\"model\":{\"firmwareVersion\":\"s-firmwareversion\",\"hardwareVersion\":\"s-hardwareversion\",\"name\":\"s-name\",\"softwareVersion\":\"s-softwareversion\",\"vendor\":\"s-vendor\"},\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"serialNumber\":\"s-serialnumber\",\"state\":\"s-state\"}",
   "OUT: {\"activeConfig\":{\"airInterface\":{\"radioTechnology\":\"s-radiotechnology\",\"supportedSpec\":\"s-supportedspec\"},\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"installationParams\":{\"antennaAzimuth\":7,\"antennaBeamwidth\":7,\"antennaDowntilt\":7,\"antennaGain\":1.5,\"antennaModel\":\"s-antennamodel\",\"cpeCbsdIndication\":true,\"eirpCapability\":7,\"height\":1.5,\"heightType\":\"s-heighttype\",\"horizontalAccuracy\":1.5,\"indoorDeployment\":true,\"latitude\":1.5,\"longitude\":1.5,\"verticalAccuracy\":1.5},\"isSigned\":true,\"measurementCapabilities\":[\"s-measurementcapabilities\"],\"model\":{\"firmwareVersion\":\"s-firmwareversion\",\"hardwareVersion\":\"s-hardwareversion\",\"name\":\"s-name\",\"softwareVersion\":\"s-softwareversion\",\"vendor\":\"s-vendor\"},\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"currentChannels\":[{\"frequencyRange\":{\"highFrequencyMhz\":1.5,\"lowFrequencyMhz\":1.5},\"score\":1.5}],\"deviceMetadata\":{\"antennaModel\":\"s-antennamodel\",\"commonChannelGroup\":\"s-commonchannelgroup\",\"interferenceCoordinationGroup\":\"s-interferencecoordinationgroup\",\"nrqzValidated\":true,\"nrqzValidation\":{\"caseId\":\"s-caseid\",\"cpiId\":\"s-cpiid\",\"latitude\":1.5,\"longitude\":1.5,\"state\":\"s-state\"}},\"displayName\":\"s-displayname\",\"fccId\":\"s-fccid\",\"grantRangeAllowlists\":[{\"highFrequencyMhz\":1.5,\"lowFrequencyMhz\":1.5}],\"grants\":[{\"channelType\":\"s-channeltype\",\"expireTime\":\"s-expiretime\",\"frequencyRange\":{\"highFrequencyMhz\":1.5,\"lowFrequencyMhz\":1.5},\"grantId\":\"s-grantid\",\"lastHeartbeatTransmitExpireTime\":\"s-lastheartbeattransmitexpiretime\",\"maxEirp\":1.5,\"state\":\"s-state\",\"suspensionReason\":[\"s-suspensionreason\"]}],\"name\":\"s-name\",\"preloadedConfig\":{\"airInterface\":{\"radioTechnology\":\"s-radiotechnology\",\"supportedSpec\":\"s-supportedspec\"},\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"installationParams\":{\"antennaAzimuth\":7,\"antennaBeamwidth\":7,\"antennaDowntilt\":7,\"antennaGain\":1.5,\"antennaModel\":\"s-antennamodel\",\"cpeCbsdIndication\":true,\"eirpCapability\":7,\"height\":1.5,\"heightType\":\"s-heighttype\",\"horizontalAccuracy\":1.5,\"indoorDeployment\":true,\"latitude\":1.5,\"longitude\":1.5,\"verticalAccuracy\":1.5},\"isSigned\":true,\"measurementCapabilities\":[\"s-measurementcapabilities\"],\"model\":{\"firmwareVersion\":\"s-firmwareversion\",\"hardwareVersion\":\"s-hardwareversion\",\"name\":\"s-name\",\"softwareVersion\":\"s-softwareversion\",\"vendor\":\"s-vendor\"},\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"serialNumber\":\"s-serialnumber\",\"state\":\"s-state\"}",
@@ -953,10 +1257,10 @@ test "Go's prod_tt_sasportal.deployments.devices.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_43)
+  gv_compare(gv_log_of(f), GO_51)
 }
 
-const GO_44: List[Str] = [
+const GO_52: List[Str] = [
   "CALL prod_tt_sasportal.deployments.devices.signDevice",
   "REQ POST https://prod-tt-sasportal.googleapis.com/v1alpha1/id1/%20x:signDevice?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -975,10 +1279,10 @@ test "Go's prod_tt_sasportal.deployments.devices.signDevice" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_44)
+  gv_compare(gv_log_of(f), GO_52)
 }
 
-const GO_45: List[Str] = [
+const GO_53: List[Str] = [
   "CALL prod_tt_sasportal.deployments.devices.updateSigned",
   "REQ PATCH https://prod-tt-sasportal.googleapis.com/v1alpha1/id1/%20x:updateSigned?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -997,10 +1301,10 @@ test "Go's prod_tt_sasportal.deployments.devices.updateSigned" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_45)
+  gv_compare(gv_log_of(f), GO_53)
 }
 
-const GO_46: List[Str] = [
+const GO_54: List[Str] = [
   "CALL prod_tt_sasportal.installer.generateSecret",
   "REQ POST https://prod-tt-sasportal.googleapis.com/v1alpha1/installer:generateSecret?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1019,10 +1323,10 @@ test "Go's prod_tt_sasportal.installer.generateSecret" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_46)
+  gv_compare(gv_log_of(f), GO_54)
 }
 
-const GO_47: List[Str] = [
+const GO_55: List[Str] = [
   "CALL prod_tt_sasportal.installer.validate",
   "REQ POST https://prod-tt-sasportal.googleapis.com/v1alpha1/installer:validate?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1041,10 +1345,10 @@ test "Go's prod_tt_sasportal.installer.validate" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_47)
+  gv_compare(gv_log_of(f), GO_55)
 }
 
-const GO_48: List[Str] = [
+const GO_56: List[Str] = [
   "CALL prod_tt_sasportal.nodes.get",
   "REQ GET https://prod-tt-sasportal.googleapis.com/v1alpha1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1062,10 +1366,10 @@ test "Go's prod_tt_sasportal.nodes.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_48)
+  gv_compare(gv_log_of(f), GO_56)
 }
 
-const GO_49: List[Str] = [
+const GO_57: List[Str] = [
   "CALL prod_tt_sasportal.nodes.deployments.delete",
   "REQ DELETE https://prod-tt-sasportal.googleapis.com/v1alpha1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -1083,10 +1387,10 @@ test "Go's prod_tt_sasportal.nodes.deployments.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_49)
+  gv_compare(gv_log_of(f), GO_57)
 }
 
-const GO_50: List[Str] = [
+const GO_58: List[Str] = [
   "CALL prod_tt_sasportal.nodes.deployments.get",
   "REQ GET https://prod-tt-sasportal.googleapis.com/v1alpha1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1104,10 +1408,10 @@ test "Go's prod_tt_sasportal.nodes.deployments.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_50)
+  gv_compare(gv_log_of(f), GO_58)
 }
 
-const GO_51: List[Str] = [
+const GO_59: List[Str] = [
   "CALL prod_tt_sasportal.nodes.deployments.list",
   "REQ GET https://prod-tt-sasportal.googleapis.com/v1alpha1/id1/%20x/deployments?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1125,10 +1429,48 @@ test "Go's prod_tt_sasportal.nodes.deployments.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_51)
+  gv_compare(gv_log_of(f), GO_59)
 }
 
-const GO_52: List[Str] = [
+const GO_60: List[Str] = [
+  "CALL prod_tt_sasportal.nodes.deployments.list pages",
+  "REQ GET https://prod-tt-sasportal.googleapis.com/v1alpha1/id1/%20x/deployments?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"deployments\":[{\"displayName\":\"s-displayname\",\"frns\":[\"s-frns\"],\"name\":\"s-name\",\"sasUserIds\":[\"s-sasuserids\"]}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"deployments\":[{\"displayName\":\"s-displayname\",\"frns\":[\"s-frns\"],\"name\":\"s-name\",\"sasUserIds\":[\"s-sasuserids\"]}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://prod-tt-sasportal.googleapis.com/v1alpha1/id1/%20x/deployments?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"deployments\":[{\"displayName\":\"s-displayname\",\"frns\":[\"s-frns\"],\"name\":\"s-name\",\"sasUserIds\":[\"s-sasuserids\"]}]}",
+  "OUT: {\"deployments\":[{\"displayName\":\"s-displayname\",\"frns\":[\"s-frns\"],\"name\":\"s-name\",\"sasUserIds\":[\"s-sasuserids\"]}]}",
+  "OUT: ok",
+]
+
+test "Go's prod_tt_sasportal.nodes.deployments.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"deployments\":[{\"displayName\":\"s-displayname\",\"frns\":[\"s-frns\"],\"name\":\"s-name\",\"sasUserIds\":[\"s-sasuserids\"]}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"deployments\":[{\"displayName\":\"s-displayname\",\"frns\":[\"s-frns\"],\"name\":\"s-name\",\"sasUserIds\":[\"s-sasuserids\"]}]}")
+  gv_note(f, "CALL prod_tt_sasportal.nodes.deployments.list pages")
+  var p = svc.nodes.deployments.list_pages("id1/ x", options: NodesDeploymentsListOptions{filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_60)
+}
+
+const GO_61: List[Str] = [
   "CALL prod_tt_sasportal.nodes.deployments.move",
   "REQ POST https://prod-tt-sasportal.googleapis.com/v1alpha1/id1/%20x:move?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1147,10 +1489,10 @@ test "Go's prod_tt_sasportal.nodes.deployments.move" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_52)
+  gv_compare(gv_log_of(f), GO_61)
 }
 
-const GO_53: List[Str] = [
+const GO_62: List[Str] = [
   "CALL prod_tt_sasportal.nodes.deployments.patch",
   "REQ PATCH https://prod-tt-sasportal.googleapis.com/v1alpha1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
@@ -1169,14 +1511,14 @@ test "Go's prod_tt_sasportal.nodes.deployments.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_53)
+  gv_compare(gv_log_of(f), GO_62)
 }
 
-const GO_54: List[Str] = [
+const GO_63: List[Str] = [
   "CALL prod_tt_sasportal.nodes.deployments.devices.create",
   "REQ POST https://prod-tt-sasportal.googleapis.com/v1alpha1/id1/%20x/devices?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"activeConfig\":{\"airInterface\":{\"radioTechnology\":\"s-radiotechnology\",\"supportedSpec\":\"s-supportedspec\"},\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"installationParams\":{\"antennaAzimuth\":7,\"antennaBeamwidth\":7,\"antennaDowntilt\":7,\"antennaGain\":1.5,\"antennaModel\":\"s-antennamodel\",\"cpeCbsdIndication\":true,\"eirpCapability\":7,\"height\":1.5,\"heightType\":\"s-heighttype\",\"horizontalAccuracy\":1.5,\"indoorDeployment\":true,\"latitude\":1.5,\"longitude\":1.5,\"verticalAccuracy\":1.5},\"isSigned\":true,\"measurementCapabilities\":[\"s-measurementcapabilities\"],\"model\":{\"firmwareVersion\":\"s-firmwareversion\",\"hardwareVersion\":\"s-hardwareversion\",\"name\":\"s-name\",\"softwareVersion\":\"s-softwareversion\",\"vendor\":\"s-vendor\"},\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"currentChannels\":[{\"frequencyRange\":{\"highFrequencyMhz\":1.5,\"lowFrequencyMhz\":1.5},\"score\":1.5}],\"deviceMetadata\":{\"antennaModel\":\"s-antennamodel\",\"commonChannelGroup\":\"s-commonchannelgroup\",\"interferenceCoordinationGroup\":\"s-interferencecoordinationgroup\",\"nrqzValidated\":true,\"nrqzValidation\":{\"caseId\":\"s-caseid\",\"cpiId\":\"s-cpiid\",\"latitude\":1.5,\"longitude\":1.5,\"state\":\"s-state\"}},\"displayName\":\"s-displayname\",\"fccId\":\"s-fccid\",\"grantRangeAllowlists\":[{\"highFrequencyMhz\":1.5,\"lowFrequencyMhz\":1.5}],\"grants\":[{\"channelType\":\"s-channeltype\",\"expireTime\":\"s-expiretime\",\"frequencyRange\":{\"highFrequencyMhz\":1.5,\"lowFrequencyMhz\":1.5},\"grantId\":\"s-grantid\",\"lastHeartbeatTransmitExpireTime\":\"s-lastheartbeattransmitexpiretime\",\"maxEirp\":1.5,\"state\":\"s-state\",\"suspensionReason\":[\"s-suspensionreason\"]}],\"name\":\"s-name\",\"preloadedConfig\":{\"airInterface\":{\"radioTechnology\":\"s-radiotechnology\",\"supportedSpec\":\"s-supportedspec\"},\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"installationParams\":{\"antennaAzimuth\":7,\"antennaBeamwidth\":7,\"antennaDowntilt\":7,\"antennaGain\":1.5,\"antennaModel\":\"s-antennamodel\",\"cpeCbsdIndication\":true,\"eirpCapability\":7,\"height\":1.5,\"heightType\":\"s-heighttype\",\"horizontalAccuracy\":1.5,\"indoorDeployment\":true,\"latitude\":1.5,\"longitude\":1.5,\"verticalAccuracy\":1.5},\"isSigned\":true,\"measurementCapabilities\":[\"s-measurementcapabilities\"],\"model\":{\"firmwareVersion\":\"s-firmwareversion\",\"hardwareVersion\":\"s-hardwareversion\",\"name\":\"s-name\",\"softwareVersion\":\"s-softwareversion\",\"vendor\":\"s-vendor\"},\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"serialNumber\":\"s-serialnumber\",\"state\":\"s-state\"}",
+  "  B <2424 bytes> {\"activeConfig\":{\"airInterface\":...erialnumber\",\"state\":\"s-state\"}",
   "",
   "  SERVED 200 {\"activeConfig\":{\"airInterface\":{\"radioTechnology\":\"s-radiotechnology\",\"supportedSpec\":\"s-supportedspec\"},\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"installationParams\":{\"antennaAzimuth\":7,\"antennaBeamwidth\":7,\"antennaDowntilt\":7,\"antennaGain\":1.5,\"antennaModel\":\"s-antennamodel\",\"cpeCbsdIndication\":true,\"eirpCapability\":7,\"height\":1.5,\"heightType\":\"s-heighttype\",\"horizontalAccuracy\":1.5,\"indoorDeployment\":true,\"latitude\":1.5,\"longitude\":1.5,\"verticalAccuracy\":1.5},\"isSigned\":true,\"measurementCapabilities\":[\"s-measurementcapabilities\"],\"model\":{\"firmwareVersion\":\"s-firmwareversion\",\"hardwareVersion\":\"s-hardwareversion\",\"name\":\"s-name\",\"softwareVersion\":\"s-softwareversion\",\"vendor\":\"s-vendor\"},\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"currentChannels\":[{\"frequencyRange\":{\"highFrequencyMhz\":1.5,\"lowFrequencyMhz\":1.5},\"score\":1.5}],\"deviceMetadata\":{\"antennaModel\":\"s-antennamodel\",\"commonChannelGroup\":\"s-commonchannelgroup\",\"interferenceCoordinationGroup\":\"s-interferencecoordinationgroup\",\"nrqzValidated\":true,\"nrqzValidation\":{\"caseId\":\"s-caseid\",\"cpiId\":\"s-cpiid\",\"latitude\":1.5,\"longitude\":1.5,\"state\":\"s-state\"}},\"displayName\":\"s-displayname\",\"fccId\":\"s-fccid\",\"grantRangeAllowlists\":[{\"highFrequencyMhz\":1.5,\"lowFrequencyMhz\":1.5}],\"grants\":[{\"channelType\":\"s-channeltype\",\"expireTime\":\"s-expiretime\",\"frequencyRange\":{\"highFrequencyMhz\":1.5,\"lowFrequencyMhz\":1.5},\"grantId\":\"s-grantid\",\"lastHeartbeatTransmitExpireTime\":\"s-lastheartbeattransmitexpiretime\",\"maxEirp\":1.5,\"state\":\"s-state\",\"suspensionReason\":[\"s-suspensionreason\"]}],\"name\":\"s-name\",\"preloadedConfig\":{\"airInterface\":{\"radioTechnology\":\"s-radiotechnology\",\"supportedSpec\":\"s-supportedspec\"},\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"installationParams\":{\"antennaAzimuth\":7,\"antennaBeamwidth\":7,\"antennaDowntilt\":7,\"antennaGain\":1.5,\"antennaModel\":\"s-antennamodel\",\"cpeCbsdIndication\":true,\"eirpCapability\":7,\"height\":1.5,\"heightType\":\"s-heighttype\",\"horizontalAccuracy\":1.5,\"indoorDeployment\":true,\"latitude\":1.5,\"longitude\":1.5,\"verticalAccuracy\":1.5},\"isSigned\":true,\"measurementCapabilities\":[\"s-measurementcapabilities\"],\"model\":{\"firmwareVersion\":\"s-firmwareversion\",\"hardwareVersion\":\"s-hardwareversion\",\"name\":\"s-name\",\"softwareVersion\":\"s-softwareversion\",\"vendor\":\"s-vendor\"},\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"serialNumber\":\"s-serialnumber\",\"state\":\"s-state\"}",
   "OUT: {\"activeConfig\":{\"airInterface\":{\"radioTechnology\":\"s-radiotechnology\",\"supportedSpec\":\"s-supportedspec\"},\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"installationParams\":{\"antennaAzimuth\":7,\"antennaBeamwidth\":7,\"antennaDowntilt\":7,\"antennaGain\":1.5,\"antennaModel\":\"s-antennamodel\",\"cpeCbsdIndication\":true,\"eirpCapability\":7,\"height\":1.5,\"heightType\":\"s-heighttype\",\"horizontalAccuracy\":1.5,\"indoorDeployment\":true,\"latitude\":1.5,\"longitude\":1.5,\"verticalAccuracy\":1.5},\"isSigned\":true,\"measurementCapabilities\":[\"s-measurementcapabilities\"],\"model\":{\"firmwareVersion\":\"s-firmwareversion\",\"hardwareVersion\":\"s-hardwareversion\",\"name\":\"s-name\",\"softwareVersion\":\"s-softwareversion\",\"vendor\":\"s-vendor\"},\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"currentChannels\":[{\"frequencyRange\":{\"highFrequencyMhz\":1.5,\"lowFrequencyMhz\":1.5},\"score\":1.5}],\"deviceMetadata\":{\"antennaModel\":\"s-antennamodel\",\"commonChannelGroup\":\"s-commonchannelgroup\",\"interferenceCoordinationGroup\":\"s-interferencecoordinationgroup\",\"nrqzValidated\":true,\"nrqzValidation\":{\"caseId\":\"s-caseid\",\"cpiId\":\"s-cpiid\",\"latitude\":1.5,\"longitude\":1.5,\"state\":\"s-state\"}},\"displayName\":\"s-displayname\",\"fccId\":\"s-fccid\",\"grantRangeAllowlists\":[{\"highFrequencyMhz\":1.5,\"lowFrequencyMhz\":1.5}],\"grants\":[{\"channelType\":\"s-channeltype\",\"expireTime\":\"s-expiretime\",\"frequencyRange\":{\"highFrequencyMhz\":1.5,\"lowFrequencyMhz\":1.5},\"grantId\":\"s-grantid\",\"lastHeartbeatTransmitExpireTime\":\"s-lastheartbeattransmitexpiretime\",\"maxEirp\":1.5,\"state\":\"s-state\",\"suspensionReason\":[\"s-suspensionreason\"]}],\"name\":\"s-name\",\"preloadedConfig\":{\"airInterface\":{\"radioTechnology\":\"s-radiotechnology\",\"supportedSpec\":\"s-supportedspec\"},\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"installationParams\":{\"antennaAzimuth\":7,\"antennaBeamwidth\":7,\"antennaDowntilt\":7,\"antennaGain\":1.5,\"antennaModel\":\"s-antennamodel\",\"cpeCbsdIndication\":true,\"eirpCapability\":7,\"height\":1.5,\"heightType\":\"s-heighttype\",\"horizontalAccuracy\":1.5,\"indoorDeployment\":true,\"latitude\":1.5,\"longitude\":1.5,\"verticalAccuracy\":1.5},\"isSigned\":true,\"measurementCapabilities\":[\"s-measurementcapabilities\"],\"model\":{\"firmwareVersion\":\"s-firmwareversion\",\"hardwareVersion\":\"s-hardwareversion\",\"name\":\"s-name\",\"softwareVersion\":\"s-softwareversion\",\"vendor\":\"s-vendor\"},\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"serialNumber\":\"s-serialnumber\",\"state\":\"s-state\"}",
@@ -1191,10 +1533,10 @@ test "Go's prod_tt_sasportal.nodes.deployments.devices.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_54)
+  gv_compare(gv_log_of(f), GO_63)
 }
 
-const GO_55: List[Str] = [
+const GO_64: List[Str] = [
   "CALL prod_tt_sasportal.nodes.deployments.devices.createSigned",
   "REQ POST https://prod-tt-sasportal.googleapis.com/v1alpha1/id1/%20x/devices:createSigned?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1213,10 +1555,10 @@ test "Go's prod_tt_sasportal.nodes.deployments.devices.createSigned" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_55)
+  gv_compare(gv_log_of(f), GO_64)
 }
 
-const GO_56: List[Str] = [
+const GO_65: List[Str] = [
   "CALL prod_tt_sasportal.nodes.deployments.devices.list",
   "REQ GET https://prod-tt-sasportal.googleapis.com/v1alpha1/id1/%20x/devices?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1234,14 +1576,52 @@ test "Go's prod_tt_sasportal.nodes.deployments.devices.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_56)
+  gv_compare(gv_log_of(f), GO_65)
 }
 
-const GO_57: List[Str] = [
+const GO_66: List[Str] = [
+  "CALL prod_tt_sasportal.nodes.deployments.devices.list pages",
+  "REQ GET https://prod-tt-sasportal.googleapis.com/v1alpha1/id1/%20x/devices?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"devices\":[{\"activeConfig\":{\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"isSigned\":true,\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"deviceMetadata\":{\"antennaModel\":\"s-antennamodel\",\"commonChannelGroup\":\"s-commonchannelgroup\",\"interferenceCoordinationGroup\":\"s-interferencecoordinationgroup\",\"nrqzValidated\":true},\"displayName\":\"s-displayname\",\"fccId\":\"s-fccid\",\"name\":\"s-name\",\"preloadedConfig\":{\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"isSigned\":true,\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"serialNumber\":\"s-serialnumber\",\"state\":\"s-state\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"devices\":[{\"activeConfig\":{\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"isSigned\":true,\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"deviceMetadata\":{\"antennaModel\":\"s-antennamodel\",\"commonChannelGroup\":\"s-commonchannelgroup\",\"interferenceCoordinationGroup\":\"s-interferencecoordinationgroup\",\"nrqzValidated\":true},\"displayName\":\"s-displayname\",\"fccId\":\"s-fccid\",\"name\":\"s-name\",\"preloadedConfig\":{\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"isSigned\":true,\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"serialNumber\":\"s-serialnumber\",\"state\":\"s-state\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://prod-tt-sasportal.googleapis.com/v1alpha1/id1/%20x/devices?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"devices\":[{\"activeConfig\":{\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"isSigned\":true,\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"deviceMetadata\":{\"antennaModel\":\"s-antennamodel\",\"commonChannelGroup\":\"s-commonchannelgroup\",\"interferenceCoordinationGroup\":\"s-interferencecoordinationgroup\",\"nrqzValidated\":true},\"displayName\":\"s-displayname\",\"fccId\":\"s-fccid\",\"name\":\"s-name\",\"preloadedConfig\":{\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"isSigned\":true,\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"serialNumber\":\"s-serialnumber\",\"state\":\"s-state\"}]}",
+  "OUT: {\"devices\":[{\"activeConfig\":{\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"isSigned\":true,\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"deviceMetadata\":{\"antennaModel\":\"s-antennamodel\",\"commonChannelGroup\":\"s-commonchannelgroup\",\"interferenceCoordinationGroup\":\"s-interferencecoordinationgroup\",\"nrqzValidated\":true},\"displayName\":\"s-displayname\",\"fccId\":\"s-fccid\",\"name\":\"s-name\",\"preloadedConfig\":{\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"isSigned\":true,\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"serialNumber\":\"s-serialnumber\",\"state\":\"s-state\"}]}",
+  "OUT: ok",
+]
+
+test "Go's prod_tt_sasportal.nodes.deployments.devices.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"devices\":[{\"activeConfig\":{\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"isSigned\":true,\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"deviceMetadata\":{\"antennaModel\":\"s-antennamodel\",\"commonChannelGroup\":\"s-commonchannelgroup\",\"interferenceCoordinationGroup\":\"s-interferencecoordinationgroup\",\"nrqzValidated\":true},\"displayName\":\"s-displayname\",\"fccId\":\"s-fccid\",\"name\":\"s-name\",\"preloadedConfig\":{\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"isSigned\":true,\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"serialNumber\":\"s-serialnumber\",\"state\":\"s-state\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"devices\":[{\"activeConfig\":{\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"isSigned\":true,\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"deviceMetadata\":{\"antennaModel\":\"s-antennamodel\",\"commonChannelGroup\":\"s-commonchannelgroup\",\"interferenceCoordinationGroup\":\"s-interferencecoordinationgroup\",\"nrqzValidated\":true},\"displayName\":\"s-displayname\",\"fccId\":\"s-fccid\",\"name\":\"s-name\",\"preloadedConfig\":{\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"isSigned\":true,\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"serialNumber\":\"s-serialnumber\",\"state\":\"s-state\"}]}")
+  gv_note(f, "CALL prod_tt_sasportal.nodes.deployments.devices.list pages")
+  var p = svc.nodes.deployments.devices.list_pages("id1/ x", options: NodesDeploymentsDevicesListOptions{filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_66)
+}
+
+const GO_67: List[Str] = [
   "CALL prod_tt_sasportal.nodes.devices.create",
   "REQ POST https://prod-tt-sasportal.googleapis.com/v1alpha1/id1/%20x/devices?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"activeConfig\":{\"airInterface\":{\"radioTechnology\":\"s-radiotechnology\",\"supportedSpec\":\"s-supportedspec\"},\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"installationParams\":{\"antennaAzimuth\":7,\"antennaBeamwidth\":7,\"antennaDowntilt\":7,\"antennaGain\":1.5,\"antennaModel\":\"s-antennamodel\",\"cpeCbsdIndication\":true,\"eirpCapability\":7,\"height\":1.5,\"heightType\":\"s-heighttype\",\"horizontalAccuracy\":1.5,\"indoorDeployment\":true,\"latitude\":1.5,\"longitude\":1.5,\"verticalAccuracy\":1.5},\"isSigned\":true,\"measurementCapabilities\":[\"s-measurementcapabilities\"],\"model\":{\"firmwareVersion\":\"s-firmwareversion\",\"hardwareVersion\":\"s-hardwareversion\",\"name\":\"s-name\",\"softwareVersion\":\"s-softwareversion\",\"vendor\":\"s-vendor\"},\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"currentChannels\":[{\"frequencyRange\":{\"highFrequencyMhz\":1.5,\"lowFrequencyMhz\":1.5},\"score\":1.5}],\"deviceMetadata\":{\"antennaModel\":\"s-antennamodel\",\"commonChannelGroup\":\"s-commonchannelgroup\",\"interferenceCoordinationGroup\":\"s-interferencecoordinationgroup\",\"nrqzValidated\":true,\"nrqzValidation\":{\"caseId\":\"s-caseid\",\"cpiId\":\"s-cpiid\",\"latitude\":1.5,\"longitude\":1.5,\"state\":\"s-state\"}},\"displayName\":\"s-displayname\",\"fccId\":\"s-fccid\",\"grantRangeAllowlists\":[{\"highFrequencyMhz\":1.5,\"lowFrequencyMhz\":1.5}],\"grants\":[{\"channelType\":\"s-channeltype\",\"expireTime\":\"s-expiretime\",\"frequencyRange\":{\"highFrequencyMhz\":1.5,\"lowFrequencyMhz\":1.5},\"grantId\":\"s-grantid\",\"lastHeartbeatTransmitExpireTime\":\"s-lastheartbeattransmitexpiretime\",\"maxEirp\":1.5,\"state\":\"s-state\",\"suspensionReason\":[\"s-suspensionreason\"]}],\"name\":\"s-name\",\"preloadedConfig\":{\"airInterface\":{\"radioTechnology\":\"s-radiotechnology\",\"supportedSpec\":\"s-supportedspec\"},\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"installationParams\":{\"antennaAzimuth\":7,\"antennaBeamwidth\":7,\"antennaDowntilt\":7,\"antennaGain\":1.5,\"antennaModel\":\"s-antennamodel\",\"cpeCbsdIndication\":true,\"eirpCapability\":7,\"height\":1.5,\"heightType\":\"s-heighttype\",\"horizontalAccuracy\":1.5,\"indoorDeployment\":true,\"latitude\":1.5,\"longitude\":1.5,\"verticalAccuracy\":1.5},\"isSigned\":true,\"measurementCapabilities\":[\"s-measurementcapabilities\"],\"model\":{\"firmwareVersion\":\"s-firmwareversion\",\"hardwareVersion\":\"s-hardwareversion\",\"name\":\"s-name\",\"softwareVersion\":\"s-softwareversion\",\"vendor\":\"s-vendor\"},\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"serialNumber\":\"s-serialnumber\",\"state\":\"s-state\"}",
+  "  B <2424 bytes> {\"activeConfig\":{\"airInterface\":...erialnumber\",\"state\":\"s-state\"}",
   "",
   "  SERVED 200 {\"activeConfig\":{\"airInterface\":{\"radioTechnology\":\"s-radiotechnology\",\"supportedSpec\":\"s-supportedspec\"},\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"installationParams\":{\"antennaAzimuth\":7,\"antennaBeamwidth\":7,\"antennaDowntilt\":7,\"antennaGain\":1.5,\"antennaModel\":\"s-antennamodel\",\"cpeCbsdIndication\":true,\"eirpCapability\":7,\"height\":1.5,\"heightType\":\"s-heighttype\",\"horizontalAccuracy\":1.5,\"indoorDeployment\":true,\"latitude\":1.5,\"longitude\":1.5,\"verticalAccuracy\":1.5},\"isSigned\":true,\"measurementCapabilities\":[\"s-measurementcapabilities\"],\"model\":{\"firmwareVersion\":\"s-firmwareversion\",\"hardwareVersion\":\"s-hardwareversion\",\"name\":\"s-name\",\"softwareVersion\":\"s-softwareversion\",\"vendor\":\"s-vendor\"},\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"currentChannels\":[{\"frequencyRange\":{\"highFrequencyMhz\":1.5,\"lowFrequencyMhz\":1.5},\"score\":1.5}],\"deviceMetadata\":{\"antennaModel\":\"s-antennamodel\",\"commonChannelGroup\":\"s-commonchannelgroup\",\"interferenceCoordinationGroup\":\"s-interferencecoordinationgroup\",\"nrqzValidated\":true,\"nrqzValidation\":{\"caseId\":\"s-caseid\",\"cpiId\":\"s-cpiid\",\"latitude\":1.5,\"longitude\":1.5,\"state\":\"s-state\"}},\"displayName\":\"s-displayname\",\"fccId\":\"s-fccid\",\"grantRangeAllowlists\":[{\"highFrequencyMhz\":1.5,\"lowFrequencyMhz\":1.5}],\"grants\":[{\"channelType\":\"s-channeltype\",\"expireTime\":\"s-expiretime\",\"frequencyRange\":{\"highFrequencyMhz\":1.5,\"lowFrequencyMhz\":1.5},\"grantId\":\"s-grantid\",\"lastHeartbeatTransmitExpireTime\":\"s-lastheartbeattransmitexpiretime\",\"maxEirp\":1.5,\"state\":\"s-state\",\"suspensionReason\":[\"s-suspensionreason\"]}],\"name\":\"s-name\",\"preloadedConfig\":{\"airInterface\":{\"radioTechnology\":\"s-radiotechnology\",\"supportedSpec\":\"s-supportedspec\"},\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"installationParams\":{\"antennaAzimuth\":7,\"antennaBeamwidth\":7,\"antennaDowntilt\":7,\"antennaGain\":1.5,\"antennaModel\":\"s-antennamodel\",\"cpeCbsdIndication\":true,\"eirpCapability\":7,\"height\":1.5,\"heightType\":\"s-heighttype\",\"horizontalAccuracy\":1.5,\"indoorDeployment\":true,\"latitude\":1.5,\"longitude\":1.5,\"verticalAccuracy\":1.5},\"isSigned\":true,\"measurementCapabilities\":[\"s-measurementcapabilities\"],\"model\":{\"firmwareVersion\":\"s-firmwareversion\",\"hardwareVersion\":\"s-hardwareversion\",\"name\":\"s-name\",\"softwareVersion\":\"s-softwareversion\",\"vendor\":\"s-vendor\"},\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"serialNumber\":\"s-serialnumber\",\"state\":\"s-state\"}",
   "OUT: {\"activeConfig\":{\"airInterface\":{\"radioTechnology\":\"s-radiotechnology\",\"supportedSpec\":\"s-supportedspec\"},\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"installationParams\":{\"antennaAzimuth\":7,\"antennaBeamwidth\":7,\"antennaDowntilt\":7,\"antennaGain\":1.5,\"antennaModel\":\"s-antennamodel\",\"cpeCbsdIndication\":true,\"eirpCapability\":7,\"height\":1.5,\"heightType\":\"s-heighttype\",\"horizontalAccuracy\":1.5,\"indoorDeployment\":true,\"latitude\":1.5,\"longitude\":1.5,\"verticalAccuracy\":1.5},\"isSigned\":true,\"measurementCapabilities\":[\"s-measurementcapabilities\"],\"model\":{\"firmwareVersion\":\"s-firmwareversion\",\"hardwareVersion\":\"s-hardwareversion\",\"name\":\"s-name\",\"softwareVersion\":\"s-softwareversion\",\"vendor\":\"s-vendor\"},\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"currentChannels\":[{\"frequencyRange\":{\"highFrequencyMhz\":1.5,\"lowFrequencyMhz\":1.5},\"score\":1.5}],\"deviceMetadata\":{\"antennaModel\":\"s-antennamodel\",\"commonChannelGroup\":\"s-commonchannelgroup\",\"interferenceCoordinationGroup\":\"s-interferencecoordinationgroup\",\"nrqzValidated\":true,\"nrqzValidation\":{\"caseId\":\"s-caseid\",\"cpiId\":\"s-cpiid\",\"latitude\":1.5,\"longitude\":1.5,\"state\":\"s-state\"}},\"displayName\":\"s-displayname\",\"fccId\":\"s-fccid\",\"grantRangeAllowlists\":[{\"highFrequencyMhz\":1.5,\"lowFrequencyMhz\":1.5}],\"grants\":[{\"channelType\":\"s-channeltype\",\"expireTime\":\"s-expiretime\",\"frequencyRange\":{\"highFrequencyMhz\":1.5,\"lowFrequencyMhz\":1.5},\"grantId\":\"s-grantid\",\"lastHeartbeatTransmitExpireTime\":\"s-lastheartbeattransmitexpiretime\",\"maxEirp\":1.5,\"state\":\"s-state\",\"suspensionReason\":[\"s-suspensionreason\"]}],\"name\":\"s-name\",\"preloadedConfig\":{\"airInterface\":{\"radioTechnology\":\"s-radiotechnology\",\"supportedSpec\":\"s-supportedspec\"},\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"installationParams\":{\"antennaAzimuth\":7,\"antennaBeamwidth\":7,\"antennaDowntilt\":7,\"antennaGain\":1.5,\"antennaModel\":\"s-antennamodel\",\"cpeCbsdIndication\":true,\"eirpCapability\":7,\"height\":1.5,\"heightType\":\"s-heighttype\",\"horizontalAccuracy\":1.5,\"indoorDeployment\":true,\"latitude\":1.5,\"longitude\":1.5,\"verticalAccuracy\":1.5},\"isSigned\":true,\"measurementCapabilities\":[\"s-measurementcapabilities\"],\"model\":{\"firmwareVersion\":\"s-firmwareversion\",\"hardwareVersion\":\"s-hardwareversion\",\"name\":\"s-name\",\"softwareVersion\":\"s-softwareversion\",\"vendor\":\"s-vendor\"},\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"serialNumber\":\"s-serialnumber\",\"state\":\"s-state\"}",
@@ -1256,10 +1636,10 @@ test "Go's prod_tt_sasportal.nodes.devices.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_57)
+  gv_compare(gv_log_of(f), GO_67)
 }
 
-const GO_58: List[Str] = [
+const GO_68: List[Str] = [
   "CALL prod_tt_sasportal.nodes.devices.createSigned",
   "REQ POST https://prod-tt-sasportal.googleapis.com/v1alpha1/id1/%20x/devices:createSigned?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1278,10 +1658,10 @@ test "Go's prod_tt_sasportal.nodes.devices.createSigned" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_58)
+  gv_compare(gv_log_of(f), GO_68)
 }
 
-const GO_59: List[Str] = [
+const GO_69: List[Str] = [
   "CALL prod_tt_sasportal.nodes.devices.delete",
   "REQ DELETE https://prod-tt-sasportal.googleapis.com/v1alpha1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -1299,10 +1679,10 @@ test "Go's prod_tt_sasportal.nodes.devices.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_59)
+  gv_compare(gv_log_of(f), GO_69)
 }
 
-const GO_60: List[Str] = [
+const GO_70: List[Str] = [
   "CALL prod_tt_sasportal.nodes.devices.get",
   "REQ GET https://prod-tt-sasportal.googleapis.com/v1alpha1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1320,10 +1700,10 @@ test "Go's prod_tt_sasportal.nodes.devices.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_60)
+  gv_compare(gv_log_of(f), GO_70)
 }
 
-const GO_61: List[Str] = [
+const GO_71: List[Str] = [
   "CALL prod_tt_sasportal.nodes.devices.list",
   "REQ GET https://prod-tt-sasportal.googleapis.com/v1alpha1/id1/%20x/devices?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1341,10 +1721,48 @@ test "Go's prod_tt_sasportal.nodes.devices.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_61)
+  gv_compare(gv_log_of(f), GO_71)
 }
 
-const GO_62: List[Str] = [
+const GO_72: List[Str] = [
+  "CALL prod_tt_sasportal.nodes.devices.list pages",
+  "REQ GET https://prod-tt-sasportal.googleapis.com/v1alpha1/id1/%20x/devices?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"devices\":[{\"activeConfig\":{\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"isSigned\":true,\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"deviceMetadata\":{\"antennaModel\":\"s-antennamodel\",\"commonChannelGroup\":\"s-commonchannelgroup\",\"interferenceCoordinationGroup\":\"s-interferencecoordinationgroup\",\"nrqzValidated\":true},\"displayName\":\"s-displayname\",\"fccId\":\"s-fccid\",\"name\":\"s-name\",\"preloadedConfig\":{\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"isSigned\":true,\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"serialNumber\":\"s-serialnumber\",\"state\":\"s-state\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"devices\":[{\"activeConfig\":{\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"isSigned\":true,\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"deviceMetadata\":{\"antennaModel\":\"s-antennamodel\",\"commonChannelGroup\":\"s-commonchannelgroup\",\"interferenceCoordinationGroup\":\"s-interferencecoordinationgroup\",\"nrqzValidated\":true},\"displayName\":\"s-displayname\",\"fccId\":\"s-fccid\",\"name\":\"s-name\",\"preloadedConfig\":{\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"isSigned\":true,\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"serialNumber\":\"s-serialnumber\",\"state\":\"s-state\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://prod-tt-sasportal.googleapis.com/v1alpha1/id1/%20x/devices?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"devices\":[{\"activeConfig\":{\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"isSigned\":true,\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"deviceMetadata\":{\"antennaModel\":\"s-antennamodel\",\"commonChannelGroup\":\"s-commonchannelgroup\",\"interferenceCoordinationGroup\":\"s-interferencecoordinationgroup\",\"nrqzValidated\":true},\"displayName\":\"s-displayname\",\"fccId\":\"s-fccid\",\"name\":\"s-name\",\"preloadedConfig\":{\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"isSigned\":true,\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"serialNumber\":\"s-serialnumber\",\"state\":\"s-state\"}]}",
+  "OUT: {\"devices\":[{\"activeConfig\":{\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"isSigned\":true,\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"deviceMetadata\":{\"antennaModel\":\"s-antennamodel\",\"commonChannelGroup\":\"s-commonchannelgroup\",\"interferenceCoordinationGroup\":\"s-interferencecoordinationgroup\",\"nrqzValidated\":true},\"displayName\":\"s-displayname\",\"fccId\":\"s-fccid\",\"name\":\"s-name\",\"preloadedConfig\":{\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"isSigned\":true,\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"serialNumber\":\"s-serialnumber\",\"state\":\"s-state\"}]}",
+  "OUT: ok",
+]
+
+test "Go's prod_tt_sasportal.nodes.devices.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"devices\":[{\"activeConfig\":{\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"isSigned\":true,\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"deviceMetadata\":{\"antennaModel\":\"s-antennamodel\",\"commonChannelGroup\":\"s-commonchannelgroup\",\"interferenceCoordinationGroup\":\"s-interferencecoordinationgroup\",\"nrqzValidated\":true},\"displayName\":\"s-displayname\",\"fccId\":\"s-fccid\",\"name\":\"s-name\",\"preloadedConfig\":{\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"isSigned\":true,\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"serialNumber\":\"s-serialnumber\",\"state\":\"s-state\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"devices\":[{\"activeConfig\":{\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"isSigned\":true,\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"deviceMetadata\":{\"antennaModel\":\"s-antennamodel\",\"commonChannelGroup\":\"s-commonchannelgroup\",\"interferenceCoordinationGroup\":\"s-interferencecoordinationgroup\",\"nrqzValidated\":true},\"displayName\":\"s-displayname\",\"fccId\":\"s-fccid\",\"name\":\"s-name\",\"preloadedConfig\":{\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"isSigned\":true,\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"serialNumber\":\"s-serialnumber\",\"state\":\"s-state\"}]}")
+  gv_note(f, "CALL prod_tt_sasportal.nodes.devices.list pages")
+  var p = svc.nodes.devices.list_pages("id1/ x", options: NodesDevicesListOptions{filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_72)
+}
+
+const GO_73: List[Str] = [
   "CALL prod_tt_sasportal.nodes.devices.move",
   "REQ POST https://prod-tt-sasportal.googleapis.com/v1alpha1/id1/%20x:move?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1363,14 +1781,14 @@ test "Go's prod_tt_sasportal.nodes.devices.move" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_62)
+  gv_compare(gv_log_of(f), GO_73)
 }
 
-const GO_63: List[Str] = [
+const GO_74: List[Str] = [
   "CALL prod_tt_sasportal.nodes.devices.patch",
   "REQ PATCH https://prod-tt-sasportal.googleapis.com/v1alpha1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"activeConfig\":{\"airInterface\":{\"radioTechnology\":\"s-radiotechnology\",\"supportedSpec\":\"s-supportedspec\"},\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"installationParams\":{\"antennaAzimuth\":7,\"antennaBeamwidth\":7,\"antennaDowntilt\":7,\"antennaGain\":1.5,\"antennaModel\":\"s-antennamodel\",\"cpeCbsdIndication\":true,\"eirpCapability\":7,\"height\":1.5,\"heightType\":\"s-heighttype\",\"horizontalAccuracy\":1.5,\"indoorDeployment\":true,\"latitude\":1.5,\"longitude\":1.5,\"verticalAccuracy\":1.5},\"isSigned\":true,\"measurementCapabilities\":[\"s-measurementcapabilities\"],\"model\":{\"firmwareVersion\":\"s-firmwareversion\",\"hardwareVersion\":\"s-hardwareversion\",\"name\":\"s-name\",\"softwareVersion\":\"s-softwareversion\",\"vendor\":\"s-vendor\"},\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"currentChannels\":[{\"frequencyRange\":{\"highFrequencyMhz\":1.5,\"lowFrequencyMhz\":1.5},\"score\":1.5}],\"deviceMetadata\":{\"antennaModel\":\"s-antennamodel\",\"commonChannelGroup\":\"s-commonchannelgroup\",\"interferenceCoordinationGroup\":\"s-interferencecoordinationgroup\",\"nrqzValidated\":true,\"nrqzValidation\":{\"caseId\":\"s-caseid\",\"cpiId\":\"s-cpiid\",\"latitude\":1.5,\"longitude\":1.5,\"state\":\"s-state\"}},\"displayName\":\"s-displayname\",\"fccId\":\"s-fccid\",\"grantRangeAllowlists\":[{\"highFrequencyMhz\":1.5,\"lowFrequencyMhz\":1.5}],\"grants\":[{\"channelType\":\"s-channeltype\",\"expireTime\":\"s-expiretime\",\"frequencyRange\":{\"highFrequencyMhz\":1.5,\"lowFrequencyMhz\":1.5},\"grantId\":\"s-grantid\",\"lastHeartbeatTransmitExpireTime\":\"s-lastheartbeattransmitexpiretime\",\"maxEirp\":1.5,\"state\":\"s-state\",\"suspensionReason\":[\"s-suspensionreason\"]}],\"name\":\"s-name\",\"preloadedConfig\":{\"airInterface\":{\"radioTechnology\":\"s-radiotechnology\",\"supportedSpec\":\"s-supportedspec\"},\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"installationParams\":{\"antennaAzimuth\":7,\"antennaBeamwidth\":7,\"antennaDowntilt\":7,\"antennaGain\":1.5,\"antennaModel\":\"s-antennamodel\",\"cpeCbsdIndication\":true,\"eirpCapability\":7,\"height\":1.5,\"heightType\":\"s-heighttype\",\"horizontalAccuracy\":1.5,\"indoorDeployment\":true,\"latitude\":1.5,\"longitude\":1.5,\"verticalAccuracy\":1.5},\"isSigned\":true,\"measurementCapabilities\":[\"s-measurementcapabilities\"],\"model\":{\"firmwareVersion\":\"s-firmwareversion\",\"hardwareVersion\":\"s-hardwareversion\",\"name\":\"s-name\",\"softwareVersion\":\"s-softwareversion\",\"vendor\":\"s-vendor\"},\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"serialNumber\":\"s-serialnumber\",\"state\":\"s-state\"}",
+  "  B <2424 bytes> {\"activeConfig\":{\"airInterface\":...erialnumber\",\"state\":\"s-state\"}",
   "",
   "  SERVED 200 {\"activeConfig\":{\"airInterface\":{\"radioTechnology\":\"s-radiotechnology\",\"supportedSpec\":\"s-supportedspec\"},\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"installationParams\":{\"antennaAzimuth\":7,\"antennaBeamwidth\":7,\"antennaDowntilt\":7,\"antennaGain\":1.5,\"antennaModel\":\"s-antennamodel\",\"cpeCbsdIndication\":true,\"eirpCapability\":7,\"height\":1.5,\"heightType\":\"s-heighttype\",\"horizontalAccuracy\":1.5,\"indoorDeployment\":true,\"latitude\":1.5,\"longitude\":1.5,\"verticalAccuracy\":1.5},\"isSigned\":true,\"measurementCapabilities\":[\"s-measurementcapabilities\"],\"model\":{\"firmwareVersion\":\"s-firmwareversion\",\"hardwareVersion\":\"s-hardwareversion\",\"name\":\"s-name\",\"softwareVersion\":\"s-softwareversion\",\"vendor\":\"s-vendor\"},\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"currentChannels\":[{\"frequencyRange\":{\"highFrequencyMhz\":1.5,\"lowFrequencyMhz\":1.5},\"score\":1.5}],\"deviceMetadata\":{\"antennaModel\":\"s-antennamodel\",\"commonChannelGroup\":\"s-commonchannelgroup\",\"interferenceCoordinationGroup\":\"s-interferencecoordinationgroup\",\"nrqzValidated\":true,\"nrqzValidation\":{\"caseId\":\"s-caseid\",\"cpiId\":\"s-cpiid\",\"latitude\":1.5,\"longitude\":1.5,\"state\":\"s-state\"}},\"displayName\":\"s-displayname\",\"fccId\":\"s-fccid\",\"grantRangeAllowlists\":[{\"highFrequencyMhz\":1.5,\"lowFrequencyMhz\":1.5}],\"grants\":[{\"channelType\":\"s-channeltype\",\"expireTime\":\"s-expiretime\",\"frequencyRange\":{\"highFrequencyMhz\":1.5,\"lowFrequencyMhz\":1.5},\"grantId\":\"s-grantid\",\"lastHeartbeatTransmitExpireTime\":\"s-lastheartbeattransmitexpiretime\",\"maxEirp\":1.5,\"state\":\"s-state\",\"suspensionReason\":[\"s-suspensionreason\"]}],\"name\":\"s-name\",\"preloadedConfig\":{\"airInterface\":{\"radioTechnology\":\"s-radiotechnology\",\"supportedSpec\":\"s-supportedspec\"},\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"installationParams\":{\"antennaAzimuth\":7,\"antennaBeamwidth\":7,\"antennaDowntilt\":7,\"antennaGain\":1.5,\"antennaModel\":\"s-antennamodel\",\"cpeCbsdIndication\":true,\"eirpCapability\":7,\"height\":1.5,\"heightType\":\"s-heighttype\",\"horizontalAccuracy\":1.5,\"indoorDeployment\":true,\"latitude\":1.5,\"longitude\":1.5,\"verticalAccuracy\":1.5},\"isSigned\":true,\"measurementCapabilities\":[\"s-measurementcapabilities\"],\"model\":{\"firmwareVersion\":\"s-firmwareversion\",\"hardwareVersion\":\"s-hardwareversion\",\"name\":\"s-name\",\"softwareVersion\":\"s-softwareversion\",\"vendor\":\"s-vendor\"},\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"serialNumber\":\"s-serialnumber\",\"state\":\"s-state\"}",
   "OUT: {\"activeConfig\":{\"airInterface\":{\"radioTechnology\":\"s-radiotechnology\",\"supportedSpec\":\"s-supportedspec\"},\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"installationParams\":{\"antennaAzimuth\":7,\"antennaBeamwidth\":7,\"antennaDowntilt\":7,\"antennaGain\":1.5,\"antennaModel\":\"s-antennamodel\",\"cpeCbsdIndication\":true,\"eirpCapability\":7,\"height\":1.5,\"heightType\":\"s-heighttype\",\"horizontalAccuracy\":1.5,\"indoorDeployment\":true,\"latitude\":1.5,\"longitude\":1.5,\"verticalAccuracy\":1.5},\"isSigned\":true,\"measurementCapabilities\":[\"s-measurementcapabilities\"],\"model\":{\"firmwareVersion\":\"s-firmwareversion\",\"hardwareVersion\":\"s-hardwareversion\",\"name\":\"s-name\",\"softwareVersion\":\"s-softwareversion\",\"vendor\":\"s-vendor\"},\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"currentChannels\":[{\"frequencyRange\":{\"highFrequencyMhz\":1.5,\"lowFrequencyMhz\":1.5},\"score\":1.5}],\"deviceMetadata\":{\"antennaModel\":\"s-antennamodel\",\"commonChannelGroup\":\"s-commonchannelgroup\",\"interferenceCoordinationGroup\":\"s-interferencecoordinationgroup\",\"nrqzValidated\":true,\"nrqzValidation\":{\"caseId\":\"s-caseid\",\"cpiId\":\"s-cpiid\",\"latitude\":1.5,\"longitude\":1.5,\"state\":\"s-state\"}},\"displayName\":\"s-displayname\",\"fccId\":\"s-fccid\",\"grantRangeAllowlists\":[{\"highFrequencyMhz\":1.5,\"lowFrequencyMhz\":1.5}],\"grants\":[{\"channelType\":\"s-channeltype\",\"expireTime\":\"s-expiretime\",\"frequencyRange\":{\"highFrequencyMhz\":1.5,\"lowFrequencyMhz\":1.5},\"grantId\":\"s-grantid\",\"lastHeartbeatTransmitExpireTime\":\"s-lastheartbeattransmitexpiretime\",\"maxEirp\":1.5,\"state\":\"s-state\",\"suspensionReason\":[\"s-suspensionreason\"]}],\"name\":\"s-name\",\"preloadedConfig\":{\"airInterface\":{\"radioTechnology\":\"s-radiotechnology\",\"supportedSpec\":\"s-supportedspec\"},\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"installationParams\":{\"antennaAzimuth\":7,\"antennaBeamwidth\":7,\"antennaDowntilt\":7,\"antennaGain\":1.5,\"antennaModel\":\"s-antennamodel\",\"cpeCbsdIndication\":true,\"eirpCapability\":7,\"height\":1.5,\"heightType\":\"s-heighttype\",\"horizontalAccuracy\":1.5,\"indoorDeployment\":true,\"latitude\":1.5,\"longitude\":1.5,\"verticalAccuracy\":1.5},\"isSigned\":true,\"measurementCapabilities\":[\"s-measurementcapabilities\"],\"model\":{\"firmwareVersion\":\"s-firmwareversion\",\"hardwareVersion\":\"s-hardwareversion\",\"name\":\"s-name\",\"softwareVersion\":\"s-softwareversion\",\"vendor\":\"s-vendor\"},\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"serialNumber\":\"s-serialnumber\",\"state\":\"s-state\"}",
@@ -1385,10 +1803,10 @@ test "Go's prod_tt_sasportal.nodes.devices.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_63)
+  gv_compare(gv_log_of(f), GO_74)
 }
 
-const GO_64: List[Str] = [
+const GO_75: List[Str] = [
   "CALL prod_tt_sasportal.nodes.devices.signDevice",
   "REQ POST https://prod-tt-sasportal.googleapis.com/v1alpha1/id1/%20x:signDevice?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1407,10 +1825,10 @@ test "Go's prod_tt_sasportal.nodes.devices.signDevice" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_64)
+  gv_compare(gv_log_of(f), GO_75)
 }
 
-const GO_65: List[Str] = [
+const GO_76: List[Str] = [
   "CALL prod_tt_sasportal.nodes.devices.updateSigned",
   "REQ PATCH https://prod-tt-sasportal.googleapis.com/v1alpha1/id1/%20x:updateSigned?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1429,10 +1847,10 @@ test "Go's prod_tt_sasportal.nodes.devices.updateSigned" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_65)
+  gv_compare(gv_log_of(f), GO_76)
 }
 
-const GO_66: List[Str] = [
+const GO_77: List[Str] = [
   "CALL prod_tt_sasportal.nodes.nodes.create",
   "REQ POST https://prod-tt-sasportal.googleapis.com/v1alpha1/id1/%20x/nodes?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1451,10 +1869,10 @@ test "Go's prod_tt_sasportal.nodes.nodes.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_66)
+  gv_compare(gv_log_of(f), GO_77)
 }
 
-const GO_67: List[Str] = [
+const GO_78: List[Str] = [
   "CALL prod_tt_sasportal.nodes.nodes.delete",
   "REQ DELETE https://prod-tt-sasportal.googleapis.com/v1alpha1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -1472,10 +1890,10 @@ test "Go's prod_tt_sasportal.nodes.nodes.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_67)
+  gv_compare(gv_log_of(f), GO_78)
 }
 
-const GO_68: List[Str] = [
+const GO_79: List[Str] = [
   "CALL prod_tt_sasportal.nodes.nodes.get",
   "REQ GET https://prod-tt-sasportal.googleapis.com/v1alpha1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1493,10 +1911,10 @@ test "Go's prod_tt_sasportal.nodes.nodes.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_68)
+  gv_compare(gv_log_of(f), GO_79)
 }
 
-const GO_69: List[Str] = [
+const GO_80: List[Str] = [
   "CALL prod_tt_sasportal.nodes.nodes.list",
   "REQ GET https://prod-tt-sasportal.googleapis.com/v1alpha1/id1/%20x/nodes?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1514,10 +1932,48 @@ test "Go's prod_tt_sasportal.nodes.nodes.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_69)
+  gv_compare(gv_log_of(f), GO_80)
 }
 
-const GO_70: List[Str] = [
+const GO_81: List[Str] = [
+  "CALL prod_tt_sasportal.nodes.nodes.list pages",
+  "REQ GET https://prod-tt-sasportal.googleapis.com/v1alpha1/id1/%20x/nodes?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"nodes\":[{\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"sasUserIds\":[\"s-sasuserids\"]}]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"nodes\":[{\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"sasUserIds\":[\"s-sasuserids\"]}]}",
+  "REQ GET https://prod-tt-sasportal.googleapis.com/v1alpha1/id1/%20x/nodes?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nodes\":[{\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"sasUserIds\":[\"s-sasuserids\"]}]}",
+  "OUT: {\"nodes\":[{\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"sasUserIds\":[\"s-sasuserids\"]}]}",
+  "OUT: ok",
+]
+
+test "Go's prod_tt_sasportal.nodes.nodes.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"nodes\":[{\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"sasUserIds\":[\"s-sasuserids\"]}]}")
+  gv_queue(f, "{\"nodes\":[{\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"sasUserIds\":[\"s-sasuserids\"]}]}")
+  gv_note(f, "CALL prod_tt_sasportal.nodes.nodes.list pages")
+  var p = svc.nodes.nodes.list_pages("id1/ x", options: NodesNodesListOptions{filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_81)
+}
+
+const GO_82: List[Str] = [
   "CALL prod_tt_sasportal.nodes.nodes.move",
   "REQ POST https://prod-tt-sasportal.googleapis.com/v1alpha1/id1/%20x:move?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1536,10 +1992,10 @@ test "Go's prod_tt_sasportal.nodes.nodes.move" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_70)
+  gv_compare(gv_log_of(f), GO_82)
 }
 
-const GO_71: List[Str] = [
+const GO_83: List[Str] = [
   "CALL prod_tt_sasportal.nodes.nodes.patch",
   "REQ PATCH https://prod-tt-sasportal.googleapis.com/v1alpha1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
@@ -1558,10 +2014,10 @@ test "Go's prod_tt_sasportal.nodes.nodes.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_71)
+  gv_compare(gv_log_of(f), GO_83)
 }
 
-const GO_72: List[Str] = [
+const GO_84: List[Str] = [
   "CALL prod_tt_sasportal.nodes.nodes.deployments.create",
   "REQ POST https://prod-tt-sasportal.googleapis.com/v1alpha1/id1/%20x/deployments?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1580,10 +2036,10 @@ test "Go's prod_tt_sasportal.nodes.nodes.deployments.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_72)
+  gv_compare(gv_log_of(f), GO_84)
 }
 
-const GO_73: List[Str] = [
+const GO_85: List[Str] = [
   "CALL prod_tt_sasportal.nodes.nodes.deployments.list",
   "REQ GET https://prod-tt-sasportal.googleapis.com/v1alpha1/id1/%20x/deployments?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1601,14 +2057,52 @@ test "Go's prod_tt_sasportal.nodes.nodes.deployments.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_73)
+  gv_compare(gv_log_of(f), GO_85)
 }
 
-const GO_74: List[Str] = [
+const GO_86: List[Str] = [
+  "CALL prod_tt_sasportal.nodes.nodes.deployments.list pages",
+  "REQ GET https://prod-tt-sasportal.googleapis.com/v1alpha1/id1/%20x/deployments?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"deployments\":[{\"displayName\":\"s-displayname\",\"frns\":[\"s-frns\"],\"name\":\"s-name\",\"sasUserIds\":[\"s-sasuserids\"]}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"deployments\":[{\"displayName\":\"s-displayname\",\"frns\":[\"s-frns\"],\"name\":\"s-name\",\"sasUserIds\":[\"s-sasuserids\"]}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://prod-tt-sasportal.googleapis.com/v1alpha1/id1/%20x/deployments?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"deployments\":[{\"displayName\":\"s-displayname\",\"frns\":[\"s-frns\"],\"name\":\"s-name\",\"sasUserIds\":[\"s-sasuserids\"]}]}",
+  "OUT: {\"deployments\":[{\"displayName\":\"s-displayname\",\"frns\":[\"s-frns\"],\"name\":\"s-name\",\"sasUserIds\":[\"s-sasuserids\"]}]}",
+  "OUT: ok",
+]
+
+test "Go's prod_tt_sasportal.nodes.nodes.deployments.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"deployments\":[{\"displayName\":\"s-displayname\",\"frns\":[\"s-frns\"],\"name\":\"s-name\",\"sasUserIds\":[\"s-sasuserids\"]}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"deployments\":[{\"displayName\":\"s-displayname\",\"frns\":[\"s-frns\"],\"name\":\"s-name\",\"sasUserIds\":[\"s-sasuserids\"]}]}")
+  gv_note(f, "CALL prod_tt_sasportal.nodes.nodes.deployments.list pages")
+  var p = svc.nodes.nodes.deployments.list_pages("id1/ x", options: NodesNodesDeploymentsListOptions{filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_86)
+}
+
+const GO_87: List[Str] = [
   "CALL prod_tt_sasportal.nodes.nodes.devices.create",
   "REQ POST https://prod-tt-sasportal.googleapis.com/v1alpha1/id1/%20x/devices?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"activeConfig\":{\"airInterface\":{\"radioTechnology\":\"s-radiotechnology\",\"supportedSpec\":\"s-supportedspec\"},\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"installationParams\":{\"antennaAzimuth\":7,\"antennaBeamwidth\":7,\"antennaDowntilt\":7,\"antennaGain\":1.5,\"antennaModel\":\"s-antennamodel\",\"cpeCbsdIndication\":true,\"eirpCapability\":7,\"height\":1.5,\"heightType\":\"s-heighttype\",\"horizontalAccuracy\":1.5,\"indoorDeployment\":true,\"latitude\":1.5,\"longitude\":1.5,\"verticalAccuracy\":1.5},\"isSigned\":true,\"measurementCapabilities\":[\"s-measurementcapabilities\"],\"model\":{\"firmwareVersion\":\"s-firmwareversion\",\"hardwareVersion\":\"s-hardwareversion\",\"name\":\"s-name\",\"softwareVersion\":\"s-softwareversion\",\"vendor\":\"s-vendor\"},\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"currentChannels\":[{\"frequencyRange\":{\"highFrequencyMhz\":1.5,\"lowFrequencyMhz\":1.5},\"score\":1.5}],\"deviceMetadata\":{\"antennaModel\":\"s-antennamodel\",\"commonChannelGroup\":\"s-commonchannelgroup\",\"interferenceCoordinationGroup\":\"s-interferencecoordinationgroup\",\"nrqzValidated\":true,\"nrqzValidation\":{\"caseId\":\"s-caseid\",\"cpiId\":\"s-cpiid\",\"latitude\":1.5,\"longitude\":1.5,\"state\":\"s-state\"}},\"displayName\":\"s-displayname\",\"fccId\":\"s-fccid\",\"grantRangeAllowlists\":[{\"highFrequencyMhz\":1.5,\"lowFrequencyMhz\":1.5}],\"grants\":[{\"channelType\":\"s-channeltype\",\"expireTime\":\"s-expiretime\",\"frequencyRange\":{\"highFrequencyMhz\":1.5,\"lowFrequencyMhz\":1.5},\"grantId\":\"s-grantid\",\"lastHeartbeatTransmitExpireTime\":\"s-lastheartbeattransmitexpiretime\",\"maxEirp\":1.5,\"state\":\"s-state\",\"suspensionReason\":[\"s-suspensionreason\"]}],\"name\":\"s-name\",\"preloadedConfig\":{\"airInterface\":{\"radioTechnology\":\"s-radiotechnology\",\"supportedSpec\":\"s-supportedspec\"},\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"installationParams\":{\"antennaAzimuth\":7,\"antennaBeamwidth\":7,\"antennaDowntilt\":7,\"antennaGain\":1.5,\"antennaModel\":\"s-antennamodel\",\"cpeCbsdIndication\":true,\"eirpCapability\":7,\"height\":1.5,\"heightType\":\"s-heighttype\",\"horizontalAccuracy\":1.5,\"indoorDeployment\":true,\"latitude\":1.5,\"longitude\":1.5,\"verticalAccuracy\":1.5},\"isSigned\":true,\"measurementCapabilities\":[\"s-measurementcapabilities\"],\"model\":{\"firmwareVersion\":\"s-firmwareversion\",\"hardwareVersion\":\"s-hardwareversion\",\"name\":\"s-name\",\"softwareVersion\":\"s-softwareversion\",\"vendor\":\"s-vendor\"},\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"serialNumber\":\"s-serialnumber\",\"state\":\"s-state\"}",
+  "  B <2424 bytes> {\"activeConfig\":{\"airInterface\":...erialnumber\",\"state\":\"s-state\"}",
   "",
   "  SERVED 200 {\"activeConfig\":{\"airInterface\":{\"radioTechnology\":\"s-radiotechnology\",\"supportedSpec\":\"s-supportedspec\"},\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"installationParams\":{\"antennaAzimuth\":7,\"antennaBeamwidth\":7,\"antennaDowntilt\":7,\"antennaGain\":1.5,\"antennaModel\":\"s-antennamodel\",\"cpeCbsdIndication\":true,\"eirpCapability\":7,\"height\":1.5,\"heightType\":\"s-heighttype\",\"horizontalAccuracy\":1.5,\"indoorDeployment\":true,\"latitude\":1.5,\"longitude\":1.5,\"verticalAccuracy\":1.5},\"isSigned\":true,\"measurementCapabilities\":[\"s-measurementcapabilities\"],\"model\":{\"firmwareVersion\":\"s-firmwareversion\",\"hardwareVersion\":\"s-hardwareversion\",\"name\":\"s-name\",\"softwareVersion\":\"s-softwareversion\",\"vendor\":\"s-vendor\"},\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"currentChannels\":[{\"frequencyRange\":{\"highFrequencyMhz\":1.5,\"lowFrequencyMhz\":1.5},\"score\":1.5}],\"deviceMetadata\":{\"antennaModel\":\"s-antennamodel\",\"commonChannelGroup\":\"s-commonchannelgroup\",\"interferenceCoordinationGroup\":\"s-interferencecoordinationgroup\",\"nrqzValidated\":true,\"nrqzValidation\":{\"caseId\":\"s-caseid\",\"cpiId\":\"s-cpiid\",\"latitude\":1.5,\"longitude\":1.5,\"state\":\"s-state\"}},\"displayName\":\"s-displayname\",\"fccId\":\"s-fccid\",\"grantRangeAllowlists\":[{\"highFrequencyMhz\":1.5,\"lowFrequencyMhz\":1.5}],\"grants\":[{\"channelType\":\"s-channeltype\",\"expireTime\":\"s-expiretime\",\"frequencyRange\":{\"highFrequencyMhz\":1.5,\"lowFrequencyMhz\":1.5},\"grantId\":\"s-grantid\",\"lastHeartbeatTransmitExpireTime\":\"s-lastheartbeattransmitexpiretime\",\"maxEirp\":1.5,\"state\":\"s-state\",\"suspensionReason\":[\"s-suspensionreason\"]}],\"name\":\"s-name\",\"preloadedConfig\":{\"airInterface\":{\"radioTechnology\":\"s-radiotechnology\",\"supportedSpec\":\"s-supportedspec\"},\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"installationParams\":{\"antennaAzimuth\":7,\"antennaBeamwidth\":7,\"antennaDowntilt\":7,\"antennaGain\":1.5,\"antennaModel\":\"s-antennamodel\",\"cpeCbsdIndication\":true,\"eirpCapability\":7,\"height\":1.5,\"heightType\":\"s-heighttype\",\"horizontalAccuracy\":1.5,\"indoorDeployment\":true,\"latitude\":1.5,\"longitude\":1.5,\"verticalAccuracy\":1.5},\"isSigned\":true,\"measurementCapabilities\":[\"s-measurementcapabilities\"],\"model\":{\"firmwareVersion\":\"s-firmwareversion\",\"hardwareVersion\":\"s-hardwareversion\",\"name\":\"s-name\",\"softwareVersion\":\"s-softwareversion\",\"vendor\":\"s-vendor\"},\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"serialNumber\":\"s-serialnumber\",\"state\":\"s-state\"}",
   "OUT: {\"activeConfig\":{\"airInterface\":{\"radioTechnology\":\"s-radiotechnology\",\"supportedSpec\":\"s-supportedspec\"},\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"installationParams\":{\"antennaAzimuth\":7,\"antennaBeamwidth\":7,\"antennaDowntilt\":7,\"antennaGain\":1.5,\"antennaModel\":\"s-antennamodel\",\"cpeCbsdIndication\":true,\"eirpCapability\":7,\"height\":1.5,\"heightType\":\"s-heighttype\",\"horizontalAccuracy\":1.5,\"indoorDeployment\":true,\"latitude\":1.5,\"longitude\":1.5,\"verticalAccuracy\":1.5},\"isSigned\":true,\"measurementCapabilities\":[\"s-measurementcapabilities\"],\"model\":{\"firmwareVersion\":\"s-firmwareversion\",\"hardwareVersion\":\"s-hardwareversion\",\"name\":\"s-name\",\"softwareVersion\":\"s-softwareversion\",\"vendor\":\"s-vendor\"},\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"currentChannels\":[{\"frequencyRange\":{\"highFrequencyMhz\":1.5,\"lowFrequencyMhz\":1.5},\"score\":1.5}],\"deviceMetadata\":{\"antennaModel\":\"s-antennamodel\",\"commonChannelGroup\":\"s-commonchannelgroup\",\"interferenceCoordinationGroup\":\"s-interferencecoordinationgroup\",\"nrqzValidated\":true,\"nrqzValidation\":{\"caseId\":\"s-caseid\",\"cpiId\":\"s-cpiid\",\"latitude\":1.5,\"longitude\":1.5,\"state\":\"s-state\"}},\"displayName\":\"s-displayname\",\"fccId\":\"s-fccid\",\"grantRangeAllowlists\":[{\"highFrequencyMhz\":1.5,\"lowFrequencyMhz\":1.5}],\"grants\":[{\"channelType\":\"s-channeltype\",\"expireTime\":\"s-expiretime\",\"frequencyRange\":{\"highFrequencyMhz\":1.5,\"lowFrequencyMhz\":1.5},\"grantId\":\"s-grantid\",\"lastHeartbeatTransmitExpireTime\":\"s-lastheartbeattransmitexpiretime\",\"maxEirp\":1.5,\"state\":\"s-state\",\"suspensionReason\":[\"s-suspensionreason\"]}],\"name\":\"s-name\",\"preloadedConfig\":{\"airInterface\":{\"radioTechnology\":\"s-radiotechnology\",\"supportedSpec\":\"s-supportedspec\"},\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"installationParams\":{\"antennaAzimuth\":7,\"antennaBeamwidth\":7,\"antennaDowntilt\":7,\"antennaGain\":1.5,\"antennaModel\":\"s-antennamodel\",\"cpeCbsdIndication\":true,\"eirpCapability\":7,\"height\":1.5,\"heightType\":\"s-heighttype\",\"horizontalAccuracy\":1.5,\"indoorDeployment\":true,\"latitude\":1.5,\"longitude\":1.5,\"verticalAccuracy\":1.5},\"isSigned\":true,\"measurementCapabilities\":[\"s-measurementcapabilities\"],\"model\":{\"firmwareVersion\":\"s-firmwareversion\",\"hardwareVersion\":\"s-hardwareversion\",\"name\":\"s-name\",\"softwareVersion\":\"s-softwareversion\",\"vendor\":\"s-vendor\"},\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"serialNumber\":\"s-serialnumber\",\"state\":\"s-state\"}",
@@ -1623,10 +2117,10 @@ test "Go's prod_tt_sasportal.nodes.nodes.devices.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_74)
+  gv_compare(gv_log_of(f), GO_87)
 }
 
-const GO_75: List[Str] = [
+const GO_88: List[Str] = [
   "CALL prod_tt_sasportal.nodes.nodes.devices.createSigned",
   "REQ POST https://prod-tt-sasportal.googleapis.com/v1alpha1/id1/%20x/devices:createSigned?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1645,10 +2139,10 @@ test "Go's prod_tt_sasportal.nodes.nodes.devices.createSigned" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_75)
+  gv_compare(gv_log_of(f), GO_88)
 }
 
-const GO_76: List[Str] = [
+const GO_89: List[Str] = [
   "CALL prod_tt_sasportal.nodes.nodes.devices.list",
   "REQ GET https://prod-tt-sasportal.googleapis.com/v1alpha1/id1/%20x/devices?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1666,10 +2160,48 @@ test "Go's prod_tt_sasportal.nodes.nodes.devices.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_76)
+  gv_compare(gv_log_of(f), GO_89)
 }
 
-const GO_77: List[Str] = [
+const GO_90: List[Str] = [
+  "CALL prod_tt_sasportal.nodes.nodes.devices.list pages",
+  "REQ GET https://prod-tt-sasportal.googleapis.com/v1alpha1/id1/%20x/devices?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"devices\":[{\"activeConfig\":{\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"isSigned\":true,\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"deviceMetadata\":{\"antennaModel\":\"s-antennamodel\",\"commonChannelGroup\":\"s-commonchannelgroup\",\"interferenceCoordinationGroup\":\"s-interferencecoordinationgroup\",\"nrqzValidated\":true},\"displayName\":\"s-displayname\",\"fccId\":\"s-fccid\",\"name\":\"s-name\",\"preloadedConfig\":{\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"isSigned\":true,\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"serialNumber\":\"s-serialnumber\",\"state\":\"s-state\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"devices\":[{\"activeConfig\":{\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"isSigned\":true,\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"deviceMetadata\":{\"antennaModel\":\"s-antennamodel\",\"commonChannelGroup\":\"s-commonchannelgroup\",\"interferenceCoordinationGroup\":\"s-interferencecoordinationgroup\",\"nrqzValidated\":true},\"displayName\":\"s-displayname\",\"fccId\":\"s-fccid\",\"name\":\"s-name\",\"preloadedConfig\":{\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"isSigned\":true,\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"serialNumber\":\"s-serialnumber\",\"state\":\"s-state\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://prod-tt-sasportal.googleapis.com/v1alpha1/id1/%20x/devices?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"devices\":[{\"activeConfig\":{\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"isSigned\":true,\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"deviceMetadata\":{\"antennaModel\":\"s-antennamodel\",\"commonChannelGroup\":\"s-commonchannelgroup\",\"interferenceCoordinationGroup\":\"s-interferencecoordinationgroup\",\"nrqzValidated\":true},\"displayName\":\"s-displayname\",\"fccId\":\"s-fccid\",\"name\":\"s-name\",\"preloadedConfig\":{\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"isSigned\":true,\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"serialNumber\":\"s-serialnumber\",\"state\":\"s-state\"}]}",
+  "OUT: {\"devices\":[{\"activeConfig\":{\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"isSigned\":true,\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"deviceMetadata\":{\"antennaModel\":\"s-antennamodel\",\"commonChannelGroup\":\"s-commonchannelgroup\",\"interferenceCoordinationGroup\":\"s-interferencecoordinationgroup\",\"nrqzValidated\":true},\"displayName\":\"s-displayname\",\"fccId\":\"s-fccid\",\"name\":\"s-name\",\"preloadedConfig\":{\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"isSigned\":true,\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"serialNumber\":\"s-serialnumber\",\"state\":\"s-state\"}]}",
+  "OUT: ok",
+]
+
+test "Go's prod_tt_sasportal.nodes.nodes.devices.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"devices\":[{\"activeConfig\":{\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"isSigned\":true,\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"deviceMetadata\":{\"antennaModel\":\"s-antennamodel\",\"commonChannelGroup\":\"s-commonchannelgroup\",\"interferenceCoordinationGroup\":\"s-interferencecoordinationgroup\",\"nrqzValidated\":true},\"displayName\":\"s-displayname\",\"fccId\":\"s-fccid\",\"name\":\"s-name\",\"preloadedConfig\":{\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"isSigned\":true,\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"serialNumber\":\"s-serialnumber\",\"state\":\"s-state\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"devices\":[{\"activeConfig\":{\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"isSigned\":true,\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"deviceMetadata\":{\"antennaModel\":\"s-antennamodel\",\"commonChannelGroup\":\"s-commonchannelgroup\",\"interferenceCoordinationGroup\":\"s-interferencecoordinationgroup\",\"nrqzValidated\":true},\"displayName\":\"s-displayname\",\"fccId\":\"s-fccid\",\"name\":\"s-name\",\"preloadedConfig\":{\"callSign\":\"s-callsign\",\"category\":\"s-category\",\"isSigned\":true,\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"userId\":\"s-userid\"},\"serialNumber\":\"s-serialnumber\",\"state\":\"s-state\"}]}")
+  gv_note(f, "CALL prod_tt_sasportal.nodes.nodes.devices.list pages")
+  var p = svc.nodes.nodes.devices.list_pages("id1/ x", options: NodesNodesDevicesListOptions{filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_90)
+}
+
+const GO_91: List[Str] = [
   "CALL prod_tt_sasportal.nodes.nodes.nodes.create",
   "REQ POST https://prod-tt-sasportal.googleapis.com/v1alpha1/id1/%20x/nodes?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1688,10 +2220,10 @@ test "Go's prod_tt_sasportal.nodes.nodes.nodes.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_77)
+  gv_compare(gv_log_of(f), GO_91)
 }
 
-const GO_78: List[Str] = [
+const GO_92: List[Str] = [
   "CALL prod_tt_sasportal.nodes.nodes.nodes.list",
   "REQ GET https://prod-tt-sasportal.googleapis.com/v1alpha1/id1/%20x/nodes?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1709,10 +2241,48 @@ test "Go's prod_tt_sasportal.nodes.nodes.nodes.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_78)
+  gv_compare(gv_log_of(f), GO_92)
 }
 
-const GO_79: List[Str] = [
+const GO_93: List[Str] = [
+  "CALL prod_tt_sasportal.nodes.nodes.nodes.list pages",
+  "REQ GET https://prod-tt-sasportal.googleapis.com/v1alpha1/id1/%20x/nodes?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"nodes\":[{\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"sasUserIds\":[\"s-sasuserids\"]}]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"nodes\":[{\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"sasUserIds\":[\"s-sasuserids\"]}]}",
+  "REQ GET https://prod-tt-sasportal.googleapis.com/v1alpha1/id1/%20x/nodes?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nodes\":[{\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"sasUserIds\":[\"s-sasuserids\"]}]}",
+  "OUT: {\"nodes\":[{\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"sasUserIds\":[\"s-sasuserids\"]}]}",
+  "OUT: ok",
+]
+
+test "Go's prod_tt_sasportal.nodes.nodes.nodes.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"nodes\":[{\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"sasUserIds\":[\"s-sasuserids\"]}]}")
+  gv_queue(f, "{\"nodes\":[{\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"sasUserIds\":[\"s-sasuserids\"]}]}")
+  gv_note(f, "CALL prod_tt_sasportal.nodes.nodes.nodes.list pages")
+  var p = svc.nodes.nodes.nodes.list_pages("id1/ x", options: NodesNodesNodesListOptions{filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_93)
+}
+
+const GO_94: List[Str] = [
   "CALL prod_tt_sasportal.policies.get",
   "REQ POST https://prod-tt-sasportal.googleapis.com/v1alpha1/policies:get?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1731,10 +2301,10 @@ test "Go's prod_tt_sasportal.policies.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_79)
+  gv_compare(gv_log_of(f), GO_94)
 }
 
-const GO_80: List[Str] = [
+const GO_95: List[Str] = [
   "CALL prod_tt_sasportal.policies.set",
   "REQ POST https://prod-tt-sasportal.googleapis.com/v1alpha1/policies:set?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1753,10 +2323,10 @@ test "Go's prod_tt_sasportal.policies.set" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_80)
+  gv_compare(gv_log_of(f), GO_95)
 }
 
-const GO_81: List[Str] = [
+const GO_96: List[Str] = [
   "CALL prod_tt_sasportal.policies.test",
   "REQ POST https://prod-tt-sasportal.googleapis.com/v1alpha1/policies:test?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1775,5 +2345,5 @@ test "Go's prod_tt_sasportal.policies.test" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_81)
+  gv_compare(gv_log_of(f), GO_96)
 }

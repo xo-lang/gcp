@@ -51,6 +51,44 @@ test "Go's poly.assets.list" {
 }
 
 const GO_2: List[Str] = [
+  "CALL poly.assets.list pages",
+  "REQ GET https://poly.googleapis.com/v1/assets?alt=json&category=s-category&curated=true&fields=kind%2Cid&format=s-format&keywords=s-keywords&maxComplexity=s-maxcomplexity&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"assets\":[{\"authorName\":\"s-authorname\",\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"isCurated\":true,\"license\":\"s-license\",\"metadata\":\"s-metadata\",\"name\":\"s-name\",\"presentationParams\":{\"backgroundColor\":\"s-backgroundcolor\",\"colorSpace\":\"s-colorspace\"},\"remixInfo\":{},\"thumbnail\":{\"contentType\":\"s-contenttype\",\"relativePath\":\"s-relativepath\",\"url\":\"s-url\"},\"updateTime\":\"s-updatetime\",\"visibility\":\"s-visibility\"}],\"nextPageToken\":\"s-nextpagetoken\",\"totalSize\":7}",
+  "OUT: {\"assets\":[{\"authorName\":\"s-authorname\",\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"isCurated\":true,\"license\":\"s-license\",\"metadata\":\"s-metadata\",\"name\":\"s-name\",\"presentationParams\":{\"backgroundColor\":\"s-backgroundcolor\",\"colorSpace\":\"s-colorspace\"},\"remixInfo\":{},\"thumbnail\":{\"contentType\":\"s-contenttype\",\"relativePath\":\"s-relativepath\",\"url\":\"s-url\"},\"updateTime\":\"s-updatetime\",\"visibility\":\"s-visibility\"}],\"nextPageToken\":\"s-nextpagetoken\",\"totalSize\":7}",
+  "REQ GET https://poly.googleapis.com/v1/assets?alt=json&category=s-category&curated=true&fields=kind%2Cid&format=s-format&keywords=s-keywords&maxComplexity=s-maxcomplexity&orderBy=s-orderby&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"assets\":[{\"authorName\":\"s-authorname\",\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"isCurated\":true,\"license\":\"s-license\",\"metadata\":\"s-metadata\",\"name\":\"s-name\",\"presentationParams\":{\"backgroundColor\":\"s-backgroundcolor\",\"colorSpace\":\"s-colorspace\"},\"remixInfo\":{},\"thumbnail\":{\"contentType\":\"s-contenttype\",\"relativePath\":\"s-relativepath\",\"url\":\"s-url\"},\"updateTime\":\"s-updatetime\",\"visibility\":\"s-visibility\"}],\"totalSize\":7}",
+  "OUT: {\"assets\":[{\"authorName\":\"s-authorname\",\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"isCurated\":true,\"license\":\"s-license\",\"metadata\":\"s-metadata\",\"name\":\"s-name\",\"presentationParams\":{\"backgroundColor\":\"s-backgroundcolor\",\"colorSpace\":\"s-colorspace\"},\"remixInfo\":{},\"thumbnail\":{\"contentType\":\"s-contenttype\",\"relativePath\":\"s-relativepath\",\"url\":\"s-url\"},\"updateTime\":\"s-updatetime\",\"visibility\":\"s-visibility\"}],\"totalSize\":7}",
+  "OUT: ok",
+]
+
+test "Go's poly.assets.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"assets\":[{\"authorName\":\"s-authorname\",\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"isCurated\":true,\"license\":\"s-license\",\"metadata\":\"s-metadata\",\"name\":\"s-name\",\"presentationParams\":{\"backgroundColor\":\"s-backgroundcolor\",\"colorSpace\":\"s-colorspace\"},\"remixInfo\":{},\"thumbnail\":{\"contentType\":\"s-contenttype\",\"relativePath\":\"s-relativepath\",\"url\":\"s-url\"},\"updateTime\":\"s-updatetime\",\"visibility\":\"s-visibility\"}],\"nextPageToken\":\"s-nextpagetoken\",\"totalSize\":7}")
+  gv_queue(f, "{\"assets\":[{\"authorName\":\"s-authorname\",\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"isCurated\":true,\"license\":\"s-license\",\"metadata\":\"s-metadata\",\"name\":\"s-name\",\"presentationParams\":{\"backgroundColor\":\"s-backgroundcolor\",\"colorSpace\":\"s-colorspace\"},\"remixInfo\":{},\"thumbnail\":{\"contentType\":\"s-contenttype\",\"relativePath\":\"s-relativepath\",\"url\":\"s-url\"},\"updateTime\":\"s-updatetime\",\"visibility\":\"s-visibility\"}],\"totalSize\":7}")
+  gv_note(f, "CALL poly.assets.list pages")
+  var p = svc.assets.list_pages(options: AssetsListOptions{category: Some("s-category"), curated: Some(true), format: Some("s-format"), keywords: Some("s-keywords"), max_complexity: Some("s-maxcomplexity"), order_by: Some("s-orderby"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_2)
+}
+
+const GO_3: List[Str] = [
   "CALL poly.users.assets.list",
   "REQ GET https://poly.googleapis.com/v1/id1/%20x/assets?alt=json&fields=kind%2Cid&format=s-format&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&visibility=s-visibility",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -68,10 +106,48 @@ test "Go's poly.users.assets.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_2)
+  gv_compare(gv_log_of(f), GO_3)
 }
 
-const GO_3: List[Str] = [
+const GO_4: List[Str] = [
+  "CALL poly.users.assets.list pages",
+  "REQ GET https://poly.googleapis.com/v1/id1/%20x/assets?alt=json&fields=kind%2Cid&format=s-format&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&visibility=s-visibility",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"totalSize\":7,\"userAssets\":[{\"asset\":{\"authorName\":\"s-authorname\",\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"isCurated\":true,\"license\":\"s-license\",\"metadata\":\"s-metadata\",\"name\":\"s-name\",\"updateTime\":\"s-updatetime\",\"visibility\":\"s-visibility\"}}]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"totalSize\":7,\"userAssets\":[{\"asset\":{\"authorName\":\"s-authorname\",\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"isCurated\":true,\"license\":\"s-license\",\"metadata\":\"s-metadata\",\"name\":\"s-name\",\"updateTime\":\"s-updatetime\",\"visibility\":\"s-visibility\"}}]}",
+  "REQ GET https://poly.googleapis.com/v1/id1/%20x/assets?alt=json&fields=kind%2Cid&format=s-format&orderBy=s-orderby&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false&visibility=s-visibility",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"totalSize\":7,\"userAssets\":[{\"asset\":{\"authorName\":\"s-authorname\",\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"isCurated\":true,\"license\":\"s-license\",\"metadata\":\"s-metadata\",\"name\":\"s-name\",\"updateTime\":\"s-updatetime\",\"visibility\":\"s-visibility\"}}]}",
+  "OUT: {\"totalSize\":7,\"userAssets\":[{\"asset\":{\"authorName\":\"s-authorname\",\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"isCurated\":true,\"license\":\"s-license\",\"metadata\":\"s-metadata\",\"name\":\"s-name\",\"updateTime\":\"s-updatetime\",\"visibility\":\"s-visibility\"}}]}",
+  "OUT: ok",
+]
+
+test "Go's poly.users.assets.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"totalSize\":7,\"userAssets\":[{\"asset\":{\"authorName\":\"s-authorname\",\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"isCurated\":true,\"license\":\"s-license\",\"metadata\":\"s-metadata\",\"name\":\"s-name\",\"updateTime\":\"s-updatetime\",\"visibility\":\"s-visibility\"}}]}")
+  gv_queue(f, "{\"totalSize\":7,\"userAssets\":[{\"asset\":{\"authorName\":\"s-authorname\",\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"isCurated\":true,\"license\":\"s-license\",\"metadata\":\"s-metadata\",\"name\":\"s-name\",\"updateTime\":\"s-updatetime\",\"visibility\":\"s-visibility\"}}]}")
+  gv_note(f, "CALL poly.users.assets.list pages")
+  var p = svc.users.assets.list_pages("id1/ x", options: UsersAssetsListOptions{format: Some("s-format"), order_by: Some("s-orderby"), page_size: Some(7), page_token: Some("s-pagetoken"), visibility: Some("s-visibility"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_4)
+}
+
+const GO_5: List[Str] = [
   "CALL poly.users.likedassets.list",
   "REQ GET https://poly.googleapis.com/v1/id1/%20x/likedassets?alt=json&fields=kind%2Cid&format=s-format&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -89,5 +165,43 @@ test "Go's poly.users.likedassets.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_3)
+  gv_compare(gv_log_of(f), GO_5)
+}
+
+const GO_6: List[Str] = [
+  "CALL poly.users.likedassets.list pages",
+  "REQ GET https://poly.googleapis.com/v1/id1/%20x/likedassets?alt=json&fields=kind%2Cid&format=s-format&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"assets\":[{\"authorName\":\"s-authorname\",\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"isCurated\":true,\"license\":\"s-license\",\"metadata\":\"s-metadata\",\"name\":\"s-name\",\"presentationParams\":{\"backgroundColor\":\"s-backgroundcolor\",\"colorSpace\":\"s-colorspace\"},\"remixInfo\":{},\"thumbnail\":{\"contentType\":\"s-contenttype\",\"relativePath\":\"s-relativepath\",\"url\":\"s-url\"},\"updateTime\":\"s-updatetime\",\"visibility\":\"s-visibility\"}],\"nextPageToken\":\"s-nextpagetoken\",\"totalSize\":7}",
+  "OUT: {\"assets\":[{\"authorName\":\"s-authorname\",\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"isCurated\":true,\"license\":\"s-license\",\"metadata\":\"s-metadata\",\"name\":\"s-name\",\"presentationParams\":{\"backgroundColor\":\"s-backgroundcolor\",\"colorSpace\":\"s-colorspace\"},\"remixInfo\":{},\"thumbnail\":{\"contentType\":\"s-contenttype\",\"relativePath\":\"s-relativepath\",\"url\":\"s-url\"},\"updateTime\":\"s-updatetime\",\"visibility\":\"s-visibility\"}],\"nextPageToken\":\"s-nextpagetoken\",\"totalSize\":7}",
+  "REQ GET https://poly.googleapis.com/v1/id1/%20x/likedassets?alt=json&fields=kind%2Cid&format=s-format&orderBy=s-orderby&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"assets\":[{\"authorName\":\"s-authorname\",\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"isCurated\":true,\"license\":\"s-license\",\"metadata\":\"s-metadata\",\"name\":\"s-name\",\"presentationParams\":{\"backgroundColor\":\"s-backgroundcolor\",\"colorSpace\":\"s-colorspace\"},\"remixInfo\":{},\"thumbnail\":{\"contentType\":\"s-contenttype\",\"relativePath\":\"s-relativepath\",\"url\":\"s-url\"},\"updateTime\":\"s-updatetime\",\"visibility\":\"s-visibility\"}],\"totalSize\":7}",
+  "OUT: {\"assets\":[{\"authorName\":\"s-authorname\",\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"isCurated\":true,\"license\":\"s-license\",\"metadata\":\"s-metadata\",\"name\":\"s-name\",\"presentationParams\":{\"backgroundColor\":\"s-backgroundcolor\",\"colorSpace\":\"s-colorspace\"},\"remixInfo\":{},\"thumbnail\":{\"contentType\":\"s-contenttype\",\"relativePath\":\"s-relativepath\",\"url\":\"s-url\"},\"updateTime\":\"s-updatetime\",\"visibility\":\"s-visibility\"}],\"totalSize\":7}",
+  "OUT: ok",
+]
+
+test "Go's poly.users.likedassets.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"assets\":[{\"authorName\":\"s-authorname\",\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"isCurated\":true,\"license\":\"s-license\",\"metadata\":\"s-metadata\",\"name\":\"s-name\",\"presentationParams\":{\"backgroundColor\":\"s-backgroundcolor\",\"colorSpace\":\"s-colorspace\"},\"remixInfo\":{},\"thumbnail\":{\"contentType\":\"s-contenttype\",\"relativePath\":\"s-relativepath\",\"url\":\"s-url\"},\"updateTime\":\"s-updatetime\",\"visibility\":\"s-visibility\"}],\"nextPageToken\":\"s-nextpagetoken\",\"totalSize\":7}")
+  gv_queue(f, "{\"assets\":[{\"authorName\":\"s-authorname\",\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"isCurated\":true,\"license\":\"s-license\",\"metadata\":\"s-metadata\",\"name\":\"s-name\",\"presentationParams\":{\"backgroundColor\":\"s-backgroundcolor\",\"colorSpace\":\"s-colorspace\"},\"remixInfo\":{},\"thumbnail\":{\"contentType\":\"s-contenttype\",\"relativePath\":\"s-relativepath\",\"url\":\"s-url\"},\"updateTime\":\"s-updatetime\",\"visibility\":\"s-visibility\"}],\"totalSize\":7}")
+  gv_note(f, "CALL poly.users.likedassets.list pages")
+  var p = svc.users.likedassets.list_pages("id1/ x", options: UsersLikedassetsListOptions{format: Some("s-format"), order_by: Some("s-orderby"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_6)
 }

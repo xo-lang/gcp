@@ -203,6 +203,44 @@ test "Go's vision.operations.list" {
 }
 
 const GO_9: List[Str] = [
+  "CALL vision.operations.list pages",
+  "REQ GET https://vision.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&returnPartialSuccess=true",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "REQ GET https://vision.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false&returnPartialSuccess=true",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: ok",
+]
+
+test "Go's vision.operations.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_queue(f, "{\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_note(f, "CALL vision.operations.list pages")
+  var p = svc.operations.list_pages("id1/ x", options: OperationsListOptions{filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), return_partial_success: Some(true), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_9)
+}
+
+const GO_10: List[Str] = [
   "CALL vision.projects.files.annotate",
   "REQ POST https://vision.googleapis.com/v1/id1/%20x/files:annotate?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -221,10 +259,10 @@ test "Go's vision.projects.files.annotate" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_9)
+  gv_compare(gv_log_of(f), GO_10)
 }
 
-const GO_10: List[Str] = [
+const GO_11: List[Str] = [
   "CALL vision.projects.files.asyncBatchAnnotate",
   "REQ POST https://vision.googleapis.com/v1/id1/%20x/files:asyncBatchAnnotate?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -243,10 +281,10 @@ test "Go's vision.projects.files.asyncBatchAnnotate" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_10)
+  gv_compare(gv_log_of(f), GO_11)
 }
 
-const GO_11: List[Str] = [
+const GO_12: List[Str] = [
   "CALL vision.projects.images.annotate",
   "REQ POST https://vision.googleapis.com/v1/id1/%20x/images:annotate?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -265,10 +303,10 @@ test "Go's vision.projects.images.annotate" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_11)
+  gv_compare(gv_log_of(f), GO_12)
 }
 
-const GO_12: List[Str] = [
+const GO_13: List[Str] = [
   "CALL vision.projects.images.asyncBatchAnnotate",
   "REQ POST https://vision.googleapis.com/v1/id1/%20x/images:asyncBatchAnnotate?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -287,10 +325,10 @@ test "Go's vision.projects.images.asyncBatchAnnotate" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_12)
+  gv_compare(gv_log_of(f), GO_13)
 }
 
-const GO_13: List[Str] = [
+const GO_14: List[Str] = [
   "CALL vision.projects.locations.files.annotate",
   "REQ POST https://vision.googleapis.com/v1/id1/%20x/files:annotate?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -309,10 +347,10 @@ test "Go's vision.projects.locations.files.annotate" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_13)
+  gv_compare(gv_log_of(f), GO_14)
 }
 
-const GO_14: List[Str] = [
+const GO_15: List[Str] = [
   "CALL vision.projects.locations.files.asyncBatchAnnotate",
   "REQ POST https://vision.googleapis.com/v1/id1/%20x/files:asyncBatchAnnotate?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -331,10 +369,10 @@ test "Go's vision.projects.locations.files.asyncBatchAnnotate" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_14)
+  gv_compare(gv_log_of(f), GO_15)
 }
 
-const GO_15: List[Str] = [
+const GO_16: List[Str] = [
   "CALL vision.projects.locations.images.annotate",
   "REQ POST https://vision.googleapis.com/v1/id1/%20x/images:annotate?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -353,10 +391,10 @@ test "Go's vision.projects.locations.images.annotate" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_15)
+  gv_compare(gv_log_of(f), GO_16)
 }
 
-const GO_16: List[Str] = [
+const GO_17: List[Str] = [
   "CALL vision.projects.locations.images.asyncBatchAnnotate",
   "REQ POST https://vision.googleapis.com/v1/id1/%20x/images:asyncBatchAnnotate?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -375,10 +413,10 @@ test "Go's vision.projects.locations.images.asyncBatchAnnotate" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_16)
+  gv_compare(gv_log_of(f), GO_17)
 }
 
-const GO_17: List[Str] = [
+const GO_18: List[Str] = [
   "CALL vision.projects.locations.operations.get",
   "REQ GET https://vision.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -396,10 +434,10 @@ test "Go's vision.projects.locations.operations.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_17)
+  gv_compare(gv_log_of(f), GO_18)
 }
 
-const GO_18: List[Str] = [
+const GO_19: List[Str] = [
   "CALL vision.projects.locations.productSets.addProduct",
   "REQ POST https://vision.googleapis.com/v1/id1/%20x:addProduct?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -418,10 +456,10 @@ test "Go's vision.projects.locations.productSets.addProduct" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_18)
+  gv_compare(gv_log_of(f), GO_19)
 }
 
-const GO_19: List[Str] = [
+const GO_20: List[Str] = [
   "CALL vision.projects.locations.productSets.create",
   "REQ POST https://vision.googleapis.com/v1/id1/%20x/productSets?alt=json&fields=kind%2Cid&prettyPrint=false&productSetId=s-productsetid",
   "  H content-type=application/json | x-extra=v1",
@@ -440,10 +478,10 @@ test "Go's vision.projects.locations.productSets.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_19)
+  gv_compare(gv_log_of(f), GO_20)
 }
 
-const GO_20: List[Str] = [
+const GO_21: List[Str] = [
   "CALL vision.projects.locations.productSets.delete",
   "REQ DELETE https://vision.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -461,10 +499,10 @@ test "Go's vision.projects.locations.productSets.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_20)
+  gv_compare(gv_log_of(f), GO_21)
 }
 
-const GO_21: List[Str] = [
+const GO_22: List[Str] = [
   "CALL vision.projects.locations.productSets.get",
   "REQ GET https://vision.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -482,10 +520,10 @@ test "Go's vision.projects.locations.productSets.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_21)
+  gv_compare(gv_log_of(f), GO_22)
 }
 
-const GO_22: List[Str] = [
+const GO_23: List[Str] = [
   "CALL vision.projects.locations.productSets.import",
   "REQ POST https://vision.googleapis.com/v1/id1/%20x/productSets:import?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -504,10 +542,10 @@ test "Go's vision.projects.locations.productSets.import" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_22)
+  gv_compare(gv_log_of(f), GO_23)
 }
 
-const GO_23: List[Str] = [
+const GO_24: List[Str] = [
   "CALL vision.projects.locations.productSets.list",
   "REQ GET https://vision.googleapis.com/v1/id1/%20x/productSets?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -525,10 +563,48 @@ test "Go's vision.projects.locations.productSets.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_23)
+  gv_compare(gv_log_of(f), GO_24)
 }
 
-const GO_24: List[Str] = [
+const GO_25: List[Str] = [
+  "CALL vision.projects.locations.productSets.list pages",
+  "REQ GET https://vision.googleapis.com/v1/id1/%20x/productSets?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"productSets\":[{\"displayName\":\"s-displayname\",\"indexError\":{\"code\":7,\"message\":\"s-message\"},\"indexTime\":\"s-indextime\",\"name\":\"s-name\"}]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"productSets\":[{\"displayName\":\"s-displayname\",\"indexError\":{\"code\":7,\"message\":\"s-message\"},\"indexTime\":\"s-indextime\",\"name\":\"s-name\"}]}",
+  "REQ GET https://vision.googleapis.com/v1/id1/%20x/productSets?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"productSets\":[{\"displayName\":\"s-displayname\",\"indexError\":{\"code\":7,\"message\":\"s-message\"},\"indexTime\":\"s-indextime\",\"name\":\"s-name\"}]}",
+  "OUT: {\"productSets\":[{\"displayName\":\"s-displayname\",\"indexError\":{\"code\":7,\"message\":\"s-message\"},\"indexTime\":\"s-indextime\",\"name\":\"s-name\"}]}",
+  "OUT: ok",
+]
+
+test "Go's vision.projects.locations.productSets.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"productSets\":[{\"displayName\":\"s-displayname\",\"indexError\":{\"code\":7,\"message\":\"s-message\"},\"indexTime\":\"s-indextime\",\"name\":\"s-name\"}]}")
+  gv_queue(f, "{\"productSets\":[{\"displayName\":\"s-displayname\",\"indexError\":{\"code\":7,\"message\":\"s-message\"},\"indexTime\":\"s-indextime\",\"name\":\"s-name\"}]}")
+  gv_note(f, "CALL vision.projects.locations.productSets.list pages")
+  var p = svc.projects.locations.product_sets.list_pages("id1/ x", options: ProjectsLocationsProductSetsListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_25)
+}
+
+const GO_26: List[Str] = [
   "CALL vision.projects.locations.productSets.patch",
   "REQ PATCH https://vision.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
@@ -547,10 +623,10 @@ test "Go's vision.projects.locations.productSets.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_24)
+  gv_compare(gv_log_of(f), GO_26)
 }
 
-const GO_25: List[Str] = [
+const GO_27: List[Str] = [
   "CALL vision.projects.locations.productSets.removeProduct",
   "REQ POST https://vision.googleapis.com/v1/id1/%20x:removeProduct?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -569,10 +645,10 @@ test "Go's vision.projects.locations.productSets.removeProduct" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_25)
+  gv_compare(gv_log_of(f), GO_27)
 }
 
-const GO_26: List[Str] = [
+const GO_28: List[Str] = [
   "CALL vision.projects.locations.productSets.products.list",
   "REQ GET https://vision.googleapis.com/v1/id1/%20x/products?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -590,10 +666,48 @@ test "Go's vision.projects.locations.productSets.products.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_26)
+  gv_compare(gv_log_of(f), GO_28)
 }
 
-const GO_27: List[Str] = [
+const GO_29: List[Str] = [
+  "CALL vision.projects.locations.productSets.products.list pages",
+  "REQ GET https://vision.googleapis.com/v1/id1/%20x/products?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"products\":[{\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"productCategory\":\"s-productcategory\"}]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"products\":[{\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"productCategory\":\"s-productcategory\"}]}",
+  "REQ GET https://vision.googleapis.com/v1/id1/%20x/products?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"products\":[{\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"productCategory\":\"s-productcategory\"}]}",
+  "OUT: {\"products\":[{\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"productCategory\":\"s-productcategory\"}]}",
+  "OUT: ok",
+]
+
+test "Go's vision.projects.locations.productSets.products.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"products\":[{\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"productCategory\":\"s-productcategory\"}]}")
+  gv_queue(f, "{\"products\":[{\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"productCategory\":\"s-productcategory\"}]}")
+  gv_note(f, "CALL vision.projects.locations.productSets.products.list pages")
+  var p = svc.projects.locations.product_sets.products.list_pages("id1/ x", options: ProjectsLocationsProductSetsProductsListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_29)
+}
+
+const GO_30: List[Str] = [
   "CALL vision.projects.locations.products.create",
   "REQ POST https://vision.googleapis.com/v1/id1/%20x/products?alt=json&fields=kind%2Cid&prettyPrint=false&productId=s-productid",
   "  H content-type=application/json | x-extra=v1",
@@ -612,10 +726,10 @@ test "Go's vision.projects.locations.products.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_27)
+  gv_compare(gv_log_of(f), GO_30)
 }
 
-const GO_28: List[Str] = [
+const GO_31: List[Str] = [
   "CALL vision.projects.locations.products.delete",
   "REQ DELETE https://vision.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -633,10 +747,10 @@ test "Go's vision.projects.locations.products.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_28)
+  gv_compare(gv_log_of(f), GO_31)
 }
 
-const GO_29: List[Str] = [
+const GO_32: List[Str] = [
   "CALL vision.projects.locations.products.get",
   "REQ GET https://vision.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -654,10 +768,10 @@ test "Go's vision.projects.locations.products.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_29)
+  gv_compare(gv_log_of(f), GO_32)
 }
 
-const GO_30: List[Str] = [
+const GO_33: List[Str] = [
   "CALL vision.projects.locations.products.list",
   "REQ GET https://vision.googleapis.com/v1/id1/%20x/products?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -675,10 +789,48 @@ test "Go's vision.projects.locations.products.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_30)
+  gv_compare(gv_log_of(f), GO_33)
 }
 
-const GO_31: List[Str] = [
+const GO_34: List[Str] = [
+  "CALL vision.projects.locations.products.list pages",
+  "REQ GET https://vision.googleapis.com/v1/id1/%20x/products?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"products\":[{\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"productCategory\":\"s-productcategory\"}]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"products\":[{\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"productCategory\":\"s-productcategory\"}]}",
+  "REQ GET https://vision.googleapis.com/v1/id1/%20x/products?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"products\":[{\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"productCategory\":\"s-productcategory\"}]}",
+  "OUT: {\"products\":[{\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"productCategory\":\"s-productcategory\"}]}",
+  "OUT: ok",
+]
+
+test "Go's vision.projects.locations.products.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"products\":[{\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"productCategory\":\"s-productcategory\"}]}")
+  gv_queue(f, "{\"products\":[{\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"productCategory\":\"s-productcategory\"}]}")
+  gv_note(f, "CALL vision.projects.locations.products.list pages")
+  var p = svc.projects.locations.products.list_pages("id1/ x", options: ProjectsLocationsProductsListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_34)
+}
+
+const GO_35: List[Str] = [
   "CALL vision.projects.locations.products.patch",
   "REQ PATCH https://vision.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
@@ -697,10 +849,10 @@ test "Go's vision.projects.locations.products.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_31)
+  gv_compare(gv_log_of(f), GO_35)
 }
 
-const GO_32: List[Str] = [
+const GO_36: List[Str] = [
   "CALL vision.projects.locations.products.purge",
   "REQ POST https://vision.googleapis.com/v1/id1/%20x/products:purge?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -719,10 +871,10 @@ test "Go's vision.projects.locations.products.purge" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_32)
+  gv_compare(gv_log_of(f), GO_36)
 }
 
-const GO_33: List[Str] = [
+const GO_37: List[Str] = [
   "CALL vision.projects.locations.products.referenceImages.create",
   "REQ POST https://vision.googleapis.com/v1/id1/%20x/referenceImages?alt=json&fields=kind%2Cid&prettyPrint=false&referenceImageId=s-referenceimageid",
   "  H content-type=application/json | x-extra=v1",
@@ -741,10 +893,10 @@ test "Go's vision.projects.locations.products.referenceImages.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_33)
+  gv_compare(gv_log_of(f), GO_37)
 }
 
-const GO_34: List[Str] = [
+const GO_38: List[Str] = [
   "CALL vision.projects.locations.products.referenceImages.delete",
   "REQ DELETE https://vision.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -762,10 +914,10 @@ test "Go's vision.projects.locations.products.referenceImages.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_34)
+  gv_compare(gv_log_of(f), GO_38)
 }
 
-const GO_35: List[Str] = [
+const GO_39: List[Str] = [
   "CALL vision.projects.locations.products.referenceImages.get",
   "REQ GET https://vision.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -783,10 +935,10 @@ test "Go's vision.projects.locations.products.referenceImages.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_35)
+  gv_compare(gv_log_of(f), GO_39)
 }
 
-const GO_36: List[Str] = [
+const GO_40: List[Str] = [
   "CALL vision.projects.locations.products.referenceImages.list",
   "REQ GET https://vision.googleapis.com/v1/id1/%20x/referenceImages?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -804,10 +956,48 @@ test "Go's vision.projects.locations.products.referenceImages.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_36)
+  gv_compare(gv_log_of(f), GO_40)
 }
 
-const GO_37: List[Str] = [
+const GO_41: List[Str] = [
+  "CALL vision.projects.locations.products.referenceImages.list pages",
+  "REQ GET https://vision.googleapis.com/v1/id1/%20x/referenceImages?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"pageSize\":7,\"referenceImages\":[{\"name\":\"s-name\",\"uri\":\"s-uri\"}]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"pageSize\":7,\"referenceImages\":[{\"name\":\"s-name\",\"uri\":\"s-uri\"}]}",
+  "REQ GET https://vision.googleapis.com/v1/id1/%20x/referenceImages?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"pageSize\":7,\"referenceImages\":[{\"name\":\"s-name\",\"uri\":\"s-uri\"}]}",
+  "OUT: {\"pageSize\":7,\"referenceImages\":[{\"name\":\"s-name\",\"uri\":\"s-uri\"}]}",
+  "OUT: ok",
+]
+
+test "Go's vision.projects.locations.products.referenceImages.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"pageSize\":7,\"referenceImages\":[{\"name\":\"s-name\",\"uri\":\"s-uri\"}]}")
+  gv_queue(f, "{\"pageSize\":7,\"referenceImages\":[{\"name\":\"s-name\",\"uri\":\"s-uri\"}]}")
+  gv_note(f, "CALL vision.projects.locations.products.referenceImages.list pages")
+  var p = svc.projects.locations.products.reference_images.list_pages("id1/ x", options: ProjectsLocationsProductsReferenceImagesListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_41)
+}
+
+const GO_42: List[Str] = [
   "CALL vision.projects.operations.get",
   "REQ GET https://vision.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -825,5 +1015,5 @@ test "Go's vision.projects.operations.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_37)
+  gv_compare(gv_log_of(f), GO_42)
 }

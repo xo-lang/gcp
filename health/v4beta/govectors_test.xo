@@ -73,6 +73,44 @@ test "Go's health.projects.subscribers.list" {
 }
 
 const GO_3: List[Str] = [
+  "CALL health.projects.subscribers.list pages",
+  "REQ GET https://health.googleapis.com/v4beta/id1/%20x/subscribers?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"subscribers\":[{\"createTime\":\"s-createtime\",\"endpointAuthorization\":{\"secret\":\"s-secret\",\"secretSet\":true},\"endpointUri\":\"s-endpointuri\",\"name\":\"s-name\",\"state\":\"s-state\",\"updateTime\":\"s-updatetime\"}],\"totalSize\":7}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"subscribers\":[{\"createTime\":\"s-createtime\",\"endpointAuthorization\":{\"secret\":\"s-secret\",\"secretSet\":true},\"endpointUri\":\"s-endpointuri\",\"name\":\"s-name\",\"state\":\"s-state\",\"updateTime\":\"s-updatetime\"}],\"totalSize\":7}",
+  "REQ GET https://health.googleapis.com/v4beta/id1/%20x/subscribers?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"subscribers\":[{\"createTime\":\"s-createtime\",\"endpointAuthorization\":{\"secret\":\"s-secret\",\"secretSet\":true},\"endpointUri\":\"s-endpointuri\",\"name\":\"s-name\",\"state\":\"s-state\",\"updateTime\":\"s-updatetime\"}],\"totalSize\":7}",
+  "OUT: {\"subscribers\":[{\"createTime\":\"s-createtime\",\"endpointAuthorization\":{\"secret\":\"s-secret\",\"secretSet\":true},\"endpointUri\":\"s-endpointuri\",\"name\":\"s-name\",\"state\":\"s-state\",\"updateTime\":\"s-updatetime\"}],\"totalSize\":7}",
+  "OUT: ok",
+]
+
+test "Go's health.projects.subscribers.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"subscribers\":[{\"createTime\":\"s-createtime\",\"endpointAuthorization\":{\"secret\":\"s-secret\",\"secretSet\":true},\"endpointUri\":\"s-endpointuri\",\"name\":\"s-name\",\"state\":\"s-state\",\"updateTime\":\"s-updatetime\"}],\"totalSize\":7}")
+  gv_queue(f, "{\"subscribers\":[{\"createTime\":\"s-createtime\",\"endpointAuthorization\":{\"secret\":\"s-secret\",\"secretSet\":true},\"endpointUri\":\"s-endpointuri\",\"name\":\"s-name\",\"state\":\"s-state\",\"updateTime\":\"s-updatetime\"}],\"totalSize\":7}")
+  gv_note(f, "CALL health.projects.subscribers.list pages")
+  var p = svc.projects.subscribers.list_pages("id1/ x", options: ProjectsSubscribersListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_3)
+}
+
+const GO_4: List[Str] = [
   "CALL health.projects.subscribers.patch",
   "REQ PATCH https://health.googleapis.com/v4beta/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
@@ -91,10 +129,10 @@ test "Go's health.projects.subscribers.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_3)
+  gv_compare(gv_log_of(f), GO_4)
 }
 
-const GO_4: List[Str] = [
+const GO_5: List[Str] = [
   "CALL health.projects.subscribers.subscriptions.create",
   "REQ POST https://health.googleapis.com/v4beta/id1/%20x/subscriptions?alt=json&fields=kind%2Cid&prettyPrint=false&subscriptionId=s-subscriptionid",
   "  H content-type=application/json | x-extra=v1",
@@ -113,10 +151,10 @@ test "Go's health.projects.subscribers.subscriptions.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_4)
+  gv_compare(gv_log_of(f), GO_5)
 }
 
-const GO_5: List[Str] = [
+const GO_6: List[Str] = [
   "CALL health.projects.subscribers.subscriptions.delete",
   "REQ DELETE https://health.googleapis.com/v4beta/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -134,10 +172,10 @@ test "Go's health.projects.subscribers.subscriptions.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_5)
+  gv_compare(gv_log_of(f), GO_6)
 }
 
-const GO_6: List[Str] = [
+const GO_7: List[Str] = [
   "CALL health.projects.subscribers.subscriptions.list",
   "REQ GET https://health.googleapis.com/v4beta/id1/%20x/subscriptions?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -155,10 +193,48 @@ test "Go's health.projects.subscribers.subscriptions.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_6)
+  gv_compare(gv_log_of(f), GO_7)
 }
 
-const GO_7: List[Str] = [
+const GO_8: List[Str] = [
+  "CALL health.projects.subscribers.subscriptions.list pages",
+  "REQ GET https://health.googleapis.com/v4beta/id1/%20x/subscriptions?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"subscriptions\":[{\"dataTypes\":[\"s-datatypes\"],\"name\":\"s-name\",\"user\":\"s-user\"}]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"subscriptions\":[{\"dataTypes\":[\"s-datatypes\"],\"name\":\"s-name\",\"user\":\"s-user\"}]}",
+  "REQ GET https://health.googleapis.com/v4beta/id1/%20x/subscriptions?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"subscriptions\":[{\"dataTypes\":[\"s-datatypes\"],\"name\":\"s-name\",\"user\":\"s-user\"}]}",
+  "OUT: {\"subscriptions\":[{\"dataTypes\":[\"s-datatypes\"],\"name\":\"s-name\",\"user\":\"s-user\"}]}",
+  "OUT: ok",
+]
+
+test "Go's health.projects.subscribers.subscriptions.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"subscriptions\":[{\"dataTypes\":[\"s-datatypes\"],\"name\":\"s-name\",\"user\":\"s-user\"}]}")
+  gv_queue(f, "{\"subscriptions\":[{\"dataTypes\":[\"s-datatypes\"],\"name\":\"s-name\",\"user\":\"s-user\"}]}")
+  gv_note(f, "CALL health.projects.subscribers.subscriptions.list pages")
+  var p = svc.projects.subscribers.subscriptions.list_pages("id1/ x", options: ProjectsSubscribersSubscriptionsListOptions{filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_8)
+}
+
+const GO_9: List[Str] = [
   "CALL health.projects.subscribers.subscriptions.patch",
   "REQ PATCH https://health.googleapis.com/v4beta/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
@@ -177,10 +253,10 @@ test "Go's health.projects.subscribers.subscriptions.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_7)
+  gv_compare(gv_log_of(f), GO_9)
 }
 
-const GO_8: List[Str] = [
+const GO_10: List[Str] = [
   "CALL health.shl.m.getShlManifest",
   "REQ POST https://health.googleapis.com/v4beta/shl/m/id1%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -199,10 +275,10 @@ test "Go's health.shl.m.getShlManifest" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_8)
+  gv_compare(gv_log_of(f), GO_10)
 }
 
-const GO_9: List[Str] = [
+const GO_11: List[Str] = [
   "CALL health.shl.r.get",
   "REQ GET https://health.googleapis.com/v4beta/shl/r/id1%2F%20x/id2%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -220,10 +296,10 @@ test "Go's health.shl.r.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_9)
+  gv_compare(gv_log_of(f), GO_11)
 }
 
-const GO_10: List[Str] = [
+const GO_12: List[Str] = [
   "CALL health.users.getIdentity",
   "REQ GET https://health.googleapis.com/v4beta/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -241,10 +317,10 @@ test "Go's health.users.getIdentity" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_10)
+  gv_compare(gv_log_of(f), GO_12)
 }
 
-const GO_11: List[Str] = [
+const GO_13: List[Str] = [
   "CALL health.users.getIrnProfile",
   "REQ GET https://health.googleapis.com/v4beta/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -262,10 +338,10 @@ test "Go's health.users.getIrnProfile" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_11)
+  gv_compare(gv_log_of(f), GO_13)
 }
 
-const GO_12: List[Str] = [
+const GO_14: List[Str] = [
   "CALL health.users.getProfile",
   "REQ GET https://health.googleapis.com/v4beta/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -283,10 +359,10 @@ test "Go's health.users.getProfile" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_12)
+  gv_compare(gv_log_of(f), GO_14)
 }
 
-const GO_13: List[Str] = [
+const GO_15: List[Str] = [
   "CALL health.users.getSettings",
   "REQ GET https://health.googleapis.com/v4beta/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -304,10 +380,10 @@ test "Go's health.users.getSettings" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_13)
+  gv_compare(gv_log_of(f), GO_15)
 }
 
-const GO_14: List[Str] = [
+const GO_16: List[Str] = [
   "CALL health.users.updateProfile",
   "REQ PATCH https://health.googleapis.com/v4beta/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
@@ -326,10 +402,10 @@ test "Go's health.users.updateProfile" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_14)
+  gv_compare(gv_log_of(f), GO_16)
 }
 
-const GO_15: List[Str] = [
+const GO_17: List[Str] = [
   "CALL health.users.updateSettings",
   "REQ PATCH https://health.googleapis.com/v4beta/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
@@ -348,10 +424,10 @@ test "Go's health.users.updateSettings" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_15)
+  gv_compare(gv_log_of(f), GO_17)
 }
 
-const GO_16: List[Str] = [
+const GO_18: List[Str] = [
   "CALL health.users.dataTypes.dataPoints.batchDelete",
   "REQ POST https://health.googleapis.com/v4beta/id1/%20x/dataPoints:batchDelete?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -370,14 +446,14 @@ test "Go's health.users.dataTypes.dataPoints.batchDelete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_16)
+  gv_compare(gv_log_of(f), GO_18)
 }
 
-const GO_17: List[Str] = [
+const GO_19: List[Str] = [
   "CALL health.users.dataTypes.dataPoints.create",
   "REQ POST https://health.googleapis.com/v4beta/id1/%20x/dataPoints?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"activeEnergyBurned\":{\"interval\":{\"endTime\":\"s-endtime\",\"endUtcOffset\":\"s-endutcoffset\",\"startTime\":\"s-starttime\",\"startUtcOffset\":\"s-startutcoffset\"},\"kcal\":1.5},\"activeMinutes\":{\"activeMinutesByActivityLevel\":[{\"activeMinutes\":\"7\",\"activityLevel\":\"s-activitylevel\"}],\"interval\":{\"endTime\":\"s-endtime\",\"endUtcOffset\":\"s-endutcoffset\",\"startTime\":\"s-starttime\",\"startUtcOffset\":\"s-startutcoffset\"}},\"activeZoneMinutes\":{\"activeZoneMinutes\":\"7\",\"heartRateZone\":\"s-heartratezone\",\"interval\":{\"endTime\":\"s-endtime\",\"endUtcOffset\":\"s-endutcoffset\",\"startTime\":\"s-starttime\",\"startUtcOffset\":\"s-startutcoffset\"}},\"activityLevel\":{\"activityLevelType\":\"s-activityleveltype\",\"interval\":{\"endTime\":\"s-endtime\",\"endUtcOffset\":\"s-endutcoffset\",\"startTime\":\"s-starttime\",\"startUtcOffset\":\"s-startutcoffset\"}},\"altitude\":{\"gainMillimeters\":\"7\",\"interval\":{\"endTime\":\"s-endtime\",\"endUtcOffset\":\"s-endutcoffset\",\"startTime\":\"s-starttime\",\"startUtcOffset\":\"s-startutcoffset\"}},\"basalEnergyBurned\":{\"interval\":{\"endTime\":\"s-endtime\",\"endUtcOffset\":\"s-endutcoffset\",\"startTime\":\"s-starttime\",\"startUtcOffset\":\"s-startutcoffset\"},\"kcal\":1.5},\"bloodGlucose\":{\"bloodGlucoseMilligramsPerDeciliter\":1.5,\"mealType\":\"s-mealtype\",\"measurementSource\":\"s-measurementsource\",\"measurementTiming\":\"s-measurementtiming\",\"notes\":\"s-notes\",\"sampleTime\":{\"physicalTime\":\"s-physicaltime\",\"utcOffset\":\"s-utcoffset\"},\"specimen\":\"s-specimen\"},\"bodyFat\":{\"percentage\":1.5,\"sampleTime\":{\"physicalTime\":\"s-physicaltime\",\"utcOffset\":\"s-utcoffset\"}},\"coreBodyTemperature\":{\"id\":\"s-id\",\"measurementLocation\":\"s-measurementlocation\",\"sampleTime\":{\"physicalTime\":\"s-physicaltime\",\"utcOffset\":\"s-utcoffset\"},\"temperatureCelsius\":1.5},\"dailyHeartRateVariability\":{\"averageHeartRateVariabilityMilliseconds\":1.5,\"date\":{\"day\":7,\"month\":7,\"year\":7},\"deepSleepRootMeanSquareOfSuccessiveDifferencesMilliseconds\":1.5,\"entropy\":1.5,\"nonRemHeartRateBeatsPerMinute\":\"7\"},\"dailyHeartRateZones\":{\"date\":{\"day\":7,\"month\":7,\"year\":7},\"heartRateZones\":[{\"heartRateZoneType\":\"s-heartratezonetype\",\"maxBeatsPerMinute\":\"7\",\"minBeatsPerMinute\":\"7\"}]},\"dailyOxygenSaturation\":{\"averagePercentage\":1.5,\"date\":{\"day\":7,\"month\":7,\"year\":7},\"lowerBoundPercentage\":1.5,\"standardDeviationPercentage\":1.5,\"upperBoundPercentage\":1.5},\"dailyRespiratoryRate\":{\"breathsPerMinute\":1.5,\"date\":{\"day\":7,\"month\":7,\"year\":7}},\"dailyRestingHeartRate\":{\"beatsPerMinute\":\"7\",\"dailyRestingHeartRateMetadata\":{\"calculationMethod\":\"s-calculationmethod\"},\"date\":{\"day\":7,\"month\":7,\"year\":7}},\"dailySleepTemperatureDerivations\":{\"baselineTemperatureCelsius\":1.5,\"date\":{\"day\":7,\"month\":7,\"year\":7},\"nightlyTemperatureCelsius\":1.5,\"relativeNightlyStddev30dCelsius\":1.5},\"dailyVo2Max\":{\"cardioFitnessLevel\":\"s-cardiofitnesslevel\",\"date\":{\"day\":7,\"month\":7,\"year\":7},\"estimated\":true,\"vo2Max\":1.5,\"vo2MaxCovariance\":1.5},\"dataSource\":{\"application\":{\"googleWebClientId\":\"s-googlewebclientid\",\"packageName\":\"s-packagename\",\"webClientId\":\"s-webclientid\"},\"device\":{\"displayName\":\"s-displayname\",\"formFactor\":\"s-formfactor\",\"manufacturer\":\"s-manufacturer\"},\"platform\":\"s-platform\",\"recordingMethod\":\"s-recordingmethod\"},\"distance\":{\"interval\":{\"endTime\":\"s-endtime\",\"endUtcOffset\":\"s-endutcoffset\",\"startTime\":\"s-starttime\",\"startUtcOffset\":\"s-startutcoffset\"},\"millimeters\":\"7\"},\"electrocardiogram\":{\"beatsPerMinuteAvg\":\"7\",\"interval\":{\"endTime\":\"s-endtime\",\"endUtcOffset\":\"s-endutcoffset\",\"startTime\":\"s-starttime\",\"startUtcOffset\":\"s-startutcoffset\"},\"leadNumber\":7,\"medicalDeviceInfo\":{\"algorithmVersion\":\"s-algorithmversion\",\"deviceModel\":\"s-devicemodel\",\"featureVersion\":\"s-featureversion\",\"firmwareVersion\":\"s-firmwareversion\",\"serviceVersion\":\"s-serviceversion\"},\"millivoltsScalingFactor\":7,\"resultClassification\":\"s-resultclassification\",\"samplingFrequencyHertz\":7,\"waveformSamples\":[7]},\"exercise\":{\"activeDuration\":\"s-activeduration\",\"createTime\":\"s-createtime\",\"displayName\":\"s-displayname\",\"exerciseEvents\":[{\"eventTime\":\"s-eventtime\",\"eventUtcOffset\":\"s-eventutcoffset\",\"exerciseEventType\":\"s-exerciseeventtype\"}],\"exerciseMetadata\":{\"hasGps\":true,\"poolLengthMillimeters\":\"7\"},\"exerciseType\":\"s-exercisetype\",\"interval\":{\"endTime\":\"s-endtime\",\"endUtcOffset\":\"s-endutcoffset\",\"startTime\":\"s-starttime\",\"startUtcOffset\":\"s-startutcoffset\"},\"metricsSummary\":{\"activeZoneMinutes\":\"7\",\"averageHeartRateBeatsPerMinute\":\"7\",\"averagePaceSecondsPerMeter\":1.5,\"averageSpeedMillimetersPerSecond\":1.5,\"caloriesKcal\":1.5,\"distanceMillimeters\":1.5,\"elevationGainMillimeters\":1.5,\"runVo2Max\":1.5,\"steps\":\"7\",\"totalSwimLengths\":1.5},\"notes\":\"s-notes\",\"splitSummaries\":[{\"activeDuration\":\"s-activeduration\",\"endTime\":\"s-endtime\",\"endUtcOffset\":\"s-endutcoffset\",\"splitType\":\"s-splittype\",\"startTime\":\"s-starttime\",\"startUtcOffset\":\"s-startutcoffset\"}],\"splits\":[{\"activeDuration\":\"s-activeduration\",\"endTime\":\"s-endtime\",\"endUtcOffset\":\"s-endutcoffset\",\"splitType\":\"s-splittype\",\"startTime\":\"s-starttime\",\"startUtcOffset\":\"s-startutcoffset\"}],\"updateTime\":\"s-updatetime\"},\"floors\":{\"count\":\"7\",\"interval\":{\"endTime\":\"s-endtime\",\"endUtcOffset\":\"s-endutcoffset\",\"startTime\":\"s-starttime\",\"startUtcOffset\":\"s-startutcoffset\"}},\"food\":{\"accessLevel\":\"s-accesslevel\",\"brand\":\"s-brand\",\"defaultServing\":{\"amount\":1.5,\"foodMeasurementUnit\":\"s-foodmeasurementunit\",\"foodMeasurementUnitDisplayName\":\"s-foodmeasurementunitdisplayname\",\"foodMeasurementUnitDisplayNamePlural\":\"s-foodmeasurementunitdisplaynameplural\",\"multiplier\":1.5},\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"energyAvg\":{\"kcal\":1.5,\"userProvidedUnit\":\"s-userprovidedunit\"},\"energyFromFat\":{\"kcal\":1.5,\"userProvidedUnit\":\"s-userprovidedunit\"},\"energyMax\":{\"kcal\":1.5,\"userProvidedUnit\":\"s-userprovidedunit\"},\"energyMin\":{\"kcal\":1.5,\"userProvidedUnit\":\"s-userprovidedunit\"},\"languageCode\":\"s-languagecode\",\"mealType\":\"s-mealtype\",\"nutrients\":[{\"nutrient\":\"s-nutrient\"}],\"servings\":[{\"amount\":1.5,\"foodMeasurementUnit\":\"s-foodmeasurementunit\",\"foodMeasurementUnitDisplayName\":\"s-foodmeasurementunitdisplayname\",\"foodMeasurementUnitDisplayNamePlural\":\"s-foodmeasurementunitdisplaynameplural\",\"multiplier\":1.5}],\"totalCarbohydrate\":{\"grams\":1.5,\"userProvidedUnit\":\"s-userprovidedunit\"},\"totalFat\":{\"grams\":1.5,\"userProvidedUnit\":\"s-userprovidedunit\"}},\"foodMeasurementUnit\":{\"displayName\":\"s-displayname\",\"pluralDisplayName\":\"s-pluraldisplayname\"},\"heartRate\":{\"beatsPerMinute\":\"7\",\"metadata\":{\"motionContext\":\"s-motioncontext\",\"sensorLocation\":\"s-sensorlocation\"},\"sampleTime\":{\"physicalTime\":\"s-physicaltime\",\"utcOffset\":\"s-utcoffset\"}},\"heartRateVariability\":{\"metadata\":{\"highFrequencyPower\":1.5,\"lowFrequencyPower\":1.5},\"rootMeanSquareOfSuccessiveDifferencesMilliseconds\":1.5,\"sampleTime\":{\"physicalTime\":\"s-physicaltime\",\"utcOffset\":\"s-utcoffset\"},\"standardDeviationMilliseconds\":1.5},\"height\":{\"heightMillimeters\":\"7\",\"sampleTime\":{\"physicalTime\":\"s-physicaltime\",\"utcOffset\":\"s-utcoffset\"}},\"hydrationLog\":{\"amountConsumed\":{\"milliliters\":1.5,\"userProvidedUnit\":\"s-userprovidedunit\"},\"interval\":{\"endTime\":\"s-endtime\",\"endUtcOffset\":\"s-endutcoffset\",\"startTime\":\"s-starttime\",\"startUtcOffset\":\"s-startutcoffset\"}},\"irregularRhythmNotification\":{\"alertWindows\":[{\"endTime\":\"s-endtime\",\"endUtcOffset\":\"s-endutcoffset\",\"positive\":true,\"startTime\":\"s-starttime\",\"startUtcOffset\":\"s-startutcoffset\"}],\"interval\":{\"endTime\":\"s-endtime\",\"endUtcOffset\":\"s-endutcoffset\",\"startTime\":\"s-starttime\",\"startUtcOffset\":\"s-startutcoffset\"},\"medicalDeviceInfo\":{\"algorithmVersion\":\"s-algorithmversion\",\"deviceModel\":\"s-devicemodel\",\"featureVersion\":\"s-featureversion\",\"firmwareVersion\":\"s-firmwareversion\",\"serviceVersion\":\"s-serviceversion\"}},\"menstrualPeriod\":{\"interval\":{\"endTime\":\"s-endtime\",\"endUtcOffset\":\"s-endutcoffset\",\"startTime\":\"s-starttime\",\"startUtcOffset\":\"s-startutcoffset\"},\"notes\":\"s-notes\"},\"moods\":{\"moods\":[\"s-moods\"],\"sampleTime\":{\"physicalTime\":\"s-physicaltime\",\"utcOffset\":\"s-utcoffset\"},\"valences\":[\"s-valences\"]},\"name\":\"s-name\",\"nutritionLog\":{\"energy\":{\"kcal\":1.5,\"userProvidedUnit\":\"s-userprovidedunit\"},\"energyFromFat\":{\"kcal\":1.5,\"userProvidedUnit\":\"s-userprovidedunit\"},\"food\":\"s-food\",\"foodDisplayName\":\"s-fooddisplayname\",\"interval\":{\"endTime\":\"s-endtime\",\"endUtcOffset\":\"s-endutcoffset\",\"startTime\":\"s-starttime\",\"startUtcOffset\":\"s-startutcoffset\"},\"mealType\":\"s-mealtype\",\"nutrients\":[{\"nutrient\":\"s-nutrient\"}],\"serving\":{\"amount\":1.5,\"foodMeasurementUnit\":\"s-foodmeasurementunit\",\"foodMeasurementUnitDisplayName\":\"s-foodmeasurementunitdisplayname\"},\"totalCarbohydrate\":{\"grams\":1.5,\"userProvidedUnit\":\"s-userprovidedunit\"},\"totalFat\":{\"grams\":1.5,\"userProvidedUnit\":\"s-userprovidedunit\"}},\"ovulationTest\":{\"result\":\"s-result\",\"sampleTime\":{\"physicalTime\":\"s-physicaltime\",\"utcOffset\":\"s-utcoffset\"}},\"oxygenSaturation\":{\"percentage\":1.5,\"sampleTime\":{\"physicalTime\":\"s-physicaltime\",\"utcOffset\":\"s-utcoffset\"}},\"respiratoryRateSleepSummary\":{\"deepSleepStats\":{\"breathsPerMinute\":1.5,\"signalToNoise\":1.5,\"standardDeviation\":1.5},\"fullSleepStats\":{\"breathsPerMinute\":1.5,\"signalToNoise\":1.5,\"standardDeviation\":1.5},\"lightSleepStats\":{\"breathsPerMinute\":1.5,\"signalToNoise\":1.5,\"standardDeviation\":1.5},\"remSleepStats\":{\"breathsPerMinute\":1.5,\"signalToNoise\":1.5,\"standardDeviation\":1.5},\"sampleTime\":{\"physicalTime\":\"s-physicaltime\",\"utcOffset\":\"s-utcoffset\"}},\"runVo2Max\":{\"runVo2Max\":1.5,\"sampleTime\":{\"physicalTime\":\"s-physicaltime\",\"utcOffset\":\"s-utcoffset\"}},\"sedentaryPeriod\":{\"interval\":{\"endTime\":\"s-endtime\",\"endUtcOffset\":\"s-endutcoffset\",\"startTime\":\"s-starttime\",\"startUtcOffset\":\"s-startutcoffset\"}},\"skinTemperatureSensors\":{\"sampleTime\":{\"physicalTime\":\"s-physicaltime\",\"utcOffset\":\"s-utcoffset\"},\"sensorData\":[{\"temperatureCelsius\":1.5}]},\"sleep\":{\"createTime\":\"s-createtime\",\"interval\":{\"endTime\":\"s-endtime\",\"endUtcOffset\":\"s-endutcoffset\",\"startTime\":\"s-starttime\",\"startUtcOffset\":\"s-startutcoffset\"},\"metadata\":{\"externalId\":\"s-externalid\",\"mainSleep\":true,\"manuallyEdited\":true,\"nap\":true,\"processed\":true,\"stagesStatus\":\"s-stagesstatus\"},\"outOfBedSegments\":[{\"endTime\":\"s-endtime\",\"endUtcOffset\":\"s-endutcoffset\",\"startTime\":\"s-starttime\",\"startUtcOffset\":\"s-startutcoffset\"}],\"shortAwakenings\":[{\"createTime\":\"s-createtime\",\"endTime\":\"s-endtime\",\"endUtcOffset\":\"s-endutcoffset\",\"startTime\":\"s-starttime\",\"startUtcOffset\":\"s-startutcoffset\",\"type\":\"s-type\",\"updateTime\":\"s-updatetime\"}],\"stages\":[{\"createTime\":\"s-createtime\",\"endTime\":\"s-endtime\",\"endUtcOffset\":\"s-endutcoffset\",\"startTime\":\"s-starttime\",\"startUtcOffset\":\"s-startutcoffset\",\"type\":\"s-type\",\"updateTime\":\"s-updatetime\"}],\"summary\":{\"minutesAfterWakeUp\":\"7\",\"minutesAsleep\":\"7\",\"minutesAwake\":\"7\",\"minutesInSleepPeriod\":\"7\",\"minutesToFallAsleep\":\"7\"},\"type\":\"s-type\",\"updateTime\":\"s-updatetime\"},\"steps\":{\"count\":\"7\",\"interval\":{\"endTime\":\"s-endtime\",\"endUtcOffset\":\"s-endutcoffset\",\"startTime\":\"s-starttime\",\"startUtcOffset\":\"s-startutcoffset\"}},\"swimLengthsData\":{\"interval\":{\"endTime\":\"s-endtime\",\"endUtcOffset\":\"s-endutcoffset\",\"startTime\":\"s-starttime\",\"startUtcOffset\":\"s-startutcoffset\"},\"strokeCount\":\"7\",\"swimStrokeType\":\"s-swimstroketype\"},\"symptoms\":{\"sampleTime\":{\"physicalTime\":\"s-physicaltime\",\"utcOffset\":\"s-utcoffset\"},\"symptoms\":[\"s-symptoms\"]},\"timeInHeartRateZone\":{\"heartRateZoneType\":\"s-heartratezonetype\",\"interval\":{\"endTime\":\"s-endtime\",\"endUtcOffset\":\"s-endutcoffset\",\"startTime\":\"s-starttime\",\"startUtcOffset\":\"s-startutcoffset\"}},\"vo2Max\":{\"measurementMethod\":\"s-measurementmethod\",\"sampleTime\":{\"physicalTime\":\"s-physicaltime\",\"utcOffset\":\"s-utcoffset\"},\"vo2Max\":1.5},\"weight\":{\"notes\":\"s-notes\",\"sampleTime\":{\"physicalTime\":\"s-physicaltime\",\"utcOffset\":\"s-utcoffset\"},\"weightGrams\":1.5}}",
+  "  B <11606 bytes> {\"activeEnergyBurned\":{\"interval...utcoffset\"},\"weightGrams\":1.5}}",
   "",
   "  SERVED 200 {\"done\":true,\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}",
   "OUT: {\"done\":true,\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}",
@@ -392,10 +468,10 @@ test "Go's health.users.dataTypes.dataPoints.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_17)
+  gv_compare(gv_log_of(f), GO_19)
 }
 
-const GO_18: List[Str] = [
+const GO_20: List[Str] = [
   "CALL health.users.dataTypes.dataPoints.dailyRollUp",
   "REQ POST https://health.googleapis.com/v4beta/id1/%20x/dataPoints:dailyRollUp?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -414,10 +490,50 @@ test "Go's health.users.dataTypes.dataPoints.dailyRollUp" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_18)
+  gv_compare(gv_log_of(f), GO_20)
 }
 
-const GO_19: List[Str] = [
+const GO_21: List[Str] = [
+  "CALL health.users.dataTypes.dataPoints.dailyRollUp pages",
+  "REQ POST https://health.googleapis.com/v4beta/id1/%20x/dataPoints:dailyRollUp?alt=json&fields=kind%2Cid&prettyPrint=false",
+  "  H content-type=application/json | x-extra=v1",
+  "  B {\"dataSourceFamily\":\"s-datasourcefamily\",\"pageSize\":7,\"pageToken\":\"s-pagetoken\",\"range\":{\"end\":{},\"start\":{}},\"windowSizeDays\":7}",
+  "",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"rollupDataPoints\":[{\"activeEnergyBurned\":{\"kcalSum\":1.5},\"activeMinutes\":{},\"activeZoneMinutes\":{\"sumInCardioHeartZone\":\"7\",\"sumInFatBurnHeartZone\":\"7\",\"sumInPeakHeartZone\":\"7\"},\"activityLevel\":{},\"altitude\":{\"gainMillimetersSum\":\"7\"},\"bloodGlucose\":{\"bloodGlucoseMilligramsPerDeciliterAvg\":1.5},\"bodyFat\":{\"bodyFatPercentageAvg\":1.5},\"caloriesInHeartRateZone\":{},\"civilEndTime\":{},\"civilStartTime\":{},\"coreBodyTemperature\":{\"temperatureCelsiusAvg\":1.5,\"temperatureCelsiusMax\":1.5,\"temperatureCelsiusMin\":1.5},\"distance\":{\"millimetersSum\":\"7\"},\"floors\":{\"countSum\":\"7\"},\"heartRate\":{\"beatsPerMinuteAvg\":1.5,\"beatsPerMinuteMax\":1.5,\"beatsPerMinuteMin\":1.5},\"heartRateVariabilityPersonalRange\":{\"averageHeartRateVariabilityMillisecondsMax\":1.5,\"averageHeartRateVariabilityMillisecondsMin\":1.5},\"hydrationLog\":{},\"nutritionLog\":{},\"restingHeartRatePersonalRange\":{\"beatsPerMinuteMax\":1.5,\"beatsPerMinuteMin\":1.5},\"runVo2Max\":{\"rateAvg\":1.5,\"rateMax\":1.5,\"rateMin\":1.5},\"sedentaryPeriod\":{\"durationSum\":\"s-durationsum\"},\"steps\":{\"countSum\":\"7\"},\"swimLengthsData\":{\"strokeCountSum\":\"7\"},\"timeInHeartRateZone\":{},\"totalCalories\":{\"kcalSum\":1.5},\"weight\":{\"weightGramsAvg\":1.5}}]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"rollupDataPoints\":[{\"activeEnergyBurned\":{\"kcalSum\":1.5},\"activeMinutes\":{},\"activeZoneMinutes\":{\"sumInCardioHeartZone\":\"7\",\"sumInFatBurnHeartZone\":\"7\",\"sumInPeakHeartZone\":\"7\"},\"activityLevel\":{},\"altitude\":{\"gainMillimetersSum\":\"7\"},\"bloodGlucose\":{\"bloodGlucoseMilligramsPerDeciliterAvg\":1.5},\"bodyFat\":{\"bodyFatPercentageAvg\":1.5},\"caloriesInHeartRateZone\":{},\"civilEndTime\":{},\"civilStartTime\":{},\"coreBodyTemperature\":{\"temperatureCelsiusAvg\":1.5,\"temperatureCelsiusMax\":1.5,\"temperatureCelsiusMin\":1.5},\"distance\":{\"millimetersSum\":\"7\"},\"floors\":{\"countSum\":\"7\"},\"heartRate\":{\"beatsPerMinuteAvg\":1.5,\"beatsPerMinuteMax\":1.5,\"beatsPerMinuteMin\":1.5},\"heartRateVariabilityPersonalRange\":{\"averageHeartRateVariabilityMillisecondsMax\":1.5,\"averageHeartRateVariabilityMillisecondsMin\":1.5},\"hydrationLog\":{},\"nutritionLog\":{},\"restingHeartRatePersonalRange\":{\"beatsPerMinuteMax\":1.5,\"beatsPerMinuteMin\":1.5},\"runVo2Max\":{\"rateAvg\":1.5,\"rateMax\":1.5,\"rateMin\":1.5},\"sedentaryPeriod\":{\"durationSum\":\"s-durationsum\"},\"steps\":{\"countSum\":\"7\"},\"swimLengthsData\":{\"strokeCountSum\":\"7\"},\"timeInHeartRateZone\":{},\"totalCalories\":{\"kcalSum\":1.5},\"weight\":{\"weightGramsAvg\":1.5}}]}",
+  "REQ POST https://health.googleapis.com/v4beta/id1/%20x/dataPoints:dailyRollUp?alt=json&fields=kind%2Cid&prettyPrint=false",
+  "  H content-type=application/json | x-extra=v1",
+  "  B {\"dataSourceFamily\":\"s-datasourcefamily\",\"pageSize\":7,\"pageToken\":\"s-nextpagetoken\",\"range\":{\"end\":{},\"start\":{}},\"windowSizeDays\":7}",
+  "",
+  "  SERVED 200 {\"rollupDataPoints\":[{\"activeEnergyBurned\":{\"kcalSum\":1.5},\"activeMinutes\":{},\"activeZoneMinutes\":{\"sumInCardioHeartZone\":\"7\",\"sumInFatBurnHeartZone\":\"7\",\"sumInPeakHeartZone\":\"7\"},\"activityLevel\":{},\"altitude\":{\"gainMillimetersSum\":\"7\"},\"bloodGlucose\":{\"bloodGlucoseMilligramsPerDeciliterAvg\":1.5},\"bodyFat\":{\"bodyFatPercentageAvg\":1.5},\"caloriesInHeartRateZone\":{},\"civilEndTime\":{},\"civilStartTime\":{},\"coreBodyTemperature\":{\"temperatureCelsiusAvg\":1.5,\"temperatureCelsiusMax\":1.5,\"temperatureCelsiusMin\":1.5},\"distance\":{\"millimetersSum\":\"7\"},\"floors\":{\"countSum\":\"7\"},\"heartRate\":{\"beatsPerMinuteAvg\":1.5,\"beatsPerMinuteMax\":1.5,\"beatsPerMinuteMin\":1.5},\"heartRateVariabilityPersonalRange\":{\"averageHeartRateVariabilityMillisecondsMax\":1.5,\"averageHeartRateVariabilityMillisecondsMin\":1.5},\"hydrationLog\":{},\"nutritionLog\":{},\"restingHeartRatePersonalRange\":{\"beatsPerMinuteMax\":1.5,\"beatsPerMinuteMin\":1.5},\"runVo2Max\":{\"rateAvg\":1.5,\"rateMax\":1.5,\"rateMin\":1.5},\"sedentaryPeriod\":{\"durationSum\":\"s-durationsum\"},\"steps\":{\"countSum\":\"7\"},\"swimLengthsData\":{\"strokeCountSum\":\"7\"},\"timeInHeartRateZone\":{},\"totalCalories\":{\"kcalSum\":1.5},\"weight\":{\"weightGramsAvg\":1.5}}]}",
+  "OUT: {\"rollupDataPoints\":[{\"activeEnergyBurned\":{\"kcalSum\":1.5},\"activeMinutes\":{},\"activeZoneMinutes\":{\"sumInCardioHeartZone\":\"7\",\"sumInFatBurnHeartZone\":\"7\",\"sumInPeakHeartZone\":\"7\"},\"activityLevel\":{},\"altitude\":{\"gainMillimetersSum\":\"7\"},\"bloodGlucose\":{\"bloodGlucoseMilligramsPerDeciliterAvg\":1.5},\"bodyFat\":{\"bodyFatPercentageAvg\":1.5},\"caloriesInHeartRateZone\":{},\"civilEndTime\":{},\"civilStartTime\":{},\"coreBodyTemperature\":{\"temperatureCelsiusAvg\":1.5,\"temperatureCelsiusMax\":1.5,\"temperatureCelsiusMin\":1.5},\"distance\":{\"millimetersSum\":\"7\"},\"floors\":{\"countSum\":\"7\"},\"heartRate\":{\"beatsPerMinuteAvg\":1.5,\"beatsPerMinuteMax\":1.5,\"beatsPerMinuteMin\":1.5},\"heartRateVariabilityPersonalRange\":{\"averageHeartRateVariabilityMillisecondsMax\":1.5,\"averageHeartRateVariabilityMillisecondsMin\":1.5},\"hydrationLog\":{},\"nutritionLog\":{},\"restingHeartRatePersonalRange\":{\"beatsPerMinuteMax\":1.5,\"beatsPerMinuteMin\":1.5},\"runVo2Max\":{\"rateAvg\":1.5,\"rateMax\":1.5,\"rateMin\":1.5},\"sedentaryPeriod\":{\"durationSum\":\"s-durationsum\"},\"steps\":{\"countSum\":\"7\"},\"swimLengthsData\":{\"strokeCountSum\":\"7\"},\"timeInHeartRateZone\":{},\"totalCalories\":{\"kcalSum\":1.5},\"weight\":{\"weightGramsAvg\":1.5}}]}",
+  "OUT: ok",
+]
+
+test "Go's health.users.dataTypes.dataPoints.dailyRollUp pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"rollupDataPoints\":[{\"activeEnergyBurned\":{\"kcalSum\":1.5},\"activeMinutes\":{},\"activeZoneMinutes\":{\"sumInCardioHeartZone\":\"7\",\"sumInFatBurnHeartZone\":\"7\",\"sumInPeakHeartZone\":\"7\"},\"activityLevel\":{},\"altitude\":{\"gainMillimetersSum\":\"7\"},\"bloodGlucose\":{\"bloodGlucoseMilligramsPerDeciliterAvg\":1.5},\"bodyFat\":{\"bodyFatPercentageAvg\":1.5},\"caloriesInHeartRateZone\":{},\"civilEndTime\":{},\"civilStartTime\":{},\"coreBodyTemperature\":{\"temperatureCelsiusAvg\":1.5,\"temperatureCelsiusMax\":1.5,\"temperatureCelsiusMin\":1.5},\"distance\":{\"millimetersSum\":\"7\"},\"floors\":{\"countSum\":\"7\"},\"heartRate\":{\"beatsPerMinuteAvg\":1.5,\"beatsPerMinuteMax\":1.5,\"beatsPerMinuteMin\":1.5},\"heartRateVariabilityPersonalRange\":{\"averageHeartRateVariabilityMillisecondsMax\":1.5,\"averageHeartRateVariabilityMillisecondsMin\":1.5},\"hydrationLog\":{},\"nutritionLog\":{},\"restingHeartRatePersonalRange\":{\"beatsPerMinuteMax\":1.5,\"beatsPerMinuteMin\":1.5},\"runVo2Max\":{\"rateAvg\":1.5,\"rateMax\":1.5,\"rateMin\":1.5},\"sedentaryPeriod\":{\"durationSum\":\"s-durationsum\"},\"steps\":{\"countSum\":\"7\"},\"swimLengthsData\":{\"strokeCountSum\":\"7\"},\"timeInHeartRateZone\":{},\"totalCalories\":{\"kcalSum\":1.5},\"weight\":{\"weightGramsAvg\":1.5}}]}")
+  gv_queue(f, "{\"rollupDataPoints\":[{\"activeEnergyBurned\":{\"kcalSum\":1.5},\"activeMinutes\":{},\"activeZoneMinutes\":{\"sumInCardioHeartZone\":\"7\",\"sumInFatBurnHeartZone\":\"7\",\"sumInPeakHeartZone\":\"7\"},\"activityLevel\":{},\"altitude\":{\"gainMillimetersSum\":\"7\"},\"bloodGlucose\":{\"bloodGlucoseMilligramsPerDeciliterAvg\":1.5},\"bodyFat\":{\"bodyFatPercentageAvg\":1.5},\"caloriesInHeartRateZone\":{},\"civilEndTime\":{},\"civilStartTime\":{},\"coreBodyTemperature\":{\"temperatureCelsiusAvg\":1.5,\"temperatureCelsiusMax\":1.5,\"temperatureCelsiusMin\":1.5},\"distance\":{\"millimetersSum\":\"7\"},\"floors\":{\"countSum\":\"7\"},\"heartRate\":{\"beatsPerMinuteAvg\":1.5,\"beatsPerMinuteMax\":1.5,\"beatsPerMinuteMin\":1.5},\"heartRateVariabilityPersonalRange\":{\"averageHeartRateVariabilityMillisecondsMax\":1.5,\"averageHeartRateVariabilityMillisecondsMin\":1.5},\"hydrationLog\":{},\"nutritionLog\":{},\"restingHeartRatePersonalRange\":{\"beatsPerMinuteMax\":1.5,\"beatsPerMinuteMin\":1.5},\"runVo2Max\":{\"rateAvg\":1.5,\"rateMax\":1.5,\"rateMin\":1.5},\"sedentaryPeriod\":{\"durationSum\":\"s-durationsum\"},\"steps\":{\"countSum\":\"7\"},\"swimLengthsData\":{\"strokeCountSum\":\"7\"},\"timeInHeartRateZone\":{},\"totalCalories\":{\"kcalSum\":1.5},\"weight\":{\"weightGramsAvg\":1.5}}]}")
+  gv_note(f, "CALL health.users.dataTypes.dataPoints.dailyRollUp pages")
+  var p = svc.users.data_types.data_points.daily_roll_up_pages("id1/ x", json.decode_str[DailyRollUpDataPointsRequest]("{\"dataSourceFamily\":\"s-datasourcefamily\",\"pageSize\":7,\"pageToken\":\"s-pagetoken\",\"range\":{\"end\":{},\"start\":{}},\"windowSizeDays\":7}") ?? e => fault(e.display()), options: UsersDataTypesDataPointsDailyRollUpOptions{fields: ["kind", "id"], headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_21)
+}
+
+const GO_22: List[Str] = [
   "CALL health.users.dataTypes.dataPoints.exportExerciseTcx",
   "REQ GET https://health.googleapis.com/v4beta/id1/%20x:exportExerciseTcx?alt=json&fields=kind%2Cid&partialData=true&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -435,10 +551,31 @@ test "Go's health.users.dataTypes.dataPoints.exportExerciseTcx" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_19)
+  gv_compare(gv_log_of(f), GO_22)
 }
 
-const GO_20: List[Str] = [
+const GO_23: List[Str] = [
+  "CALL health.users.dataTypes.dataPoints.exportExerciseTcx download",
+  "REQ GET https://health.googleapis.com/v4beta/id1/%20x:exportExerciseTcx?alt=media&fields=kind%2Cid&partialData=true&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 media-bytes \u{0001}ÿ",
+  "OUT: media 200 media-bytes \u{0001}ÿ",
+]
+
+test "Go's health.users.dataTypes.dataPoints.exportExerciseTcx download" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "media-bytes \u{0001}ÿ")
+  gv_note(f, "CALL health.users.dataTypes.dataPoints.exportExerciseTcx download")
+  match svc.users.data_types.data_points.export_exercise_tcx_download("id1/ x", options: UsersDataTypesDataPointsExportExerciseTcxOptions{partial_data: Some(true), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]}) {
+    Ok(r) => gv_note(f, "OUT: media ${r.status} ${r.body.to_str_lossy()}")
+    Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+  }
+  gv_compare(gv_log_of(f), GO_23)
+}
+
+const GO_24: List[Str] = [
   "CALL health.users.dataTypes.dataPoints.get",
   "REQ GET https://health.googleapis.com/v4beta/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -456,10 +593,10 @@ test "Go's health.users.dataTypes.dataPoints.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_20)
+  gv_compare(gv_log_of(f), GO_24)
 }
 
-const GO_21: List[Str] = [
+const GO_25: List[Str] = [
   "CALL health.users.dataTypes.dataPoints.list",
   "REQ GET https://health.googleapis.com/v4beta/id1/%20x/dataPoints?alt=json&dataSourceFamily=s-datasourcefamily&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -477,14 +614,52 @@ test "Go's health.users.dataTypes.dataPoints.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_21)
+  gv_compare(gv_log_of(f), GO_25)
 }
 
-const GO_22: List[Str] = [
+const GO_26: List[Str] = [
+  "CALL health.users.dataTypes.dataPoints.list pages",
+  "REQ GET https://health.googleapis.com/v4beta/id1/%20x/dataPoints?alt=json&dataSourceFamily=s-datasourcefamily&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"dataPoints\":[{\"activeEnergyBurned\":{\"kcal\":1.5},\"activeMinutes\":{},\"activeZoneMinutes\":{\"activeZoneMinutes\":\"7\",\"heartRateZone\":\"s-heartratezone\"},\"activityLevel\":{\"activityLevelType\":\"s-activityleveltype\"},\"altitude\":{\"gainMillimeters\":\"7\"},\"basalEnergyBurned\":{\"kcal\":1.5},\"bloodGlucose\":{\"bloodGlucoseMilligramsPerDeciliter\":1.5,\"mealType\":\"s-mealtype\",\"measurementSource\":\"s-measurementsource\",\"measurementTiming\":\"s-measurementtiming\",\"notes\":\"s-notes\",\"specimen\":\"s-specimen\"},\"bodyFat\":{\"percentage\":1.5},\"coreBodyTemperature\":{\"id\":\"s-id\",\"measurementLocation\":\"s-measurementlocation\",\"temperatureCelsius\":1.5},\"dailyHeartRateVariability\":{\"averageHeartRateVariabilityMilliseconds\":1.5,\"deepSleepRootMeanSquareOfSuccessiveDifferencesMilliseconds\":1.5,\"entropy\":1.5,\"nonRemHeartRateBeatsPerMinute\":\"7\"},\"dailyHeartRateZones\":{},\"dailyOxygenSaturation\":{\"averagePercentage\":1.5,\"lowerBoundPercentage\":1.5,\"standardDeviationPercentage\":1.5,\"upperBoundPercentage\":1.5},\"dailyRespiratoryRate\":{\"breathsPerMinute\":1.5},\"dailyRestingHeartRate\":{\"beatsPerMinute\":\"7\"},\"dailySleepTemperatureDerivations\":{\"baselineTemperatureCelsius\":1.5,\"nightlyTemperatureCelsius\":1.5,\"relativeNightlyStddev30dCelsius\":1.5},\"dailyVo2Max\":{\"cardioFitnessLevel\":\"s-cardiofitnesslevel\",\"estimated\":true,\"vo2Max\":1.5,\"vo2MaxCovariance\":1.5},\"dataSource\":{\"platform\":\"s-platform\",\"recordingMethod\":\"s-recordingmethod\"},\"distance\":{\"millimeters\":\"7\"},\"electrocardiogram\":{\"beatsPerMinuteAvg\":\"7\",\"leadNumber\":7,\"millivoltsScalingFactor\":7,\"resultClassification\":\"s-resultclassification\",\"samplingFrequencyHertz\":7},\"exercise\":{\"activeDuration\":\"s-activeduration\",\"createTime\":\"s-createtime\",\"displayName\":\"s-displayname\",\"exerciseType\":\"s-exercisetype\",\"notes\":\"s-notes\",\"updateTime\":\"s-updatetime\"},\"floors\":{\"count\":\"7\"},\"food\":{\"accessLevel\":\"s-accesslevel\",\"brand\":\"s-brand\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"languageCode\":\"s-languagecode\",\"mealType\":\"s-mealtype\"},\"foodMeasurementUnit\":{\"displayName\":\"s-displayname\",\"pluralDisplayName\":\"s-pluraldisplayname\"},\"heartRate\":{\"beatsPerMinute\":\"7\"},\"heartRateVariability\":{\"rootMeanSquareOfSuccessiveDifferencesMilliseconds\":1.5,\"standardDeviationMilliseconds\":1.5},\"height\":{\"heightMillimeters\":\"7\"},\"hydrationLog\":{},\"irregularRhythmNotification\":{},\"menstrualPeriod\":{\"notes\":\"s-notes\"},\"moods\":{},\"name\":\"s-name\",\"nutritionLog\":{\"food\":\"s-food\",\"foodDisplayName\":\"s-fooddisplayname\",\"mealType\":\"s-mealtype\"},\"ovulationTest\":{\"result\":\"s-result\"},\"oxygenSaturation\":{\"percentage\":1.5},\"respiratoryRateSleepSummary\":{},\"runVo2Max\":{\"runVo2Max\":1.5},\"sedentaryPeriod\":{},\"skinTemperatureSensors\":{},\"sleep\":{\"createTime\":\"s-createtime\",\"type\":\"s-type\",\"updateTime\":\"s-updatetime\"},\"steps\":{\"count\":\"7\"},\"swimLengthsData\":{\"strokeCount\":\"7\",\"swimStrokeType\":\"s-swimstroketype\"},\"symptoms\":{},\"timeInHeartRateZone\":{\"heartRateZoneType\":\"s-heartratezonetype\"},\"vo2Max\":{\"measurementMethod\":\"s-measurementmethod\",\"vo2Max\":1.5},\"weight\":{\"notes\":\"s-notes\",\"weightGrams\":1.5}}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"dataPoints\":[{\"activeEnergyBurned\":{\"kcal\":1.5},\"activeMinutes\":{},\"activeZoneMinutes\":{\"activeZoneMinutes\":\"7\",\"heartRateZone\":\"s-heartratezone\"},\"activityLevel\":{\"activityLevelType\":\"s-activityleveltype\"},\"altitude\":{\"gainMillimeters\":\"7\"},\"basalEnergyBurned\":{\"kcal\":1.5},\"bloodGlucose\":{\"bloodGlucoseMilligramsPerDeciliter\":1.5,\"mealType\":\"s-mealtype\",\"measurementSource\":\"s-measurementsource\",\"measurementTiming\":\"s-measurementtiming\",\"notes\":\"s-notes\",\"specimen\":\"s-specimen\"},\"bodyFat\":{\"percentage\":1.5},\"coreBodyTemperature\":{\"id\":\"s-id\",\"measurementLocation\":\"s-measurementlocation\",\"temperatureCelsius\":1.5},\"dailyHeartRateVariability\":{\"averageHeartRateVariabilityMilliseconds\":1.5,\"deepSleepRootMeanSquareOfSuccessiveDifferencesMilliseconds\":1.5,\"entropy\":1.5,\"nonRemHeartRateBeatsPerMinute\":\"7\"},\"dailyHeartRateZones\":{},\"dailyOxygenSaturation\":{\"averagePercentage\":1.5,\"lowerBoundPercentage\":1.5,\"standardDeviationPercentage\":1.5,\"upperBoundPercentage\":1.5},\"dailyRespiratoryRate\":{\"breathsPerMinute\":1.5},\"dailyRestingHeartRate\":{\"beatsPerMinute\":\"7\"},\"dailySleepTemperatureDerivations\":{\"baselineTemperatureCelsius\":1.5,\"nightlyTemperatureCelsius\":1.5,\"relativeNightlyStddev30dCelsius\":1.5},\"dailyVo2Max\":{\"cardioFitnessLevel\":\"s-cardiofitnesslevel\",\"estimated\":true,\"vo2Max\":1.5,\"vo2MaxCovariance\":1.5},\"dataSource\":{\"platform\":\"s-platform\",\"recordingMethod\":\"s-recordingmethod\"},\"distance\":{\"millimeters\":\"7\"},\"electrocardiogram\":{\"beatsPerMinuteAvg\":\"7\",\"leadNumber\":7,\"millivoltsScalingFactor\":7,\"resultClassification\":\"s-resultclassification\",\"samplingFrequencyHertz\":7},\"exercise\":{\"activeDuration\":\"s-activeduration\",\"createTime\":\"s-createtime\",\"displayName\":\"s-displayname\",\"exerciseType\":\"s-exercisetype\",\"notes\":\"s-notes\",\"updateTime\":\"s-updatetime\"},\"floors\":{\"count\":\"7\"},\"food\":{\"accessLevel\":\"s-accesslevel\",\"brand\":\"s-brand\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"languageCode\":\"s-languagecode\",\"mealType\":\"s-mealtype\"},\"foodMeasurementUnit\":{\"displayName\":\"s-displayname\",\"pluralDisplayName\":\"s-pluraldisplayname\"},\"heartRate\":{\"beatsPerMinute\":\"7\"},\"heartRateVariability\":{\"rootMeanSquareOfSuccessiveDifferencesMilliseconds\":1.5,\"standardDeviationMilliseconds\":1.5},\"height\":{\"heightMillimeters\":\"7\"},\"hydrationLog\":{},\"irregularRhythmNotification\":{},\"menstrualPeriod\":{\"notes\":\"s-notes\"},\"moods\":{},\"name\":\"s-name\",\"nutritionLog\":{\"food\":\"s-food\",\"foodDisplayName\":\"s-fooddisplayname\",\"mealType\":\"s-mealtype\"},\"ovulationTest\":{\"result\":\"s-result\"},\"oxygenSaturation\":{\"percentage\":1.5},\"respiratoryRateSleepSummary\":{},\"runVo2Max\":{\"runVo2Max\":1.5},\"sedentaryPeriod\":{},\"skinTemperatureSensors\":{},\"sleep\":{\"createTime\":\"s-createtime\",\"type\":\"s-type\",\"updateTime\":\"s-updatetime\"},\"steps\":{\"count\":\"7\"},\"swimLengthsData\":{\"strokeCount\":\"7\",\"swimStrokeType\":\"s-swimstroketype\"},\"symptoms\":{},\"timeInHeartRateZone\":{\"heartRateZoneType\":\"s-heartratezonetype\"},\"vo2Max\":{\"measurementMethod\":\"s-measurementmethod\",\"vo2Max\":1.5},\"weight\":{\"notes\":\"s-notes\",\"weightGrams\":1.5}}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://health.googleapis.com/v4beta/id1/%20x/dataPoints?alt=json&dataSourceFamily=s-datasourcefamily&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"dataPoints\":[{\"activeEnergyBurned\":{\"kcal\":1.5},\"activeMinutes\":{},\"activeZoneMinutes\":{\"activeZoneMinutes\":\"7\",\"heartRateZone\":\"s-heartratezone\"},\"activityLevel\":{\"activityLevelType\":\"s-activityleveltype\"},\"altitude\":{\"gainMillimeters\":\"7\"},\"basalEnergyBurned\":{\"kcal\":1.5},\"bloodGlucose\":{\"bloodGlucoseMilligramsPerDeciliter\":1.5,\"mealType\":\"s-mealtype\",\"measurementSource\":\"s-measurementsource\",\"measurementTiming\":\"s-measurementtiming\",\"notes\":\"s-notes\",\"specimen\":\"s-specimen\"},\"bodyFat\":{\"percentage\":1.5},\"coreBodyTemperature\":{\"id\":\"s-id\",\"measurementLocation\":\"s-measurementlocation\",\"temperatureCelsius\":1.5},\"dailyHeartRateVariability\":{\"averageHeartRateVariabilityMilliseconds\":1.5,\"deepSleepRootMeanSquareOfSuccessiveDifferencesMilliseconds\":1.5,\"entropy\":1.5,\"nonRemHeartRateBeatsPerMinute\":\"7\"},\"dailyHeartRateZones\":{},\"dailyOxygenSaturation\":{\"averagePercentage\":1.5,\"lowerBoundPercentage\":1.5,\"standardDeviationPercentage\":1.5,\"upperBoundPercentage\":1.5},\"dailyRespiratoryRate\":{\"breathsPerMinute\":1.5},\"dailyRestingHeartRate\":{\"beatsPerMinute\":\"7\"},\"dailySleepTemperatureDerivations\":{\"baselineTemperatureCelsius\":1.5,\"nightlyTemperatureCelsius\":1.5,\"relativeNightlyStddev30dCelsius\":1.5},\"dailyVo2Max\":{\"cardioFitnessLevel\":\"s-cardiofitnesslevel\",\"estimated\":true,\"vo2Max\":1.5,\"vo2MaxCovariance\":1.5},\"dataSource\":{\"platform\":\"s-platform\",\"recordingMethod\":\"s-recordingmethod\"},\"distance\":{\"millimeters\":\"7\"},\"electrocardiogram\":{\"beatsPerMinuteAvg\":\"7\",\"leadNumber\":7,\"millivoltsScalingFactor\":7,\"resultClassification\":\"s-resultclassification\",\"samplingFrequencyHertz\":7},\"exercise\":{\"activeDuration\":\"s-activeduration\",\"createTime\":\"s-createtime\",\"displayName\":\"s-displayname\",\"exerciseType\":\"s-exercisetype\",\"notes\":\"s-notes\",\"updateTime\":\"s-updatetime\"},\"floors\":{\"count\":\"7\"},\"food\":{\"accessLevel\":\"s-accesslevel\",\"brand\":\"s-brand\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"languageCode\":\"s-languagecode\",\"mealType\":\"s-mealtype\"},\"foodMeasurementUnit\":{\"displayName\":\"s-displayname\",\"pluralDisplayName\":\"s-pluraldisplayname\"},\"heartRate\":{\"beatsPerMinute\":\"7\"},\"heartRateVariability\":{\"rootMeanSquareOfSuccessiveDifferencesMilliseconds\":1.5,\"standardDeviationMilliseconds\":1.5},\"height\":{\"heightMillimeters\":\"7\"},\"hydrationLog\":{},\"irregularRhythmNotification\":{},\"menstrualPeriod\":{\"notes\":\"s-notes\"},\"moods\":{},\"name\":\"s-name\",\"nutritionLog\":{\"food\":\"s-food\",\"foodDisplayName\":\"s-fooddisplayname\",\"mealType\":\"s-mealtype\"},\"ovulationTest\":{\"result\":\"s-result\"},\"oxygenSaturation\":{\"percentage\":1.5},\"respiratoryRateSleepSummary\":{},\"runVo2Max\":{\"runVo2Max\":1.5},\"sedentaryPeriod\":{},\"skinTemperatureSensors\":{},\"sleep\":{\"createTime\":\"s-createtime\",\"type\":\"s-type\",\"updateTime\":\"s-updatetime\"},\"steps\":{\"count\":\"7\"},\"swimLengthsData\":{\"strokeCount\":\"7\",\"swimStrokeType\":\"s-swimstroketype\"},\"symptoms\":{},\"timeInHeartRateZone\":{\"heartRateZoneType\":\"s-heartratezonetype\"},\"vo2Max\":{\"measurementMethod\":\"s-measurementmethod\",\"vo2Max\":1.5},\"weight\":{\"notes\":\"s-notes\",\"weightGrams\":1.5}}]}",
+  "OUT: {\"dataPoints\":[{\"activeEnergyBurned\":{\"kcal\":1.5},\"activeMinutes\":{},\"activeZoneMinutes\":{\"activeZoneMinutes\":\"7\",\"heartRateZone\":\"s-heartratezone\"},\"activityLevel\":{\"activityLevelType\":\"s-activityleveltype\"},\"altitude\":{\"gainMillimeters\":\"7\"},\"basalEnergyBurned\":{\"kcal\":1.5},\"bloodGlucose\":{\"bloodGlucoseMilligramsPerDeciliter\":1.5,\"mealType\":\"s-mealtype\",\"measurementSource\":\"s-measurementsource\",\"measurementTiming\":\"s-measurementtiming\",\"notes\":\"s-notes\",\"specimen\":\"s-specimen\"},\"bodyFat\":{\"percentage\":1.5},\"coreBodyTemperature\":{\"id\":\"s-id\",\"measurementLocation\":\"s-measurementlocation\",\"temperatureCelsius\":1.5},\"dailyHeartRateVariability\":{\"averageHeartRateVariabilityMilliseconds\":1.5,\"deepSleepRootMeanSquareOfSuccessiveDifferencesMilliseconds\":1.5,\"entropy\":1.5,\"nonRemHeartRateBeatsPerMinute\":\"7\"},\"dailyHeartRateZones\":{},\"dailyOxygenSaturation\":{\"averagePercentage\":1.5,\"lowerBoundPercentage\":1.5,\"standardDeviationPercentage\":1.5,\"upperBoundPercentage\":1.5},\"dailyRespiratoryRate\":{\"breathsPerMinute\":1.5},\"dailyRestingHeartRate\":{\"beatsPerMinute\":\"7\"},\"dailySleepTemperatureDerivations\":{\"baselineTemperatureCelsius\":1.5,\"nightlyTemperatureCelsius\":1.5,\"relativeNightlyStddev30dCelsius\":1.5},\"dailyVo2Max\":{\"cardioFitnessLevel\":\"s-cardiofitnesslevel\",\"estimated\":true,\"vo2Max\":1.5,\"vo2MaxCovariance\":1.5},\"dataSource\":{\"platform\":\"s-platform\",\"recordingMethod\":\"s-recordingmethod\"},\"distance\":{\"millimeters\":\"7\"},\"electrocardiogram\":{\"beatsPerMinuteAvg\":\"7\",\"leadNumber\":7,\"millivoltsScalingFactor\":7,\"resultClassification\":\"s-resultclassification\",\"samplingFrequencyHertz\":7},\"exercise\":{\"activeDuration\":\"s-activeduration\",\"createTime\":\"s-createtime\",\"displayName\":\"s-displayname\",\"exerciseType\":\"s-exercisetype\",\"notes\":\"s-notes\",\"updateTime\":\"s-updatetime\"},\"floors\":{\"count\":\"7\"},\"food\":{\"accessLevel\":\"s-accesslevel\",\"brand\":\"s-brand\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"languageCode\":\"s-languagecode\",\"mealType\":\"s-mealtype\"},\"foodMeasurementUnit\":{\"displayName\":\"s-displayname\",\"pluralDisplayName\":\"s-pluraldisplayname\"},\"heartRate\":{\"beatsPerMinute\":\"7\"},\"heartRateVariability\":{\"rootMeanSquareOfSuccessiveDifferencesMilliseconds\":1.5,\"standardDeviationMilliseconds\":1.5},\"height\":{\"heightMillimeters\":\"7\"},\"hydrationLog\":{},\"irregularRhythmNotification\":{},\"menstrualPeriod\":{\"notes\":\"s-notes\"},\"moods\":{},\"name\":\"s-name\",\"nutritionLog\":{\"food\":\"s-food\",\"foodDisplayName\":\"s-fooddisplayname\",\"mealType\":\"s-mealtype\"},\"ovulationTest\":{\"result\":\"s-result\"},\"oxygenSaturation\":{\"percentage\":1.5},\"respiratoryRateSleepSummary\":{},\"runVo2Max\":{\"runVo2Max\":1.5},\"sedentaryPeriod\":{},\"skinTemperatureSensors\":{},\"sleep\":{\"createTime\":\"s-createtime\",\"type\":\"s-type\",\"updateTime\":\"s-updatetime\"},\"steps\":{\"count\":\"7\"},\"swimLengthsData\":{\"strokeCount\":\"7\",\"swimStrokeType\":\"s-swimstroketype\"},\"symptoms\":{},\"timeInHeartRateZone\":{\"heartRateZoneType\":\"s-heartratezonetype\"},\"vo2Max\":{\"measurementMethod\":\"s-measurementmethod\",\"vo2Max\":1.5},\"weight\":{\"notes\":\"s-notes\",\"weightGrams\":1.5}}]}",
+  "OUT: ok",
+]
+
+test "Go's health.users.dataTypes.dataPoints.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"dataPoints\":[{\"activeEnergyBurned\":{\"kcal\":1.5},\"activeMinutes\":{},\"activeZoneMinutes\":{\"activeZoneMinutes\":\"7\",\"heartRateZone\":\"s-heartratezone\"},\"activityLevel\":{\"activityLevelType\":\"s-activityleveltype\"},\"altitude\":{\"gainMillimeters\":\"7\"},\"basalEnergyBurned\":{\"kcal\":1.5},\"bloodGlucose\":{\"bloodGlucoseMilligramsPerDeciliter\":1.5,\"mealType\":\"s-mealtype\",\"measurementSource\":\"s-measurementsource\",\"measurementTiming\":\"s-measurementtiming\",\"notes\":\"s-notes\",\"specimen\":\"s-specimen\"},\"bodyFat\":{\"percentage\":1.5},\"coreBodyTemperature\":{\"id\":\"s-id\",\"measurementLocation\":\"s-measurementlocation\",\"temperatureCelsius\":1.5},\"dailyHeartRateVariability\":{\"averageHeartRateVariabilityMilliseconds\":1.5,\"deepSleepRootMeanSquareOfSuccessiveDifferencesMilliseconds\":1.5,\"entropy\":1.5,\"nonRemHeartRateBeatsPerMinute\":\"7\"},\"dailyHeartRateZones\":{},\"dailyOxygenSaturation\":{\"averagePercentage\":1.5,\"lowerBoundPercentage\":1.5,\"standardDeviationPercentage\":1.5,\"upperBoundPercentage\":1.5},\"dailyRespiratoryRate\":{\"breathsPerMinute\":1.5},\"dailyRestingHeartRate\":{\"beatsPerMinute\":\"7\"},\"dailySleepTemperatureDerivations\":{\"baselineTemperatureCelsius\":1.5,\"nightlyTemperatureCelsius\":1.5,\"relativeNightlyStddev30dCelsius\":1.5},\"dailyVo2Max\":{\"cardioFitnessLevel\":\"s-cardiofitnesslevel\",\"estimated\":true,\"vo2Max\":1.5,\"vo2MaxCovariance\":1.5},\"dataSource\":{\"platform\":\"s-platform\",\"recordingMethod\":\"s-recordingmethod\"},\"distance\":{\"millimeters\":\"7\"},\"electrocardiogram\":{\"beatsPerMinuteAvg\":\"7\",\"leadNumber\":7,\"millivoltsScalingFactor\":7,\"resultClassification\":\"s-resultclassification\",\"samplingFrequencyHertz\":7},\"exercise\":{\"activeDuration\":\"s-activeduration\",\"createTime\":\"s-createtime\",\"displayName\":\"s-displayname\",\"exerciseType\":\"s-exercisetype\",\"notes\":\"s-notes\",\"updateTime\":\"s-updatetime\"},\"floors\":{\"count\":\"7\"},\"food\":{\"accessLevel\":\"s-accesslevel\",\"brand\":\"s-brand\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"languageCode\":\"s-languagecode\",\"mealType\":\"s-mealtype\"},\"foodMeasurementUnit\":{\"displayName\":\"s-displayname\",\"pluralDisplayName\":\"s-pluraldisplayname\"},\"heartRate\":{\"beatsPerMinute\":\"7\"},\"heartRateVariability\":{\"rootMeanSquareOfSuccessiveDifferencesMilliseconds\":1.5,\"standardDeviationMilliseconds\":1.5},\"height\":{\"heightMillimeters\":\"7\"},\"hydrationLog\":{},\"irregularRhythmNotification\":{},\"menstrualPeriod\":{\"notes\":\"s-notes\"},\"moods\":{},\"name\":\"s-name\",\"nutritionLog\":{\"food\":\"s-food\",\"foodDisplayName\":\"s-fooddisplayname\",\"mealType\":\"s-mealtype\"},\"ovulationTest\":{\"result\":\"s-result\"},\"oxygenSaturation\":{\"percentage\":1.5},\"respiratoryRateSleepSummary\":{},\"runVo2Max\":{\"runVo2Max\":1.5},\"sedentaryPeriod\":{},\"skinTemperatureSensors\":{},\"sleep\":{\"createTime\":\"s-createtime\",\"type\":\"s-type\",\"updateTime\":\"s-updatetime\"},\"steps\":{\"count\":\"7\"},\"swimLengthsData\":{\"strokeCount\":\"7\",\"swimStrokeType\":\"s-swimstroketype\"},\"symptoms\":{},\"timeInHeartRateZone\":{\"heartRateZoneType\":\"s-heartratezonetype\"},\"vo2Max\":{\"measurementMethod\":\"s-measurementmethod\",\"vo2Max\":1.5},\"weight\":{\"notes\":\"s-notes\",\"weightGrams\":1.5}}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"dataPoints\":[{\"activeEnergyBurned\":{\"kcal\":1.5},\"activeMinutes\":{},\"activeZoneMinutes\":{\"activeZoneMinutes\":\"7\",\"heartRateZone\":\"s-heartratezone\"},\"activityLevel\":{\"activityLevelType\":\"s-activityleveltype\"},\"altitude\":{\"gainMillimeters\":\"7\"},\"basalEnergyBurned\":{\"kcal\":1.5},\"bloodGlucose\":{\"bloodGlucoseMilligramsPerDeciliter\":1.5,\"mealType\":\"s-mealtype\",\"measurementSource\":\"s-measurementsource\",\"measurementTiming\":\"s-measurementtiming\",\"notes\":\"s-notes\",\"specimen\":\"s-specimen\"},\"bodyFat\":{\"percentage\":1.5},\"coreBodyTemperature\":{\"id\":\"s-id\",\"measurementLocation\":\"s-measurementlocation\",\"temperatureCelsius\":1.5},\"dailyHeartRateVariability\":{\"averageHeartRateVariabilityMilliseconds\":1.5,\"deepSleepRootMeanSquareOfSuccessiveDifferencesMilliseconds\":1.5,\"entropy\":1.5,\"nonRemHeartRateBeatsPerMinute\":\"7\"},\"dailyHeartRateZones\":{},\"dailyOxygenSaturation\":{\"averagePercentage\":1.5,\"lowerBoundPercentage\":1.5,\"standardDeviationPercentage\":1.5,\"upperBoundPercentage\":1.5},\"dailyRespiratoryRate\":{\"breathsPerMinute\":1.5},\"dailyRestingHeartRate\":{\"beatsPerMinute\":\"7\"},\"dailySleepTemperatureDerivations\":{\"baselineTemperatureCelsius\":1.5,\"nightlyTemperatureCelsius\":1.5,\"relativeNightlyStddev30dCelsius\":1.5},\"dailyVo2Max\":{\"cardioFitnessLevel\":\"s-cardiofitnesslevel\",\"estimated\":true,\"vo2Max\":1.5,\"vo2MaxCovariance\":1.5},\"dataSource\":{\"platform\":\"s-platform\",\"recordingMethod\":\"s-recordingmethod\"},\"distance\":{\"millimeters\":\"7\"},\"electrocardiogram\":{\"beatsPerMinuteAvg\":\"7\",\"leadNumber\":7,\"millivoltsScalingFactor\":7,\"resultClassification\":\"s-resultclassification\",\"samplingFrequencyHertz\":7},\"exercise\":{\"activeDuration\":\"s-activeduration\",\"createTime\":\"s-createtime\",\"displayName\":\"s-displayname\",\"exerciseType\":\"s-exercisetype\",\"notes\":\"s-notes\",\"updateTime\":\"s-updatetime\"},\"floors\":{\"count\":\"7\"},\"food\":{\"accessLevel\":\"s-accesslevel\",\"brand\":\"s-brand\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"languageCode\":\"s-languagecode\",\"mealType\":\"s-mealtype\"},\"foodMeasurementUnit\":{\"displayName\":\"s-displayname\",\"pluralDisplayName\":\"s-pluraldisplayname\"},\"heartRate\":{\"beatsPerMinute\":\"7\"},\"heartRateVariability\":{\"rootMeanSquareOfSuccessiveDifferencesMilliseconds\":1.5,\"standardDeviationMilliseconds\":1.5},\"height\":{\"heightMillimeters\":\"7\"},\"hydrationLog\":{},\"irregularRhythmNotification\":{},\"menstrualPeriod\":{\"notes\":\"s-notes\"},\"moods\":{},\"name\":\"s-name\",\"nutritionLog\":{\"food\":\"s-food\",\"foodDisplayName\":\"s-fooddisplayname\",\"mealType\":\"s-mealtype\"},\"ovulationTest\":{\"result\":\"s-result\"},\"oxygenSaturation\":{\"percentage\":1.5},\"respiratoryRateSleepSummary\":{},\"runVo2Max\":{\"runVo2Max\":1.5},\"sedentaryPeriod\":{},\"skinTemperatureSensors\":{},\"sleep\":{\"createTime\":\"s-createtime\",\"type\":\"s-type\",\"updateTime\":\"s-updatetime\"},\"steps\":{\"count\":\"7\"},\"swimLengthsData\":{\"strokeCount\":\"7\",\"swimStrokeType\":\"s-swimstroketype\"},\"symptoms\":{},\"timeInHeartRateZone\":{\"heartRateZoneType\":\"s-heartratezonetype\"},\"vo2Max\":{\"measurementMethod\":\"s-measurementmethod\",\"vo2Max\":1.5},\"weight\":{\"notes\":\"s-notes\",\"weightGrams\":1.5}}]}")
+  gv_note(f, "CALL health.users.dataTypes.dataPoints.list pages")
+  var p = svc.users.data_types.data_points.list_pages("id1/ x", options: UsersDataTypesDataPointsListOptions{data_source_family: Some("s-datasourcefamily"), filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_26)
+}
+
+const GO_27: List[Str] = [
   "CALL health.users.dataTypes.dataPoints.patch",
   "REQ PATCH https://health.googleapis.com/v4beta/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"activeEnergyBurned\":{\"interval\":{\"endTime\":\"s-endtime\",\"endUtcOffset\":\"s-endutcoffset\",\"startTime\":\"s-starttime\",\"startUtcOffset\":\"s-startutcoffset\"},\"kcal\":1.5},\"activeMinutes\":{\"activeMinutesByActivityLevel\":[{\"activeMinutes\":\"7\",\"activityLevel\":\"s-activitylevel\"}],\"interval\":{\"endTime\":\"s-endtime\",\"endUtcOffset\":\"s-endutcoffset\",\"startTime\":\"s-starttime\",\"startUtcOffset\":\"s-startutcoffset\"}},\"activeZoneMinutes\":{\"activeZoneMinutes\":\"7\",\"heartRateZone\":\"s-heartratezone\",\"interval\":{\"endTime\":\"s-endtime\",\"endUtcOffset\":\"s-endutcoffset\",\"startTime\":\"s-starttime\",\"startUtcOffset\":\"s-startutcoffset\"}},\"activityLevel\":{\"activityLevelType\":\"s-activityleveltype\",\"interval\":{\"endTime\":\"s-endtime\",\"endUtcOffset\":\"s-endutcoffset\",\"startTime\":\"s-starttime\",\"startUtcOffset\":\"s-startutcoffset\"}},\"altitude\":{\"gainMillimeters\":\"7\",\"interval\":{\"endTime\":\"s-endtime\",\"endUtcOffset\":\"s-endutcoffset\",\"startTime\":\"s-starttime\",\"startUtcOffset\":\"s-startutcoffset\"}},\"basalEnergyBurned\":{\"interval\":{\"endTime\":\"s-endtime\",\"endUtcOffset\":\"s-endutcoffset\",\"startTime\":\"s-starttime\",\"startUtcOffset\":\"s-startutcoffset\"},\"kcal\":1.5},\"bloodGlucose\":{\"bloodGlucoseMilligramsPerDeciliter\":1.5,\"mealType\":\"s-mealtype\",\"measurementSource\":\"s-measurementsource\",\"measurementTiming\":\"s-measurementtiming\",\"notes\":\"s-notes\",\"sampleTime\":{\"physicalTime\":\"s-physicaltime\",\"utcOffset\":\"s-utcoffset\"},\"specimen\":\"s-specimen\"},\"bodyFat\":{\"percentage\":1.5,\"sampleTime\":{\"physicalTime\":\"s-physicaltime\",\"utcOffset\":\"s-utcoffset\"}},\"coreBodyTemperature\":{\"id\":\"s-id\",\"measurementLocation\":\"s-measurementlocation\",\"sampleTime\":{\"physicalTime\":\"s-physicaltime\",\"utcOffset\":\"s-utcoffset\"},\"temperatureCelsius\":1.5},\"dailyHeartRateVariability\":{\"averageHeartRateVariabilityMilliseconds\":1.5,\"date\":{\"day\":7,\"month\":7,\"year\":7},\"deepSleepRootMeanSquareOfSuccessiveDifferencesMilliseconds\":1.5,\"entropy\":1.5,\"nonRemHeartRateBeatsPerMinute\":\"7\"},\"dailyHeartRateZones\":{\"date\":{\"day\":7,\"month\":7,\"year\":7},\"heartRateZones\":[{\"heartRateZoneType\":\"s-heartratezonetype\",\"maxBeatsPerMinute\":\"7\",\"minBeatsPerMinute\":\"7\"}]},\"dailyOxygenSaturation\":{\"averagePercentage\":1.5,\"date\":{\"day\":7,\"month\":7,\"year\":7},\"lowerBoundPercentage\":1.5,\"standardDeviationPercentage\":1.5,\"upperBoundPercentage\":1.5},\"dailyRespiratoryRate\":{\"breathsPerMinute\":1.5,\"date\":{\"day\":7,\"month\":7,\"year\":7}},\"dailyRestingHeartRate\":{\"beatsPerMinute\":\"7\",\"dailyRestingHeartRateMetadata\":{\"calculationMethod\":\"s-calculationmethod\"},\"date\":{\"day\":7,\"month\":7,\"year\":7}},\"dailySleepTemperatureDerivations\":{\"baselineTemperatureCelsius\":1.5,\"date\":{\"day\":7,\"month\":7,\"year\":7},\"nightlyTemperatureCelsius\":1.5,\"relativeNightlyStddev30dCelsius\":1.5},\"dailyVo2Max\":{\"cardioFitnessLevel\":\"s-cardiofitnesslevel\",\"date\":{\"day\":7,\"month\":7,\"year\":7},\"estimated\":true,\"vo2Max\":1.5,\"vo2MaxCovariance\":1.5},\"dataSource\":{\"application\":{\"googleWebClientId\":\"s-googlewebclientid\",\"packageName\":\"s-packagename\",\"webClientId\":\"s-webclientid\"},\"device\":{\"displayName\":\"s-displayname\",\"formFactor\":\"s-formfactor\",\"manufacturer\":\"s-manufacturer\"},\"platform\":\"s-platform\",\"recordingMethod\":\"s-recordingmethod\"},\"distance\":{\"interval\":{\"endTime\":\"s-endtime\",\"endUtcOffset\":\"s-endutcoffset\",\"startTime\":\"s-starttime\",\"startUtcOffset\":\"s-startutcoffset\"},\"millimeters\":\"7\"},\"electrocardiogram\":{\"beatsPerMinuteAvg\":\"7\",\"interval\":{\"endTime\":\"s-endtime\",\"endUtcOffset\":\"s-endutcoffset\",\"startTime\":\"s-starttime\",\"startUtcOffset\":\"s-startutcoffset\"},\"leadNumber\":7,\"medicalDeviceInfo\":{\"algorithmVersion\":\"s-algorithmversion\",\"deviceModel\":\"s-devicemodel\",\"featureVersion\":\"s-featureversion\",\"firmwareVersion\":\"s-firmwareversion\",\"serviceVersion\":\"s-serviceversion\"},\"millivoltsScalingFactor\":7,\"resultClassification\":\"s-resultclassification\",\"samplingFrequencyHertz\":7,\"waveformSamples\":[7]},\"exercise\":{\"activeDuration\":\"s-activeduration\",\"createTime\":\"s-createtime\",\"displayName\":\"s-displayname\",\"exerciseEvents\":[{\"eventTime\":\"s-eventtime\",\"eventUtcOffset\":\"s-eventutcoffset\",\"exerciseEventType\":\"s-exerciseeventtype\"}],\"exerciseMetadata\":{\"hasGps\":true,\"poolLengthMillimeters\":\"7\"},\"exerciseType\":\"s-exercisetype\",\"interval\":{\"endTime\":\"s-endtime\",\"endUtcOffset\":\"s-endutcoffset\",\"startTime\":\"s-starttime\",\"startUtcOffset\":\"s-startutcoffset\"},\"metricsSummary\":{\"activeZoneMinutes\":\"7\",\"averageHeartRateBeatsPerMinute\":\"7\",\"averagePaceSecondsPerMeter\":1.5,\"averageSpeedMillimetersPerSecond\":1.5,\"caloriesKcal\":1.5,\"distanceMillimeters\":1.5,\"elevationGainMillimeters\":1.5,\"runVo2Max\":1.5,\"steps\":\"7\",\"totalSwimLengths\":1.5},\"notes\":\"s-notes\",\"splitSummaries\":[{\"activeDuration\":\"s-activeduration\",\"endTime\":\"s-endtime\",\"endUtcOffset\":\"s-endutcoffset\",\"splitType\":\"s-splittype\",\"startTime\":\"s-starttime\",\"startUtcOffset\":\"s-startutcoffset\"}],\"splits\":[{\"activeDuration\":\"s-activeduration\",\"endTime\":\"s-endtime\",\"endUtcOffset\":\"s-endutcoffset\",\"splitType\":\"s-splittype\",\"startTime\":\"s-starttime\",\"startUtcOffset\":\"s-startutcoffset\"}],\"updateTime\":\"s-updatetime\"},\"floors\":{\"count\":\"7\",\"interval\":{\"endTime\":\"s-endtime\",\"endUtcOffset\":\"s-endutcoffset\",\"startTime\":\"s-starttime\",\"startUtcOffset\":\"s-startutcoffset\"}},\"food\":{\"accessLevel\":\"s-accesslevel\",\"brand\":\"s-brand\",\"defaultServing\":{\"amount\":1.5,\"foodMeasurementUnit\":\"s-foodmeasurementunit\",\"foodMeasurementUnitDisplayName\":\"s-foodmeasurementunitdisplayname\",\"foodMeasurementUnitDisplayNamePlural\":\"s-foodmeasurementunitdisplaynameplural\",\"multiplier\":1.5},\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"energyAvg\":{\"kcal\":1.5,\"userProvidedUnit\":\"s-userprovidedunit\"},\"energyFromFat\":{\"kcal\":1.5,\"userProvidedUnit\":\"s-userprovidedunit\"},\"energyMax\":{\"kcal\":1.5,\"userProvidedUnit\":\"s-userprovidedunit\"},\"energyMin\":{\"kcal\":1.5,\"userProvidedUnit\":\"s-userprovidedunit\"},\"languageCode\":\"s-languagecode\",\"mealType\":\"s-mealtype\",\"nutrients\":[{\"nutrient\":\"s-nutrient\"}],\"servings\":[{\"amount\":1.5,\"foodMeasurementUnit\":\"s-foodmeasurementunit\",\"foodMeasurementUnitDisplayName\":\"s-foodmeasurementunitdisplayname\",\"foodMeasurementUnitDisplayNamePlural\":\"s-foodmeasurementunitdisplaynameplural\",\"multiplier\":1.5}],\"totalCarbohydrate\":{\"grams\":1.5,\"userProvidedUnit\":\"s-userprovidedunit\"},\"totalFat\":{\"grams\":1.5,\"userProvidedUnit\":\"s-userprovidedunit\"}},\"foodMeasurementUnit\":{\"displayName\":\"s-displayname\",\"pluralDisplayName\":\"s-pluraldisplayname\"},\"heartRate\":{\"beatsPerMinute\":\"7\",\"metadata\":{\"motionContext\":\"s-motioncontext\",\"sensorLocation\":\"s-sensorlocation\"},\"sampleTime\":{\"physicalTime\":\"s-physicaltime\",\"utcOffset\":\"s-utcoffset\"}},\"heartRateVariability\":{\"metadata\":{\"highFrequencyPower\":1.5,\"lowFrequencyPower\":1.5},\"rootMeanSquareOfSuccessiveDifferencesMilliseconds\":1.5,\"sampleTime\":{\"physicalTime\":\"s-physicaltime\",\"utcOffset\":\"s-utcoffset\"},\"standardDeviationMilliseconds\":1.5},\"height\":{\"heightMillimeters\":\"7\",\"sampleTime\":{\"physicalTime\":\"s-physicaltime\",\"utcOffset\":\"s-utcoffset\"}},\"hydrationLog\":{\"amountConsumed\":{\"milliliters\":1.5,\"userProvidedUnit\":\"s-userprovidedunit\"},\"interval\":{\"endTime\":\"s-endtime\",\"endUtcOffset\":\"s-endutcoffset\",\"startTime\":\"s-starttime\",\"startUtcOffset\":\"s-startutcoffset\"}},\"irregularRhythmNotification\":{\"alertWindows\":[{\"endTime\":\"s-endtime\",\"endUtcOffset\":\"s-endutcoffset\",\"positive\":true,\"startTime\":\"s-starttime\",\"startUtcOffset\":\"s-startutcoffset\"}],\"interval\":{\"endTime\":\"s-endtime\",\"endUtcOffset\":\"s-endutcoffset\",\"startTime\":\"s-starttime\",\"startUtcOffset\":\"s-startutcoffset\"},\"medicalDeviceInfo\":{\"algorithmVersion\":\"s-algorithmversion\",\"deviceModel\":\"s-devicemodel\",\"featureVersion\":\"s-featureversion\",\"firmwareVersion\":\"s-firmwareversion\",\"serviceVersion\":\"s-serviceversion\"}},\"menstrualPeriod\":{\"interval\":{\"endTime\":\"s-endtime\",\"endUtcOffset\":\"s-endutcoffset\",\"startTime\":\"s-starttime\",\"startUtcOffset\":\"s-startutcoffset\"},\"notes\":\"s-notes\"},\"moods\":{\"moods\":[\"s-moods\"],\"sampleTime\":{\"physicalTime\":\"s-physicaltime\",\"utcOffset\":\"s-utcoffset\"},\"valences\":[\"s-valences\"]},\"name\":\"s-name\",\"nutritionLog\":{\"energy\":{\"kcal\":1.5,\"userProvidedUnit\":\"s-userprovidedunit\"},\"energyFromFat\":{\"kcal\":1.5,\"userProvidedUnit\":\"s-userprovidedunit\"},\"food\":\"s-food\",\"foodDisplayName\":\"s-fooddisplayname\",\"interval\":{\"endTime\":\"s-endtime\",\"endUtcOffset\":\"s-endutcoffset\",\"startTime\":\"s-starttime\",\"startUtcOffset\":\"s-startutcoffset\"},\"mealType\":\"s-mealtype\",\"nutrients\":[{\"nutrient\":\"s-nutrient\"}],\"serving\":{\"amount\":1.5,\"foodMeasurementUnit\":\"s-foodmeasurementunit\",\"foodMeasurementUnitDisplayName\":\"s-foodmeasurementunitdisplayname\"},\"totalCarbohydrate\":{\"grams\":1.5,\"userProvidedUnit\":\"s-userprovidedunit\"},\"totalFat\":{\"grams\":1.5,\"userProvidedUnit\":\"s-userprovidedunit\"}},\"ovulationTest\":{\"result\":\"s-result\",\"sampleTime\":{\"physicalTime\":\"s-physicaltime\",\"utcOffset\":\"s-utcoffset\"}},\"oxygenSaturation\":{\"percentage\":1.5,\"sampleTime\":{\"physicalTime\":\"s-physicaltime\",\"utcOffset\":\"s-utcoffset\"}},\"respiratoryRateSleepSummary\":{\"deepSleepStats\":{\"breathsPerMinute\":1.5,\"signalToNoise\":1.5,\"standardDeviation\":1.5},\"fullSleepStats\":{\"breathsPerMinute\":1.5,\"signalToNoise\":1.5,\"standardDeviation\":1.5},\"lightSleepStats\":{\"breathsPerMinute\":1.5,\"signalToNoise\":1.5,\"standardDeviation\":1.5},\"remSleepStats\":{\"breathsPerMinute\":1.5,\"signalToNoise\":1.5,\"standardDeviation\":1.5},\"sampleTime\":{\"physicalTime\":\"s-physicaltime\",\"utcOffset\":\"s-utcoffset\"}},\"runVo2Max\":{\"runVo2Max\":1.5,\"sampleTime\":{\"physicalTime\":\"s-physicaltime\",\"utcOffset\":\"s-utcoffset\"}},\"sedentaryPeriod\":{\"interval\":{\"endTime\":\"s-endtime\",\"endUtcOffset\":\"s-endutcoffset\",\"startTime\":\"s-starttime\",\"startUtcOffset\":\"s-startutcoffset\"}},\"skinTemperatureSensors\":{\"sampleTime\":{\"physicalTime\":\"s-physicaltime\",\"utcOffset\":\"s-utcoffset\"},\"sensorData\":[{\"temperatureCelsius\":1.5}]},\"sleep\":{\"createTime\":\"s-createtime\",\"interval\":{\"endTime\":\"s-endtime\",\"endUtcOffset\":\"s-endutcoffset\",\"startTime\":\"s-starttime\",\"startUtcOffset\":\"s-startutcoffset\"},\"metadata\":{\"externalId\":\"s-externalid\",\"mainSleep\":true,\"manuallyEdited\":true,\"nap\":true,\"processed\":true,\"stagesStatus\":\"s-stagesstatus\"},\"outOfBedSegments\":[{\"endTime\":\"s-endtime\",\"endUtcOffset\":\"s-endutcoffset\",\"startTime\":\"s-starttime\",\"startUtcOffset\":\"s-startutcoffset\"}],\"shortAwakenings\":[{\"createTime\":\"s-createtime\",\"endTime\":\"s-endtime\",\"endUtcOffset\":\"s-endutcoffset\",\"startTime\":\"s-starttime\",\"startUtcOffset\":\"s-startutcoffset\",\"type\":\"s-type\",\"updateTime\":\"s-updatetime\"}],\"stages\":[{\"createTime\":\"s-createtime\",\"endTime\":\"s-endtime\",\"endUtcOffset\":\"s-endutcoffset\",\"startTime\":\"s-starttime\",\"startUtcOffset\":\"s-startutcoffset\",\"type\":\"s-type\",\"updateTime\":\"s-updatetime\"}],\"summary\":{\"minutesAfterWakeUp\":\"7\",\"minutesAsleep\":\"7\",\"minutesAwake\":\"7\",\"minutesInSleepPeriod\":\"7\",\"minutesToFallAsleep\":\"7\"},\"type\":\"s-type\",\"updateTime\":\"s-updatetime\"},\"steps\":{\"count\":\"7\",\"interval\":{\"endTime\":\"s-endtime\",\"endUtcOffset\":\"s-endutcoffset\",\"startTime\":\"s-starttime\",\"startUtcOffset\":\"s-startutcoffset\"}},\"swimLengthsData\":{\"interval\":{\"endTime\":\"s-endtime\",\"endUtcOffset\":\"s-endutcoffset\",\"startTime\":\"s-starttime\",\"startUtcOffset\":\"s-startutcoffset\"},\"strokeCount\":\"7\",\"swimStrokeType\":\"s-swimstroketype\"},\"symptoms\":{\"sampleTime\":{\"physicalTime\":\"s-physicaltime\",\"utcOffset\":\"s-utcoffset\"},\"symptoms\":[\"s-symptoms\"]},\"timeInHeartRateZone\":{\"heartRateZoneType\":\"s-heartratezonetype\",\"interval\":{\"endTime\":\"s-endtime\",\"endUtcOffset\":\"s-endutcoffset\",\"startTime\":\"s-starttime\",\"startUtcOffset\":\"s-startutcoffset\"}},\"vo2Max\":{\"measurementMethod\":\"s-measurementmethod\",\"sampleTime\":{\"physicalTime\":\"s-physicaltime\",\"utcOffset\":\"s-utcoffset\"},\"vo2Max\":1.5},\"weight\":{\"notes\":\"s-notes\",\"sampleTime\":{\"physicalTime\":\"s-physicaltime\",\"utcOffset\":\"s-utcoffset\"},\"weightGrams\":1.5}}",
+  "  B <11606 bytes> {\"activeEnergyBurned\":{\"interval...utcoffset\"},\"weightGrams\":1.5}}",
   "",
   "  SERVED 200 {\"done\":true,\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}",
   "OUT: {\"done\":true,\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}",
@@ -499,10 +674,10 @@ test "Go's health.users.dataTypes.dataPoints.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_22)
+  gv_compare(gv_log_of(f), GO_27)
 }
 
-const GO_23: List[Str] = [
+const GO_28: List[Str] = [
   "CALL health.users.dataTypes.dataPoints.reconcile",
   "REQ GET https://health.googleapis.com/v4beta/id1/%20x/dataPoints:reconcile?alt=json&dataSourceFamily=s-datasourcefamily&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -520,10 +695,48 @@ test "Go's health.users.dataTypes.dataPoints.reconcile" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_23)
+  gv_compare(gv_log_of(f), GO_28)
 }
 
-const GO_24: List[Str] = [
+const GO_29: List[Str] = [
+  "CALL health.users.dataTypes.dataPoints.reconcile pages",
+  "REQ GET https://health.googleapis.com/v4beta/id1/%20x/dataPoints:reconcile?alt=json&dataSourceFamily=s-datasourcefamily&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"dataPoints\":[{\"activeEnergyBurned\":{\"kcal\":1.5},\"activeMinutes\":{},\"activeZoneMinutes\":{\"activeZoneMinutes\":\"7\",\"heartRateZone\":\"s-heartratezone\"},\"activityLevel\":{\"activityLevelType\":\"s-activityleveltype\"},\"altitude\":{\"gainMillimeters\":\"7\"},\"basalEnergyBurned\":{\"kcal\":1.5},\"bloodGlucose\":{\"bloodGlucoseMilligramsPerDeciliter\":1.5,\"mealType\":\"s-mealtype\",\"measurementSource\":\"s-measurementsource\",\"measurementTiming\":\"s-measurementtiming\",\"notes\":\"s-notes\",\"specimen\":\"s-specimen\"},\"bodyFat\":{\"percentage\":1.5},\"coreBodyTemperature\":{\"id\":\"s-id\",\"measurementLocation\":\"s-measurementlocation\",\"temperatureCelsius\":1.5},\"dailyHeartRateVariability\":{\"averageHeartRateVariabilityMilliseconds\":1.5,\"deepSleepRootMeanSquareOfSuccessiveDifferencesMilliseconds\":1.5,\"entropy\":1.5,\"nonRemHeartRateBeatsPerMinute\":\"7\"},\"dailyHeartRateZones\":{},\"dailyOxygenSaturation\":{\"averagePercentage\":1.5,\"lowerBoundPercentage\":1.5,\"standardDeviationPercentage\":1.5,\"upperBoundPercentage\":1.5},\"dailyRespiratoryRate\":{\"breathsPerMinute\":1.5},\"dailyRestingHeartRate\":{\"beatsPerMinute\":\"7\"},\"dailySleepTemperatureDerivations\":{\"baselineTemperatureCelsius\":1.5,\"nightlyTemperatureCelsius\":1.5,\"relativeNightlyStddev30dCelsius\":1.5},\"dailyVo2Max\":{\"cardioFitnessLevel\":\"s-cardiofitnesslevel\",\"estimated\":true,\"vo2Max\":1.5,\"vo2MaxCovariance\":1.5},\"dataPointName\":\"s-datapointname\",\"distance\":{\"millimeters\":\"7\"},\"exercise\":{\"activeDuration\":\"s-activeduration\",\"createTime\":\"s-createtime\",\"displayName\":\"s-displayname\",\"exerciseType\":\"s-exercisetype\",\"notes\":\"s-notes\",\"updateTime\":\"s-updatetime\"},\"floors\":{\"count\":\"7\"},\"heartRate\":{\"beatsPerMinute\":\"7\"},\"heartRateVariability\":{\"rootMeanSquareOfSuccessiveDifferencesMilliseconds\":1.5,\"standardDeviationMilliseconds\":1.5},\"height\":{\"heightMillimeters\":\"7\"},\"hydrationLog\":{},\"nutritionLog\":{\"food\":\"s-food\",\"foodDisplayName\":\"s-fooddisplayname\",\"mealType\":\"s-mealtype\"},\"oxygenSaturation\":{\"percentage\":1.5},\"respiratoryRateSleepSummary\":{},\"runVo2Max\":{\"runVo2Max\":1.5},\"sedentaryPeriod\":{},\"skinTemperatureSensors\":{},\"sleep\":{\"createTime\":\"s-createtime\",\"type\":\"s-type\",\"updateTime\":\"s-updatetime\"},\"steps\":{\"count\":\"7\"},\"swimLengthsData\":{\"strokeCount\":\"7\",\"swimStrokeType\":\"s-swimstroketype\"},\"timeInHeartRateZone\":{\"heartRateZoneType\":\"s-heartratezonetype\"},\"vo2Max\":{\"measurementMethod\":\"s-measurementmethod\",\"vo2Max\":1.5},\"weight\":{\"notes\":\"s-notes\",\"weightGrams\":1.5}}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"dataPoints\":[{\"activeEnergyBurned\":{\"kcal\":1.5},\"activeMinutes\":{},\"activeZoneMinutes\":{\"activeZoneMinutes\":\"7\",\"heartRateZone\":\"s-heartratezone\"},\"activityLevel\":{\"activityLevelType\":\"s-activityleveltype\"},\"altitude\":{\"gainMillimeters\":\"7\"},\"basalEnergyBurned\":{\"kcal\":1.5},\"bloodGlucose\":{\"bloodGlucoseMilligramsPerDeciliter\":1.5,\"mealType\":\"s-mealtype\",\"measurementSource\":\"s-measurementsource\",\"measurementTiming\":\"s-measurementtiming\",\"notes\":\"s-notes\",\"specimen\":\"s-specimen\"},\"bodyFat\":{\"percentage\":1.5},\"coreBodyTemperature\":{\"id\":\"s-id\",\"measurementLocation\":\"s-measurementlocation\",\"temperatureCelsius\":1.5},\"dailyHeartRateVariability\":{\"averageHeartRateVariabilityMilliseconds\":1.5,\"deepSleepRootMeanSquareOfSuccessiveDifferencesMilliseconds\":1.5,\"entropy\":1.5,\"nonRemHeartRateBeatsPerMinute\":\"7\"},\"dailyHeartRateZones\":{},\"dailyOxygenSaturation\":{\"averagePercentage\":1.5,\"lowerBoundPercentage\":1.5,\"standardDeviationPercentage\":1.5,\"upperBoundPercentage\":1.5},\"dailyRespiratoryRate\":{\"breathsPerMinute\":1.5},\"dailyRestingHeartRate\":{\"beatsPerMinute\":\"7\"},\"dailySleepTemperatureDerivations\":{\"baselineTemperatureCelsius\":1.5,\"nightlyTemperatureCelsius\":1.5,\"relativeNightlyStddev30dCelsius\":1.5},\"dailyVo2Max\":{\"cardioFitnessLevel\":\"s-cardiofitnesslevel\",\"estimated\":true,\"vo2Max\":1.5,\"vo2MaxCovariance\":1.5},\"dataPointName\":\"s-datapointname\",\"distance\":{\"millimeters\":\"7\"},\"exercise\":{\"activeDuration\":\"s-activeduration\",\"createTime\":\"s-createtime\",\"displayName\":\"s-displayname\",\"exerciseType\":\"s-exercisetype\",\"notes\":\"s-notes\",\"updateTime\":\"s-updatetime\"},\"floors\":{\"count\":\"7\"},\"heartRate\":{\"beatsPerMinute\":\"7\"},\"heartRateVariability\":{\"rootMeanSquareOfSuccessiveDifferencesMilliseconds\":1.5,\"standardDeviationMilliseconds\":1.5},\"height\":{\"heightMillimeters\":\"7\"},\"hydrationLog\":{},\"nutritionLog\":{\"food\":\"s-food\",\"foodDisplayName\":\"s-fooddisplayname\",\"mealType\":\"s-mealtype\"},\"oxygenSaturation\":{\"percentage\":1.5},\"respiratoryRateSleepSummary\":{},\"runVo2Max\":{\"runVo2Max\":1.5},\"sedentaryPeriod\":{},\"skinTemperatureSensors\":{},\"sleep\":{\"createTime\":\"s-createtime\",\"type\":\"s-type\",\"updateTime\":\"s-updatetime\"},\"steps\":{\"count\":\"7\"},\"swimLengthsData\":{\"strokeCount\":\"7\",\"swimStrokeType\":\"s-swimstroketype\"},\"timeInHeartRateZone\":{\"heartRateZoneType\":\"s-heartratezonetype\"},\"vo2Max\":{\"measurementMethod\":\"s-measurementmethod\",\"vo2Max\":1.5},\"weight\":{\"notes\":\"s-notes\",\"weightGrams\":1.5}}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://health.googleapis.com/v4beta/id1/%20x/dataPoints:reconcile?alt=json&dataSourceFamily=s-datasourcefamily&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"dataPoints\":[{\"activeEnergyBurned\":{\"kcal\":1.5},\"activeMinutes\":{},\"activeZoneMinutes\":{\"activeZoneMinutes\":\"7\",\"heartRateZone\":\"s-heartratezone\"},\"activityLevel\":{\"activityLevelType\":\"s-activityleveltype\"},\"altitude\":{\"gainMillimeters\":\"7\"},\"basalEnergyBurned\":{\"kcal\":1.5},\"bloodGlucose\":{\"bloodGlucoseMilligramsPerDeciliter\":1.5,\"mealType\":\"s-mealtype\",\"measurementSource\":\"s-measurementsource\",\"measurementTiming\":\"s-measurementtiming\",\"notes\":\"s-notes\",\"specimen\":\"s-specimen\"},\"bodyFat\":{\"percentage\":1.5},\"coreBodyTemperature\":{\"id\":\"s-id\",\"measurementLocation\":\"s-measurementlocation\",\"temperatureCelsius\":1.5},\"dailyHeartRateVariability\":{\"averageHeartRateVariabilityMilliseconds\":1.5,\"deepSleepRootMeanSquareOfSuccessiveDifferencesMilliseconds\":1.5,\"entropy\":1.5,\"nonRemHeartRateBeatsPerMinute\":\"7\"},\"dailyHeartRateZones\":{},\"dailyOxygenSaturation\":{\"averagePercentage\":1.5,\"lowerBoundPercentage\":1.5,\"standardDeviationPercentage\":1.5,\"upperBoundPercentage\":1.5},\"dailyRespiratoryRate\":{\"breathsPerMinute\":1.5},\"dailyRestingHeartRate\":{\"beatsPerMinute\":\"7\"},\"dailySleepTemperatureDerivations\":{\"baselineTemperatureCelsius\":1.5,\"nightlyTemperatureCelsius\":1.5,\"relativeNightlyStddev30dCelsius\":1.5},\"dailyVo2Max\":{\"cardioFitnessLevel\":\"s-cardiofitnesslevel\",\"estimated\":true,\"vo2Max\":1.5,\"vo2MaxCovariance\":1.5},\"dataPointName\":\"s-datapointname\",\"distance\":{\"millimeters\":\"7\"},\"exercise\":{\"activeDuration\":\"s-activeduration\",\"createTime\":\"s-createtime\",\"displayName\":\"s-displayname\",\"exerciseType\":\"s-exercisetype\",\"notes\":\"s-notes\",\"updateTime\":\"s-updatetime\"},\"floors\":{\"count\":\"7\"},\"heartRate\":{\"beatsPerMinute\":\"7\"},\"heartRateVariability\":{\"rootMeanSquareOfSuccessiveDifferencesMilliseconds\":1.5,\"standardDeviationMilliseconds\":1.5},\"height\":{\"heightMillimeters\":\"7\"},\"hydrationLog\":{},\"nutritionLog\":{\"food\":\"s-food\",\"foodDisplayName\":\"s-fooddisplayname\",\"mealType\":\"s-mealtype\"},\"oxygenSaturation\":{\"percentage\":1.5},\"respiratoryRateSleepSummary\":{},\"runVo2Max\":{\"runVo2Max\":1.5},\"sedentaryPeriod\":{},\"skinTemperatureSensors\":{},\"sleep\":{\"createTime\":\"s-createtime\",\"type\":\"s-type\",\"updateTime\":\"s-updatetime\"},\"steps\":{\"count\":\"7\"},\"swimLengthsData\":{\"strokeCount\":\"7\",\"swimStrokeType\":\"s-swimstroketype\"},\"timeInHeartRateZone\":{\"heartRateZoneType\":\"s-heartratezonetype\"},\"vo2Max\":{\"measurementMethod\":\"s-measurementmethod\",\"vo2Max\":1.5},\"weight\":{\"notes\":\"s-notes\",\"weightGrams\":1.5}}]}",
+  "OUT: {\"dataPoints\":[{\"activeEnergyBurned\":{\"kcal\":1.5},\"activeMinutes\":{},\"activeZoneMinutes\":{\"activeZoneMinutes\":\"7\",\"heartRateZone\":\"s-heartratezone\"},\"activityLevel\":{\"activityLevelType\":\"s-activityleveltype\"},\"altitude\":{\"gainMillimeters\":\"7\"},\"basalEnergyBurned\":{\"kcal\":1.5},\"bloodGlucose\":{\"bloodGlucoseMilligramsPerDeciliter\":1.5,\"mealType\":\"s-mealtype\",\"measurementSource\":\"s-measurementsource\",\"measurementTiming\":\"s-measurementtiming\",\"notes\":\"s-notes\",\"specimen\":\"s-specimen\"},\"bodyFat\":{\"percentage\":1.5},\"coreBodyTemperature\":{\"id\":\"s-id\",\"measurementLocation\":\"s-measurementlocation\",\"temperatureCelsius\":1.5},\"dailyHeartRateVariability\":{\"averageHeartRateVariabilityMilliseconds\":1.5,\"deepSleepRootMeanSquareOfSuccessiveDifferencesMilliseconds\":1.5,\"entropy\":1.5,\"nonRemHeartRateBeatsPerMinute\":\"7\"},\"dailyHeartRateZones\":{},\"dailyOxygenSaturation\":{\"averagePercentage\":1.5,\"lowerBoundPercentage\":1.5,\"standardDeviationPercentage\":1.5,\"upperBoundPercentage\":1.5},\"dailyRespiratoryRate\":{\"breathsPerMinute\":1.5},\"dailyRestingHeartRate\":{\"beatsPerMinute\":\"7\"},\"dailySleepTemperatureDerivations\":{\"baselineTemperatureCelsius\":1.5,\"nightlyTemperatureCelsius\":1.5,\"relativeNightlyStddev30dCelsius\":1.5},\"dailyVo2Max\":{\"cardioFitnessLevel\":\"s-cardiofitnesslevel\",\"estimated\":true,\"vo2Max\":1.5,\"vo2MaxCovariance\":1.5},\"dataPointName\":\"s-datapointname\",\"distance\":{\"millimeters\":\"7\"},\"exercise\":{\"activeDuration\":\"s-activeduration\",\"createTime\":\"s-createtime\",\"displayName\":\"s-displayname\",\"exerciseType\":\"s-exercisetype\",\"notes\":\"s-notes\",\"updateTime\":\"s-updatetime\"},\"floors\":{\"count\":\"7\"},\"heartRate\":{\"beatsPerMinute\":\"7\"},\"heartRateVariability\":{\"rootMeanSquareOfSuccessiveDifferencesMilliseconds\":1.5,\"standardDeviationMilliseconds\":1.5},\"height\":{\"heightMillimeters\":\"7\"},\"hydrationLog\":{},\"nutritionLog\":{\"food\":\"s-food\",\"foodDisplayName\":\"s-fooddisplayname\",\"mealType\":\"s-mealtype\"},\"oxygenSaturation\":{\"percentage\":1.5},\"respiratoryRateSleepSummary\":{},\"runVo2Max\":{\"runVo2Max\":1.5},\"sedentaryPeriod\":{},\"skinTemperatureSensors\":{},\"sleep\":{\"createTime\":\"s-createtime\",\"type\":\"s-type\",\"updateTime\":\"s-updatetime\"},\"steps\":{\"count\":\"7\"},\"swimLengthsData\":{\"strokeCount\":\"7\",\"swimStrokeType\":\"s-swimstroketype\"},\"timeInHeartRateZone\":{\"heartRateZoneType\":\"s-heartratezonetype\"},\"vo2Max\":{\"measurementMethod\":\"s-measurementmethod\",\"vo2Max\":1.5},\"weight\":{\"notes\":\"s-notes\",\"weightGrams\":1.5}}]}",
+  "OUT: ok",
+]
+
+test "Go's health.users.dataTypes.dataPoints.reconcile pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"dataPoints\":[{\"activeEnergyBurned\":{\"kcal\":1.5},\"activeMinutes\":{},\"activeZoneMinutes\":{\"activeZoneMinutes\":\"7\",\"heartRateZone\":\"s-heartratezone\"},\"activityLevel\":{\"activityLevelType\":\"s-activityleveltype\"},\"altitude\":{\"gainMillimeters\":\"7\"},\"basalEnergyBurned\":{\"kcal\":1.5},\"bloodGlucose\":{\"bloodGlucoseMilligramsPerDeciliter\":1.5,\"mealType\":\"s-mealtype\",\"measurementSource\":\"s-measurementsource\",\"measurementTiming\":\"s-measurementtiming\",\"notes\":\"s-notes\",\"specimen\":\"s-specimen\"},\"bodyFat\":{\"percentage\":1.5},\"coreBodyTemperature\":{\"id\":\"s-id\",\"measurementLocation\":\"s-measurementlocation\",\"temperatureCelsius\":1.5},\"dailyHeartRateVariability\":{\"averageHeartRateVariabilityMilliseconds\":1.5,\"deepSleepRootMeanSquareOfSuccessiveDifferencesMilliseconds\":1.5,\"entropy\":1.5,\"nonRemHeartRateBeatsPerMinute\":\"7\"},\"dailyHeartRateZones\":{},\"dailyOxygenSaturation\":{\"averagePercentage\":1.5,\"lowerBoundPercentage\":1.5,\"standardDeviationPercentage\":1.5,\"upperBoundPercentage\":1.5},\"dailyRespiratoryRate\":{\"breathsPerMinute\":1.5},\"dailyRestingHeartRate\":{\"beatsPerMinute\":\"7\"},\"dailySleepTemperatureDerivations\":{\"baselineTemperatureCelsius\":1.5,\"nightlyTemperatureCelsius\":1.5,\"relativeNightlyStddev30dCelsius\":1.5},\"dailyVo2Max\":{\"cardioFitnessLevel\":\"s-cardiofitnesslevel\",\"estimated\":true,\"vo2Max\":1.5,\"vo2MaxCovariance\":1.5},\"dataPointName\":\"s-datapointname\",\"distance\":{\"millimeters\":\"7\"},\"exercise\":{\"activeDuration\":\"s-activeduration\",\"createTime\":\"s-createtime\",\"displayName\":\"s-displayname\",\"exerciseType\":\"s-exercisetype\",\"notes\":\"s-notes\",\"updateTime\":\"s-updatetime\"},\"floors\":{\"count\":\"7\"},\"heartRate\":{\"beatsPerMinute\":\"7\"},\"heartRateVariability\":{\"rootMeanSquareOfSuccessiveDifferencesMilliseconds\":1.5,\"standardDeviationMilliseconds\":1.5},\"height\":{\"heightMillimeters\":\"7\"},\"hydrationLog\":{},\"nutritionLog\":{\"food\":\"s-food\",\"foodDisplayName\":\"s-fooddisplayname\",\"mealType\":\"s-mealtype\"},\"oxygenSaturation\":{\"percentage\":1.5},\"respiratoryRateSleepSummary\":{},\"runVo2Max\":{\"runVo2Max\":1.5},\"sedentaryPeriod\":{},\"skinTemperatureSensors\":{},\"sleep\":{\"createTime\":\"s-createtime\",\"type\":\"s-type\",\"updateTime\":\"s-updatetime\"},\"steps\":{\"count\":\"7\"},\"swimLengthsData\":{\"strokeCount\":\"7\",\"swimStrokeType\":\"s-swimstroketype\"},\"timeInHeartRateZone\":{\"heartRateZoneType\":\"s-heartratezonetype\"},\"vo2Max\":{\"measurementMethod\":\"s-measurementmethod\",\"vo2Max\":1.5},\"weight\":{\"notes\":\"s-notes\",\"weightGrams\":1.5}}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"dataPoints\":[{\"activeEnergyBurned\":{\"kcal\":1.5},\"activeMinutes\":{},\"activeZoneMinutes\":{\"activeZoneMinutes\":\"7\",\"heartRateZone\":\"s-heartratezone\"},\"activityLevel\":{\"activityLevelType\":\"s-activityleveltype\"},\"altitude\":{\"gainMillimeters\":\"7\"},\"basalEnergyBurned\":{\"kcal\":1.5},\"bloodGlucose\":{\"bloodGlucoseMilligramsPerDeciliter\":1.5,\"mealType\":\"s-mealtype\",\"measurementSource\":\"s-measurementsource\",\"measurementTiming\":\"s-measurementtiming\",\"notes\":\"s-notes\",\"specimen\":\"s-specimen\"},\"bodyFat\":{\"percentage\":1.5},\"coreBodyTemperature\":{\"id\":\"s-id\",\"measurementLocation\":\"s-measurementlocation\",\"temperatureCelsius\":1.5},\"dailyHeartRateVariability\":{\"averageHeartRateVariabilityMilliseconds\":1.5,\"deepSleepRootMeanSquareOfSuccessiveDifferencesMilliseconds\":1.5,\"entropy\":1.5,\"nonRemHeartRateBeatsPerMinute\":\"7\"},\"dailyHeartRateZones\":{},\"dailyOxygenSaturation\":{\"averagePercentage\":1.5,\"lowerBoundPercentage\":1.5,\"standardDeviationPercentage\":1.5,\"upperBoundPercentage\":1.5},\"dailyRespiratoryRate\":{\"breathsPerMinute\":1.5},\"dailyRestingHeartRate\":{\"beatsPerMinute\":\"7\"},\"dailySleepTemperatureDerivations\":{\"baselineTemperatureCelsius\":1.5,\"nightlyTemperatureCelsius\":1.5,\"relativeNightlyStddev30dCelsius\":1.5},\"dailyVo2Max\":{\"cardioFitnessLevel\":\"s-cardiofitnesslevel\",\"estimated\":true,\"vo2Max\":1.5,\"vo2MaxCovariance\":1.5},\"dataPointName\":\"s-datapointname\",\"distance\":{\"millimeters\":\"7\"},\"exercise\":{\"activeDuration\":\"s-activeduration\",\"createTime\":\"s-createtime\",\"displayName\":\"s-displayname\",\"exerciseType\":\"s-exercisetype\",\"notes\":\"s-notes\",\"updateTime\":\"s-updatetime\"},\"floors\":{\"count\":\"7\"},\"heartRate\":{\"beatsPerMinute\":\"7\"},\"heartRateVariability\":{\"rootMeanSquareOfSuccessiveDifferencesMilliseconds\":1.5,\"standardDeviationMilliseconds\":1.5},\"height\":{\"heightMillimeters\":\"7\"},\"hydrationLog\":{},\"nutritionLog\":{\"food\":\"s-food\",\"foodDisplayName\":\"s-fooddisplayname\",\"mealType\":\"s-mealtype\"},\"oxygenSaturation\":{\"percentage\":1.5},\"respiratoryRateSleepSummary\":{},\"runVo2Max\":{\"runVo2Max\":1.5},\"sedentaryPeriod\":{},\"skinTemperatureSensors\":{},\"sleep\":{\"createTime\":\"s-createtime\",\"type\":\"s-type\",\"updateTime\":\"s-updatetime\"},\"steps\":{\"count\":\"7\"},\"swimLengthsData\":{\"strokeCount\":\"7\",\"swimStrokeType\":\"s-swimstroketype\"},\"timeInHeartRateZone\":{\"heartRateZoneType\":\"s-heartratezonetype\"},\"vo2Max\":{\"measurementMethod\":\"s-measurementmethod\",\"vo2Max\":1.5},\"weight\":{\"notes\":\"s-notes\",\"weightGrams\":1.5}}]}")
+  gv_note(f, "CALL health.users.dataTypes.dataPoints.reconcile pages")
+  var p = svc.users.data_types.data_points.reconcile_pages("id1/ x", options: UsersDataTypesDataPointsReconcileOptions{data_source_family: Some("s-datasourcefamily"), filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_29)
+}
+
+const GO_30: List[Str] = [
   "CALL health.users.dataTypes.dataPoints.rollUp",
   "REQ POST https://health.googleapis.com/v4beta/id1/%20x/dataPoints:rollUp?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -542,10 +755,50 @@ test "Go's health.users.dataTypes.dataPoints.rollUp" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_24)
+  gv_compare(gv_log_of(f), GO_30)
 }
 
-const GO_25: List[Str] = [
+const GO_31: List[Str] = [
+  "CALL health.users.dataTypes.dataPoints.rollUp pages",
+  "REQ POST https://health.googleapis.com/v4beta/id1/%20x/dataPoints:rollUp?alt=json&fields=kind%2Cid&prettyPrint=false",
+  "  H content-type=application/json | x-extra=v1",
+  "  B {\"dataSourceFamily\":\"s-datasourcefamily\",\"pageSize\":7,\"pageToken\":\"s-pagetoken\",\"range\":{\"endTime\":\"s-endtime\",\"startTime\":\"s-starttime\"},\"windowSize\":\"s-windowsize\"}",
+  "",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"rollupDataPoints\":[{\"activeEnergyBurned\":{\"kcalSum\":1.5},\"activeMinutes\":{},\"activeZoneMinutes\":{\"sumInCardioHeartZone\":\"7\",\"sumInFatBurnHeartZone\":\"7\",\"sumInPeakHeartZone\":\"7\"},\"activityLevel\":{},\"altitude\":{\"gainMillimetersSum\":\"7\"},\"bloodGlucose\":{\"bloodGlucoseMilligramsPerDeciliterAvg\":1.5},\"bodyFat\":{\"bodyFatPercentageAvg\":1.5},\"caloriesInHeartRateZone\":{},\"coreBodyTemperature\":{\"temperatureCelsiusAvg\":1.5,\"temperatureCelsiusMax\":1.5,\"temperatureCelsiusMin\":1.5},\"distance\":{\"millimetersSum\":\"7\"},\"endTime\":\"s-endtime\",\"floors\":{\"countSum\":\"7\"},\"heartRate\":{\"beatsPerMinuteAvg\":1.5,\"beatsPerMinuteMax\":1.5,\"beatsPerMinuteMin\":1.5},\"hydrationLog\":{},\"nutritionLog\":{},\"runVo2Max\":{\"rateAvg\":1.5,\"rateMax\":1.5,\"rateMin\":1.5},\"sedentaryPeriod\":{\"durationSum\":\"s-durationsum\"},\"startTime\":\"s-starttime\",\"steps\":{\"countSum\":\"7\"},\"swimLengthsData\":{\"strokeCountSum\":\"7\"},\"timeInHeartRateZone\":{},\"totalCalories\":{\"kcalSum\":1.5},\"weight\":{\"weightGramsAvg\":1.5}}]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"rollupDataPoints\":[{\"activeEnergyBurned\":{\"kcalSum\":1.5},\"activeMinutes\":{},\"activeZoneMinutes\":{\"sumInCardioHeartZone\":\"7\",\"sumInFatBurnHeartZone\":\"7\",\"sumInPeakHeartZone\":\"7\"},\"activityLevel\":{},\"altitude\":{\"gainMillimetersSum\":\"7\"},\"bloodGlucose\":{\"bloodGlucoseMilligramsPerDeciliterAvg\":1.5},\"bodyFat\":{\"bodyFatPercentageAvg\":1.5},\"caloriesInHeartRateZone\":{},\"coreBodyTemperature\":{\"temperatureCelsiusAvg\":1.5,\"temperatureCelsiusMax\":1.5,\"temperatureCelsiusMin\":1.5},\"distance\":{\"millimetersSum\":\"7\"},\"endTime\":\"s-endtime\",\"floors\":{\"countSum\":\"7\"},\"heartRate\":{\"beatsPerMinuteAvg\":1.5,\"beatsPerMinuteMax\":1.5,\"beatsPerMinuteMin\":1.5},\"hydrationLog\":{},\"nutritionLog\":{},\"runVo2Max\":{\"rateAvg\":1.5,\"rateMax\":1.5,\"rateMin\":1.5},\"sedentaryPeriod\":{\"durationSum\":\"s-durationsum\"},\"startTime\":\"s-starttime\",\"steps\":{\"countSum\":\"7\"},\"swimLengthsData\":{\"strokeCountSum\":\"7\"},\"timeInHeartRateZone\":{},\"totalCalories\":{\"kcalSum\":1.5},\"weight\":{\"weightGramsAvg\":1.5}}]}",
+  "REQ POST https://health.googleapis.com/v4beta/id1/%20x/dataPoints:rollUp?alt=json&fields=kind%2Cid&prettyPrint=false",
+  "  H content-type=application/json | x-extra=v1",
+  "  B {\"dataSourceFamily\":\"s-datasourcefamily\",\"pageSize\":7,\"pageToken\":\"s-nextpagetoken\",\"range\":{\"endTime\":\"s-endtime\",\"startTime\":\"s-starttime\"},\"windowSize\":\"s-windowsize\"}",
+  "",
+  "  SERVED 200 {\"rollupDataPoints\":[{\"activeEnergyBurned\":{\"kcalSum\":1.5},\"activeMinutes\":{},\"activeZoneMinutes\":{\"sumInCardioHeartZone\":\"7\",\"sumInFatBurnHeartZone\":\"7\",\"sumInPeakHeartZone\":\"7\"},\"activityLevel\":{},\"altitude\":{\"gainMillimetersSum\":\"7\"},\"bloodGlucose\":{\"bloodGlucoseMilligramsPerDeciliterAvg\":1.5},\"bodyFat\":{\"bodyFatPercentageAvg\":1.5},\"caloriesInHeartRateZone\":{},\"coreBodyTemperature\":{\"temperatureCelsiusAvg\":1.5,\"temperatureCelsiusMax\":1.5,\"temperatureCelsiusMin\":1.5},\"distance\":{\"millimetersSum\":\"7\"},\"endTime\":\"s-endtime\",\"floors\":{\"countSum\":\"7\"},\"heartRate\":{\"beatsPerMinuteAvg\":1.5,\"beatsPerMinuteMax\":1.5,\"beatsPerMinuteMin\":1.5},\"hydrationLog\":{},\"nutritionLog\":{},\"runVo2Max\":{\"rateAvg\":1.5,\"rateMax\":1.5,\"rateMin\":1.5},\"sedentaryPeriod\":{\"durationSum\":\"s-durationsum\"},\"startTime\":\"s-starttime\",\"steps\":{\"countSum\":\"7\"},\"swimLengthsData\":{\"strokeCountSum\":\"7\"},\"timeInHeartRateZone\":{},\"totalCalories\":{\"kcalSum\":1.5},\"weight\":{\"weightGramsAvg\":1.5}}]}",
+  "OUT: {\"rollupDataPoints\":[{\"activeEnergyBurned\":{\"kcalSum\":1.5},\"activeMinutes\":{},\"activeZoneMinutes\":{\"sumInCardioHeartZone\":\"7\",\"sumInFatBurnHeartZone\":\"7\",\"sumInPeakHeartZone\":\"7\"},\"activityLevel\":{},\"altitude\":{\"gainMillimetersSum\":\"7\"},\"bloodGlucose\":{\"bloodGlucoseMilligramsPerDeciliterAvg\":1.5},\"bodyFat\":{\"bodyFatPercentageAvg\":1.5},\"caloriesInHeartRateZone\":{},\"coreBodyTemperature\":{\"temperatureCelsiusAvg\":1.5,\"temperatureCelsiusMax\":1.5,\"temperatureCelsiusMin\":1.5},\"distance\":{\"millimetersSum\":\"7\"},\"endTime\":\"s-endtime\",\"floors\":{\"countSum\":\"7\"},\"heartRate\":{\"beatsPerMinuteAvg\":1.5,\"beatsPerMinuteMax\":1.5,\"beatsPerMinuteMin\":1.5},\"hydrationLog\":{},\"nutritionLog\":{},\"runVo2Max\":{\"rateAvg\":1.5,\"rateMax\":1.5,\"rateMin\":1.5},\"sedentaryPeriod\":{\"durationSum\":\"s-durationsum\"},\"startTime\":\"s-starttime\",\"steps\":{\"countSum\":\"7\"},\"swimLengthsData\":{\"strokeCountSum\":\"7\"},\"timeInHeartRateZone\":{},\"totalCalories\":{\"kcalSum\":1.5},\"weight\":{\"weightGramsAvg\":1.5}}]}",
+  "OUT: ok",
+]
+
+test "Go's health.users.dataTypes.dataPoints.rollUp pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"rollupDataPoints\":[{\"activeEnergyBurned\":{\"kcalSum\":1.5},\"activeMinutes\":{},\"activeZoneMinutes\":{\"sumInCardioHeartZone\":\"7\",\"sumInFatBurnHeartZone\":\"7\",\"sumInPeakHeartZone\":\"7\"},\"activityLevel\":{},\"altitude\":{\"gainMillimetersSum\":\"7\"},\"bloodGlucose\":{\"bloodGlucoseMilligramsPerDeciliterAvg\":1.5},\"bodyFat\":{\"bodyFatPercentageAvg\":1.5},\"caloriesInHeartRateZone\":{},\"coreBodyTemperature\":{\"temperatureCelsiusAvg\":1.5,\"temperatureCelsiusMax\":1.5,\"temperatureCelsiusMin\":1.5},\"distance\":{\"millimetersSum\":\"7\"},\"endTime\":\"s-endtime\",\"floors\":{\"countSum\":\"7\"},\"heartRate\":{\"beatsPerMinuteAvg\":1.5,\"beatsPerMinuteMax\":1.5,\"beatsPerMinuteMin\":1.5},\"hydrationLog\":{},\"nutritionLog\":{},\"runVo2Max\":{\"rateAvg\":1.5,\"rateMax\":1.5,\"rateMin\":1.5},\"sedentaryPeriod\":{\"durationSum\":\"s-durationsum\"},\"startTime\":\"s-starttime\",\"steps\":{\"countSum\":\"7\"},\"swimLengthsData\":{\"strokeCountSum\":\"7\"},\"timeInHeartRateZone\":{},\"totalCalories\":{\"kcalSum\":1.5},\"weight\":{\"weightGramsAvg\":1.5}}]}")
+  gv_queue(f, "{\"rollupDataPoints\":[{\"activeEnergyBurned\":{\"kcalSum\":1.5},\"activeMinutes\":{},\"activeZoneMinutes\":{\"sumInCardioHeartZone\":\"7\",\"sumInFatBurnHeartZone\":\"7\",\"sumInPeakHeartZone\":\"7\"},\"activityLevel\":{},\"altitude\":{\"gainMillimetersSum\":\"7\"},\"bloodGlucose\":{\"bloodGlucoseMilligramsPerDeciliterAvg\":1.5},\"bodyFat\":{\"bodyFatPercentageAvg\":1.5},\"caloriesInHeartRateZone\":{},\"coreBodyTemperature\":{\"temperatureCelsiusAvg\":1.5,\"temperatureCelsiusMax\":1.5,\"temperatureCelsiusMin\":1.5},\"distance\":{\"millimetersSum\":\"7\"},\"endTime\":\"s-endtime\",\"floors\":{\"countSum\":\"7\"},\"heartRate\":{\"beatsPerMinuteAvg\":1.5,\"beatsPerMinuteMax\":1.5,\"beatsPerMinuteMin\":1.5},\"hydrationLog\":{},\"nutritionLog\":{},\"runVo2Max\":{\"rateAvg\":1.5,\"rateMax\":1.5,\"rateMin\":1.5},\"sedentaryPeriod\":{\"durationSum\":\"s-durationsum\"},\"startTime\":\"s-starttime\",\"steps\":{\"countSum\":\"7\"},\"swimLengthsData\":{\"strokeCountSum\":\"7\"},\"timeInHeartRateZone\":{},\"totalCalories\":{\"kcalSum\":1.5},\"weight\":{\"weightGramsAvg\":1.5}}]}")
+  gv_note(f, "CALL health.users.dataTypes.dataPoints.rollUp pages")
+  var p = svc.users.data_types.data_points.roll_up_pages("id1/ x", json.decode_str[RollUpDataPointsRequest]("{\"dataSourceFamily\":\"s-datasourcefamily\",\"pageSize\":7,\"pageToken\":\"s-pagetoken\",\"range\":{\"endTime\":\"s-endtime\",\"startTime\":\"s-starttime\"},\"windowSize\":\"s-windowsize\"}") ?? e => fault(e.display()), options: UsersDataTypesDataPointsRollUpOptions{fields: ["kind", "id"], headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_31)
+}
+
+const GO_32: List[Str] = [
   "CALL health.users.pairedDevices.get",
   "REQ GET https://health.googleapis.com/v4beta/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -563,10 +816,10 @@ test "Go's health.users.pairedDevices.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_25)
+  gv_compare(gv_log_of(f), GO_32)
 }
 
-const GO_26: List[Str] = [
+const GO_33: List[Str] = [
   "CALL health.users.pairedDevices.list",
   "REQ GET https://health.googleapis.com/v4beta/id1/%20x/pairedDevices?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -584,5 +837,43 @@ test "Go's health.users.pairedDevices.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_26)
+  gv_compare(gv_log_of(f), GO_33)
+}
+
+const GO_34: List[Str] = [
+  "CALL health.users.pairedDevices.list pages",
+  "REQ GET https://health.googleapis.com/v4beta/id1/%20x/pairedDevices?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"pairedDevices\":[{\"batteryLevel\":7,\"batteryStatus\":\"s-batterystatus\",\"deviceType\":\"s-devicetype\",\"deviceVersion\":\"s-deviceversion\",\"features\":[\"s-features\"],\"lastSyncTime\":\"s-lastsynctime\",\"macAddress\":\"s-macaddress\",\"name\":\"s-name\"}]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"pairedDevices\":[{\"batteryLevel\":7,\"batteryStatus\":\"s-batterystatus\",\"deviceType\":\"s-devicetype\",\"deviceVersion\":\"s-deviceversion\",\"features\":[\"s-features\"],\"lastSyncTime\":\"s-lastsynctime\",\"macAddress\":\"s-macaddress\",\"name\":\"s-name\"}]}",
+  "REQ GET https://health.googleapis.com/v4beta/id1/%20x/pairedDevices?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"pairedDevices\":[{\"batteryLevel\":7,\"batteryStatus\":\"s-batterystatus\",\"deviceType\":\"s-devicetype\",\"deviceVersion\":\"s-deviceversion\",\"features\":[\"s-features\"],\"lastSyncTime\":\"s-lastsynctime\",\"macAddress\":\"s-macaddress\",\"name\":\"s-name\"}]}",
+  "OUT: {\"pairedDevices\":[{\"batteryLevel\":7,\"batteryStatus\":\"s-batterystatus\",\"deviceType\":\"s-devicetype\",\"deviceVersion\":\"s-deviceversion\",\"features\":[\"s-features\"],\"lastSyncTime\":\"s-lastsynctime\",\"macAddress\":\"s-macaddress\",\"name\":\"s-name\"}]}",
+  "OUT: ok",
+]
+
+test "Go's health.users.pairedDevices.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"pairedDevices\":[{\"batteryLevel\":7,\"batteryStatus\":\"s-batterystatus\",\"deviceType\":\"s-devicetype\",\"deviceVersion\":\"s-deviceversion\",\"features\":[\"s-features\"],\"lastSyncTime\":\"s-lastsynctime\",\"macAddress\":\"s-macaddress\",\"name\":\"s-name\"}]}")
+  gv_queue(f, "{\"pairedDevices\":[{\"batteryLevel\":7,\"batteryStatus\":\"s-batterystatus\",\"deviceType\":\"s-devicetype\",\"deviceVersion\":\"s-deviceversion\",\"features\":[\"s-features\"],\"lastSyncTime\":\"s-lastsynctime\",\"macAddress\":\"s-macaddress\",\"name\":\"s-name\"}]}")
+  gv_note(f, "CALL health.users.pairedDevices.list pages")
+  var p = svc.users.paired_devices.list_pages("id1/ x", options: UsersPairedDevicesListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_34)
 }

@@ -202,6 +202,44 @@ test "Go's appengine.apps.authorizedCertificates.list" {
 }
 
 const GO_9: List[Str] = [
+  "CALL appengine.apps.authorizedCertificates.list pages",
+  "REQ GET https://appengine.googleapis.com/v1/apps/id1%2F%20x/authorizedCertificates?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&view=s-view",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"certificates\":[{\"certificateRawData\":{\"privateKey\":\"s-privatekey\",\"publicCertificate\":\"s-publiccertificate\"},\"displayName\":\"s-displayname\",\"domainMappingsCount\":7,\"domainNames\":[\"s-domainnames\"],\"expireTime\":\"s-expiretime\",\"id\":\"s-id\",\"managedCertificate\":{\"lastRenewalTime\":\"s-lastrenewaltime\",\"status\":\"s-status\"},\"name\":\"s-name\",\"visibleDomainMappings\":[\"s-visibledomainmappings\"]}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"certificates\":[{\"certificateRawData\":{\"privateKey\":\"s-privatekey\",\"publicCertificate\":\"s-publiccertificate\"},\"displayName\":\"s-displayname\",\"domainMappingsCount\":7,\"domainNames\":[\"s-domainnames\"],\"expireTime\":\"s-expiretime\",\"id\":\"s-id\",\"managedCertificate\":{\"lastRenewalTime\":\"s-lastrenewaltime\",\"status\":\"s-status\"},\"name\":\"s-name\",\"visibleDomainMappings\":[\"s-visibledomainmappings\"]}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://appengine.googleapis.com/v1/apps/id1%2F%20x/authorizedCertificates?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false&view=s-view",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"certificates\":[{\"certificateRawData\":{\"privateKey\":\"s-privatekey\",\"publicCertificate\":\"s-publiccertificate\"},\"displayName\":\"s-displayname\",\"domainMappingsCount\":7,\"domainNames\":[\"s-domainnames\"],\"expireTime\":\"s-expiretime\",\"id\":\"s-id\",\"managedCertificate\":{\"lastRenewalTime\":\"s-lastrenewaltime\",\"status\":\"s-status\"},\"name\":\"s-name\",\"visibleDomainMappings\":[\"s-visibledomainmappings\"]}]}",
+  "OUT: {\"certificates\":[{\"certificateRawData\":{\"privateKey\":\"s-privatekey\",\"publicCertificate\":\"s-publiccertificate\"},\"displayName\":\"s-displayname\",\"domainMappingsCount\":7,\"domainNames\":[\"s-domainnames\"],\"expireTime\":\"s-expiretime\",\"id\":\"s-id\",\"managedCertificate\":{\"lastRenewalTime\":\"s-lastrenewaltime\",\"status\":\"s-status\"},\"name\":\"s-name\",\"visibleDomainMappings\":[\"s-visibledomainmappings\"]}]}",
+  "OUT: ok",
+]
+
+test "Go's appengine.apps.authorizedCertificates.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"certificates\":[{\"certificateRawData\":{\"privateKey\":\"s-privatekey\",\"publicCertificate\":\"s-publiccertificate\"},\"displayName\":\"s-displayname\",\"domainMappingsCount\":7,\"domainNames\":[\"s-domainnames\"],\"expireTime\":\"s-expiretime\",\"id\":\"s-id\",\"managedCertificate\":{\"lastRenewalTime\":\"s-lastrenewaltime\",\"status\":\"s-status\"},\"name\":\"s-name\",\"visibleDomainMappings\":[\"s-visibledomainmappings\"]}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"certificates\":[{\"certificateRawData\":{\"privateKey\":\"s-privatekey\",\"publicCertificate\":\"s-publiccertificate\"},\"displayName\":\"s-displayname\",\"domainMappingsCount\":7,\"domainNames\":[\"s-domainnames\"],\"expireTime\":\"s-expiretime\",\"id\":\"s-id\",\"managedCertificate\":{\"lastRenewalTime\":\"s-lastrenewaltime\",\"status\":\"s-status\"},\"name\":\"s-name\",\"visibleDomainMappings\":[\"s-visibledomainmappings\"]}]}")
+  gv_note(f, "CALL appengine.apps.authorizedCertificates.list pages")
+  var p = svc.apps.authorized_certificates.list_pages("id1/ x", options: AppsAuthorizedCertificatesListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), view: Some("s-view"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_9)
+}
+
+const GO_10: List[Str] = [
   "CALL appengine.apps.authorizedCertificates.patch",
   "REQ PATCH https://appengine.googleapis.com/v1/apps/id1%2F%20x/authorizedCertificates/id2%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
@@ -220,10 +258,10 @@ test "Go's appengine.apps.authorizedCertificates.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_9)
+  gv_compare(gv_log_of(f), GO_10)
 }
 
-const GO_10: List[Str] = [
+const GO_11: List[Str] = [
   "CALL appengine.apps.authorizedDomains.list",
   "REQ GET https://appengine.googleapis.com/v1/apps/id1%2F%20x/authorizedDomains?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -241,10 +279,48 @@ test "Go's appengine.apps.authorizedDomains.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_10)
+  gv_compare(gv_log_of(f), GO_11)
 }
 
-const GO_11: List[Str] = [
+const GO_12: List[Str] = [
+  "CALL appengine.apps.authorizedDomains.list pages",
+  "REQ GET https://appengine.googleapis.com/v1/apps/id1%2F%20x/authorizedDomains?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"domains\":[{\"id\":\"s-id\",\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"domains\":[{\"id\":\"s-id\",\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://appengine.googleapis.com/v1/apps/id1%2F%20x/authorizedDomains?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"domains\":[{\"id\":\"s-id\",\"name\":\"s-name\"}]}",
+  "OUT: {\"domains\":[{\"id\":\"s-id\",\"name\":\"s-name\"}]}",
+  "OUT: ok",
+]
+
+test "Go's appengine.apps.authorizedDomains.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"domains\":[{\"id\":\"s-id\",\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"domains\":[{\"id\":\"s-id\",\"name\":\"s-name\"}]}")
+  gv_note(f, "CALL appengine.apps.authorizedDomains.list pages")
+  var p = svc.apps.authorized_domains.list_pages("id1/ x", options: AppsAuthorizedDomainsListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_12)
+}
+
+const GO_13: List[Str] = [
   "CALL appengine.apps.domainMappings.create",
   "REQ POST https://appengine.googleapis.com/v1/apps/id1%2F%20x/domainMappings?alt=json&fields=kind%2Cid&overrideStrategy=s-overridestrategy&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -263,10 +339,10 @@ test "Go's appengine.apps.domainMappings.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_11)
+  gv_compare(gv_log_of(f), GO_13)
 }
 
-const GO_12: List[Str] = [
+const GO_14: List[Str] = [
   "CALL appengine.apps.domainMappings.delete",
   "REQ DELETE https://appengine.googleapis.com/v1/apps/id1%2F%20x/domainMappings/id2%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -284,10 +360,10 @@ test "Go's appengine.apps.domainMappings.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_12)
+  gv_compare(gv_log_of(f), GO_14)
 }
 
-const GO_13: List[Str] = [
+const GO_15: List[Str] = [
   "CALL appengine.apps.domainMappings.get",
   "REQ GET https://appengine.googleapis.com/v1/apps/id1%2F%20x/domainMappings/id2%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -305,10 +381,10 @@ test "Go's appengine.apps.domainMappings.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_13)
+  gv_compare(gv_log_of(f), GO_15)
 }
 
-const GO_14: List[Str] = [
+const GO_16: List[Str] = [
   "CALL appengine.apps.domainMappings.list",
   "REQ GET https://appengine.googleapis.com/v1/apps/id1%2F%20x/domainMappings?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -326,10 +402,48 @@ test "Go's appengine.apps.domainMappings.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_14)
+  gv_compare(gv_log_of(f), GO_16)
 }
 
-const GO_15: List[Str] = [
+const GO_17: List[Str] = [
+  "CALL appengine.apps.domainMappings.list pages",
+  "REQ GET https://appengine.googleapis.com/v1/apps/id1%2F%20x/domainMappings?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"domainMappings\":[{\"id\":\"s-id\",\"name\":\"s-name\",\"sslSettings\":{\"certificateId\":\"s-certificateid\",\"pendingManagedCertificateId\":\"s-pendingmanagedcertificateid\",\"sslManagementType\":\"s-sslmanagementtype\"}}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"domainMappings\":[{\"id\":\"s-id\",\"name\":\"s-name\",\"sslSettings\":{\"certificateId\":\"s-certificateid\",\"pendingManagedCertificateId\":\"s-pendingmanagedcertificateid\",\"sslManagementType\":\"s-sslmanagementtype\"}}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://appengine.googleapis.com/v1/apps/id1%2F%20x/domainMappings?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"domainMappings\":[{\"id\":\"s-id\",\"name\":\"s-name\",\"sslSettings\":{\"certificateId\":\"s-certificateid\",\"pendingManagedCertificateId\":\"s-pendingmanagedcertificateid\",\"sslManagementType\":\"s-sslmanagementtype\"}}]}",
+  "OUT: {\"domainMappings\":[{\"id\":\"s-id\",\"name\":\"s-name\",\"sslSettings\":{\"certificateId\":\"s-certificateid\",\"pendingManagedCertificateId\":\"s-pendingmanagedcertificateid\",\"sslManagementType\":\"s-sslmanagementtype\"}}]}",
+  "OUT: ok",
+]
+
+test "Go's appengine.apps.domainMappings.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"domainMappings\":[{\"id\":\"s-id\",\"name\":\"s-name\",\"sslSettings\":{\"certificateId\":\"s-certificateid\",\"pendingManagedCertificateId\":\"s-pendingmanagedcertificateid\",\"sslManagementType\":\"s-sslmanagementtype\"}}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"domainMappings\":[{\"id\":\"s-id\",\"name\":\"s-name\",\"sslSettings\":{\"certificateId\":\"s-certificateid\",\"pendingManagedCertificateId\":\"s-pendingmanagedcertificateid\",\"sslManagementType\":\"s-sslmanagementtype\"}}]}")
+  gv_note(f, "CALL appengine.apps.domainMappings.list pages")
+  var p = svc.apps.domain_mappings.list_pages("id1/ x", options: AppsDomainMappingsListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_17)
+}
+
+const GO_18: List[Str] = [
   "CALL appengine.apps.domainMappings.patch",
   "REQ PATCH https://appengine.googleapis.com/v1/apps/id1%2F%20x/domainMappings/id2%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
@@ -348,10 +462,10 @@ test "Go's appengine.apps.domainMappings.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_15)
+  gv_compare(gv_log_of(f), GO_18)
 }
 
-const GO_16: List[Str] = [
+const GO_19: List[Str] = [
   "CALL appengine.apps.firewall.ingressRules.batchUpdate",
   "REQ POST https://appengine.googleapis.com/v1/apps/id1%2F%20x/firewall/ingressRules:batchUpdate?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -370,10 +484,10 @@ test "Go's appengine.apps.firewall.ingressRules.batchUpdate" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_16)
+  gv_compare(gv_log_of(f), GO_19)
 }
 
-const GO_17: List[Str] = [
+const GO_20: List[Str] = [
   "CALL appengine.apps.firewall.ingressRules.create",
   "REQ POST https://appengine.googleapis.com/v1/apps/id1%2F%20x/firewall/ingressRules?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -392,10 +506,10 @@ test "Go's appengine.apps.firewall.ingressRules.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_17)
+  gv_compare(gv_log_of(f), GO_20)
 }
 
-const GO_18: List[Str] = [
+const GO_21: List[Str] = [
   "CALL appengine.apps.firewall.ingressRules.delete",
   "REQ DELETE https://appengine.googleapis.com/v1/apps/id1%2F%20x/firewall/ingressRules/id2%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -413,10 +527,10 @@ test "Go's appengine.apps.firewall.ingressRules.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_18)
+  gv_compare(gv_log_of(f), GO_21)
 }
 
-const GO_19: List[Str] = [
+const GO_22: List[Str] = [
   "CALL appengine.apps.firewall.ingressRules.get",
   "REQ GET https://appengine.googleapis.com/v1/apps/id1%2F%20x/firewall/ingressRules/id2%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -434,10 +548,10 @@ test "Go's appengine.apps.firewall.ingressRules.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_19)
+  gv_compare(gv_log_of(f), GO_22)
 }
 
-const GO_20: List[Str] = [
+const GO_23: List[Str] = [
   "CALL appengine.apps.firewall.ingressRules.list",
   "REQ GET https://appengine.googleapis.com/v1/apps/id1%2F%20x/firewall/ingressRules?alt=json&fields=kind%2Cid&matchingAddress=s-matchingaddress&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -455,10 +569,48 @@ test "Go's appengine.apps.firewall.ingressRules.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_20)
+  gv_compare(gv_log_of(f), GO_23)
 }
 
-const GO_21: List[Str] = [
+const GO_24: List[Str] = [
+  "CALL appengine.apps.firewall.ingressRules.list pages",
+  "REQ GET https://appengine.googleapis.com/v1/apps/id1%2F%20x/firewall/ingressRules?alt=json&fields=kind%2Cid&matchingAddress=s-matchingaddress&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"ingressRules\":[{\"action\":\"s-action\",\"description\":\"s-description\",\"priority\":7,\"sourceRange\":\"s-sourcerange\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"ingressRules\":[{\"action\":\"s-action\",\"description\":\"s-description\",\"priority\":7,\"sourceRange\":\"s-sourcerange\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://appengine.googleapis.com/v1/apps/id1%2F%20x/firewall/ingressRules?alt=json&fields=kind%2Cid&matchingAddress=s-matchingaddress&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"ingressRules\":[{\"action\":\"s-action\",\"description\":\"s-description\",\"priority\":7,\"sourceRange\":\"s-sourcerange\"}]}",
+  "OUT: {\"ingressRules\":[{\"action\":\"s-action\",\"description\":\"s-description\",\"priority\":7,\"sourceRange\":\"s-sourcerange\"}]}",
+  "OUT: ok",
+]
+
+test "Go's appengine.apps.firewall.ingressRules.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"ingressRules\":[{\"action\":\"s-action\",\"description\":\"s-description\",\"priority\":7,\"sourceRange\":\"s-sourcerange\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"ingressRules\":[{\"action\":\"s-action\",\"description\":\"s-description\",\"priority\":7,\"sourceRange\":\"s-sourcerange\"}]}")
+  gv_note(f, "CALL appengine.apps.firewall.ingressRules.list pages")
+  var p = svc.apps.firewall.ingress_rules.list_pages("id1/ x", options: AppsFirewallIngressRulesListOptions{matching_address: Some("s-matchingaddress"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_24)
+}
+
+const GO_25: List[Str] = [
   "CALL appengine.apps.firewall.ingressRules.patch",
   "REQ PATCH https://appengine.googleapis.com/v1/apps/id1%2F%20x/firewall/ingressRules/id2%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
@@ -477,10 +629,10 @@ test "Go's appengine.apps.firewall.ingressRules.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_21)
+  gv_compare(gv_log_of(f), GO_25)
 }
 
-const GO_22: List[Str] = [
+const GO_26: List[Str] = [
   "CALL appengine.apps.locations.get",
   "REQ GET https://appengine.googleapis.com/v1/apps/id1%2F%20x/locations/id2%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -498,10 +650,10 @@ test "Go's appengine.apps.locations.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_22)
+  gv_compare(gv_log_of(f), GO_26)
 }
 
-const GO_23: List[Str] = [
+const GO_27: List[Str] = [
   "CALL appengine.apps.locations.list",
   "REQ GET https://appengine.googleapis.com/v1/apps/id1%2F%20x/locations?alt=json&extraLocationTypes=s-extralocationtypes&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -519,10 +671,48 @@ test "Go's appengine.apps.locations.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_23)
+  gv_compare(gv_log_of(f), GO_27)
 }
 
-const GO_24: List[Str] = [
+const GO_28: List[Str] = [
+  "CALL appengine.apps.locations.list pages",
+  "REQ GET https://appengine.googleapis.com/v1/apps/id1%2F%20x/locations?alt=json&extraLocationTypes=s-extralocationtypes&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://appengine.googleapis.com/v1/apps/id1%2F%20x/locations?alt=json&extraLocationTypes=s-extralocationtypes&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}]}",
+  "OUT: {\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}]}",
+  "OUT: ok",
+]
+
+test "Go's appengine.apps.locations.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}]}")
+  gv_note(f, "CALL appengine.apps.locations.list pages")
+  var p = svc.apps.locations.list_pages("id1/ x", options: AppsLocationsListOptions{extra_location_types: ["s-extralocationtypes"], filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_28)
+}
+
+const GO_29: List[Str] = [
   "CALL appengine.apps.operations.get",
   "REQ GET https://appengine.googleapis.com/v1/apps/id1%2F%20x/operations/id2%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -540,10 +730,10 @@ test "Go's appengine.apps.operations.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_24)
+  gv_compare(gv_log_of(f), GO_29)
 }
 
-const GO_25: List[Str] = [
+const GO_30: List[Str] = [
   "CALL appengine.apps.operations.list",
   "REQ GET https://appengine.googleapis.com/v1/apps/id1%2F%20x/operations?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&returnPartialSuccess=true",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -561,10 +751,48 @@ test "Go's appengine.apps.operations.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_25)
+  gv_compare(gv_log_of(f), GO_30)
 }
 
-const GO_26: List[Str] = [
+const GO_31: List[Str] = [
+  "CALL appengine.apps.operations.list pages",
+  "REQ GET https://appengine.googleapis.com/v1/apps/id1%2F%20x/operations?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&returnPartialSuccess=true",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "REQ GET https://appengine.googleapis.com/v1/apps/id1%2F%20x/operations?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false&returnPartialSuccess=true",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: ok",
+]
+
+test "Go's appengine.apps.operations.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_queue(f, "{\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_note(f, "CALL appengine.apps.operations.list pages")
+  var p = svc.apps.operations.list_pages("id1/ x", options: AppsOperationsListOptions{filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), return_partial_success: Some(true), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_31)
+}
+
+const GO_32: List[Str] = [
   "CALL appengine.apps.services.delete",
   "REQ DELETE https://appengine.googleapis.com/v1/apps/id1%2F%20x/services/id2%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -582,10 +810,10 @@ test "Go's appengine.apps.services.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_26)
+  gv_compare(gv_log_of(f), GO_32)
 }
 
-const GO_27: List[Str] = [
+const GO_33: List[Str] = [
   "CALL appengine.apps.services.get",
   "REQ GET https://appengine.googleapis.com/v1/apps/id1%2F%20x/services/id2%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -603,10 +831,10 @@ test "Go's appengine.apps.services.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_27)
+  gv_compare(gv_log_of(f), GO_33)
 }
 
-const GO_28: List[Str] = [
+const GO_34: List[Str] = [
   "CALL appengine.apps.services.list",
   "REQ GET https://appengine.googleapis.com/v1/apps/id1%2F%20x/services?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -624,10 +852,48 @@ test "Go's appengine.apps.services.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_28)
+  gv_compare(gv_log_of(f), GO_34)
 }
 
-const GO_29: List[Str] = [
+const GO_35: List[Str] = [
+  "CALL appengine.apps.services.list pages",
+  "REQ GET https://appengine.googleapis.com/v1/apps/id1%2F%20x/services?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"services\":[{\"generatedCustomerMetadata\":{\"k\":\"v\"},\"id\":\"s-id\",\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"networkSettings\":{\"ingressTrafficAllowed\":\"s-ingresstrafficallowed\"},\"split\":{\"shardBy\":\"s-shardby\"}}]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"services\":[{\"generatedCustomerMetadata\":{\"k\":\"v\"},\"id\":\"s-id\",\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"networkSettings\":{\"ingressTrafficAllowed\":\"s-ingresstrafficallowed\"},\"split\":{\"shardBy\":\"s-shardby\"}}]}",
+  "REQ GET https://appengine.googleapis.com/v1/apps/id1%2F%20x/services?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"services\":[{\"generatedCustomerMetadata\":{\"k\":\"v\"},\"id\":\"s-id\",\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"networkSettings\":{\"ingressTrafficAllowed\":\"s-ingresstrafficallowed\"},\"split\":{\"shardBy\":\"s-shardby\"}}]}",
+  "OUT: {\"services\":[{\"generatedCustomerMetadata\":{\"k\":\"v\"},\"id\":\"s-id\",\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"networkSettings\":{\"ingressTrafficAllowed\":\"s-ingresstrafficallowed\"},\"split\":{\"shardBy\":\"s-shardby\"}}]}",
+  "OUT: ok",
+]
+
+test "Go's appengine.apps.services.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"services\":[{\"generatedCustomerMetadata\":{\"k\":\"v\"},\"id\":\"s-id\",\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"networkSettings\":{\"ingressTrafficAllowed\":\"s-ingresstrafficallowed\"},\"split\":{\"shardBy\":\"s-shardby\"}}]}")
+  gv_queue(f, "{\"services\":[{\"generatedCustomerMetadata\":{\"k\":\"v\"},\"id\":\"s-id\",\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"networkSettings\":{\"ingressTrafficAllowed\":\"s-ingresstrafficallowed\"},\"split\":{\"shardBy\":\"s-shardby\"}}]}")
+  gv_note(f, "CALL appengine.apps.services.list pages")
+  var p = svc.apps.services.list_pages("id1/ x", options: AppsServicesListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_35)
+}
+
+const GO_36: List[Str] = [
   "CALL appengine.apps.services.patch",
   "REQ PATCH https://appengine.googleapis.com/v1/apps/id1%2F%20x/services/id2%2F%20x?alt=json&fields=kind%2Cid&migrateTraffic=true&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
@@ -646,14 +912,14 @@ test "Go's appengine.apps.services.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_29)
+  gv_compare(gv_log_of(f), GO_36)
 }
 
-const GO_30: List[Str] = [
+const GO_37: List[Str] = [
   "CALL appengine.apps.services.versions.create",
   "REQ POST https://appengine.googleapis.com/v1/apps/id1%2F%20x/services/id2%2F%20x/versions?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"apiConfig\":{\"authFailAction\":\"s-authfailaction\",\"login\":\"s-login\",\"script\":\"s-script\",\"securityLevel\":\"s-securitylevel\",\"url\":\"s-url\"},\"appEngineApis\":true,\"appEngineBundledServices\":[\"s-appenginebundledservices\"],\"automaticScaling\":{\"coolDownPeriod\":\"s-cooldownperiod\",\"cpuUtilization\":{\"aggregationWindowLength\":\"s-aggregationwindowlength\",\"targetUtilization\":1.5},\"diskUtilization\":{\"targetReadBytesPerSecond\":7,\"targetReadOpsPerSecond\":7,\"targetWriteBytesPerSecond\":7,\"targetWriteOpsPerSecond\":7},\"maxConcurrentRequests\":7,\"maxIdleInstances\":7,\"maxPendingLatency\":\"s-maxpendinglatency\",\"maxTotalInstances\":7,\"minIdleInstances\":7,\"minPendingLatency\":\"s-minpendinglatency\",\"minTotalInstances\":7,\"networkUtilization\":{\"targetReceivedBytesPerSecond\":7,\"targetReceivedPacketsPerSecond\":7,\"targetSentBytesPerSecond\":7,\"targetSentPacketsPerSecond\":7},\"requestUtilization\":{\"targetConcurrentRequests\":7,\"targetRequestCountPerSecond\":7},\"standardSchedulerSettings\":{\"maxInstances\":7,\"minInstances\":7,\"targetCpuUtilization\":1.5,\"targetThroughputUtilization\":1.5}},\"basicScaling\":{\"idleTimeout\":\"s-idletimeout\",\"maxInstances\":7},\"betaSettings\":{\"k1\":\"s-betasettings\"},\"buildEnvVariables\":{\"k1\":\"s-buildenvvariables\"},\"createTime\":\"s-createtime\",\"createdBy\":\"s-createdby\",\"defaultExpiration\":\"s-defaultexpiration\",\"deployment\":{\"cloudBuildOptions\":{\"appYamlPath\":\"s-appyamlpath\",\"cloudBuildTimeout\":\"s-cloudbuildtimeout\"},\"container\":{\"image\":\"s-image\"},\"files\":{\"k1\":{\"mimeType\":\"s-mimetype\",\"sha1Sum\":\"s-sha1sum\",\"sourceUrl\":\"s-sourceurl\"}},\"zip\":{\"filesCount\":7,\"sourceUrl\":\"s-sourceurl\"}},\"diskUsageBytes\":\"7\",\"endpointsApiService\":{\"configId\":\"s-configid\",\"disableTraceSampling\":true,\"name\":\"s-name\",\"rolloutStrategy\":\"s-rolloutstrategy\"},\"entrypoint\":{\"shell\":\"s-shell\"},\"env\":\"s-env\",\"envVariables\":{\"k1\":\"s-envvariables\"},\"errorHandlers\":[{\"errorCode\":\"s-errorcode\",\"mimeType\":\"s-mimetype\",\"staticFile\":\"s-staticfile\"}],\"flexibleRuntimeSettings\":{\"operatingSystem\":\"s-operatingsystem\",\"runtimeVersion\":\"s-runtimeversion\"},\"generatedCustomerMetadata\":{\"k\":\"v\"},\"handlers\":[{\"apiEndpoint\":{\"scriptPath\":\"s-scriptpath\"},\"authFailAction\":\"s-authfailaction\",\"login\":\"s-login\",\"redirectHttpResponseCode\":\"s-redirecthttpresponsecode\",\"script\":{\"scriptPath\":\"s-scriptpath\"},\"securityLevel\":\"s-securitylevel\",\"staticFiles\":{\"applicationReadable\":true,\"expiration\":\"s-expiration\",\"mimeType\":\"s-mimetype\",\"path\":\"s-path\",\"requireMatchingFile\":true,\"uploadPathRegex\":\"s-uploadpathregex\"},\"urlRegex\":\"s-urlregex\"}],\"healthCheck\":{\"checkInterval\":\"s-checkinterval\",\"disableHealthCheck\":true,\"healthyThreshold\":7,\"host\":\"s-host\",\"restartThreshold\":7,\"timeout\":\"s-timeout\",\"unhealthyThreshold\":7},\"id\":\"s-id\",\"inboundServices\":[\"s-inboundservices\"],\"instanceClass\":\"s-instanceclass\",\"libraries\":[{\"name\":\"s-name\",\"version\":\"s-version\"}],\"livenessCheck\":{\"checkInterval\":\"s-checkinterval\",\"failureThreshold\":7,\"host\":\"s-host\",\"initialDelay\":\"s-initialdelay\",\"path\":\"s-path\",\"successThreshold\":7,\"timeout\":\"s-timeout\"},\"manualScaling\":{\"instances\":7},\"name\":\"s-name\",\"network\":{\"forwardedPorts\":[\"s-forwardedports\"],\"instanceIpMode\":\"s-instanceipmode\",\"instanceTag\":\"s-instancetag\",\"name\":\"s-name\",\"sessionAffinity\":true,\"subnetworkName\":\"s-subnetworkname\"},\"nobuildFilesRegex\":\"s-nobuildfilesregex\",\"readinessCheck\":{\"appStartTimeout\":\"s-appstarttimeout\",\"checkInterval\":\"s-checkinterval\",\"failureThreshold\":7,\"host\":\"s-host\",\"path\":\"s-path\",\"successThreshold\":7,\"timeout\":\"s-timeout\"},\"resources\":{\"cpu\":1.5,\"diskGb\":1.5,\"kmsKeyReference\":\"s-kmskeyreference\",\"memoryGb\":1.5,\"volumes\":[{\"name\":\"s-name\",\"sizeGb\":1.5,\"volumeType\":\"s-volumetype\"}]},\"runtime\":\"s-runtime\",\"runtimeApiVersion\":\"s-runtimeapiversion\",\"runtimeChannel\":\"s-runtimechannel\",\"runtimeMainExecutablePath\":\"s-runtimemainexecutablepath\",\"serviceAccount\":\"s-serviceaccount\",\"servingStatus\":\"s-servingstatus\",\"threadsafe\":true,\"versionUrl\":\"s-versionurl\",\"vm\":true,\"vpcAccess\":{\"networkInterfaces\":[{\"network\":\"s-network\",\"subnet\":\"s-subnet\"}],\"vpcEgress\":\"s-vpcegress\"},\"vpcAccessConnector\":{\"egressSetting\":\"s-egresssetting\",\"name\":\"s-name\"},\"zones\":[\"s-zones\"]}",
+  "  B <4116 bytes> {\"apiConfig\":{\"authFailAction\":\"...:\"s-name\"},\"zones\":[\"s-zones\"]}",
   "",
   "  SERVED 200 {\"done\":true,\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}",
   "OUT: {\"done\":true,\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}",
@@ -668,10 +934,10 @@ test "Go's appengine.apps.services.versions.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_30)
+  gv_compare(gv_log_of(f), GO_37)
 }
 
-const GO_31: List[Str] = [
+const GO_38: List[Str] = [
   "CALL appengine.apps.services.versions.delete",
   "REQ DELETE https://appengine.googleapis.com/v1/apps/id1%2F%20x/services/id2%2F%20x/versions/id3%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -689,10 +955,10 @@ test "Go's appengine.apps.services.versions.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_31)
+  gv_compare(gv_log_of(f), GO_38)
 }
 
-const GO_32: List[Str] = [
+const GO_39: List[Str] = [
   "CALL appengine.apps.services.versions.exportAppImage",
   "REQ POST https://appengine.googleapis.com/v1/apps/id1%2F%20x/services/id2%2F%20x/versions/id3%2F%20x:exportAppImage?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -711,10 +977,10 @@ test "Go's appengine.apps.services.versions.exportAppImage" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_32)
+  gv_compare(gv_log_of(f), GO_39)
 }
 
-const GO_33: List[Str] = [
+const GO_40: List[Str] = [
   "CALL appengine.apps.services.versions.get",
   "REQ GET https://appengine.googleapis.com/v1/apps/id1%2F%20x/services/id2%2F%20x/versions/id3%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false&view=s-view",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -732,10 +998,10 @@ test "Go's appengine.apps.services.versions.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_33)
+  gv_compare(gv_log_of(f), GO_40)
 }
 
-const GO_34: List[Str] = [
+const GO_41: List[Str] = [
   "CALL appengine.apps.services.versions.list",
   "REQ GET https://appengine.googleapis.com/v1/apps/id1%2F%20x/services/id2%2F%20x/versions?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&view=s-view",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -753,14 +1019,52 @@ test "Go's appengine.apps.services.versions.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_34)
+  gv_compare(gv_log_of(f), GO_41)
 }
 
-const GO_35: List[Str] = [
+const GO_42: List[Str] = [
+  "CALL appengine.apps.services.versions.list pages",
+  "REQ GET https://appengine.googleapis.com/v1/apps/id1%2F%20x/services/id2%2F%20x/versions?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&view=s-view",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"versions\":[{\"apiConfig\":{\"authFailAction\":\"s-authfailaction\",\"login\":\"s-login\",\"script\":\"s-script\",\"securityLevel\":\"s-securitylevel\",\"url\":\"s-url\"},\"appEngineApis\":true,\"appEngineBundledServices\":[\"s-appenginebundledservices\"],\"automaticScaling\":{\"coolDownPeriod\":\"s-cooldownperiod\",\"maxConcurrentRequests\":7,\"maxIdleInstances\":7,\"maxPendingLatency\":\"s-maxpendinglatency\",\"maxTotalInstances\":7,\"minIdleInstances\":7,\"minPendingLatency\":\"s-minpendinglatency\",\"minTotalInstances\":7},\"basicScaling\":{\"idleTimeout\":\"s-idletimeout\",\"maxInstances\":7},\"betaSettings\":{\"k1\":\"s-betasettings\"},\"buildEnvVariables\":{\"k1\":\"s-buildenvvariables\"},\"createTime\":\"s-createtime\",\"createdBy\":\"s-createdby\",\"defaultExpiration\":\"s-defaultexpiration\",\"deployment\":{},\"diskUsageBytes\":\"7\",\"endpointsApiService\":{\"configId\":\"s-configid\",\"disableTraceSampling\":true,\"name\":\"s-name\",\"rolloutStrategy\":\"s-rolloutstrategy\"},\"entrypoint\":{\"shell\":\"s-shell\"},\"env\":\"s-env\",\"envVariables\":{\"k1\":\"s-envvariables\"},\"flexibleRuntimeSettings\":{\"operatingSystem\":\"s-operatingsystem\",\"runtimeVersion\":\"s-runtimeversion\"},\"generatedCustomerMetadata\":{\"k\":\"v\"},\"healthCheck\":{\"checkInterval\":\"s-checkinterval\",\"disableHealthCheck\":true,\"healthyThreshold\":7,\"host\":\"s-host\",\"restartThreshold\":7,\"timeout\":\"s-timeout\",\"unhealthyThreshold\":7},\"id\":\"s-id\",\"inboundServices\":[\"s-inboundservices\"],\"instanceClass\":\"s-instanceclass\",\"livenessCheck\":{\"checkInterval\":\"s-checkinterval\",\"failureThreshold\":7,\"host\":\"s-host\",\"initialDelay\":\"s-initialdelay\",\"path\":\"s-path\",\"successThreshold\":7,\"timeout\":\"s-timeout\"},\"manualScaling\":{\"instances\":7},\"name\":\"s-name\",\"network\":{\"instanceIpMode\":\"s-instanceipmode\",\"instanceTag\":\"s-instancetag\",\"name\":\"s-name\",\"sessionAffinity\":true,\"subnetworkName\":\"s-subnetworkname\"},\"nobuildFilesRegex\":\"s-nobuildfilesregex\",\"readinessCheck\":{\"appStartTimeout\":\"s-appstarttimeout\",\"checkInterval\":\"s-checkinterval\",\"failureThreshold\":7,\"host\":\"s-host\",\"path\":\"s-path\",\"successThreshold\":7,\"timeout\":\"s-timeout\"},\"resources\":{\"cpu\":1.5,\"diskGb\":1.5,\"kmsKeyReference\":\"s-kmskeyreference\",\"memoryGb\":1.5},\"runtime\":\"s-runtime\",\"runtimeApiVersion\":\"s-runtimeapiversion\",\"runtimeChannel\":\"s-runtimechannel\",\"runtimeMainExecutablePath\":\"s-runtimemainexecutablepath\",\"serviceAccount\":\"s-serviceaccount\",\"servingStatus\":\"s-servingstatus\",\"threadsafe\":true,\"versionUrl\":\"s-versionurl\",\"vm\":true,\"vpcAccess\":{\"vpcEgress\":\"s-vpcegress\"},\"vpcAccessConnector\":{\"egressSetting\":\"s-egresssetting\",\"name\":\"s-name\"},\"zones\":[\"s-zones\"]}]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"versions\":[{\"apiConfig\":{\"authFailAction\":\"s-authfailaction\",\"login\":\"s-login\",\"script\":\"s-script\",\"securityLevel\":\"s-securitylevel\",\"url\":\"s-url\"},\"appEngineApis\":true,\"appEngineBundledServices\":[\"s-appenginebundledservices\"],\"automaticScaling\":{\"coolDownPeriod\":\"s-cooldownperiod\",\"maxConcurrentRequests\":7,\"maxIdleInstances\":7,\"maxPendingLatency\":\"s-maxpendinglatency\",\"maxTotalInstances\":7,\"minIdleInstances\":7,\"minPendingLatency\":\"s-minpendinglatency\",\"minTotalInstances\":7},\"basicScaling\":{\"idleTimeout\":\"s-idletimeout\",\"maxInstances\":7},\"betaSettings\":{\"k1\":\"s-betasettings\"},\"buildEnvVariables\":{\"k1\":\"s-buildenvvariables\"},\"createTime\":\"s-createtime\",\"createdBy\":\"s-createdby\",\"defaultExpiration\":\"s-defaultexpiration\",\"deployment\":{},\"diskUsageBytes\":\"7\",\"endpointsApiService\":{\"configId\":\"s-configid\",\"disableTraceSampling\":true,\"name\":\"s-name\",\"rolloutStrategy\":\"s-rolloutstrategy\"},\"entrypoint\":{\"shell\":\"s-shell\"},\"env\":\"s-env\",\"envVariables\":{\"k1\":\"s-envvariables\"},\"flexibleRuntimeSettings\":{\"operatingSystem\":\"s-operatingsystem\",\"runtimeVersion\":\"s-runtimeversion\"},\"generatedCustomerMetadata\":{\"k\":\"v\"},\"healthCheck\":{\"checkInterval\":\"s-checkinterval\",\"disableHealthCheck\":true,\"healthyThreshold\":7,\"host\":\"s-host\",\"restartThreshold\":7,\"timeout\":\"s-timeout\",\"unhealthyThreshold\":7},\"id\":\"s-id\",\"inboundServices\":[\"s-inboundservices\"],\"instanceClass\":\"s-instanceclass\",\"livenessCheck\":{\"checkInterval\":\"s-checkinterval\",\"failureThreshold\":7,\"host\":\"s-host\",\"initialDelay\":\"s-initialdelay\",\"path\":\"s-path\",\"successThreshold\":7,\"timeout\":\"s-timeout\"},\"manualScaling\":{\"instances\":7},\"name\":\"s-name\",\"network\":{\"instanceIpMode\":\"s-instanceipmode\",\"instanceTag\":\"s-instancetag\",\"name\":\"s-name\",\"sessionAffinity\":true,\"subnetworkName\":\"s-subnetworkname\"},\"nobuildFilesRegex\":\"s-nobuildfilesregex\",\"readinessCheck\":{\"appStartTimeout\":\"s-appstarttimeout\",\"checkInterval\":\"s-checkinterval\",\"failureThreshold\":7,\"host\":\"s-host\",\"path\":\"s-path\",\"successThreshold\":7,\"timeout\":\"s-timeout\"},\"resources\":{\"cpu\":1.5,\"diskGb\":1.5,\"kmsKeyReference\":\"s-kmskeyreference\",\"memoryGb\":1.5},\"runtime\":\"s-runtime\",\"runtimeApiVersion\":\"s-runtimeapiversion\",\"runtimeChannel\":\"s-runtimechannel\",\"runtimeMainExecutablePath\":\"s-runtimemainexecutablepath\",\"serviceAccount\":\"s-serviceaccount\",\"servingStatus\":\"s-servingstatus\",\"threadsafe\":true,\"versionUrl\":\"s-versionurl\",\"vm\":true,\"vpcAccess\":{\"vpcEgress\":\"s-vpcegress\"},\"vpcAccessConnector\":{\"egressSetting\":\"s-egresssetting\",\"name\":\"s-name\"},\"zones\":[\"s-zones\"]}]}",
+  "REQ GET https://appengine.googleapis.com/v1/apps/id1%2F%20x/services/id2%2F%20x/versions?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false&view=s-view",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"versions\":[{\"apiConfig\":{\"authFailAction\":\"s-authfailaction\",\"login\":\"s-login\",\"script\":\"s-script\",\"securityLevel\":\"s-securitylevel\",\"url\":\"s-url\"},\"appEngineApis\":true,\"appEngineBundledServices\":[\"s-appenginebundledservices\"],\"automaticScaling\":{\"coolDownPeriod\":\"s-cooldownperiod\",\"maxConcurrentRequests\":7,\"maxIdleInstances\":7,\"maxPendingLatency\":\"s-maxpendinglatency\",\"maxTotalInstances\":7,\"minIdleInstances\":7,\"minPendingLatency\":\"s-minpendinglatency\",\"minTotalInstances\":7},\"basicScaling\":{\"idleTimeout\":\"s-idletimeout\",\"maxInstances\":7},\"betaSettings\":{\"k1\":\"s-betasettings\"},\"buildEnvVariables\":{\"k1\":\"s-buildenvvariables\"},\"createTime\":\"s-createtime\",\"createdBy\":\"s-createdby\",\"defaultExpiration\":\"s-defaultexpiration\",\"deployment\":{},\"diskUsageBytes\":\"7\",\"endpointsApiService\":{\"configId\":\"s-configid\",\"disableTraceSampling\":true,\"name\":\"s-name\",\"rolloutStrategy\":\"s-rolloutstrategy\"},\"entrypoint\":{\"shell\":\"s-shell\"},\"env\":\"s-env\",\"envVariables\":{\"k1\":\"s-envvariables\"},\"flexibleRuntimeSettings\":{\"operatingSystem\":\"s-operatingsystem\",\"runtimeVersion\":\"s-runtimeversion\"},\"generatedCustomerMetadata\":{\"k\":\"v\"},\"healthCheck\":{\"checkInterval\":\"s-checkinterval\",\"disableHealthCheck\":true,\"healthyThreshold\":7,\"host\":\"s-host\",\"restartThreshold\":7,\"timeout\":\"s-timeout\",\"unhealthyThreshold\":7},\"id\":\"s-id\",\"inboundServices\":[\"s-inboundservices\"],\"instanceClass\":\"s-instanceclass\",\"livenessCheck\":{\"checkInterval\":\"s-checkinterval\",\"failureThreshold\":7,\"host\":\"s-host\",\"initialDelay\":\"s-initialdelay\",\"path\":\"s-path\",\"successThreshold\":7,\"timeout\":\"s-timeout\"},\"manualScaling\":{\"instances\":7},\"name\":\"s-name\",\"network\":{\"instanceIpMode\":\"s-instanceipmode\",\"instanceTag\":\"s-instancetag\",\"name\":\"s-name\",\"sessionAffinity\":true,\"subnetworkName\":\"s-subnetworkname\"},\"nobuildFilesRegex\":\"s-nobuildfilesregex\",\"readinessCheck\":{\"appStartTimeout\":\"s-appstarttimeout\",\"checkInterval\":\"s-checkinterval\",\"failureThreshold\":7,\"host\":\"s-host\",\"path\":\"s-path\",\"successThreshold\":7,\"timeout\":\"s-timeout\"},\"resources\":{\"cpu\":1.5,\"diskGb\":1.5,\"kmsKeyReference\":\"s-kmskeyreference\",\"memoryGb\":1.5},\"runtime\":\"s-runtime\",\"runtimeApiVersion\":\"s-runtimeapiversion\",\"runtimeChannel\":\"s-runtimechannel\",\"runtimeMainExecutablePath\":\"s-runtimemainexecutablepath\",\"serviceAccount\":\"s-serviceaccount\",\"servingStatus\":\"s-servingstatus\",\"threadsafe\":true,\"versionUrl\":\"s-versionurl\",\"vm\":true,\"vpcAccess\":{\"vpcEgress\":\"s-vpcegress\"},\"vpcAccessConnector\":{\"egressSetting\":\"s-egresssetting\",\"name\":\"s-name\"},\"zones\":[\"s-zones\"]}]}",
+  "OUT: {\"versions\":[{\"apiConfig\":{\"authFailAction\":\"s-authfailaction\",\"login\":\"s-login\",\"script\":\"s-script\",\"securityLevel\":\"s-securitylevel\",\"url\":\"s-url\"},\"appEngineApis\":true,\"appEngineBundledServices\":[\"s-appenginebundledservices\"],\"automaticScaling\":{\"coolDownPeriod\":\"s-cooldownperiod\",\"maxConcurrentRequests\":7,\"maxIdleInstances\":7,\"maxPendingLatency\":\"s-maxpendinglatency\",\"maxTotalInstances\":7,\"minIdleInstances\":7,\"minPendingLatency\":\"s-minpendinglatency\",\"minTotalInstances\":7},\"basicScaling\":{\"idleTimeout\":\"s-idletimeout\",\"maxInstances\":7},\"betaSettings\":{\"k1\":\"s-betasettings\"},\"buildEnvVariables\":{\"k1\":\"s-buildenvvariables\"},\"createTime\":\"s-createtime\",\"createdBy\":\"s-createdby\",\"defaultExpiration\":\"s-defaultexpiration\",\"deployment\":{},\"diskUsageBytes\":\"7\",\"endpointsApiService\":{\"configId\":\"s-configid\",\"disableTraceSampling\":true,\"name\":\"s-name\",\"rolloutStrategy\":\"s-rolloutstrategy\"},\"entrypoint\":{\"shell\":\"s-shell\"},\"env\":\"s-env\",\"envVariables\":{\"k1\":\"s-envvariables\"},\"flexibleRuntimeSettings\":{\"operatingSystem\":\"s-operatingsystem\",\"runtimeVersion\":\"s-runtimeversion\"},\"generatedCustomerMetadata\":{\"k\":\"v\"},\"healthCheck\":{\"checkInterval\":\"s-checkinterval\",\"disableHealthCheck\":true,\"healthyThreshold\":7,\"host\":\"s-host\",\"restartThreshold\":7,\"timeout\":\"s-timeout\",\"unhealthyThreshold\":7},\"id\":\"s-id\",\"inboundServices\":[\"s-inboundservices\"],\"instanceClass\":\"s-instanceclass\",\"livenessCheck\":{\"checkInterval\":\"s-checkinterval\",\"failureThreshold\":7,\"host\":\"s-host\",\"initialDelay\":\"s-initialdelay\",\"path\":\"s-path\",\"successThreshold\":7,\"timeout\":\"s-timeout\"},\"manualScaling\":{\"instances\":7},\"name\":\"s-name\",\"network\":{\"instanceIpMode\":\"s-instanceipmode\",\"instanceTag\":\"s-instancetag\",\"name\":\"s-name\",\"sessionAffinity\":true,\"subnetworkName\":\"s-subnetworkname\"},\"nobuildFilesRegex\":\"s-nobuildfilesregex\",\"readinessCheck\":{\"appStartTimeout\":\"s-appstarttimeout\",\"checkInterval\":\"s-checkinterval\",\"failureThreshold\":7,\"host\":\"s-host\",\"path\":\"s-path\",\"successThreshold\":7,\"timeout\":\"s-timeout\"},\"resources\":{\"cpu\":1.5,\"diskGb\":1.5,\"kmsKeyReference\":\"s-kmskeyreference\",\"memoryGb\":1.5},\"runtime\":\"s-runtime\",\"runtimeApiVersion\":\"s-runtimeapiversion\",\"runtimeChannel\":\"s-runtimechannel\",\"runtimeMainExecutablePath\":\"s-runtimemainexecutablepath\",\"serviceAccount\":\"s-serviceaccount\",\"servingStatus\":\"s-servingstatus\",\"threadsafe\":true,\"versionUrl\":\"s-versionurl\",\"vm\":true,\"vpcAccess\":{\"vpcEgress\":\"s-vpcegress\"},\"vpcAccessConnector\":{\"egressSetting\":\"s-egresssetting\",\"name\":\"s-name\"},\"zones\":[\"s-zones\"]}]}",
+  "OUT: ok",
+]
+
+test "Go's appengine.apps.services.versions.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"versions\":[{\"apiConfig\":{\"authFailAction\":\"s-authfailaction\",\"login\":\"s-login\",\"script\":\"s-script\",\"securityLevel\":\"s-securitylevel\",\"url\":\"s-url\"},\"appEngineApis\":true,\"appEngineBundledServices\":[\"s-appenginebundledservices\"],\"automaticScaling\":{\"coolDownPeriod\":\"s-cooldownperiod\",\"maxConcurrentRequests\":7,\"maxIdleInstances\":7,\"maxPendingLatency\":\"s-maxpendinglatency\",\"maxTotalInstances\":7,\"minIdleInstances\":7,\"minPendingLatency\":\"s-minpendinglatency\",\"minTotalInstances\":7},\"basicScaling\":{\"idleTimeout\":\"s-idletimeout\",\"maxInstances\":7},\"betaSettings\":{\"k1\":\"s-betasettings\"},\"buildEnvVariables\":{\"k1\":\"s-buildenvvariables\"},\"createTime\":\"s-createtime\",\"createdBy\":\"s-createdby\",\"defaultExpiration\":\"s-defaultexpiration\",\"deployment\":{},\"diskUsageBytes\":\"7\",\"endpointsApiService\":{\"configId\":\"s-configid\",\"disableTraceSampling\":true,\"name\":\"s-name\",\"rolloutStrategy\":\"s-rolloutstrategy\"},\"entrypoint\":{\"shell\":\"s-shell\"},\"env\":\"s-env\",\"envVariables\":{\"k1\":\"s-envvariables\"},\"flexibleRuntimeSettings\":{\"operatingSystem\":\"s-operatingsystem\",\"runtimeVersion\":\"s-runtimeversion\"},\"generatedCustomerMetadata\":{\"k\":\"v\"},\"healthCheck\":{\"checkInterval\":\"s-checkinterval\",\"disableHealthCheck\":true,\"healthyThreshold\":7,\"host\":\"s-host\",\"restartThreshold\":7,\"timeout\":\"s-timeout\",\"unhealthyThreshold\":7},\"id\":\"s-id\",\"inboundServices\":[\"s-inboundservices\"],\"instanceClass\":\"s-instanceclass\",\"livenessCheck\":{\"checkInterval\":\"s-checkinterval\",\"failureThreshold\":7,\"host\":\"s-host\",\"initialDelay\":\"s-initialdelay\",\"path\":\"s-path\",\"successThreshold\":7,\"timeout\":\"s-timeout\"},\"manualScaling\":{\"instances\":7},\"name\":\"s-name\",\"network\":{\"instanceIpMode\":\"s-instanceipmode\",\"instanceTag\":\"s-instancetag\",\"name\":\"s-name\",\"sessionAffinity\":true,\"subnetworkName\":\"s-subnetworkname\"},\"nobuildFilesRegex\":\"s-nobuildfilesregex\",\"readinessCheck\":{\"appStartTimeout\":\"s-appstarttimeout\",\"checkInterval\":\"s-checkinterval\",\"failureThreshold\":7,\"host\":\"s-host\",\"path\":\"s-path\",\"successThreshold\":7,\"timeout\":\"s-timeout\"},\"resources\":{\"cpu\":1.5,\"diskGb\":1.5,\"kmsKeyReference\":\"s-kmskeyreference\",\"memoryGb\":1.5},\"runtime\":\"s-runtime\",\"runtimeApiVersion\":\"s-runtimeapiversion\",\"runtimeChannel\":\"s-runtimechannel\",\"runtimeMainExecutablePath\":\"s-runtimemainexecutablepath\",\"serviceAccount\":\"s-serviceaccount\",\"servingStatus\":\"s-servingstatus\",\"threadsafe\":true,\"versionUrl\":\"s-versionurl\",\"vm\":true,\"vpcAccess\":{\"vpcEgress\":\"s-vpcegress\"},\"vpcAccessConnector\":{\"egressSetting\":\"s-egresssetting\",\"name\":\"s-name\"},\"zones\":[\"s-zones\"]}]}")
+  gv_queue(f, "{\"versions\":[{\"apiConfig\":{\"authFailAction\":\"s-authfailaction\",\"login\":\"s-login\",\"script\":\"s-script\",\"securityLevel\":\"s-securitylevel\",\"url\":\"s-url\"},\"appEngineApis\":true,\"appEngineBundledServices\":[\"s-appenginebundledservices\"],\"automaticScaling\":{\"coolDownPeriod\":\"s-cooldownperiod\",\"maxConcurrentRequests\":7,\"maxIdleInstances\":7,\"maxPendingLatency\":\"s-maxpendinglatency\",\"maxTotalInstances\":7,\"minIdleInstances\":7,\"minPendingLatency\":\"s-minpendinglatency\",\"minTotalInstances\":7},\"basicScaling\":{\"idleTimeout\":\"s-idletimeout\",\"maxInstances\":7},\"betaSettings\":{\"k1\":\"s-betasettings\"},\"buildEnvVariables\":{\"k1\":\"s-buildenvvariables\"},\"createTime\":\"s-createtime\",\"createdBy\":\"s-createdby\",\"defaultExpiration\":\"s-defaultexpiration\",\"deployment\":{},\"diskUsageBytes\":\"7\",\"endpointsApiService\":{\"configId\":\"s-configid\",\"disableTraceSampling\":true,\"name\":\"s-name\",\"rolloutStrategy\":\"s-rolloutstrategy\"},\"entrypoint\":{\"shell\":\"s-shell\"},\"env\":\"s-env\",\"envVariables\":{\"k1\":\"s-envvariables\"},\"flexibleRuntimeSettings\":{\"operatingSystem\":\"s-operatingsystem\",\"runtimeVersion\":\"s-runtimeversion\"},\"generatedCustomerMetadata\":{\"k\":\"v\"},\"healthCheck\":{\"checkInterval\":\"s-checkinterval\",\"disableHealthCheck\":true,\"healthyThreshold\":7,\"host\":\"s-host\",\"restartThreshold\":7,\"timeout\":\"s-timeout\",\"unhealthyThreshold\":7},\"id\":\"s-id\",\"inboundServices\":[\"s-inboundservices\"],\"instanceClass\":\"s-instanceclass\",\"livenessCheck\":{\"checkInterval\":\"s-checkinterval\",\"failureThreshold\":7,\"host\":\"s-host\",\"initialDelay\":\"s-initialdelay\",\"path\":\"s-path\",\"successThreshold\":7,\"timeout\":\"s-timeout\"},\"manualScaling\":{\"instances\":7},\"name\":\"s-name\",\"network\":{\"instanceIpMode\":\"s-instanceipmode\",\"instanceTag\":\"s-instancetag\",\"name\":\"s-name\",\"sessionAffinity\":true,\"subnetworkName\":\"s-subnetworkname\"},\"nobuildFilesRegex\":\"s-nobuildfilesregex\",\"readinessCheck\":{\"appStartTimeout\":\"s-appstarttimeout\",\"checkInterval\":\"s-checkinterval\",\"failureThreshold\":7,\"host\":\"s-host\",\"path\":\"s-path\",\"successThreshold\":7,\"timeout\":\"s-timeout\"},\"resources\":{\"cpu\":1.5,\"diskGb\":1.5,\"kmsKeyReference\":\"s-kmskeyreference\",\"memoryGb\":1.5},\"runtime\":\"s-runtime\",\"runtimeApiVersion\":\"s-runtimeapiversion\",\"runtimeChannel\":\"s-runtimechannel\",\"runtimeMainExecutablePath\":\"s-runtimemainexecutablepath\",\"serviceAccount\":\"s-serviceaccount\",\"servingStatus\":\"s-servingstatus\",\"threadsafe\":true,\"versionUrl\":\"s-versionurl\",\"vm\":true,\"vpcAccess\":{\"vpcEgress\":\"s-vpcegress\"},\"vpcAccessConnector\":{\"egressSetting\":\"s-egresssetting\",\"name\":\"s-name\"},\"zones\":[\"s-zones\"]}]}")
+  gv_note(f, "CALL appengine.apps.services.versions.list pages")
+  var p = svc.apps.services.versions.list_pages("id1/ x", "id2/ x", options: AppsServicesVersionsListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), view: Some("s-view"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_42)
+}
+
+const GO_43: List[Str] = [
   "CALL appengine.apps.services.versions.patch",
   "REQ PATCH https://appengine.googleapis.com/v1/apps/id1%2F%20x/services/id2%2F%20x/versions/id3%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"apiConfig\":{\"authFailAction\":\"s-authfailaction\",\"login\":\"s-login\",\"script\":\"s-script\",\"securityLevel\":\"s-securitylevel\",\"url\":\"s-url\"},\"appEngineApis\":true,\"appEngineBundledServices\":[\"s-appenginebundledservices\"],\"automaticScaling\":{\"coolDownPeriod\":\"s-cooldownperiod\",\"cpuUtilization\":{\"aggregationWindowLength\":\"s-aggregationwindowlength\",\"targetUtilization\":1.5},\"diskUtilization\":{\"targetReadBytesPerSecond\":7,\"targetReadOpsPerSecond\":7,\"targetWriteBytesPerSecond\":7,\"targetWriteOpsPerSecond\":7},\"maxConcurrentRequests\":7,\"maxIdleInstances\":7,\"maxPendingLatency\":\"s-maxpendinglatency\",\"maxTotalInstances\":7,\"minIdleInstances\":7,\"minPendingLatency\":\"s-minpendinglatency\",\"minTotalInstances\":7,\"networkUtilization\":{\"targetReceivedBytesPerSecond\":7,\"targetReceivedPacketsPerSecond\":7,\"targetSentBytesPerSecond\":7,\"targetSentPacketsPerSecond\":7},\"requestUtilization\":{\"targetConcurrentRequests\":7,\"targetRequestCountPerSecond\":7},\"standardSchedulerSettings\":{\"maxInstances\":7,\"minInstances\":7,\"targetCpuUtilization\":1.5,\"targetThroughputUtilization\":1.5}},\"basicScaling\":{\"idleTimeout\":\"s-idletimeout\",\"maxInstances\":7},\"betaSettings\":{\"k1\":\"s-betasettings\"},\"buildEnvVariables\":{\"k1\":\"s-buildenvvariables\"},\"createTime\":\"s-createtime\",\"createdBy\":\"s-createdby\",\"defaultExpiration\":\"s-defaultexpiration\",\"deployment\":{\"cloudBuildOptions\":{\"appYamlPath\":\"s-appyamlpath\",\"cloudBuildTimeout\":\"s-cloudbuildtimeout\"},\"container\":{\"image\":\"s-image\"},\"files\":{\"k1\":{\"mimeType\":\"s-mimetype\",\"sha1Sum\":\"s-sha1sum\",\"sourceUrl\":\"s-sourceurl\"}},\"zip\":{\"filesCount\":7,\"sourceUrl\":\"s-sourceurl\"}},\"diskUsageBytes\":\"7\",\"endpointsApiService\":{\"configId\":\"s-configid\",\"disableTraceSampling\":true,\"name\":\"s-name\",\"rolloutStrategy\":\"s-rolloutstrategy\"},\"entrypoint\":{\"shell\":\"s-shell\"},\"env\":\"s-env\",\"envVariables\":{\"k1\":\"s-envvariables\"},\"errorHandlers\":[{\"errorCode\":\"s-errorcode\",\"mimeType\":\"s-mimetype\",\"staticFile\":\"s-staticfile\"}],\"flexibleRuntimeSettings\":{\"operatingSystem\":\"s-operatingsystem\",\"runtimeVersion\":\"s-runtimeversion\"},\"generatedCustomerMetadata\":{\"k\":\"v\"},\"handlers\":[{\"apiEndpoint\":{\"scriptPath\":\"s-scriptpath\"},\"authFailAction\":\"s-authfailaction\",\"login\":\"s-login\",\"redirectHttpResponseCode\":\"s-redirecthttpresponsecode\",\"script\":{\"scriptPath\":\"s-scriptpath\"},\"securityLevel\":\"s-securitylevel\",\"staticFiles\":{\"applicationReadable\":true,\"expiration\":\"s-expiration\",\"mimeType\":\"s-mimetype\",\"path\":\"s-path\",\"requireMatchingFile\":true,\"uploadPathRegex\":\"s-uploadpathregex\"},\"urlRegex\":\"s-urlregex\"}],\"healthCheck\":{\"checkInterval\":\"s-checkinterval\",\"disableHealthCheck\":true,\"healthyThreshold\":7,\"host\":\"s-host\",\"restartThreshold\":7,\"timeout\":\"s-timeout\",\"unhealthyThreshold\":7},\"id\":\"s-id\",\"inboundServices\":[\"s-inboundservices\"],\"instanceClass\":\"s-instanceclass\",\"libraries\":[{\"name\":\"s-name\",\"version\":\"s-version\"}],\"livenessCheck\":{\"checkInterval\":\"s-checkinterval\",\"failureThreshold\":7,\"host\":\"s-host\",\"initialDelay\":\"s-initialdelay\",\"path\":\"s-path\",\"successThreshold\":7,\"timeout\":\"s-timeout\"},\"manualScaling\":{\"instances\":7},\"name\":\"s-name\",\"network\":{\"forwardedPorts\":[\"s-forwardedports\"],\"instanceIpMode\":\"s-instanceipmode\",\"instanceTag\":\"s-instancetag\",\"name\":\"s-name\",\"sessionAffinity\":true,\"subnetworkName\":\"s-subnetworkname\"},\"nobuildFilesRegex\":\"s-nobuildfilesregex\",\"readinessCheck\":{\"appStartTimeout\":\"s-appstarttimeout\",\"checkInterval\":\"s-checkinterval\",\"failureThreshold\":7,\"host\":\"s-host\",\"path\":\"s-path\",\"successThreshold\":7,\"timeout\":\"s-timeout\"},\"resources\":{\"cpu\":1.5,\"diskGb\":1.5,\"kmsKeyReference\":\"s-kmskeyreference\",\"memoryGb\":1.5,\"volumes\":[{\"name\":\"s-name\",\"sizeGb\":1.5,\"volumeType\":\"s-volumetype\"}]},\"runtime\":\"s-runtime\",\"runtimeApiVersion\":\"s-runtimeapiversion\",\"runtimeChannel\":\"s-runtimechannel\",\"runtimeMainExecutablePath\":\"s-runtimemainexecutablepath\",\"serviceAccount\":\"s-serviceaccount\",\"servingStatus\":\"s-servingstatus\",\"threadsafe\":true,\"versionUrl\":\"s-versionurl\",\"vm\":true,\"vpcAccess\":{\"networkInterfaces\":[{\"network\":\"s-network\",\"subnet\":\"s-subnet\"}],\"vpcEgress\":\"s-vpcegress\"},\"vpcAccessConnector\":{\"egressSetting\":\"s-egresssetting\",\"name\":\"s-name\"},\"zones\":[\"s-zones\"]}",
+  "  B <4116 bytes> {\"apiConfig\":{\"authFailAction\":\"...:\"s-name\"},\"zones\":[\"s-zones\"]}",
   "",
   "  SERVED 200 {\"done\":true,\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}",
   "OUT: {\"done\":true,\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}",
@@ -775,10 +1079,10 @@ test "Go's appengine.apps.services.versions.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_35)
+  gv_compare(gv_log_of(f), GO_43)
 }
 
-const GO_36: List[Str] = [
+const GO_44: List[Str] = [
   "CALL appengine.apps.services.versions.instances.debug",
   "REQ POST https://appengine.googleapis.com/v1/apps/id1%2F%20x/services/id2%2F%20x/versions/id3%2F%20x/instances/id4%2F%20x:debug?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -797,10 +1101,10 @@ test "Go's appengine.apps.services.versions.instances.debug" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_36)
+  gv_compare(gv_log_of(f), GO_44)
 }
 
-const GO_37: List[Str] = [
+const GO_45: List[Str] = [
   "CALL appengine.apps.services.versions.instances.delete",
   "REQ DELETE https://appengine.googleapis.com/v1/apps/id1%2F%20x/services/id2%2F%20x/versions/id3%2F%20x/instances/id4%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -818,10 +1122,10 @@ test "Go's appengine.apps.services.versions.instances.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_37)
+  gv_compare(gv_log_of(f), GO_45)
 }
 
-const GO_38: List[Str] = [
+const GO_46: List[Str] = [
   "CALL appengine.apps.services.versions.instances.get",
   "REQ GET https://appengine.googleapis.com/v1/apps/id1%2F%20x/services/id2%2F%20x/versions/id3%2F%20x/instances/id4%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -839,10 +1143,10 @@ test "Go's appengine.apps.services.versions.instances.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_38)
+  gv_compare(gv_log_of(f), GO_46)
 }
 
-const GO_39: List[Str] = [
+const GO_47: List[Str] = [
   "CALL appengine.apps.services.versions.instances.list",
   "REQ GET https://appengine.googleapis.com/v1/apps/id1%2F%20x/services/id2%2F%20x/versions/id3%2F%20x/instances?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -860,10 +1164,48 @@ test "Go's appengine.apps.services.versions.instances.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_39)
+  gv_compare(gv_log_of(f), GO_47)
 }
 
-const GO_40: List[Str] = [
+const GO_48: List[Str] = [
+  "CALL appengine.apps.services.versions.instances.list pages",
+  "REQ GET https://appengine.googleapis.com/v1/apps/id1%2F%20x/services/id2%2F%20x/versions/id3%2F%20x/instances?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"instances\":[{\"appEngineRelease\":\"s-appenginerelease\",\"availability\":\"s-availability\",\"averageLatency\":7,\"errors\":7,\"id\":\"s-id\",\"memoryUsage\":\"7\",\"name\":\"s-name\",\"qps\":1.5,\"requests\":7,\"startTime\":\"s-starttime\",\"vmDebugEnabled\":true,\"vmId\":\"s-vmid\",\"vmIp\":\"s-vmip\",\"vmLiveness\":\"s-vmliveness\",\"vmName\":\"s-vmname\",\"vmStatus\":\"s-vmstatus\",\"vmZoneName\":\"s-vmzonename\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"instances\":[{\"appEngineRelease\":\"s-appenginerelease\",\"availability\":\"s-availability\",\"averageLatency\":7,\"errors\":7,\"id\":\"s-id\",\"memoryUsage\":\"7\",\"name\":\"s-name\",\"qps\":1.5,\"requests\":7,\"startTime\":\"s-starttime\",\"vmDebugEnabled\":true,\"vmId\":\"s-vmid\",\"vmIp\":\"s-vmip\",\"vmLiveness\":\"s-vmliveness\",\"vmName\":\"s-vmname\",\"vmStatus\":\"s-vmstatus\",\"vmZoneName\":\"s-vmzonename\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://appengine.googleapis.com/v1/apps/id1%2F%20x/services/id2%2F%20x/versions/id3%2F%20x/instances?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"instances\":[{\"appEngineRelease\":\"s-appenginerelease\",\"availability\":\"s-availability\",\"averageLatency\":7,\"errors\":7,\"id\":\"s-id\",\"memoryUsage\":\"7\",\"name\":\"s-name\",\"qps\":1.5,\"requests\":7,\"startTime\":\"s-starttime\",\"vmDebugEnabled\":true,\"vmId\":\"s-vmid\",\"vmIp\":\"s-vmip\",\"vmLiveness\":\"s-vmliveness\",\"vmName\":\"s-vmname\",\"vmStatus\":\"s-vmstatus\",\"vmZoneName\":\"s-vmzonename\"}]}",
+  "OUT: {\"instances\":[{\"appEngineRelease\":\"s-appenginerelease\",\"availability\":\"s-availability\",\"averageLatency\":7,\"errors\":7,\"id\":\"s-id\",\"memoryUsage\":\"7\",\"name\":\"s-name\",\"qps\":1.5,\"requests\":7,\"startTime\":\"s-starttime\",\"vmDebugEnabled\":true,\"vmId\":\"s-vmid\",\"vmIp\":\"s-vmip\",\"vmLiveness\":\"s-vmliveness\",\"vmName\":\"s-vmname\",\"vmStatus\":\"s-vmstatus\",\"vmZoneName\":\"s-vmzonename\"}]}",
+  "OUT: ok",
+]
+
+test "Go's appengine.apps.services.versions.instances.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"instances\":[{\"appEngineRelease\":\"s-appenginerelease\",\"availability\":\"s-availability\",\"averageLatency\":7,\"errors\":7,\"id\":\"s-id\",\"memoryUsage\":\"7\",\"name\":\"s-name\",\"qps\":1.5,\"requests\":7,\"startTime\":\"s-starttime\",\"vmDebugEnabled\":true,\"vmId\":\"s-vmid\",\"vmIp\":\"s-vmip\",\"vmLiveness\":\"s-vmliveness\",\"vmName\":\"s-vmname\",\"vmStatus\":\"s-vmstatus\",\"vmZoneName\":\"s-vmzonename\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"instances\":[{\"appEngineRelease\":\"s-appenginerelease\",\"availability\":\"s-availability\",\"averageLatency\":7,\"errors\":7,\"id\":\"s-id\",\"memoryUsage\":\"7\",\"name\":\"s-name\",\"qps\":1.5,\"requests\":7,\"startTime\":\"s-starttime\",\"vmDebugEnabled\":true,\"vmId\":\"s-vmid\",\"vmIp\":\"s-vmip\",\"vmLiveness\":\"s-vmliveness\",\"vmName\":\"s-vmname\",\"vmStatus\":\"s-vmstatus\",\"vmZoneName\":\"s-vmzonename\"}]}")
+  gv_note(f, "CALL appengine.apps.services.versions.instances.list pages")
+  var p = svc.apps.services.versions.instances.list_pages("id1/ x", "id2/ x", "id3/ x", options: AppsServicesVersionsInstancesListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_48)
+}
+
+const GO_49: List[Str] = [
   "CALL appengine.projects.locations.applications.patch",
   "REQ PATCH https://appengine.googleapis.com/v1/projects/id1%2F%20x/locations/id2%2F%20x/applications/id3%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
@@ -882,10 +1224,10 @@ test "Go's appengine.projects.locations.applications.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_40)
+  gv_compare(gv_log_of(f), GO_49)
 }
 
-const GO_41: List[Str] = [
+const GO_50: List[Str] = [
   "CALL appengine.projects.locations.applications.authorizedCertificates.create",
   "REQ POST https://appengine.googleapis.com/v1/projects/id1%2F%20x/locations/id2%2F%20x/applications/id3%2F%20x/authorizedCertificates?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -904,10 +1246,10 @@ test "Go's appengine.projects.locations.applications.authorizedCertificates.crea
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_41)
+  gv_compare(gv_log_of(f), GO_50)
 }
 
-const GO_42: List[Str] = [
+const GO_51: List[Str] = [
   "CALL appengine.projects.locations.applications.authorizedCertificates.delete",
   "REQ DELETE https://appengine.googleapis.com/v1/projects/id1%2F%20x/locations/id2%2F%20x/applications/id3%2F%20x/authorizedCertificates/id4%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -925,10 +1267,10 @@ test "Go's appengine.projects.locations.applications.authorizedCertificates.dele
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_42)
+  gv_compare(gv_log_of(f), GO_51)
 }
 
-const GO_43: List[Str] = [
+const GO_52: List[Str] = [
   "CALL appengine.projects.locations.applications.authorizedCertificates.get",
   "REQ GET https://appengine.googleapis.com/v1/projects/id1%2F%20x/locations/id2%2F%20x/applications/id3%2F%20x/authorizedCertificates/id4%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false&view=s-view",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -946,10 +1288,10 @@ test "Go's appengine.projects.locations.applications.authorizedCertificates.get"
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_43)
+  gv_compare(gv_log_of(f), GO_52)
 }
 
-const GO_44: List[Str] = [
+const GO_53: List[Str] = [
   "CALL appengine.projects.locations.applications.authorizedCertificates.list",
   "REQ GET https://appengine.googleapis.com/v1/projects/id1%2F%20x/locations/id2%2F%20x/applications/id3%2F%20x/authorizedCertificates?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&view=s-view",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -967,10 +1309,48 @@ test "Go's appengine.projects.locations.applications.authorizedCertificates.list
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_44)
+  gv_compare(gv_log_of(f), GO_53)
 }
 
-const GO_45: List[Str] = [
+const GO_54: List[Str] = [
+  "CALL appengine.projects.locations.applications.authorizedCertificates.list pages",
+  "REQ GET https://appengine.googleapis.com/v1/projects/id1%2F%20x/locations/id2%2F%20x/applications/id3%2F%20x/authorizedCertificates?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&view=s-view",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"certificates\":[{\"certificateRawData\":{\"privateKey\":\"s-privatekey\",\"publicCertificate\":\"s-publiccertificate\"},\"displayName\":\"s-displayname\",\"domainMappingsCount\":7,\"domainNames\":[\"s-domainnames\"],\"expireTime\":\"s-expiretime\",\"id\":\"s-id\",\"managedCertificate\":{\"lastRenewalTime\":\"s-lastrenewaltime\",\"status\":\"s-status\"},\"name\":\"s-name\",\"visibleDomainMappings\":[\"s-visibledomainmappings\"]}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"certificates\":[{\"certificateRawData\":{\"privateKey\":\"s-privatekey\",\"publicCertificate\":\"s-publiccertificate\"},\"displayName\":\"s-displayname\",\"domainMappingsCount\":7,\"domainNames\":[\"s-domainnames\"],\"expireTime\":\"s-expiretime\",\"id\":\"s-id\",\"managedCertificate\":{\"lastRenewalTime\":\"s-lastrenewaltime\",\"status\":\"s-status\"},\"name\":\"s-name\",\"visibleDomainMappings\":[\"s-visibledomainmappings\"]}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://appengine.googleapis.com/v1/projects/id1%2F%20x/locations/id2%2F%20x/applications/id3%2F%20x/authorizedCertificates?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false&view=s-view",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"certificates\":[{\"certificateRawData\":{\"privateKey\":\"s-privatekey\",\"publicCertificate\":\"s-publiccertificate\"},\"displayName\":\"s-displayname\",\"domainMappingsCount\":7,\"domainNames\":[\"s-domainnames\"],\"expireTime\":\"s-expiretime\",\"id\":\"s-id\",\"managedCertificate\":{\"lastRenewalTime\":\"s-lastrenewaltime\",\"status\":\"s-status\"},\"name\":\"s-name\",\"visibleDomainMappings\":[\"s-visibledomainmappings\"]}]}",
+  "OUT: {\"certificates\":[{\"certificateRawData\":{\"privateKey\":\"s-privatekey\",\"publicCertificate\":\"s-publiccertificate\"},\"displayName\":\"s-displayname\",\"domainMappingsCount\":7,\"domainNames\":[\"s-domainnames\"],\"expireTime\":\"s-expiretime\",\"id\":\"s-id\",\"managedCertificate\":{\"lastRenewalTime\":\"s-lastrenewaltime\",\"status\":\"s-status\"},\"name\":\"s-name\",\"visibleDomainMappings\":[\"s-visibledomainmappings\"]}]}",
+  "OUT: ok",
+]
+
+test "Go's appengine.projects.locations.applications.authorizedCertificates.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"certificates\":[{\"certificateRawData\":{\"privateKey\":\"s-privatekey\",\"publicCertificate\":\"s-publiccertificate\"},\"displayName\":\"s-displayname\",\"domainMappingsCount\":7,\"domainNames\":[\"s-domainnames\"],\"expireTime\":\"s-expiretime\",\"id\":\"s-id\",\"managedCertificate\":{\"lastRenewalTime\":\"s-lastrenewaltime\",\"status\":\"s-status\"},\"name\":\"s-name\",\"visibleDomainMappings\":[\"s-visibledomainmappings\"]}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"certificates\":[{\"certificateRawData\":{\"privateKey\":\"s-privatekey\",\"publicCertificate\":\"s-publiccertificate\"},\"displayName\":\"s-displayname\",\"domainMappingsCount\":7,\"domainNames\":[\"s-domainnames\"],\"expireTime\":\"s-expiretime\",\"id\":\"s-id\",\"managedCertificate\":{\"lastRenewalTime\":\"s-lastrenewaltime\",\"status\":\"s-status\"},\"name\":\"s-name\",\"visibleDomainMappings\":[\"s-visibledomainmappings\"]}]}")
+  gv_note(f, "CALL appengine.projects.locations.applications.authorizedCertificates.list pages")
+  var p = svc.projects.locations.applications.authorized_certificates.list_pages("id1/ x", "id2/ x", "id3/ x", options: ProjectsLocationsApplicationsAuthorizedCertificatesListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), view: Some("s-view"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_54)
+}
+
+const GO_55: List[Str] = [
   "CALL appengine.projects.locations.applications.authorizedCertificates.patch",
   "REQ PATCH https://appengine.googleapis.com/v1/projects/id1%2F%20x/locations/id2%2F%20x/applications/id3%2F%20x/authorizedCertificates/id4%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
@@ -989,10 +1369,10 @@ test "Go's appengine.projects.locations.applications.authorizedCertificates.patc
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_45)
+  gv_compare(gv_log_of(f), GO_55)
 }
 
-const GO_46: List[Str] = [
+const GO_56: List[Str] = [
   "CALL appengine.projects.locations.applications.authorizedDomains.list",
   "REQ GET https://appengine.googleapis.com/v1/projects/id1%2F%20x/locations/id2%2F%20x/applications/id3%2F%20x/authorizedDomains?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1010,10 +1390,48 @@ test "Go's appengine.projects.locations.applications.authorizedDomains.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_46)
+  gv_compare(gv_log_of(f), GO_56)
 }
 
-const GO_47: List[Str] = [
+const GO_57: List[Str] = [
+  "CALL appengine.projects.locations.applications.authorizedDomains.list pages",
+  "REQ GET https://appengine.googleapis.com/v1/projects/id1%2F%20x/locations/id2%2F%20x/applications/id3%2F%20x/authorizedDomains?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"domains\":[{\"id\":\"s-id\",\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"domains\":[{\"id\":\"s-id\",\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://appengine.googleapis.com/v1/projects/id1%2F%20x/locations/id2%2F%20x/applications/id3%2F%20x/authorizedDomains?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"domains\":[{\"id\":\"s-id\",\"name\":\"s-name\"}]}",
+  "OUT: {\"domains\":[{\"id\":\"s-id\",\"name\":\"s-name\"}]}",
+  "OUT: ok",
+]
+
+test "Go's appengine.projects.locations.applications.authorizedDomains.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"domains\":[{\"id\":\"s-id\",\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"domains\":[{\"id\":\"s-id\",\"name\":\"s-name\"}]}")
+  gv_note(f, "CALL appengine.projects.locations.applications.authorizedDomains.list pages")
+  var p = svc.projects.locations.applications.authorized_domains.list_pages("id1/ x", "id2/ x", "id3/ x", options: ProjectsLocationsApplicationsAuthorizedDomainsListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_57)
+}
+
+const GO_58: List[Str] = [
   "CALL appengine.projects.locations.applications.domainMappings.create",
   "REQ POST https://appengine.googleapis.com/v1/projects/id1%2F%20x/locations/id2%2F%20x/applications/id3%2F%20x/domainMappings?alt=json&fields=kind%2Cid&overrideStrategy=s-overridestrategy&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1032,10 +1450,10 @@ test "Go's appengine.projects.locations.applications.domainMappings.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_47)
+  gv_compare(gv_log_of(f), GO_58)
 }
 
-const GO_48: List[Str] = [
+const GO_59: List[Str] = [
   "CALL appengine.projects.locations.applications.domainMappings.delete",
   "REQ DELETE https://appengine.googleapis.com/v1/projects/id1%2F%20x/locations/id2%2F%20x/applications/id3%2F%20x/domainMappings/id4%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -1053,10 +1471,10 @@ test "Go's appengine.projects.locations.applications.domainMappings.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_48)
+  gv_compare(gv_log_of(f), GO_59)
 }
 
-const GO_49: List[Str] = [
+const GO_60: List[Str] = [
   "CALL appengine.projects.locations.applications.domainMappings.get",
   "REQ GET https://appengine.googleapis.com/v1/projects/id1%2F%20x/locations/id2%2F%20x/applications/id3%2F%20x/domainMappings/id4%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1074,10 +1492,10 @@ test "Go's appengine.projects.locations.applications.domainMappings.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_49)
+  gv_compare(gv_log_of(f), GO_60)
 }
 
-const GO_50: List[Str] = [
+const GO_61: List[Str] = [
   "CALL appengine.projects.locations.applications.domainMappings.list",
   "REQ GET https://appengine.googleapis.com/v1/projects/id1%2F%20x/locations/id2%2F%20x/applications/id3%2F%20x/domainMappings?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1095,10 +1513,48 @@ test "Go's appengine.projects.locations.applications.domainMappings.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_50)
+  gv_compare(gv_log_of(f), GO_61)
 }
 
-const GO_51: List[Str] = [
+const GO_62: List[Str] = [
+  "CALL appengine.projects.locations.applications.domainMappings.list pages",
+  "REQ GET https://appengine.googleapis.com/v1/projects/id1%2F%20x/locations/id2%2F%20x/applications/id3%2F%20x/domainMappings?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"domainMappings\":[{\"id\":\"s-id\",\"name\":\"s-name\",\"sslSettings\":{\"certificateId\":\"s-certificateid\",\"pendingManagedCertificateId\":\"s-pendingmanagedcertificateid\",\"sslManagementType\":\"s-sslmanagementtype\"}}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"domainMappings\":[{\"id\":\"s-id\",\"name\":\"s-name\",\"sslSettings\":{\"certificateId\":\"s-certificateid\",\"pendingManagedCertificateId\":\"s-pendingmanagedcertificateid\",\"sslManagementType\":\"s-sslmanagementtype\"}}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://appengine.googleapis.com/v1/projects/id1%2F%20x/locations/id2%2F%20x/applications/id3%2F%20x/domainMappings?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"domainMappings\":[{\"id\":\"s-id\",\"name\":\"s-name\",\"sslSettings\":{\"certificateId\":\"s-certificateid\",\"pendingManagedCertificateId\":\"s-pendingmanagedcertificateid\",\"sslManagementType\":\"s-sslmanagementtype\"}}]}",
+  "OUT: {\"domainMappings\":[{\"id\":\"s-id\",\"name\":\"s-name\",\"sslSettings\":{\"certificateId\":\"s-certificateid\",\"pendingManagedCertificateId\":\"s-pendingmanagedcertificateid\",\"sslManagementType\":\"s-sslmanagementtype\"}}]}",
+  "OUT: ok",
+]
+
+test "Go's appengine.projects.locations.applications.domainMappings.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"domainMappings\":[{\"id\":\"s-id\",\"name\":\"s-name\",\"sslSettings\":{\"certificateId\":\"s-certificateid\",\"pendingManagedCertificateId\":\"s-pendingmanagedcertificateid\",\"sslManagementType\":\"s-sslmanagementtype\"}}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"domainMappings\":[{\"id\":\"s-id\",\"name\":\"s-name\",\"sslSettings\":{\"certificateId\":\"s-certificateid\",\"pendingManagedCertificateId\":\"s-pendingmanagedcertificateid\",\"sslManagementType\":\"s-sslmanagementtype\"}}]}")
+  gv_note(f, "CALL appengine.projects.locations.applications.domainMappings.list pages")
+  var p = svc.projects.locations.applications.domain_mappings.list_pages("id1/ x", "id2/ x", "id3/ x", options: ProjectsLocationsApplicationsDomainMappingsListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_62)
+}
+
+const GO_63: List[Str] = [
   "CALL appengine.projects.locations.applications.domainMappings.patch",
   "REQ PATCH https://appengine.googleapis.com/v1/projects/id1%2F%20x/locations/id2%2F%20x/applications/id3%2F%20x/domainMappings/id4%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
@@ -1117,10 +1573,10 @@ test "Go's appengine.projects.locations.applications.domainMappings.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_51)
+  gv_compare(gv_log_of(f), GO_63)
 }
 
-const GO_52: List[Str] = [
+const GO_64: List[Str] = [
   "CALL appengine.projects.locations.applications.services.delete",
   "REQ DELETE https://appengine.googleapis.com/v1/projects/id1%2F%20x/locations/id2%2F%20x/applications/id3%2F%20x/services/id4%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -1138,10 +1594,10 @@ test "Go's appengine.projects.locations.applications.services.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_52)
+  gv_compare(gv_log_of(f), GO_64)
 }
 
-const GO_53: List[Str] = [
+const GO_65: List[Str] = [
   "CALL appengine.projects.locations.applications.services.patch",
   "REQ PATCH https://appengine.googleapis.com/v1/projects/id1%2F%20x/locations/id2%2F%20x/applications/id3%2F%20x/services/id4%2F%20x?alt=json&fields=kind%2Cid&migrateTraffic=true&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
@@ -1160,10 +1616,10 @@ test "Go's appengine.projects.locations.applications.services.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_53)
+  gv_compare(gv_log_of(f), GO_65)
 }
 
-const GO_54: List[Str] = [
+const GO_66: List[Str] = [
   "CALL appengine.projects.locations.applications.services.versions.delete",
   "REQ DELETE https://appengine.googleapis.com/v1/projects/id1%2F%20x/locations/id2%2F%20x/applications/id3%2F%20x/services/id4%2F%20x/versions/id5%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -1181,10 +1637,10 @@ test "Go's appengine.projects.locations.applications.services.versions.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_54)
+  gv_compare(gv_log_of(f), GO_66)
 }
 
-const GO_55: List[Str] = [
+const GO_67: List[Str] = [
   "CALL appengine.projects.locations.applications.services.versions.exportAppImage",
   "REQ POST https://appengine.googleapis.com/v1/projects/id1%2F%20x/locations/id2%2F%20x/applications/id3%2F%20x/services/id4%2F%20x/versions/id5%2F%20x:exportAppImage?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1203,14 +1659,14 @@ test "Go's appengine.projects.locations.applications.services.versions.exportApp
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_55)
+  gv_compare(gv_log_of(f), GO_67)
 }
 
-const GO_56: List[Str] = [
+const GO_68: List[Str] = [
   "CALL appengine.projects.locations.applications.services.versions.patch",
   "REQ PATCH https://appengine.googleapis.com/v1/projects/id1%2F%20x/locations/id2%2F%20x/applications/id3%2F%20x/services/id4%2F%20x/versions/id5%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"apiConfig\":{\"authFailAction\":\"s-authfailaction\",\"login\":\"s-login\",\"script\":\"s-script\",\"securityLevel\":\"s-securitylevel\",\"url\":\"s-url\"},\"appEngineApis\":true,\"appEngineBundledServices\":[\"s-appenginebundledservices\"],\"automaticScaling\":{\"coolDownPeriod\":\"s-cooldownperiod\",\"cpuUtilization\":{\"aggregationWindowLength\":\"s-aggregationwindowlength\",\"targetUtilization\":1.5},\"diskUtilization\":{\"targetReadBytesPerSecond\":7,\"targetReadOpsPerSecond\":7,\"targetWriteBytesPerSecond\":7,\"targetWriteOpsPerSecond\":7},\"maxConcurrentRequests\":7,\"maxIdleInstances\":7,\"maxPendingLatency\":\"s-maxpendinglatency\",\"maxTotalInstances\":7,\"minIdleInstances\":7,\"minPendingLatency\":\"s-minpendinglatency\",\"minTotalInstances\":7,\"networkUtilization\":{\"targetReceivedBytesPerSecond\":7,\"targetReceivedPacketsPerSecond\":7,\"targetSentBytesPerSecond\":7,\"targetSentPacketsPerSecond\":7},\"requestUtilization\":{\"targetConcurrentRequests\":7,\"targetRequestCountPerSecond\":7},\"standardSchedulerSettings\":{\"maxInstances\":7,\"minInstances\":7,\"targetCpuUtilization\":1.5,\"targetThroughputUtilization\":1.5}},\"basicScaling\":{\"idleTimeout\":\"s-idletimeout\",\"maxInstances\":7},\"betaSettings\":{\"k1\":\"s-betasettings\"},\"buildEnvVariables\":{\"k1\":\"s-buildenvvariables\"},\"createTime\":\"s-createtime\",\"createdBy\":\"s-createdby\",\"defaultExpiration\":\"s-defaultexpiration\",\"deployment\":{\"cloudBuildOptions\":{\"appYamlPath\":\"s-appyamlpath\",\"cloudBuildTimeout\":\"s-cloudbuildtimeout\"},\"container\":{\"image\":\"s-image\"},\"files\":{\"k1\":{\"mimeType\":\"s-mimetype\",\"sha1Sum\":\"s-sha1sum\",\"sourceUrl\":\"s-sourceurl\"}},\"zip\":{\"filesCount\":7,\"sourceUrl\":\"s-sourceurl\"}},\"diskUsageBytes\":\"7\",\"endpointsApiService\":{\"configId\":\"s-configid\",\"disableTraceSampling\":true,\"name\":\"s-name\",\"rolloutStrategy\":\"s-rolloutstrategy\"},\"entrypoint\":{\"shell\":\"s-shell\"},\"env\":\"s-env\",\"envVariables\":{\"k1\":\"s-envvariables\"},\"errorHandlers\":[{\"errorCode\":\"s-errorcode\",\"mimeType\":\"s-mimetype\",\"staticFile\":\"s-staticfile\"}],\"flexibleRuntimeSettings\":{\"operatingSystem\":\"s-operatingsystem\",\"runtimeVersion\":\"s-runtimeversion\"},\"generatedCustomerMetadata\":{\"k\":\"v\"},\"handlers\":[{\"apiEndpoint\":{\"scriptPath\":\"s-scriptpath\"},\"authFailAction\":\"s-authfailaction\",\"login\":\"s-login\",\"redirectHttpResponseCode\":\"s-redirecthttpresponsecode\",\"script\":{\"scriptPath\":\"s-scriptpath\"},\"securityLevel\":\"s-securitylevel\",\"staticFiles\":{\"applicationReadable\":true,\"expiration\":\"s-expiration\",\"mimeType\":\"s-mimetype\",\"path\":\"s-path\",\"requireMatchingFile\":true,\"uploadPathRegex\":\"s-uploadpathregex\"},\"urlRegex\":\"s-urlregex\"}],\"healthCheck\":{\"checkInterval\":\"s-checkinterval\",\"disableHealthCheck\":true,\"healthyThreshold\":7,\"host\":\"s-host\",\"restartThreshold\":7,\"timeout\":\"s-timeout\",\"unhealthyThreshold\":7},\"id\":\"s-id\",\"inboundServices\":[\"s-inboundservices\"],\"instanceClass\":\"s-instanceclass\",\"libraries\":[{\"name\":\"s-name\",\"version\":\"s-version\"}],\"livenessCheck\":{\"checkInterval\":\"s-checkinterval\",\"failureThreshold\":7,\"host\":\"s-host\",\"initialDelay\":\"s-initialdelay\",\"path\":\"s-path\",\"successThreshold\":7,\"timeout\":\"s-timeout\"},\"manualScaling\":{\"instances\":7},\"name\":\"s-name\",\"network\":{\"forwardedPorts\":[\"s-forwardedports\"],\"instanceIpMode\":\"s-instanceipmode\",\"instanceTag\":\"s-instancetag\",\"name\":\"s-name\",\"sessionAffinity\":true,\"subnetworkName\":\"s-subnetworkname\"},\"nobuildFilesRegex\":\"s-nobuildfilesregex\",\"readinessCheck\":{\"appStartTimeout\":\"s-appstarttimeout\",\"checkInterval\":\"s-checkinterval\",\"failureThreshold\":7,\"host\":\"s-host\",\"path\":\"s-path\",\"successThreshold\":7,\"timeout\":\"s-timeout\"},\"resources\":{\"cpu\":1.5,\"diskGb\":1.5,\"kmsKeyReference\":\"s-kmskeyreference\",\"memoryGb\":1.5,\"volumes\":[{\"name\":\"s-name\",\"sizeGb\":1.5,\"volumeType\":\"s-volumetype\"}]},\"runtime\":\"s-runtime\",\"runtimeApiVersion\":\"s-runtimeapiversion\",\"runtimeChannel\":\"s-runtimechannel\",\"runtimeMainExecutablePath\":\"s-runtimemainexecutablepath\",\"serviceAccount\":\"s-serviceaccount\",\"servingStatus\":\"s-servingstatus\",\"threadsafe\":true,\"versionUrl\":\"s-versionurl\",\"vm\":true,\"vpcAccess\":{\"networkInterfaces\":[{\"network\":\"s-network\",\"subnet\":\"s-subnet\"}],\"vpcEgress\":\"s-vpcegress\"},\"vpcAccessConnector\":{\"egressSetting\":\"s-egresssetting\",\"name\":\"s-name\"},\"zones\":[\"s-zones\"]}",
+  "  B <4116 bytes> {\"apiConfig\":{\"authFailAction\":\"...:\"s-name\"},\"zones\":[\"s-zones\"]}",
   "",
   "  SERVED 200 {\"done\":true,\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}",
   "OUT: {\"done\":true,\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}",
@@ -1225,10 +1681,10 @@ test "Go's appengine.projects.locations.applications.services.versions.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_56)
+  gv_compare(gv_log_of(f), GO_68)
 }
 
-const GO_57: List[Str] = [
+const GO_69: List[Str] = [
   "CALL appengine.projects.locations.applications.services.versions.instances.debug",
   "REQ POST https://appengine.googleapis.com/v1/projects/id1%2F%20x/locations/id2%2F%20x/applications/id3%2F%20x/services/id4%2F%20x/versions/id5%2F%20x/instances/id6%2F%20x:debug?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1247,10 +1703,10 @@ test "Go's appengine.projects.locations.applications.services.versions.instances
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_57)
+  gv_compare(gv_log_of(f), GO_69)
 }
 
-const GO_58: List[Str] = [
+const GO_70: List[Str] = [
   "CALL appengine.projects.locations.applications.services.versions.instances.delete",
   "REQ DELETE https://appengine.googleapis.com/v1/projects/id1%2F%20x/locations/id2%2F%20x/applications/id3%2F%20x/services/id4%2F%20x/versions/id5%2F%20x/instances/id6%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -1268,5 +1724,5 @@ test "Go's appengine.projects.locations.applications.services.versions.instances
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_58)
+  gv_compare(gv_log_of(f), GO_70)
 }

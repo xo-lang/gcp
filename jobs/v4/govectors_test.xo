@@ -136,6 +136,44 @@ test "Go's jobs.projects.tenants.list" {
 }
 
 const GO_6: List[Str] = [
+  "CALL jobs.projects.tenants.list pages",
+  "REQ GET https://jobs.googleapis.com/v4/id1/%20x/tenants?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"metadata\":{\"requestId\":\"s-requestid\"},\"nextPageToken\":\"s-nextpagetoken\",\"tenants\":[{\"externalId\":\"s-externalid\",\"name\":\"s-name\"}]}",
+  "OUT: {\"metadata\":{\"requestId\":\"s-requestid\"},\"nextPageToken\":\"s-nextpagetoken\",\"tenants\":[{\"externalId\":\"s-externalid\",\"name\":\"s-name\"}]}",
+  "REQ GET https://jobs.googleapis.com/v4/id1/%20x/tenants?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"metadata\":{\"requestId\":\"s-requestid\"},\"tenants\":[{\"externalId\":\"s-externalid\",\"name\":\"s-name\"}]}",
+  "OUT: {\"metadata\":{\"requestId\":\"s-requestid\"},\"tenants\":[{\"externalId\":\"s-externalid\",\"name\":\"s-name\"}]}",
+  "OUT: ok",
+]
+
+test "Go's jobs.projects.tenants.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"metadata\":{\"requestId\":\"s-requestid\"},\"nextPageToken\":\"s-nextpagetoken\",\"tenants\":[{\"externalId\":\"s-externalid\",\"name\":\"s-name\"}]}")
+  gv_queue(f, "{\"metadata\":{\"requestId\":\"s-requestid\"},\"tenants\":[{\"externalId\":\"s-externalid\",\"name\":\"s-name\"}]}")
+  gv_note(f, "CALL jobs.projects.tenants.list pages")
+  var p = svc.projects.tenants.list_pages("id1/ x", options: ProjectsTenantsListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_6)
+}
+
+const GO_7: List[Str] = [
   "CALL jobs.projects.tenants.patch",
   "REQ PATCH https://jobs.googleapis.com/v4/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
@@ -154,10 +192,10 @@ test "Go's jobs.projects.tenants.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_6)
+  gv_compare(gv_log_of(f), GO_7)
 }
 
-const GO_7: List[Str] = [
+const GO_8: List[Str] = [
   "CALL jobs.projects.tenants.clientEvents.create",
   "REQ POST https://jobs.googleapis.com/v4/id1/%20x/clientEvents?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -176,10 +214,10 @@ test "Go's jobs.projects.tenants.clientEvents.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_7)
+  gv_compare(gv_log_of(f), GO_8)
 }
 
-const GO_8: List[Str] = [
+const GO_9: List[Str] = [
   "CALL jobs.projects.tenants.companies.create",
   "REQ POST https://jobs.googleapis.com/v4/id1/%20x/companies?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -198,10 +236,10 @@ test "Go's jobs.projects.tenants.companies.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_8)
+  gv_compare(gv_log_of(f), GO_9)
 }
 
-const GO_9: List[Str] = [
+const GO_10: List[Str] = [
   "CALL jobs.projects.tenants.companies.delete",
   "REQ DELETE https://jobs.googleapis.com/v4/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -219,10 +257,10 @@ test "Go's jobs.projects.tenants.companies.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_9)
+  gv_compare(gv_log_of(f), GO_10)
 }
 
-const GO_10: List[Str] = [
+const GO_11: List[Str] = [
   "CALL jobs.projects.tenants.companies.get",
   "REQ GET https://jobs.googleapis.com/v4/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -240,10 +278,10 @@ test "Go's jobs.projects.tenants.companies.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_10)
+  gv_compare(gv_log_of(f), GO_11)
 }
 
-const GO_11: List[Str] = [
+const GO_12: List[Str] = [
   "CALL jobs.projects.tenants.companies.list",
   "REQ GET https://jobs.googleapis.com/v4/id1/%20x/companies?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&requireOpenJobs=true",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -261,10 +299,48 @@ test "Go's jobs.projects.tenants.companies.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_11)
+  gv_compare(gv_log_of(f), GO_12)
 }
 
-const GO_12: List[Str] = [
+const GO_13: List[Str] = [
+  "CALL jobs.projects.tenants.companies.list pages",
+  "REQ GET https://jobs.googleapis.com/v4/id1/%20x/companies?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&requireOpenJobs=true",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"companies\":[{\"careerSiteUri\":\"s-careersiteuri\",\"derivedInfo\":{},\"displayName\":\"s-displayname\",\"eeoText\":\"s-eeotext\",\"externalId\":\"s-externalid\",\"headquartersAddress\":\"s-headquartersaddress\",\"hiringAgency\":true,\"imageUri\":\"s-imageuri\",\"keywordSearchableJobCustomAttributes\":[\"s-keywordsearchablejobcustomattributes\"],\"name\":\"s-name\",\"size\":\"s-size\",\"suspended\":true,\"websiteUri\":\"s-websiteuri\"}],\"metadata\":{\"requestId\":\"s-requestid\"},\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"companies\":[{\"careerSiteUri\":\"s-careersiteuri\",\"derivedInfo\":{},\"displayName\":\"s-displayname\",\"eeoText\":\"s-eeotext\",\"externalId\":\"s-externalid\",\"headquartersAddress\":\"s-headquartersaddress\",\"hiringAgency\":true,\"imageUri\":\"s-imageuri\",\"keywordSearchableJobCustomAttributes\":[\"s-keywordsearchablejobcustomattributes\"],\"name\":\"s-name\",\"size\":\"s-size\",\"suspended\":true,\"websiteUri\":\"s-websiteuri\"}],\"metadata\":{\"requestId\":\"s-requestid\"},\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://jobs.googleapis.com/v4/id1/%20x/companies?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false&requireOpenJobs=true",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"companies\":[{\"careerSiteUri\":\"s-careersiteuri\",\"derivedInfo\":{},\"displayName\":\"s-displayname\",\"eeoText\":\"s-eeotext\",\"externalId\":\"s-externalid\",\"headquartersAddress\":\"s-headquartersaddress\",\"hiringAgency\":true,\"imageUri\":\"s-imageuri\",\"keywordSearchableJobCustomAttributes\":[\"s-keywordsearchablejobcustomattributes\"],\"name\":\"s-name\",\"size\":\"s-size\",\"suspended\":true,\"websiteUri\":\"s-websiteuri\"}],\"metadata\":{\"requestId\":\"s-requestid\"}}",
+  "OUT: {\"companies\":[{\"careerSiteUri\":\"s-careersiteuri\",\"derivedInfo\":{},\"displayName\":\"s-displayname\",\"eeoText\":\"s-eeotext\",\"externalId\":\"s-externalid\",\"headquartersAddress\":\"s-headquartersaddress\",\"hiringAgency\":true,\"imageUri\":\"s-imageuri\",\"keywordSearchableJobCustomAttributes\":[\"s-keywordsearchablejobcustomattributes\"],\"name\":\"s-name\",\"size\":\"s-size\",\"suspended\":true,\"websiteUri\":\"s-websiteuri\"}],\"metadata\":{\"requestId\":\"s-requestid\"}}",
+  "OUT: ok",
+]
+
+test "Go's jobs.projects.tenants.companies.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"companies\":[{\"careerSiteUri\":\"s-careersiteuri\",\"derivedInfo\":{},\"displayName\":\"s-displayname\",\"eeoText\":\"s-eeotext\",\"externalId\":\"s-externalid\",\"headquartersAddress\":\"s-headquartersaddress\",\"hiringAgency\":true,\"imageUri\":\"s-imageuri\",\"keywordSearchableJobCustomAttributes\":[\"s-keywordsearchablejobcustomattributes\"],\"name\":\"s-name\",\"size\":\"s-size\",\"suspended\":true,\"websiteUri\":\"s-websiteuri\"}],\"metadata\":{\"requestId\":\"s-requestid\"},\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"companies\":[{\"careerSiteUri\":\"s-careersiteuri\",\"derivedInfo\":{},\"displayName\":\"s-displayname\",\"eeoText\":\"s-eeotext\",\"externalId\":\"s-externalid\",\"headquartersAddress\":\"s-headquartersaddress\",\"hiringAgency\":true,\"imageUri\":\"s-imageuri\",\"keywordSearchableJobCustomAttributes\":[\"s-keywordsearchablejobcustomattributes\"],\"name\":\"s-name\",\"size\":\"s-size\",\"suspended\":true,\"websiteUri\":\"s-websiteuri\"}],\"metadata\":{\"requestId\":\"s-requestid\"}}")
+  gv_note(f, "CALL jobs.projects.tenants.companies.list pages")
+  var p = svc.projects.tenants.companies.list_pages("id1/ x", options: ProjectsTenantsCompaniesListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), require_open_jobs: Some(true), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_13)
+}
+
+const GO_14: List[Str] = [
   "CALL jobs.projects.tenants.companies.patch",
   "REQ PATCH https://jobs.googleapis.com/v4/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
@@ -283,10 +359,10 @@ test "Go's jobs.projects.tenants.companies.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_12)
+  gv_compare(gv_log_of(f), GO_14)
 }
 
-const GO_13: List[Str] = [
+const GO_15: List[Str] = [
   "CALL jobs.projects.tenants.jobs.batchCreate",
   "REQ POST https://jobs.googleapis.com/v4/id1/%20x/jobs:batchCreate?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -305,10 +381,10 @@ test "Go's jobs.projects.tenants.jobs.batchCreate" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_13)
+  gv_compare(gv_log_of(f), GO_15)
 }
 
-const GO_14: List[Str] = [
+const GO_16: List[Str] = [
   "CALL jobs.projects.tenants.jobs.batchDelete",
   "REQ POST https://jobs.googleapis.com/v4/id1/%20x/jobs:batchDelete?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -327,14 +403,14 @@ test "Go's jobs.projects.tenants.jobs.batchDelete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_14)
+  gv_compare(gv_log_of(f), GO_16)
 }
 
-const GO_15: List[Str] = [
+const GO_17: List[Str] = [
   "CALL jobs.projects.tenants.jobs.batchUpdate",
   "REQ POST https://jobs.googleapis.com/v4/id1/%20x/jobs:batchUpdate?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"jobs\":[{\"addresses\":[\"s-addresses\"],\"applicationInfo\":{\"instruction\":\"s-instruction\"},\"company\":\"s-company\",\"companyDisplayName\":\"s-companydisplayname\",\"compensationInfo\":{},\"degreeTypes\":[\"s-degreetypes\"],\"department\":\"s-department\",\"derivedInfo\":{},\"description\":\"s-description\",\"employmentTypes\":[\"s-employmenttypes\"],\"incentives\":\"s-incentives\",\"jobBenefits\":[\"s-jobbenefits\"],\"jobEndTime\":\"s-jobendtime\",\"jobLevel\":\"s-joblevel\",\"jobStartTime\":\"s-jobstarttime\",\"languageCode\":\"s-languagecode\",\"name\":\"s-name\",\"postingCreateTime\":\"s-postingcreatetime\",\"postingExpireTime\":\"s-postingexpiretime\",\"postingPublishTime\":\"s-postingpublishtime\",\"postingRegion\":\"s-postingregion\",\"postingUpdateTime\":\"s-postingupdatetime\",\"processingOptions\":{\"disableStreetAddressResolution\":true,\"htmlSanitization\":\"s-htmlsanitization\"},\"promotionValue\":7,\"qualifications\":\"s-qualifications\",\"requisitionId\":\"s-requisitionid\",\"responsibilities\":\"s-responsibilities\",\"title\":\"s-title\",\"visibility\":\"s-visibility\"}],\"updateMask\":\"s-updatemask\"}",
+  "  B <1025 bytes> {\"jobs\":[{\"addresses\":[\"s-addres...}],\"updateMask\":\"s-updatemask\"}",
   "",
   "  SERVED 200 {\"done\":true,\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}",
   "OUT: {\"done\":true,\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}",
@@ -349,14 +425,14 @@ test "Go's jobs.projects.tenants.jobs.batchUpdate" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_15)
+  gv_compare(gv_log_of(f), GO_17)
 }
 
-const GO_16: List[Str] = [
+const GO_18: List[Str] = [
   "CALL jobs.projects.tenants.jobs.create",
   "REQ POST https://jobs.googleapis.com/v4/id1/%20x/jobs?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"addresses\":[\"s-addresses\"],\"applicationInfo\":{\"emails\":[\"s-emails\"],\"instruction\":\"s-instruction\",\"uris\":[\"s-uris\"]},\"company\":\"s-company\",\"companyDisplayName\":\"s-companydisplayname\",\"compensationInfo\":{\"annualizedBaseCompensationRange\":{},\"annualizedTotalCompensationRange\":{},\"entries\":[{\"description\":\"s-description\",\"expectedUnitsPerYear\":1.5,\"type\":\"s-type\",\"unit\":\"s-unit\"}]},\"customAttributes\":{\"k1\":{\"filterable\":true,\"keywordSearchable\":true,\"longValues\":[\"7\"],\"stringValues\":[\"s-stringvalues\"]}},\"degreeTypes\":[\"s-degreetypes\"],\"department\":\"s-department\",\"derivedInfo\":{\"jobCategories\":[\"s-jobcategories\"],\"locations\":[{\"locationType\":\"s-locationtype\",\"radiusMiles\":1.5}]},\"description\":\"s-description\",\"employmentTypes\":[\"s-employmenttypes\"],\"incentives\":\"s-incentives\",\"jobBenefits\":[\"s-jobbenefits\"],\"jobEndTime\":\"s-jobendtime\",\"jobLevel\":\"s-joblevel\",\"jobStartTime\":\"s-jobstarttime\",\"languageCode\":\"s-languagecode\",\"name\":\"s-name\",\"postingCreateTime\":\"s-postingcreatetime\",\"postingExpireTime\":\"s-postingexpiretime\",\"postingPublishTime\":\"s-postingpublishtime\",\"postingRegion\":\"s-postingregion\",\"postingUpdateTime\":\"s-postingupdatetime\",\"processingOptions\":{\"disableStreetAddressResolution\":true,\"htmlSanitization\":\"s-htmlsanitization\"},\"promotionValue\":7,\"qualifications\":\"s-qualifications\",\"requisitionId\":\"s-requisitionid\",\"responsibilities\":\"s-responsibilities\",\"title\":\"s-title\",\"visibility\":\"s-visibility\"}",
+  "  B <1428 bytes> {\"addresses\":[\"s-addresses\"],\"ap...e\",\"visibility\":\"s-visibility\"}",
   "",
   "  SERVED 200 {\"addresses\":[\"s-addresses\"],\"applicationInfo\":{\"emails\":[\"s-emails\"],\"instruction\":\"s-instruction\",\"uris\":[\"s-uris\"]},\"company\":\"s-company\",\"companyDisplayName\":\"s-companydisplayname\",\"compensationInfo\":{\"annualizedBaseCompensationRange\":{},\"annualizedTotalCompensationRange\":{},\"entries\":[{\"description\":\"s-description\",\"expectedUnitsPerYear\":1.5,\"type\":\"s-type\",\"unit\":\"s-unit\"}]},\"customAttributes\":{\"k1\":{\"filterable\":true,\"keywordSearchable\":true,\"longValues\":[\"7\"],\"stringValues\":[\"s-stringvalues\"]}},\"degreeTypes\":[\"s-degreetypes\"],\"department\":\"s-department\",\"derivedInfo\":{\"jobCategories\":[\"s-jobcategories\"],\"locations\":[{\"locationType\":\"s-locationtype\",\"radiusMiles\":1.5}]},\"description\":\"s-description\",\"employmentTypes\":[\"s-employmenttypes\"],\"incentives\":\"s-incentives\",\"jobBenefits\":[\"s-jobbenefits\"],\"jobEndTime\":\"s-jobendtime\",\"jobLevel\":\"s-joblevel\",\"jobStartTime\":\"s-jobstarttime\",\"languageCode\":\"s-languagecode\",\"name\":\"s-name\",\"postingCreateTime\":\"s-postingcreatetime\",\"postingExpireTime\":\"s-postingexpiretime\",\"postingPublishTime\":\"s-postingpublishtime\",\"postingRegion\":\"s-postingregion\",\"postingUpdateTime\":\"s-postingupdatetime\",\"processingOptions\":{\"disableStreetAddressResolution\":true,\"htmlSanitization\":\"s-htmlsanitization\"},\"promotionValue\":7,\"qualifications\":\"s-qualifications\",\"requisitionId\":\"s-requisitionid\",\"responsibilities\":\"s-responsibilities\",\"title\":\"s-title\",\"visibility\":\"s-visibility\"}",
   "OUT: {\"addresses\":[\"s-addresses\"],\"applicationInfo\":{\"emails\":[\"s-emails\"],\"instruction\":\"s-instruction\",\"uris\":[\"s-uris\"]},\"company\":\"s-company\",\"companyDisplayName\":\"s-companydisplayname\",\"compensationInfo\":{\"annualizedBaseCompensationRange\":{},\"annualizedTotalCompensationRange\":{},\"entries\":[{\"description\":\"s-description\",\"expectedUnitsPerYear\":1.5,\"type\":\"s-type\",\"unit\":\"s-unit\"}]},\"customAttributes\":{\"k1\":{\"filterable\":true,\"keywordSearchable\":true,\"longValues\":[\"7\"],\"stringValues\":[\"s-stringvalues\"]}},\"degreeTypes\":[\"s-degreetypes\"],\"department\":\"s-department\",\"derivedInfo\":{\"jobCategories\":[\"s-jobcategories\"],\"locations\":[{\"locationType\":\"s-locationtype\",\"radiusMiles\":1.5}]},\"description\":\"s-description\",\"employmentTypes\":[\"s-employmenttypes\"],\"incentives\":\"s-incentives\",\"jobBenefits\":[\"s-jobbenefits\"],\"jobEndTime\":\"s-jobendtime\",\"jobLevel\":\"s-joblevel\",\"jobStartTime\":\"s-jobstarttime\",\"languageCode\":\"s-languagecode\",\"name\":\"s-name\",\"postingCreateTime\":\"s-postingcreatetime\",\"postingExpireTime\":\"s-postingexpiretime\",\"postingPublishTime\":\"s-postingpublishtime\",\"postingRegion\":\"s-postingregion\",\"postingUpdateTime\":\"s-postingupdatetime\",\"processingOptions\":{\"disableStreetAddressResolution\":true,\"htmlSanitization\":\"s-htmlsanitization\"},\"promotionValue\":7,\"qualifications\":\"s-qualifications\",\"requisitionId\":\"s-requisitionid\",\"responsibilities\":\"s-responsibilities\",\"title\":\"s-title\",\"visibility\":\"s-visibility\"}",
@@ -371,10 +447,10 @@ test "Go's jobs.projects.tenants.jobs.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_16)
+  gv_compare(gv_log_of(f), GO_18)
 }
 
-const GO_17: List[Str] = [
+const GO_19: List[Str] = [
   "CALL jobs.projects.tenants.jobs.delete",
   "REQ DELETE https://jobs.googleapis.com/v4/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -392,10 +468,10 @@ test "Go's jobs.projects.tenants.jobs.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_17)
+  gv_compare(gv_log_of(f), GO_19)
 }
 
-const GO_18: List[Str] = [
+const GO_20: List[Str] = [
   "CALL jobs.projects.tenants.jobs.get",
   "REQ GET https://jobs.googleapis.com/v4/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -413,10 +489,10 @@ test "Go's jobs.projects.tenants.jobs.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_18)
+  gv_compare(gv_log_of(f), GO_20)
 }
 
-const GO_19: List[Str] = [
+const GO_21: List[Str] = [
   "CALL jobs.projects.tenants.jobs.list",
   "REQ GET https://jobs.googleapis.com/v4/id1/%20x/jobs?alt=json&fields=kind%2Cid&filter=s-filter&jobView=s-jobview&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -434,14 +510,52 @@ test "Go's jobs.projects.tenants.jobs.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_19)
+  gv_compare(gv_log_of(f), GO_21)
 }
 
-const GO_20: List[Str] = [
+const GO_22: List[Str] = [
+  "CALL jobs.projects.tenants.jobs.list pages",
+  "REQ GET https://jobs.googleapis.com/v4/id1/%20x/jobs?alt=json&fields=kind%2Cid&filter=s-filter&jobView=s-jobview&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"jobs\":[{\"addresses\":[\"s-addresses\"],\"applicationInfo\":{\"instruction\":\"s-instruction\"},\"company\":\"s-company\",\"companyDisplayName\":\"s-companydisplayname\",\"compensationInfo\":{},\"degreeTypes\":[\"s-degreetypes\"],\"department\":\"s-department\",\"derivedInfo\":{},\"description\":\"s-description\",\"employmentTypes\":[\"s-employmenttypes\"],\"incentives\":\"s-incentives\",\"jobBenefits\":[\"s-jobbenefits\"],\"jobEndTime\":\"s-jobendtime\",\"jobLevel\":\"s-joblevel\",\"jobStartTime\":\"s-jobstarttime\",\"languageCode\":\"s-languagecode\",\"name\":\"s-name\",\"postingCreateTime\":\"s-postingcreatetime\",\"postingExpireTime\":\"s-postingexpiretime\",\"postingPublishTime\":\"s-postingpublishtime\",\"postingRegion\":\"s-postingregion\",\"postingUpdateTime\":\"s-postingupdatetime\",\"processingOptions\":{\"disableStreetAddressResolution\":true,\"htmlSanitization\":\"s-htmlsanitization\"},\"promotionValue\":7,\"qualifications\":\"s-qualifications\",\"requisitionId\":\"s-requisitionid\",\"responsibilities\":\"s-responsibilities\",\"title\":\"s-title\",\"visibility\":\"s-visibility\"}],\"metadata\":{\"requestId\":\"s-requestid\"},\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"jobs\":[{\"addresses\":[\"s-addresses\"],\"applicationInfo\":{\"instruction\":\"s-instruction\"},\"company\":\"s-company\",\"companyDisplayName\":\"s-companydisplayname\",\"compensationInfo\":{},\"degreeTypes\":[\"s-degreetypes\"],\"department\":\"s-department\",\"derivedInfo\":{},\"description\":\"s-description\",\"employmentTypes\":[\"s-employmenttypes\"],\"incentives\":\"s-incentives\",\"jobBenefits\":[\"s-jobbenefits\"],\"jobEndTime\":\"s-jobendtime\",\"jobLevel\":\"s-joblevel\",\"jobStartTime\":\"s-jobstarttime\",\"languageCode\":\"s-languagecode\",\"name\":\"s-name\",\"postingCreateTime\":\"s-postingcreatetime\",\"postingExpireTime\":\"s-postingexpiretime\",\"postingPublishTime\":\"s-postingpublishtime\",\"postingRegion\":\"s-postingregion\",\"postingUpdateTime\":\"s-postingupdatetime\",\"processingOptions\":{\"disableStreetAddressResolution\":true,\"htmlSanitization\":\"s-htmlsanitization\"},\"promotionValue\":7,\"qualifications\":\"s-qualifications\",\"requisitionId\":\"s-requisitionid\",\"responsibilities\":\"s-responsibilities\",\"title\":\"s-title\",\"visibility\":\"s-visibility\"}],\"metadata\":{\"requestId\":\"s-requestid\"},\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://jobs.googleapis.com/v4/id1/%20x/jobs?alt=json&fields=kind%2Cid&filter=s-filter&jobView=s-jobview&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"jobs\":[{\"addresses\":[\"s-addresses\"],\"applicationInfo\":{\"instruction\":\"s-instruction\"},\"company\":\"s-company\",\"companyDisplayName\":\"s-companydisplayname\",\"compensationInfo\":{},\"degreeTypes\":[\"s-degreetypes\"],\"department\":\"s-department\",\"derivedInfo\":{},\"description\":\"s-description\",\"employmentTypes\":[\"s-employmenttypes\"],\"incentives\":\"s-incentives\",\"jobBenefits\":[\"s-jobbenefits\"],\"jobEndTime\":\"s-jobendtime\",\"jobLevel\":\"s-joblevel\",\"jobStartTime\":\"s-jobstarttime\",\"languageCode\":\"s-languagecode\",\"name\":\"s-name\",\"postingCreateTime\":\"s-postingcreatetime\",\"postingExpireTime\":\"s-postingexpiretime\",\"postingPublishTime\":\"s-postingpublishtime\",\"postingRegion\":\"s-postingregion\",\"postingUpdateTime\":\"s-postingupdatetime\",\"processingOptions\":{\"disableStreetAddressResolution\":true,\"htmlSanitization\":\"s-htmlsanitization\"},\"promotionValue\":7,\"qualifications\":\"s-qualifications\",\"requisitionId\":\"s-requisitionid\",\"responsibilities\":\"s-responsibilities\",\"title\":\"s-title\",\"visibility\":\"s-visibility\"}],\"metadata\":{\"requestId\":\"s-requestid\"}}",
+  "OUT: {\"jobs\":[{\"addresses\":[\"s-addresses\"],\"applicationInfo\":{\"instruction\":\"s-instruction\"},\"company\":\"s-company\",\"companyDisplayName\":\"s-companydisplayname\",\"compensationInfo\":{},\"degreeTypes\":[\"s-degreetypes\"],\"department\":\"s-department\",\"derivedInfo\":{},\"description\":\"s-description\",\"employmentTypes\":[\"s-employmenttypes\"],\"incentives\":\"s-incentives\",\"jobBenefits\":[\"s-jobbenefits\"],\"jobEndTime\":\"s-jobendtime\",\"jobLevel\":\"s-joblevel\",\"jobStartTime\":\"s-jobstarttime\",\"languageCode\":\"s-languagecode\",\"name\":\"s-name\",\"postingCreateTime\":\"s-postingcreatetime\",\"postingExpireTime\":\"s-postingexpiretime\",\"postingPublishTime\":\"s-postingpublishtime\",\"postingRegion\":\"s-postingregion\",\"postingUpdateTime\":\"s-postingupdatetime\",\"processingOptions\":{\"disableStreetAddressResolution\":true,\"htmlSanitization\":\"s-htmlsanitization\"},\"promotionValue\":7,\"qualifications\":\"s-qualifications\",\"requisitionId\":\"s-requisitionid\",\"responsibilities\":\"s-responsibilities\",\"title\":\"s-title\",\"visibility\":\"s-visibility\"}],\"metadata\":{\"requestId\":\"s-requestid\"}}",
+  "OUT: ok",
+]
+
+test "Go's jobs.projects.tenants.jobs.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"jobs\":[{\"addresses\":[\"s-addresses\"],\"applicationInfo\":{\"instruction\":\"s-instruction\"},\"company\":\"s-company\",\"companyDisplayName\":\"s-companydisplayname\",\"compensationInfo\":{},\"degreeTypes\":[\"s-degreetypes\"],\"department\":\"s-department\",\"derivedInfo\":{},\"description\":\"s-description\",\"employmentTypes\":[\"s-employmenttypes\"],\"incentives\":\"s-incentives\",\"jobBenefits\":[\"s-jobbenefits\"],\"jobEndTime\":\"s-jobendtime\",\"jobLevel\":\"s-joblevel\",\"jobStartTime\":\"s-jobstarttime\",\"languageCode\":\"s-languagecode\",\"name\":\"s-name\",\"postingCreateTime\":\"s-postingcreatetime\",\"postingExpireTime\":\"s-postingexpiretime\",\"postingPublishTime\":\"s-postingpublishtime\",\"postingRegion\":\"s-postingregion\",\"postingUpdateTime\":\"s-postingupdatetime\",\"processingOptions\":{\"disableStreetAddressResolution\":true,\"htmlSanitization\":\"s-htmlsanitization\"},\"promotionValue\":7,\"qualifications\":\"s-qualifications\",\"requisitionId\":\"s-requisitionid\",\"responsibilities\":\"s-responsibilities\",\"title\":\"s-title\",\"visibility\":\"s-visibility\"}],\"metadata\":{\"requestId\":\"s-requestid\"},\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"jobs\":[{\"addresses\":[\"s-addresses\"],\"applicationInfo\":{\"instruction\":\"s-instruction\"},\"company\":\"s-company\",\"companyDisplayName\":\"s-companydisplayname\",\"compensationInfo\":{},\"degreeTypes\":[\"s-degreetypes\"],\"department\":\"s-department\",\"derivedInfo\":{},\"description\":\"s-description\",\"employmentTypes\":[\"s-employmenttypes\"],\"incentives\":\"s-incentives\",\"jobBenefits\":[\"s-jobbenefits\"],\"jobEndTime\":\"s-jobendtime\",\"jobLevel\":\"s-joblevel\",\"jobStartTime\":\"s-jobstarttime\",\"languageCode\":\"s-languagecode\",\"name\":\"s-name\",\"postingCreateTime\":\"s-postingcreatetime\",\"postingExpireTime\":\"s-postingexpiretime\",\"postingPublishTime\":\"s-postingpublishtime\",\"postingRegion\":\"s-postingregion\",\"postingUpdateTime\":\"s-postingupdatetime\",\"processingOptions\":{\"disableStreetAddressResolution\":true,\"htmlSanitization\":\"s-htmlsanitization\"},\"promotionValue\":7,\"qualifications\":\"s-qualifications\",\"requisitionId\":\"s-requisitionid\",\"responsibilities\":\"s-responsibilities\",\"title\":\"s-title\",\"visibility\":\"s-visibility\"}],\"metadata\":{\"requestId\":\"s-requestid\"}}")
+  gv_note(f, "CALL jobs.projects.tenants.jobs.list pages")
+  var p = svc.projects.tenants.jobs.list_pages("id1/ x", options: ProjectsTenantsJobsListOptions{filter: Some("s-filter"), job_view: Some("s-jobview"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_22)
+}
+
+const GO_23: List[Str] = [
   "CALL jobs.projects.tenants.jobs.patch",
   "REQ PATCH https://jobs.googleapis.com/v4/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"addresses\":[\"s-addresses\"],\"applicationInfo\":{\"emails\":[\"s-emails\"],\"instruction\":\"s-instruction\",\"uris\":[\"s-uris\"]},\"company\":\"s-company\",\"companyDisplayName\":\"s-companydisplayname\",\"compensationInfo\":{\"annualizedBaseCompensationRange\":{},\"annualizedTotalCompensationRange\":{},\"entries\":[{\"description\":\"s-description\",\"expectedUnitsPerYear\":1.5,\"type\":\"s-type\",\"unit\":\"s-unit\"}]},\"customAttributes\":{\"k1\":{\"filterable\":true,\"keywordSearchable\":true,\"longValues\":[\"7\"],\"stringValues\":[\"s-stringvalues\"]}},\"degreeTypes\":[\"s-degreetypes\"],\"department\":\"s-department\",\"derivedInfo\":{\"jobCategories\":[\"s-jobcategories\"],\"locations\":[{\"locationType\":\"s-locationtype\",\"radiusMiles\":1.5}]},\"description\":\"s-description\",\"employmentTypes\":[\"s-employmenttypes\"],\"incentives\":\"s-incentives\",\"jobBenefits\":[\"s-jobbenefits\"],\"jobEndTime\":\"s-jobendtime\",\"jobLevel\":\"s-joblevel\",\"jobStartTime\":\"s-jobstarttime\",\"languageCode\":\"s-languagecode\",\"name\":\"s-name\",\"postingCreateTime\":\"s-postingcreatetime\",\"postingExpireTime\":\"s-postingexpiretime\",\"postingPublishTime\":\"s-postingpublishtime\",\"postingRegion\":\"s-postingregion\",\"postingUpdateTime\":\"s-postingupdatetime\",\"processingOptions\":{\"disableStreetAddressResolution\":true,\"htmlSanitization\":\"s-htmlsanitization\"},\"promotionValue\":7,\"qualifications\":\"s-qualifications\",\"requisitionId\":\"s-requisitionid\",\"responsibilities\":\"s-responsibilities\",\"title\":\"s-title\",\"visibility\":\"s-visibility\"}",
+  "  B <1428 bytes> {\"addresses\":[\"s-addresses\"],\"ap...e\",\"visibility\":\"s-visibility\"}",
   "",
   "  SERVED 200 {\"addresses\":[\"s-addresses\"],\"applicationInfo\":{\"emails\":[\"s-emails\"],\"instruction\":\"s-instruction\",\"uris\":[\"s-uris\"]},\"company\":\"s-company\",\"companyDisplayName\":\"s-companydisplayname\",\"compensationInfo\":{\"annualizedBaseCompensationRange\":{},\"annualizedTotalCompensationRange\":{},\"entries\":[{\"description\":\"s-description\",\"expectedUnitsPerYear\":1.5,\"type\":\"s-type\",\"unit\":\"s-unit\"}]},\"customAttributes\":{\"k1\":{\"filterable\":true,\"keywordSearchable\":true,\"longValues\":[\"7\"],\"stringValues\":[\"s-stringvalues\"]}},\"degreeTypes\":[\"s-degreetypes\"],\"department\":\"s-department\",\"derivedInfo\":{\"jobCategories\":[\"s-jobcategories\"],\"locations\":[{\"locationType\":\"s-locationtype\",\"radiusMiles\":1.5}]},\"description\":\"s-description\",\"employmentTypes\":[\"s-employmenttypes\"],\"incentives\":\"s-incentives\",\"jobBenefits\":[\"s-jobbenefits\"],\"jobEndTime\":\"s-jobendtime\",\"jobLevel\":\"s-joblevel\",\"jobStartTime\":\"s-jobstarttime\",\"languageCode\":\"s-languagecode\",\"name\":\"s-name\",\"postingCreateTime\":\"s-postingcreatetime\",\"postingExpireTime\":\"s-postingexpiretime\",\"postingPublishTime\":\"s-postingpublishtime\",\"postingRegion\":\"s-postingregion\",\"postingUpdateTime\":\"s-postingupdatetime\",\"processingOptions\":{\"disableStreetAddressResolution\":true,\"htmlSanitization\":\"s-htmlsanitization\"},\"promotionValue\":7,\"qualifications\":\"s-qualifications\",\"requisitionId\":\"s-requisitionid\",\"responsibilities\":\"s-responsibilities\",\"title\":\"s-title\",\"visibility\":\"s-visibility\"}",
   "OUT: {\"addresses\":[\"s-addresses\"],\"applicationInfo\":{\"emails\":[\"s-emails\"],\"instruction\":\"s-instruction\",\"uris\":[\"s-uris\"]},\"company\":\"s-company\",\"companyDisplayName\":\"s-companydisplayname\",\"compensationInfo\":{\"annualizedBaseCompensationRange\":{},\"annualizedTotalCompensationRange\":{},\"entries\":[{\"description\":\"s-description\",\"expectedUnitsPerYear\":1.5,\"type\":\"s-type\",\"unit\":\"s-unit\"}]},\"customAttributes\":{\"k1\":{\"filterable\":true,\"keywordSearchable\":true,\"longValues\":[\"7\"],\"stringValues\":[\"s-stringvalues\"]}},\"degreeTypes\":[\"s-degreetypes\"],\"department\":\"s-department\",\"derivedInfo\":{\"jobCategories\":[\"s-jobcategories\"],\"locations\":[{\"locationType\":\"s-locationtype\",\"radiusMiles\":1.5}]},\"description\":\"s-description\",\"employmentTypes\":[\"s-employmenttypes\"],\"incentives\":\"s-incentives\",\"jobBenefits\":[\"s-jobbenefits\"],\"jobEndTime\":\"s-jobendtime\",\"jobLevel\":\"s-joblevel\",\"jobStartTime\":\"s-jobstarttime\",\"languageCode\":\"s-languagecode\",\"name\":\"s-name\",\"postingCreateTime\":\"s-postingcreatetime\",\"postingExpireTime\":\"s-postingexpiretime\",\"postingPublishTime\":\"s-postingpublishtime\",\"postingRegion\":\"s-postingregion\",\"postingUpdateTime\":\"s-postingupdatetime\",\"processingOptions\":{\"disableStreetAddressResolution\":true,\"htmlSanitization\":\"s-htmlsanitization\"},\"promotionValue\":7,\"qualifications\":\"s-qualifications\",\"requisitionId\":\"s-requisitionid\",\"responsibilities\":\"s-responsibilities\",\"title\":\"s-title\",\"visibility\":\"s-visibility\"}",
@@ -456,14 +570,14 @@ test "Go's jobs.projects.tenants.jobs.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_20)
+  gv_compare(gv_log_of(f), GO_23)
 }
 
-const GO_21: List[Str] = [
+const GO_24: List[Str] = [
   "CALL jobs.projects.tenants.jobs.search",
   "REQ POST https://jobs.googleapis.com/v4/id1/%20x/jobs:search?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"customRankingInfo\":{\"importanceLevel\":\"s-importancelevel\",\"rankingExpression\":\"s-rankingexpression\"},\"disableKeywordMatch\":true,\"diversificationLevel\":\"s-diversificationlevel\",\"enableBroadening\":true,\"histogramQueries\":[{\"histogramQuery\":\"s-histogramquery\"}],\"jobQuery\":{\"commuteFilter\":{\"allowImpreciseAddresses\":true,\"commuteMethod\":\"s-commutemethod\",\"roadTraffic\":\"s-roadtraffic\",\"travelDuration\":\"s-travelduration\"},\"companies\":[\"s-companies\"],\"companyDisplayNames\":[\"s-companydisplaynames\"],\"compensationFilter\":{\"includeJobsWithUnspecifiedCompensationRange\":true,\"type\":\"s-type\",\"units\":[\"s-units\"]},\"customAttributeFilter\":\"s-customattributefilter\",\"disableSpellCheck\":true,\"employmentTypes\":[\"s-employmenttypes\"],\"excludedJobs\":[\"s-excludedjobs\"],\"jobCategories\":[\"s-jobcategories\"],\"languageCodes\":[\"s-languagecodes\"],\"locationFilters\":[{\"address\":\"s-address\",\"distanceInMiles\":1.5,\"regionCode\":\"s-regioncode\",\"telecommutePreference\":\"s-telecommutepreference\"}],\"publishTimeRange\":{\"endTime\":\"s-endtime\",\"startTime\":\"s-starttime\"},\"query\":\"s-query\",\"queryLanguageCode\":\"s-querylanguagecode\"},\"jobView\":\"s-jobview\",\"keywordMatchMode\":\"s-keywordmatchmode\",\"maxPageSize\":7,\"offset\":7,\"orderBy\":\"s-orderby\",\"pageToken\":\"s-pagetoken\",\"relevanceThreshold\":\"s-relevancethreshold\",\"requestMetadata\":{\"allowMissingIds\":true,\"deviceInfo\":{\"deviceType\":\"s-devicetype\",\"id\":\"s-id\"},\"domain\":\"s-domain\",\"sessionId\":\"s-sessionid\",\"userId\":\"s-userid\"},\"searchMode\":\"s-searchmode\"}",
+  "  B <1477 bytes> {\"customRankingInfo\":{\"importanc...\"},\"searchMode\":\"s-searchmode\"}",
   "",
   "  SERVED 200 {\"broadenedQueryJobsCount\":7,\"histogramQueryResults\":[{\"histogram\":{\"k1\":\"7\"},\"histogramQuery\":\"s-histogramquery\"}],\"locationFilters\":[{\"latLng\":{\"latitude\":1.5,\"longitude\":1.5},\"locationType\":\"s-locationtype\",\"postalAddress\":{\"administrativeArea\":\"s-administrativearea\",\"languageCode\":\"s-languagecode\",\"locality\":\"s-locality\",\"organization\":\"s-organization\",\"postalCode\":\"s-postalcode\",\"regionCode\":\"s-regioncode\",\"revision\":7,\"sortingCode\":\"s-sortingcode\",\"sublocality\":\"s-sublocality\"},\"radiusMiles\":1.5}],\"matchingJobs\":[{\"commuteInfo\":{\"travelDuration\":\"s-travelduration\"},\"job\":{\"company\":\"s-company\",\"companyDisplayName\":\"s-companydisplayname\",\"department\":\"s-department\",\"description\":\"s-description\",\"incentives\":\"s-incentives\",\"jobEndTime\":\"s-jobendtime\",\"jobLevel\":\"s-joblevel\",\"jobStartTime\":\"s-jobstarttime\",\"languageCode\":\"s-languagecode\",\"name\":\"s-name\",\"postingCreateTime\":\"s-postingcreatetime\",\"postingExpireTime\":\"s-postingexpiretime\",\"postingPublishTime\":\"s-postingpublishtime\",\"postingRegion\":\"s-postingregion\",\"postingUpdateTime\":\"s-postingupdatetime\",\"promotionValue\":7,\"qualifications\":\"s-qualifications\",\"requisitionId\":\"s-requisitionid\",\"responsibilities\":\"s-responsibilities\",\"title\":\"s-title\",\"visibility\":\"s-visibility\"},\"jobSummary\":\"s-jobsummary\",\"jobTitleSnippet\":\"s-jobtitlesnippet\",\"searchTextSnippet\":\"s-searchtextsnippet\"}],\"metadata\":{\"requestId\":\"s-requestid\"},\"nextPageToken\":\"s-nextpagetoken\",\"spellCorrection\":{\"corrected\":true,\"correctedHtml\":\"s-correctedhtml\",\"correctedText\":\"s-correctedtext\"},\"totalSize\":7}",
   "OUT: {\"broadenedQueryJobsCount\":7,\"histogramQueryResults\":[{\"histogram\":{\"k1\":\"7\"},\"histogramQuery\":\"s-histogramquery\"}],\"locationFilters\":[{\"latLng\":{\"latitude\":1.5,\"longitude\":1.5},\"locationType\":\"s-locationtype\",\"postalAddress\":{\"administrativeArea\":\"s-administrativearea\",\"languageCode\":\"s-languagecode\",\"locality\":\"s-locality\",\"organization\":\"s-organization\",\"postalCode\":\"s-postalcode\",\"regionCode\":\"s-regioncode\",\"revision\":7,\"sortingCode\":\"s-sortingcode\",\"sublocality\":\"s-sublocality\"},\"radiusMiles\":1.5}],\"matchingJobs\":[{\"commuteInfo\":{\"travelDuration\":\"s-travelduration\"},\"job\":{\"company\":\"s-company\",\"companyDisplayName\":\"s-companydisplayname\",\"department\":\"s-department\",\"description\":\"s-description\",\"incentives\":\"s-incentives\",\"jobEndTime\":\"s-jobendtime\",\"jobLevel\":\"s-joblevel\",\"jobStartTime\":\"s-jobstarttime\",\"languageCode\":\"s-languagecode\",\"name\":\"s-name\",\"postingCreateTime\":\"s-postingcreatetime\",\"postingExpireTime\":\"s-postingexpiretime\",\"postingPublishTime\":\"s-postingpublishtime\",\"postingRegion\":\"s-postingregion\",\"postingUpdateTime\":\"s-postingupdatetime\",\"promotionValue\":7,\"qualifications\":\"s-qualifications\",\"requisitionId\":\"s-requisitionid\",\"responsibilities\":\"s-responsibilities\",\"title\":\"s-title\",\"visibility\":\"s-visibility\"},\"jobSummary\":\"s-jobsummary\",\"jobTitleSnippet\":\"s-jobtitlesnippet\",\"searchTextSnippet\":\"s-searchtextsnippet\"}],\"metadata\":{\"requestId\":\"s-requestid\"},\"nextPageToken\":\"s-nextpagetoken\",\"spellCorrection\":{\"corrected\":true,\"correctedHtml\":\"s-correctedhtml\",\"correctedText\":\"s-correctedtext\"},\"totalSize\":7}",
@@ -478,14 +592,54 @@ test "Go's jobs.projects.tenants.jobs.search" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_21)
+  gv_compare(gv_log_of(f), GO_24)
 }
 
-const GO_22: List[Str] = [
+const GO_25: List[Str] = [
+  "CALL jobs.projects.tenants.jobs.search pages",
+  "REQ POST https://jobs.googleapis.com/v4/id1/%20x/jobs:search?alt=json&fields=kind%2Cid&prettyPrint=false",
+  "  H content-type=application/json | x-extra=v1",
+  "  B <1477 bytes> {\"customRankingInfo\":{\"importanc...\"},\"searchMode\":\"s-searchmode\"}",
+  "",
+  "  SERVED 200 {\"broadenedQueryJobsCount\":7,\"histogramQueryResults\":[{\"histogram\":{\"k1\":\"7\"},\"histogramQuery\":\"s-histogramquery\"}],\"locationFilters\":[{\"latLng\":{\"latitude\":1.5,\"longitude\":1.5},\"locationType\":\"s-locationtype\",\"postalAddress\":{\"administrativeArea\":\"s-administrativearea\",\"languageCode\":\"s-languagecode\",\"locality\":\"s-locality\",\"organization\":\"s-organization\",\"postalCode\":\"s-postalcode\",\"regionCode\":\"s-regioncode\",\"revision\":7,\"sortingCode\":\"s-sortingcode\",\"sublocality\":\"s-sublocality\"},\"radiusMiles\":1.5}],\"matchingJobs\":[{\"commuteInfo\":{\"travelDuration\":\"s-travelduration\"},\"job\":{\"company\":\"s-company\",\"companyDisplayName\":\"s-companydisplayname\",\"department\":\"s-department\",\"description\":\"s-description\",\"incentives\":\"s-incentives\",\"jobEndTime\":\"s-jobendtime\",\"jobLevel\":\"s-joblevel\",\"jobStartTime\":\"s-jobstarttime\",\"languageCode\":\"s-languagecode\",\"name\":\"s-name\",\"postingCreateTime\":\"s-postingcreatetime\",\"postingExpireTime\":\"s-postingexpiretime\",\"postingPublishTime\":\"s-postingpublishtime\",\"postingRegion\":\"s-postingregion\",\"postingUpdateTime\":\"s-postingupdatetime\",\"promotionValue\":7,\"qualifications\":\"s-qualifications\",\"requisitionId\":\"s-requisitionid\",\"responsibilities\":\"s-responsibilities\",\"title\":\"s-title\",\"visibility\":\"s-visibility\"},\"jobSummary\":\"s-jobsummary\",\"jobTitleSnippet\":\"s-jobtitlesnippet\",\"searchTextSnippet\":\"s-searchtextsnippet\"}],\"metadata\":{\"requestId\":\"s-requestid\"},\"nextPageToken\":\"s-nextpagetoken\",\"spellCorrection\":{\"corrected\":true,\"correctedHtml\":\"s-correctedhtml\",\"correctedText\":\"s-correctedtext\"},\"totalSize\":7}",
+  "OUT: {\"broadenedQueryJobsCount\":7,\"histogramQueryResults\":[{\"histogram\":{\"k1\":\"7\"},\"histogramQuery\":\"s-histogramquery\"}],\"locationFilters\":[{\"latLng\":{\"latitude\":1.5,\"longitude\":1.5},\"locationType\":\"s-locationtype\",\"postalAddress\":{\"administrativeArea\":\"s-administrativearea\",\"languageCode\":\"s-languagecode\",\"locality\":\"s-locality\",\"organization\":\"s-organization\",\"postalCode\":\"s-postalcode\",\"regionCode\":\"s-regioncode\",\"revision\":7,\"sortingCode\":\"s-sortingcode\",\"sublocality\":\"s-sublocality\"},\"radiusMiles\":1.5}],\"matchingJobs\":[{\"commuteInfo\":{\"travelDuration\":\"s-travelduration\"},\"job\":{\"company\":\"s-company\",\"companyDisplayName\":\"s-companydisplayname\",\"department\":\"s-department\",\"description\":\"s-description\",\"incentives\":\"s-incentives\",\"jobEndTime\":\"s-jobendtime\",\"jobLevel\":\"s-joblevel\",\"jobStartTime\":\"s-jobstarttime\",\"languageCode\":\"s-languagecode\",\"name\":\"s-name\",\"postingCreateTime\":\"s-postingcreatetime\",\"postingExpireTime\":\"s-postingexpiretime\",\"postingPublishTime\":\"s-postingpublishtime\",\"postingRegion\":\"s-postingregion\",\"postingUpdateTime\":\"s-postingupdatetime\",\"promotionValue\":7,\"qualifications\":\"s-qualifications\",\"requisitionId\":\"s-requisitionid\",\"responsibilities\":\"s-responsibilities\",\"title\":\"s-title\",\"visibility\":\"s-visibility\"},\"jobSummary\":\"s-jobsummary\",\"jobTitleSnippet\":\"s-jobtitlesnippet\",\"searchTextSnippet\":\"s-searchtextsnippet\"}],\"metadata\":{\"requestId\":\"s-requestid\"},\"nextPageToken\":\"s-nextpagetoken\",\"spellCorrection\":{\"corrected\":true,\"correctedHtml\":\"s-correctedhtml\",\"correctedText\":\"s-correctedtext\"},\"totalSize\":7}",
+  "REQ POST https://jobs.googleapis.com/v4/id1/%20x/jobs:search?alt=json&fields=kind%2Cid&prettyPrint=false",
+  "  H content-type=application/json | x-extra=v1",
+  "  B <1481 bytes> {\"customRankingInfo\":{\"importanc...\"},\"searchMode\":\"s-searchmode\"}",
+  "",
+  "  SERVED 200 {\"broadenedQueryJobsCount\":7,\"histogramQueryResults\":[{\"histogram\":{\"k1\":\"7\"},\"histogramQuery\":\"s-histogramquery\"}],\"locationFilters\":[{\"latLng\":{\"latitude\":1.5,\"longitude\":1.5},\"locationType\":\"s-locationtype\",\"postalAddress\":{\"administrativeArea\":\"s-administrativearea\",\"languageCode\":\"s-languagecode\",\"locality\":\"s-locality\",\"organization\":\"s-organization\",\"postalCode\":\"s-postalcode\",\"regionCode\":\"s-regioncode\",\"revision\":7,\"sortingCode\":\"s-sortingcode\",\"sublocality\":\"s-sublocality\"},\"radiusMiles\":1.5}],\"matchingJobs\":[{\"commuteInfo\":{\"travelDuration\":\"s-travelduration\"},\"job\":{\"company\":\"s-company\",\"companyDisplayName\":\"s-companydisplayname\",\"department\":\"s-department\",\"description\":\"s-description\",\"incentives\":\"s-incentives\",\"jobEndTime\":\"s-jobendtime\",\"jobLevel\":\"s-joblevel\",\"jobStartTime\":\"s-jobstarttime\",\"languageCode\":\"s-languagecode\",\"name\":\"s-name\",\"postingCreateTime\":\"s-postingcreatetime\",\"postingExpireTime\":\"s-postingexpiretime\",\"postingPublishTime\":\"s-postingpublishtime\",\"postingRegion\":\"s-postingregion\",\"postingUpdateTime\":\"s-postingupdatetime\",\"promotionValue\":7,\"qualifications\":\"s-qualifications\",\"requisitionId\":\"s-requisitionid\",\"responsibilities\":\"s-responsibilities\",\"title\":\"s-title\",\"visibility\":\"s-visibility\"},\"jobSummary\":\"s-jobsummary\",\"jobTitleSnippet\":\"s-jobtitlesnippet\",\"searchTextSnippet\":\"s-searchtextsnippet\"}],\"metadata\":{\"requestId\":\"s-requestid\"},\"spellCorrection\":{\"corrected\":true,\"correctedHtml\":\"s-correctedhtml\",\"correctedText\":\"s-correctedtext\"},\"totalSize\":7}",
+  "OUT: {\"broadenedQueryJobsCount\":7,\"histogramQueryResults\":[{\"histogram\":{\"k1\":\"7\"},\"histogramQuery\":\"s-histogramquery\"}],\"locationFilters\":[{\"latLng\":{\"latitude\":1.5,\"longitude\":1.5},\"locationType\":\"s-locationtype\",\"postalAddress\":{\"administrativeArea\":\"s-administrativearea\",\"languageCode\":\"s-languagecode\",\"locality\":\"s-locality\",\"organization\":\"s-organization\",\"postalCode\":\"s-postalcode\",\"regionCode\":\"s-regioncode\",\"revision\":7,\"sortingCode\":\"s-sortingcode\",\"sublocality\":\"s-sublocality\"},\"radiusMiles\":1.5}],\"matchingJobs\":[{\"commuteInfo\":{\"travelDuration\":\"s-travelduration\"},\"job\":{\"company\":\"s-company\",\"companyDisplayName\":\"s-companydisplayname\",\"department\":\"s-department\",\"description\":\"s-description\",\"incentives\":\"s-incentives\",\"jobEndTime\":\"s-jobendtime\",\"jobLevel\":\"s-joblevel\",\"jobStartTime\":\"s-jobstarttime\",\"languageCode\":\"s-languagecode\",\"name\":\"s-name\",\"postingCreateTime\":\"s-postingcreatetime\",\"postingExpireTime\":\"s-postingexpiretime\",\"postingPublishTime\":\"s-postingpublishtime\",\"postingRegion\":\"s-postingregion\",\"postingUpdateTime\":\"s-postingupdatetime\",\"promotionValue\":7,\"qualifications\":\"s-qualifications\",\"requisitionId\":\"s-requisitionid\",\"responsibilities\":\"s-responsibilities\",\"title\":\"s-title\",\"visibility\":\"s-visibility\"},\"jobSummary\":\"s-jobsummary\",\"jobTitleSnippet\":\"s-jobtitlesnippet\",\"searchTextSnippet\":\"s-searchtextsnippet\"}],\"metadata\":{\"requestId\":\"s-requestid\"},\"spellCorrection\":{\"corrected\":true,\"correctedHtml\":\"s-correctedhtml\",\"correctedText\":\"s-correctedtext\"},\"totalSize\":7}",
+  "OUT: ok",
+]
+
+test "Go's jobs.projects.tenants.jobs.search pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"broadenedQueryJobsCount\":7,\"histogramQueryResults\":[{\"histogram\":{\"k1\":\"7\"},\"histogramQuery\":\"s-histogramquery\"}],\"locationFilters\":[{\"latLng\":{\"latitude\":1.5,\"longitude\":1.5},\"locationType\":\"s-locationtype\",\"postalAddress\":{\"administrativeArea\":\"s-administrativearea\",\"languageCode\":\"s-languagecode\",\"locality\":\"s-locality\",\"organization\":\"s-organization\",\"postalCode\":\"s-postalcode\",\"regionCode\":\"s-regioncode\",\"revision\":7,\"sortingCode\":\"s-sortingcode\",\"sublocality\":\"s-sublocality\"},\"radiusMiles\":1.5}],\"matchingJobs\":[{\"commuteInfo\":{\"travelDuration\":\"s-travelduration\"},\"job\":{\"company\":\"s-company\",\"companyDisplayName\":\"s-companydisplayname\",\"department\":\"s-department\",\"description\":\"s-description\",\"incentives\":\"s-incentives\",\"jobEndTime\":\"s-jobendtime\",\"jobLevel\":\"s-joblevel\",\"jobStartTime\":\"s-jobstarttime\",\"languageCode\":\"s-languagecode\",\"name\":\"s-name\",\"postingCreateTime\":\"s-postingcreatetime\",\"postingExpireTime\":\"s-postingexpiretime\",\"postingPublishTime\":\"s-postingpublishtime\",\"postingRegion\":\"s-postingregion\",\"postingUpdateTime\":\"s-postingupdatetime\",\"promotionValue\":7,\"qualifications\":\"s-qualifications\",\"requisitionId\":\"s-requisitionid\",\"responsibilities\":\"s-responsibilities\",\"title\":\"s-title\",\"visibility\":\"s-visibility\"},\"jobSummary\":\"s-jobsummary\",\"jobTitleSnippet\":\"s-jobtitlesnippet\",\"searchTextSnippet\":\"s-searchtextsnippet\"}],\"metadata\":{\"requestId\":\"s-requestid\"},\"nextPageToken\":\"s-nextpagetoken\",\"spellCorrection\":{\"corrected\":true,\"correctedHtml\":\"s-correctedhtml\",\"correctedText\":\"s-correctedtext\"},\"totalSize\":7}")
+  gv_queue(f, "{\"broadenedQueryJobsCount\":7,\"histogramQueryResults\":[{\"histogram\":{\"k1\":\"7\"},\"histogramQuery\":\"s-histogramquery\"}],\"locationFilters\":[{\"latLng\":{\"latitude\":1.5,\"longitude\":1.5},\"locationType\":\"s-locationtype\",\"postalAddress\":{\"administrativeArea\":\"s-administrativearea\",\"languageCode\":\"s-languagecode\",\"locality\":\"s-locality\",\"organization\":\"s-organization\",\"postalCode\":\"s-postalcode\",\"regionCode\":\"s-regioncode\",\"revision\":7,\"sortingCode\":\"s-sortingcode\",\"sublocality\":\"s-sublocality\"},\"radiusMiles\":1.5}],\"matchingJobs\":[{\"commuteInfo\":{\"travelDuration\":\"s-travelduration\"},\"job\":{\"company\":\"s-company\",\"companyDisplayName\":\"s-companydisplayname\",\"department\":\"s-department\",\"description\":\"s-description\",\"incentives\":\"s-incentives\",\"jobEndTime\":\"s-jobendtime\",\"jobLevel\":\"s-joblevel\",\"jobStartTime\":\"s-jobstarttime\",\"languageCode\":\"s-languagecode\",\"name\":\"s-name\",\"postingCreateTime\":\"s-postingcreatetime\",\"postingExpireTime\":\"s-postingexpiretime\",\"postingPublishTime\":\"s-postingpublishtime\",\"postingRegion\":\"s-postingregion\",\"postingUpdateTime\":\"s-postingupdatetime\",\"promotionValue\":7,\"qualifications\":\"s-qualifications\",\"requisitionId\":\"s-requisitionid\",\"responsibilities\":\"s-responsibilities\",\"title\":\"s-title\",\"visibility\":\"s-visibility\"},\"jobSummary\":\"s-jobsummary\",\"jobTitleSnippet\":\"s-jobtitlesnippet\",\"searchTextSnippet\":\"s-searchtextsnippet\"}],\"metadata\":{\"requestId\":\"s-requestid\"},\"spellCorrection\":{\"corrected\":true,\"correctedHtml\":\"s-correctedhtml\",\"correctedText\":\"s-correctedtext\"},\"totalSize\":7}")
+  gv_note(f, "CALL jobs.projects.tenants.jobs.search pages")
+  var p = svc.projects.tenants.jobs.search_pages("id1/ x", json.decode_str[SearchJobsRequest]("{\"customRankingInfo\":{\"importanceLevel\":\"s-importancelevel\",\"rankingExpression\":\"s-rankingexpression\"},\"disableKeywordMatch\":true,\"diversificationLevel\":\"s-diversificationlevel\",\"enableBroadening\":true,\"histogramQueries\":[{\"histogramQuery\":\"s-histogramquery\"}],\"jobQuery\":{\"commuteFilter\":{\"allowImpreciseAddresses\":true,\"commuteMethod\":\"s-commutemethod\",\"roadTraffic\":\"s-roadtraffic\",\"travelDuration\":\"s-travelduration\"},\"companies\":[\"s-companies\"],\"companyDisplayNames\":[\"s-companydisplaynames\"],\"compensationFilter\":{\"includeJobsWithUnspecifiedCompensationRange\":true,\"type\":\"s-type\",\"units\":[\"s-units\"]},\"customAttributeFilter\":\"s-customattributefilter\",\"disableSpellCheck\":true,\"employmentTypes\":[\"s-employmenttypes\"],\"excludedJobs\":[\"s-excludedjobs\"],\"jobCategories\":[\"s-jobcategories\"],\"languageCodes\":[\"s-languagecodes\"],\"locationFilters\":[{\"address\":\"s-address\",\"distanceInMiles\":1.5,\"regionCode\":\"s-regioncode\",\"telecommutePreference\":\"s-telecommutepreference\"}],\"publishTimeRange\":{\"endTime\":\"s-endtime\",\"startTime\":\"s-starttime\"},\"query\":\"s-query\",\"queryLanguageCode\":\"s-querylanguagecode\"},\"jobView\":\"s-jobview\",\"keywordMatchMode\":\"s-keywordmatchmode\",\"maxPageSize\":7,\"offset\":7,\"orderBy\":\"s-orderby\",\"pageToken\":\"s-pagetoken\",\"relevanceThreshold\":\"s-relevancethreshold\",\"requestMetadata\":{\"allowMissingIds\":true,\"deviceInfo\":{\"deviceType\":\"s-devicetype\",\"id\":\"s-id\"},\"domain\":\"s-domain\",\"sessionId\":\"s-sessionid\",\"userId\":\"s-userid\"},\"searchMode\":\"s-searchmode\"}") ?? e => fault(e.display()), options: ProjectsTenantsJobsSearchOptions{fields: ["kind", "id"], headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_25)
+}
+
+const GO_26: List[Str] = [
   "CALL jobs.projects.tenants.jobs.searchForAlert",
   "REQ POST https://jobs.googleapis.com/v4/id1/%20x/jobs:searchForAlert?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"customRankingInfo\":{\"importanceLevel\":\"s-importancelevel\",\"rankingExpression\":\"s-rankingexpression\"},\"disableKeywordMatch\":true,\"diversificationLevel\":\"s-diversificationlevel\",\"enableBroadening\":true,\"histogramQueries\":[{\"histogramQuery\":\"s-histogramquery\"}],\"jobQuery\":{\"commuteFilter\":{\"allowImpreciseAddresses\":true,\"commuteMethod\":\"s-commutemethod\",\"roadTraffic\":\"s-roadtraffic\",\"travelDuration\":\"s-travelduration\"},\"companies\":[\"s-companies\"],\"companyDisplayNames\":[\"s-companydisplaynames\"],\"compensationFilter\":{\"includeJobsWithUnspecifiedCompensationRange\":true,\"type\":\"s-type\",\"units\":[\"s-units\"]},\"customAttributeFilter\":\"s-customattributefilter\",\"disableSpellCheck\":true,\"employmentTypes\":[\"s-employmenttypes\"],\"excludedJobs\":[\"s-excludedjobs\"],\"jobCategories\":[\"s-jobcategories\"],\"languageCodes\":[\"s-languagecodes\"],\"locationFilters\":[{\"address\":\"s-address\",\"distanceInMiles\":1.5,\"regionCode\":\"s-regioncode\",\"telecommutePreference\":\"s-telecommutepreference\"}],\"publishTimeRange\":{\"endTime\":\"s-endtime\",\"startTime\":\"s-starttime\"},\"query\":\"s-query\",\"queryLanguageCode\":\"s-querylanguagecode\"},\"jobView\":\"s-jobview\",\"keywordMatchMode\":\"s-keywordmatchmode\",\"maxPageSize\":7,\"offset\":7,\"orderBy\":\"s-orderby\",\"pageToken\":\"s-pagetoken\",\"relevanceThreshold\":\"s-relevancethreshold\",\"requestMetadata\":{\"allowMissingIds\":true,\"deviceInfo\":{\"deviceType\":\"s-devicetype\",\"id\":\"s-id\"},\"domain\":\"s-domain\",\"sessionId\":\"s-sessionid\",\"userId\":\"s-userid\"},\"searchMode\":\"s-searchmode\"}",
+  "  B <1477 bytes> {\"customRankingInfo\":{\"importanc...\"},\"searchMode\":\"s-searchmode\"}",
   "",
   "  SERVED 200 {\"broadenedQueryJobsCount\":7,\"histogramQueryResults\":[{\"histogram\":{\"k1\":\"7\"},\"histogramQuery\":\"s-histogramquery\"}],\"locationFilters\":[{\"latLng\":{\"latitude\":1.5,\"longitude\":1.5},\"locationType\":\"s-locationtype\",\"postalAddress\":{\"administrativeArea\":\"s-administrativearea\",\"languageCode\":\"s-languagecode\",\"locality\":\"s-locality\",\"organization\":\"s-organization\",\"postalCode\":\"s-postalcode\",\"regionCode\":\"s-regioncode\",\"revision\":7,\"sortingCode\":\"s-sortingcode\",\"sublocality\":\"s-sublocality\"},\"radiusMiles\":1.5}],\"matchingJobs\":[{\"commuteInfo\":{\"travelDuration\":\"s-travelduration\"},\"job\":{\"company\":\"s-company\",\"companyDisplayName\":\"s-companydisplayname\",\"department\":\"s-department\",\"description\":\"s-description\",\"incentives\":\"s-incentives\",\"jobEndTime\":\"s-jobendtime\",\"jobLevel\":\"s-joblevel\",\"jobStartTime\":\"s-jobstarttime\",\"languageCode\":\"s-languagecode\",\"name\":\"s-name\",\"postingCreateTime\":\"s-postingcreatetime\",\"postingExpireTime\":\"s-postingexpiretime\",\"postingPublishTime\":\"s-postingpublishtime\",\"postingRegion\":\"s-postingregion\",\"postingUpdateTime\":\"s-postingupdatetime\",\"promotionValue\":7,\"qualifications\":\"s-qualifications\",\"requisitionId\":\"s-requisitionid\",\"responsibilities\":\"s-responsibilities\",\"title\":\"s-title\",\"visibility\":\"s-visibility\"},\"jobSummary\":\"s-jobsummary\",\"jobTitleSnippet\":\"s-jobtitlesnippet\",\"searchTextSnippet\":\"s-searchtextsnippet\"}],\"metadata\":{\"requestId\":\"s-requestid\"},\"nextPageToken\":\"s-nextpagetoken\",\"spellCorrection\":{\"corrected\":true,\"correctedHtml\":\"s-correctedhtml\",\"correctedText\":\"s-correctedtext\"},\"totalSize\":7}",
   "OUT: {\"broadenedQueryJobsCount\":7,\"histogramQueryResults\":[{\"histogram\":{\"k1\":\"7\"},\"histogramQuery\":\"s-histogramquery\"}],\"locationFilters\":[{\"latLng\":{\"latitude\":1.5,\"longitude\":1.5},\"locationType\":\"s-locationtype\",\"postalAddress\":{\"administrativeArea\":\"s-administrativearea\",\"languageCode\":\"s-languagecode\",\"locality\":\"s-locality\",\"organization\":\"s-organization\",\"postalCode\":\"s-postalcode\",\"regionCode\":\"s-regioncode\",\"revision\":7,\"sortingCode\":\"s-sortingcode\",\"sublocality\":\"s-sublocality\"},\"radiusMiles\":1.5}],\"matchingJobs\":[{\"commuteInfo\":{\"travelDuration\":\"s-travelduration\"},\"job\":{\"company\":\"s-company\",\"companyDisplayName\":\"s-companydisplayname\",\"department\":\"s-department\",\"description\":\"s-description\",\"incentives\":\"s-incentives\",\"jobEndTime\":\"s-jobendtime\",\"jobLevel\":\"s-joblevel\",\"jobStartTime\":\"s-jobstarttime\",\"languageCode\":\"s-languagecode\",\"name\":\"s-name\",\"postingCreateTime\":\"s-postingcreatetime\",\"postingExpireTime\":\"s-postingexpiretime\",\"postingPublishTime\":\"s-postingpublishtime\",\"postingRegion\":\"s-postingregion\",\"postingUpdateTime\":\"s-postingupdatetime\",\"promotionValue\":7,\"qualifications\":\"s-qualifications\",\"requisitionId\":\"s-requisitionid\",\"responsibilities\":\"s-responsibilities\",\"title\":\"s-title\",\"visibility\":\"s-visibility\"},\"jobSummary\":\"s-jobsummary\",\"jobTitleSnippet\":\"s-jobtitlesnippet\",\"searchTextSnippet\":\"s-searchtextsnippet\"}],\"metadata\":{\"requestId\":\"s-requestid\"},\"nextPageToken\":\"s-nextpagetoken\",\"spellCorrection\":{\"corrected\":true,\"correctedHtml\":\"s-correctedhtml\",\"correctedText\":\"s-correctedtext\"},\"totalSize\":7}",
@@ -500,5 +654,45 @@ test "Go's jobs.projects.tenants.jobs.searchForAlert" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_22)
+  gv_compare(gv_log_of(f), GO_26)
+}
+
+const GO_27: List[Str] = [
+  "CALL jobs.projects.tenants.jobs.searchForAlert pages",
+  "REQ POST https://jobs.googleapis.com/v4/id1/%20x/jobs:searchForAlert?alt=json&fields=kind%2Cid&prettyPrint=false",
+  "  H content-type=application/json | x-extra=v1",
+  "  B <1477 bytes> {\"customRankingInfo\":{\"importanc...\"},\"searchMode\":\"s-searchmode\"}",
+  "",
+  "  SERVED 200 {\"broadenedQueryJobsCount\":7,\"histogramQueryResults\":[{\"histogram\":{\"k1\":\"7\"},\"histogramQuery\":\"s-histogramquery\"}],\"locationFilters\":[{\"latLng\":{\"latitude\":1.5,\"longitude\":1.5},\"locationType\":\"s-locationtype\",\"postalAddress\":{\"administrativeArea\":\"s-administrativearea\",\"languageCode\":\"s-languagecode\",\"locality\":\"s-locality\",\"organization\":\"s-organization\",\"postalCode\":\"s-postalcode\",\"regionCode\":\"s-regioncode\",\"revision\":7,\"sortingCode\":\"s-sortingcode\",\"sublocality\":\"s-sublocality\"},\"radiusMiles\":1.5}],\"matchingJobs\":[{\"commuteInfo\":{\"travelDuration\":\"s-travelduration\"},\"job\":{\"company\":\"s-company\",\"companyDisplayName\":\"s-companydisplayname\",\"department\":\"s-department\",\"description\":\"s-description\",\"incentives\":\"s-incentives\",\"jobEndTime\":\"s-jobendtime\",\"jobLevel\":\"s-joblevel\",\"jobStartTime\":\"s-jobstarttime\",\"languageCode\":\"s-languagecode\",\"name\":\"s-name\",\"postingCreateTime\":\"s-postingcreatetime\",\"postingExpireTime\":\"s-postingexpiretime\",\"postingPublishTime\":\"s-postingpublishtime\",\"postingRegion\":\"s-postingregion\",\"postingUpdateTime\":\"s-postingupdatetime\",\"promotionValue\":7,\"qualifications\":\"s-qualifications\",\"requisitionId\":\"s-requisitionid\",\"responsibilities\":\"s-responsibilities\",\"title\":\"s-title\",\"visibility\":\"s-visibility\"},\"jobSummary\":\"s-jobsummary\",\"jobTitleSnippet\":\"s-jobtitlesnippet\",\"searchTextSnippet\":\"s-searchtextsnippet\"}],\"metadata\":{\"requestId\":\"s-requestid\"},\"nextPageToken\":\"s-nextpagetoken\",\"spellCorrection\":{\"corrected\":true,\"correctedHtml\":\"s-correctedhtml\",\"correctedText\":\"s-correctedtext\"},\"totalSize\":7}",
+  "OUT: {\"broadenedQueryJobsCount\":7,\"histogramQueryResults\":[{\"histogram\":{\"k1\":\"7\"},\"histogramQuery\":\"s-histogramquery\"}],\"locationFilters\":[{\"latLng\":{\"latitude\":1.5,\"longitude\":1.5},\"locationType\":\"s-locationtype\",\"postalAddress\":{\"administrativeArea\":\"s-administrativearea\",\"languageCode\":\"s-languagecode\",\"locality\":\"s-locality\",\"organization\":\"s-organization\",\"postalCode\":\"s-postalcode\",\"regionCode\":\"s-regioncode\",\"revision\":7,\"sortingCode\":\"s-sortingcode\",\"sublocality\":\"s-sublocality\"},\"radiusMiles\":1.5}],\"matchingJobs\":[{\"commuteInfo\":{\"travelDuration\":\"s-travelduration\"},\"job\":{\"company\":\"s-company\",\"companyDisplayName\":\"s-companydisplayname\",\"department\":\"s-department\",\"description\":\"s-description\",\"incentives\":\"s-incentives\",\"jobEndTime\":\"s-jobendtime\",\"jobLevel\":\"s-joblevel\",\"jobStartTime\":\"s-jobstarttime\",\"languageCode\":\"s-languagecode\",\"name\":\"s-name\",\"postingCreateTime\":\"s-postingcreatetime\",\"postingExpireTime\":\"s-postingexpiretime\",\"postingPublishTime\":\"s-postingpublishtime\",\"postingRegion\":\"s-postingregion\",\"postingUpdateTime\":\"s-postingupdatetime\",\"promotionValue\":7,\"qualifications\":\"s-qualifications\",\"requisitionId\":\"s-requisitionid\",\"responsibilities\":\"s-responsibilities\",\"title\":\"s-title\",\"visibility\":\"s-visibility\"},\"jobSummary\":\"s-jobsummary\",\"jobTitleSnippet\":\"s-jobtitlesnippet\",\"searchTextSnippet\":\"s-searchtextsnippet\"}],\"metadata\":{\"requestId\":\"s-requestid\"},\"nextPageToken\":\"s-nextpagetoken\",\"spellCorrection\":{\"corrected\":true,\"correctedHtml\":\"s-correctedhtml\",\"correctedText\":\"s-correctedtext\"},\"totalSize\":7}",
+  "REQ POST https://jobs.googleapis.com/v4/id1/%20x/jobs:searchForAlert?alt=json&fields=kind%2Cid&prettyPrint=false",
+  "  H content-type=application/json | x-extra=v1",
+  "  B <1481 bytes> {\"customRankingInfo\":{\"importanc...\"},\"searchMode\":\"s-searchmode\"}",
+  "",
+  "  SERVED 200 {\"broadenedQueryJobsCount\":7,\"histogramQueryResults\":[{\"histogram\":{\"k1\":\"7\"},\"histogramQuery\":\"s-histogramquery\"}],\"locationFilters\":[{\"latLng\":{\"latitude\":1.5,\"longitude\":1.5},\"locationType\":\"s-locationtype\",\"postalAddress\":{\"administrativeArea\":\"s-administrativearea\",\"languageCode\":\"s-languagecode\",\"locality\":\"s-locality\",\"organization\":\"s-organization\",\"postalCode\":\"s-postalcode\",\"regionCode\":\"s-regioncode\",\"revision\":7,\"sortingCode\":\"s-sortingcode\",\"sublocality\":\"s-sublocality\"},\"radiusMiles\":1.5}],\"matchingJobs\":[{\"commuteInfo\":{\"travelDuration\":\"s-travelduration\"},\"job\":{\"company\":\"s-company\",\"companyDisplayName\":\"s-companydisplayname\",\"department\":\"s-department\",\"description\":\"s-description\",\"incentives\":\"s-incentives\",\"jobEndTime\":\"s-jobendtime\",\"jobLevel\":\"s-joblevel\",\"jobStartTime\":\"s-jobstarttime\",\"languageCode\":\"s-languagecode\",\"name\":\"s-name\",\"postingCreateTime\":\"s-postingcreatetime\",\"postingExpireTime\":\"s-postingexpiretime\",\"postingPublishTime\":\"s-postingpublishtime\",\"postingRegion\":\"s-postingregion\",\"postingUpdateTime\":\"s-postingupdatetime\",\"promotionValue\":7,\"qualifications\":\"s-qualifications\",\"requisitionId\":\"s-requisitionid\",\"responsibilities\":\"s-responsibilities\",\"title\":\"s-title\",\"visibility\":\"s-visibility\"},\"jobSummary\":\"s-jobsummary\",\"jobTitleSnippet\":\"s-jobtitlesnippet\",\"searchTextSnippet\":\"s-searchtextsnippet\"}],\"metadata\":{\"requestId\":\"s-requestid\"},\"spellCorrection\":{\"corrected\":true,\"correctedHtml\":\"s-correctedhtml\",\"correctedText\":\"s-correctedtext\"},\"totalSize\":7}",
+  "OUT: {\"broadenedQueryJobsCount\":7,\"histogramQueryResults\":[{\"histogram\":{\"k1\":\"7\"},\"histogramQuery\":\"s-histogramquery\"}],\"locationFilters\":[{\"latLng\":{\"latitude\":1.5,\"longitude\":1.5},\"locationType\":\"s-locationtype\",\"postalAddress\":{\"administrativeArea\":\"s-administrativearea\",\"languageCode\":\"s-languagecode\",\"locality\":\"s-locality\",\"organization\":\"s-organization\",\"postalCode\":\"s-postalcode\",\"regionCode\":\"s-regioncode\",\"revision\":7,\"sortingCode\":\"s-sortingcode\",\"sublocality\":\"s-sublocality\"},\"radiusMiles\":1.5}],\"matchingJobs\":[{\"commuteInfo\":{\"travelDuration\":\"s-travelduration\"},\"job\":{\"company\":\"s-company\",\"companyDisplayName\":\"s-companydisplayname\",\"department\":\"s-department\",\"description\":\"s-description\",\"incentives\":\"s-incentives\",\"jobEndTime\":\"s-jobendtime\",\"jobLevel\":\"s-joblevel\",\"jobStartTime\":\"s-jobstarttime\",\"languageCode\":\"s-languagecode\",\"name\":\"s-name\",\"postingCreateTime\":\"s-postingcreatetime\",\"postingExpireTime\":\"s-postingexpiretime\",\"postingPublishTime\":\"s-postingpublishtime\",\"postingRegion\":\"s-postingregion\",\"postingUpdateTime\":\"s-postingupdatetime\",\"promotionValue\":7,\"qualifications\":\"s-qualifications\",\"requisitionId\":\"s-requisitionid\",\"responsibilities\":\"s-responsibilities\",\"title\":\"s-title\",\"visibility\":\"s-visibility\"},\"jobSummary\":\"s-jobsummary\",\"jobTitleSnippet\":\"s-jobtitlesnippet\",\"searchTextSnippet\":\"s-searchtextsnippet\"}],\"metadata\":{\"requestId\":\"s-requestid\"},\"spellCorrection\":{\"corrected\":true,\"correctedHtml\":\"s-correctedhtml\",\"correctedText\":\"s-correctedtext\"},\"totalSize\":7}",
+  "OUT: ok",
+]
+
+test "Go's jobs.projects.tenants.jobs.searchForAlert pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"broadenedQueryJobsCount\":7,\"histogramQueryResults\":[{\"histogram\":{\"k1\":\"7\"},\"histogramQuery\":\"s-histogramquery\"}],\"locationFilters\":[{\"latLng\":{\"latitude\":1.5,\"longitude\":1.5},\"locationType\":\"s-locationtype\",\"postalAddress\":{\"administrativeArea\":\"s-administrativearea\",\"languageCode\":\"s-languagecode\",\"locality\":\"s-locality\",\"organization\":\"s-organization\",\"postalCode\":\"s-postalcode\",\"regionCode\":\"s-regioncode\",\"revision\":7,\"sortingCode\":\"s-sortingcode\",\"sublocality\":\"s-sublocality\"},\"radiusMiles\":1.5}],\"matchingJobs\":[{\"commuteInfo\":{\"travelDuration\":\"s-travelduration\"},\"job\":{\"company\":\"s-company\",\"companyDisplayName\":\"s-companydisplayname\",\"department\":\"s-department\",\"description\":\"s-description\",\"incentives\":\"s-incentives\",\"jobEndTime\":\"s-jobendtime\",\"jobLevel\":\"s-joblevel\",\"jobStartTime\":\"s-jobstarttime\",\"languageCode\":\"s-languagecode\",\"name\":\"s-name\",\"postingCreateTime\":\"s-postingcreatetime\",\"postingExpireTime\":\"s-postingexpiretime\",\"postingPublishTime\":\"s-postingpublishtime\",\"postingRegion\":\"s-postingregion\",\"postingUpdateTime\":\"s-postingupdatetime\",\"promotionValue\":7,\"qualifications\":\"s-qualifications\",\"requisitionId\":\"s-requisitionid\",\"responsibilities\":\"s-responsibilities\",\"title\":\"s-title\",\"visibility\":\"s-visibility\"},\"jobSummary\":\"s-jobsummary\",\"jobTitleSnippet\":\"s-jobtitlesnippet\",\"searchTextSnippet\":\"s-searchtextsnippet\"}],\"metadata\":{\"requestId\":\"s-requestid\"},\"nextPageToken\":\"s-nextpagetoken\",\"spellCorrection\":{\"corrected\":true,\"correctedHtml\":\"s-correctedhtml\",\"correctedText\":\"s-correctedtext\"},\"totalSize\":7}")
+  gv_queue(f, "{\"broadenedQueryJobsCount\":7,\"histogramQueryResults\":[{\"histogram\":{\"k1\":\"7\"},\"histogramQuery\":\"s-histogramquery\"}],\"locationFilters\":[{\"latLng\":{\"latitude\":1.5,\"longitude\":1.5},\"locationType\":\"s-locationtype\",\"postalAddress\":{\"administrativeArea\":\"s-administrativearea\",\"languageCode\":\"s-languagecode\",\"locality\":\"s-locality\",\"organization\":\"s-organization\",\"postalCode\":\"s-postalcode\",\"regionCode\":\"s-regioncode\",\"revision\":7,\"sortingCode\":\"s-sortingcode\",\"sublocality\":\"s-sublocality\"},\"radiusMiles\":1.5}],\"matchingJobs\":[{\"commuteInfo\":{\"travelDuration\":\"s-travelduration\"},\"job\":{\"company\":\"s-company\",\"companyDisplayName\":\"s-companydisplayname\",\"department\":\"s-department\",\"description\":\"s-description\",\"incentives\":\"s-incentives\",\"jobEndTime\":\"s-jobendtime\",\"jobLevel\":\"s-joblevel\",\"jobStartTime\":\"s-jobstarttime\",\"languageCode\":\"s-languagecode\",\"name\":\"s-name\",\"postingCreateTime\":\"s-postingcreatetime\",\"postingExpireTime\":\"s-postingexpiretime\",\"postingPublishTime\":\"s-postingpublishtime\",\"postingRegion\":\"s-postingregion\",\"postingUpdateTime\":\"s-postingupdatetime\",\"promotionValue\":7,\"qualifications\":\"s-qualifications\",\"requisitionId\":\"s-requisitionid\",\"responsibilities\":\"s-responsibilities\",\"title\":\"s-title\",\"visibility\":\"s-visibility\"},\"jobSummary\":\"s-jobsummary\",\"jobTitleSnippet\":\"s-jobtitlesnippet\",\"searchTextSnippet\":\"s-searchtextsnippet\"}],\"metadata\":{\"requestId\":\"s-requestid\"},\"spellCorrection\":{\"corrected\":true,\"correctedHtml\":\"s-correctedhtml\",\"correctedText\":\"s-correctedtext\"},\"totalSize\":7}")
+  gv_note(f, "CALL jobs.projects.tenants.jobs.searchForAlert pages")
+  var p = svc.projects.tenants.jobs.search_for_alert_pages("id1/ x", json.decode_str[SearchJobsRequest]("{\"customRankingInfo\":{\"importanceLevel\":\"s-importancelevel\",\"rankingExpression\":\"s-rankingexpression\"},\"disableKeywordMatch\":true,\"diversificationLevel\":\"s-diversificationlevel\",\"enableBroadening\":true,\"histogramQueries\":[{\"histogramQuery\":\"s-histogramquery\"}],\"jobQuery\":{\"commuteFilter\":{\"allowImpreciseAddresses\":true,\"commuteMethod\":\"s-commutemethod\",\"roadTraffic\":\"s-roadtraffic\",\"travelDuration\":\"s-travelduration\"},\"companies\":[\"s-companies\"],\"companyDisplayNames\":[\"s-companydisplaynames\"],\"compensationFilter\":{\"includeJobsWithUnspecifiedCompensationRange\":true,\"type\":\"s-type\",\"units\":[\"s-units\"]},\"customAttributeFilter\":\"s-customattributefilter\",\"disableSpellCheck\":true,\"employmentTypes\":[\"s-employmenttypes\"],\"excludedJobs\":[\"s-excludedjobs\"],\"jobCategories\":[\"s-jobcategories\"],\"languageCodes\":[\"s-languagecodes\"],\"locationFilters\":[{\"address\":\"s-address\",\"distanceInMiles\":1.5,\"regionCode\":\"s-regioncode\",\"telecommutePreference\":\"s-telecommutepreference\"}],\"publishTimeRange\":{\"endTime\":\"s-endtime\",\"startTime\":\"s-starttime\"},\"query\":\"s-query\",\"queryLanguageCode\":\"s-querylanguagecode\"},\"jobView\":\"s-jobview\",\"keywordMatchMode\":\"s-keywordmatchmode\",\"maxPageSize\":7,\"offset\":7,\"orderBy\":\"s-orderby\",\"pageToken\":\"s-pagetoken\",\"relevanceThreshold\":\"s-relevancethreshold\",\"requestMetadata\":{\"allowMissingIds\":true,\"deviceInfo\":{\"deviceType\":\"s-devicetype\",\"id\":\"s-id\"},\"domain\":\"s-domain\",\"sessionId\":\"s-sessionid\",\"userId\":\"s-userid\"},\"searchMode\":\"s-searchmode\"}") ?? e => fault(e.display()), options: ProjectsTenantsJobsSearchForAlertOptions{fields: ["kind", "id"], headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_27)
 }

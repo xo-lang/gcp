@@ -73,6 +73,44 @@ test "Go's dns.changes.list" {
 }
 
 const GO_3: List[Str] = [
+  "CALL dns.changes.list pages",
+  "REQ GET https://dns.googleapis.com/dns/v2/projects/id1%2F%20x/locations/id2%2F%20x/managedZones/id3%2F%20x/changes?alt=json&fields=kind%2Cid&maxResults=7&pageToken=s-pagetoken&prettyPrint=false&sortBy=s-sortby&sortOrder=s-sortorder",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"changes\":[{\"id\":\"s-id\",\"isServing\":true,\"kind\":\"s-kind\",\"startTime\":\"s-starttime\",\"status\":\"s-status\"}],\"header\":{\"operationId\":\"s-operationid\"},\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"changes\":[{\"id\":\"s-id\",\"isServing\":true,\"kind\":\"s-kind\",\"startTime\":\"s-starttime\",\"status\":\"s-status\"}],\"header\":{\"operationId\":\"s-operationid\"},\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://dns.googleapis.com/dns/v2/projects/id1%2F%20x/locations/id2%2F%20x/managedZones/id3%2F%20x/changes?alt=json&fields=kind%2Cid&maxResults=7&pageToken=s-nextpagetoken&prettyPrint=false&sortBy=s-sortby&sortOrder=s-sortorder",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"changes\":[{\"id\":\"s-id\",\"isServing\":true,\"kind\":\"s-kind\",\"startTime\":\"s-starttime\",\"status\":\"s-status\"}],\"header\":{\"operationId\":\"s-operationid\"},\"kind\":\"s-kind\"}",
+  "OUT: {\"changes\":[{\"id\":\"s-id\",\"isServing\":true,\"kind\":\"s-kind\",\"startTime\":\"s-starttime\",\"status\":\"s-status\"}],\"header\":{\"operationId\":\"s-operationid\"},\"kind\":\"s-kind\"}",
+  "OUT: ok",
+]
+
+test "Go's dns.changes.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"changes\":[{\"id\":\"s-id\",\"isServing\":true,\"kind\":\"s-kind\",\"startTime\":\"s-starttime\",\"status\":\"s-status\"}],\"header\":{\"operationId\":\"s-operationid\"},\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"changes\":[{\"id\":\"s-id\",\"isServing\":true,\"kind\":\"s-kind\",\"startTime\":\"s-starttime\",\"status\":\"s-status\"}],\"header\":{\"operationId\":\"s-operationid\"},\"kind\":\"s-kind\"}")
+  gv_note(f, "CALL dns.changes.list pages")
+  var p = svc.changes.list_pages("id1/ x", "id2/ x", "id3/ x", options: ChangesListOptions{max_results: Some(7), page_token: Some("s-pagetoken"), sort_by: Some("s-sortby"), sort_order: Some("s-sortorder"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_3)
+}
+
+const GO_4: List[Str] = [
   "CALL dns.dnsKeys.get",
   "REQ GET https://dns.googleapis.com/dns/v2/projects/id1%2F%20x/locations/id2%2F%20x/managedZones/id3%2F%20x/dnsKeys/id4%2F%20x?alt=json&clientOperationId=s-clientoperationid&digestType=s-digesttype&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -90,10 +128,10 @@ test "Go's dns.dnsKeys.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_3)
+  gv_compare(gv_log_of(f), GO_4)
 }
 
-const GO_4: List[Str] = [
+const GO_5: List[Str] = [
   "CALL dns.dnsKeys.list",
   "REQ GET https://dns.googleapis.com/dns/v2/projects/id1%2F%20x/locations/id2%2F%20x/managedZones/id3%2F%20x/dnsKeys?alt=json&digestType=s-digesttype&fields=kind%2Cid&maxResults=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -111,10 +149,48 @@ test "Go's dns.dnsKeys.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_4)
+  gv_compare(gv_log_of(f), GO_5)
 }
 
-const GO_5: List[Str] = [
+const GO_6: List[Str] = [
+  "CALL dns.dnsKeys.list pages",
+  "REQ GET https://dns.googleapis.com/dns/v2/projects/id1%2F%20x/locations/id2%2F%20x/managedZones/id3%2F%20x/dnsKeys?alt=json&digestType=s-digesttype&fields=kind%2Cid&maxResults=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"dnsKeys\":[{\"algorithm\":\"s-algorithm\",\"creationTime\":\"s-creationtime\",\"description\":\"s-description\",\"id\":\"s-id\",\"isActive\":true,\"keyLength\":7,\"keyTag\":7,\"kind\":\"s-kind\",\"publicKey\":\"s-publickey\",\"type\":\"s-type\"}],\"header\":{\"operationId\":\"s-operationid\"},\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"dnsKeys\":[{\"algorithm\":\"s-algorithm\",\"creationTime\":\"s-creationtime\",\"description\":\"s-description\",\"id\":\"s-id\",\"isActive\":true,\"keyLength\":7,\"keyTag\":7,\"kind\":\"s-kind\",\"publicKey\":\"s-publickey\",\"type\":\"s-type\"}],\"header\":{\"operationId\":\"s-operationid\"},\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://dns.googleapis.com/dns/v2/projects/id1%2F%20x/locations/id2%2F%20x/managedZones/id3%2F%20x/dnsKeys?alt=json&digestType=s-digesttype&fields=kind%2Cid&maxResults=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"dnsKeys\":[{\"algorithm\":\"s-algorithm\",\"creationTime\":\"s-creationtime\",\"description\":\"s-description\",\"id\":\"s-id\",\"isActive\":true,\"keyLength\":7,\"keyTag\":7,\"kind\":\"s-kind\",\"publicKey\":\"s-publickey\",\"type\":\"s-type\"}],\"header\":{\"operationId\":\"s-operationid\"},\"kind\":\"s-kind\"}",
+  "OUT: {\"dnsKeys\":[{\"algorithm\":\"s-algorithm\",\"creationTime\":\"s-creationtime\",\"description\":\"s-description\",\"id\":\"s-id\",\"isActive\":true,\"keyLength\":7,\"keyTag\":7,\"kind\":\"s-kind\",\"publicKey\":\"s-publickey\",\"type\":\"s-type\"}],\"header\":{\"operationId\":\"s-operationid\"},\"kind\":\"s-kind\"}",
+  "OUT: ok",
+]
+
+test "Go's dns.dnsKeys.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"dnsKeys\":[{\"algorithm\":\"s-algorithm\",\"creationTime\":\"s-creationtime\",\"description\":\"s-description\",\"id\":\"s-id\",\"isActive\":true,\"keyLength\":7,\"keyTag\":7,\"kind\":\"s-kind\",\"publicKey\":\"s-publickey\",\"type\":\"s-type\"}],\"header\":{\"operationId\":\"s-operationid\"},\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"dnsKeys\":[{\"algorithm\":\"s-algorithm\",\"creationTime\":\"s-creationtime\",\"description\":\"s-description\",\"id\":\"s-id\",\"isActive\":true,\"keyLength\":7,\"keyTag\":7,\"kind\":\"s-kind\",\"publicKey\":\"s-publickey\",\"type\":\"s-type\"}],\"header\":{\"operationId\":\"s-operationid\"},\"kind\":\"s-kind\"}")
+  gv_note(f, "CALL dns.dnsKeys.list pages")
+  var p = svc.dns_keys.list_pages("id1/ x", "id2/ x", "id3/ x", options: DnsKeysListOptions{digest_type: Some("s-digesttype"), max_results: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_6)
+}
+
+const GO_7: List[Str] = [
   "CALL dns.managedZoneOperations.get",
   "REQ GET https://dns.googleapis.com/dns/v2/projects/id1%2F%20x/locations/id2%2F%20x/managedZones/id3%2F%20x/operations/id4%2F%20x?alt=json&clientOperationId=s-clientoperationid&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -132,10 +208,10 @@ test "Go's dns.managedZoneOperations.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_5)
+  gv_compare(gv_log_of(f), GO_7)
 }
 
-const GO_6: List[Str] = [
+const GO_8: List[Str] = [
   "CALL dns.managedZoneOperations.list",
   "REQ GET https://dns.googleapis.com/dns/v2/projects/id1%2F%20x/locations/id2%2F%20x/managedZones/id3%2F%20x/operations?alt=json&fields=kind%2Cid&maxResults=7&pageToken=s-pagetoken&prettyPrint=false&sortBy=s-sortby",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -153,14 +229,52 @@ test "Go's dns.managedZoneOperations.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_6)
+  gv_compare(gv_log_of(f), GO_8)
 }
 
-const GO_7: List[Str] = [
+const GO_9: List[Str] = [
+  "CALL dns.managedZoneOperations.list pages",
+  "REQ GET https://dns.googleapis.com/dns/v2/projects/id1%2F%20x/locations/id2%2F%20x/managedZones/id3%2F%20x/operations?alt=json&fields=kind%2Cid&maxResults=7&pageToken=s-pagetoken&prettyPrint=false&sortBy=s-sortby",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"header\":{\"operationId\":\"s-operationid\"},\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\",\"operations\":[{\"dnsKeyContext\":{},\"id\":\"s-id\",\"kind\":\"s-kind\",\"startTime\":\"s-starttime\",\"status\":\"s-status\",\"type\":\"s-type\",\"user\":\"s-user\",\"zoneContext\":{}}]}",
+  "OUT: {\"header\":{\"operationId\":\"s-operationid\"},\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\",\"operations\":[{\"dnsKeyContext\":{},\"id\":\"s-id\",\"kind\":\"s-kind\",\"startTime\":\"s-starttime\",\"status\":\"s-status\",\"type\":\"s-type\",\"user\":\"s-user\",\"zoneContext\":{}}]}",
+  "REQ GET https://dns.googleapis.com/dns/v2/projects/id1%2F%20x/locations/id2%2F%20x/managedZones/id3%2F%20x/operations?alt=json&fields=kind%2Cid&maxResults=7&pageToken=s-nextpagetoken&prettyPrint=false&sortBy=s-sortby",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"header\":{\"operationId\":\"s-operationid\"},\"kind\":\"s-kind\",\"operations\":[{\"dnsKeyContext\":{},\"id\":\"s-id\",\"kind\":\"s-kind\",\"startTime\":\"s-starttime\",\"status\":\"s-status\",\"type\":\"s-type\",\"user\":\"s-user\",\"zoneContext\":{}}]}",
+  "OUT: {\"header\":{\"operationId\":\"s-operationid\"},\"kind\":\"s-kind\",\"operations\":[{\"dnsKeyContext\":{},\"id\":\"s-id\",\"kind\":\"s-kind\",\"startTime\":\"s-starttime\",\"status\":\"s-status\",\"type\":\"s-type\",\"user\":\"s-user\",\"zoneContext\":{}}]}",
+  "OUT: ok",
+]
+
+test "Go's dns.managedZoneOperations.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"header\":{\"operationId\":\"s-operationid\"},\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\",\"operations\":[{\"dnsKeyContext\":{},\"id\":\"s-id\",\"kind\":\"s-kind\",\"startTime\":\"s-starttime\",\"status\":\"s-status\",\"type\":\"s-type\",\"user\":\"s-user\",\"zoneContext\":{}}]}")
+  gv_queue(f, "{\"header\":{\"operationId\":\"s-operationid\"},\"kind\":\"s-kind\",\"operations\":[{\"dnsKeyContext\":{},\"id\":\"s-id\",\"kind\":\"s-kind\",\"startTime\":\"s-starttime\",\"status\":\"s-status\",\"type\":\"s-type\",\"user\":\"s-user\",\"zoneContext\":{}}]}")
+  gv_note(f, "CALL dns.managedZoneOperations.list pages")
+  var p = svc.managed_zone_operations.list_pages("id1/ x", "id2/ x", "id3/ x", options: ManagedZoneOperationsListOptions{max_results: Some(7), page_token: Some("s-pagetoken"), sort_by: Some("s-sortby"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_9)
+}
+
+const GO_10: List[Str] = [
   "CALL dns.managedZones.create",
   "REQ POST https://dns.googleapis.com/dns/v2/projects/id1%2F%20x/locations/id2%2F%20x/managedZones?alt=json&clientOperationId=s-clientoperationid&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"cloudLoggingConfig\":{\"enableLogging\":true,\"kind\":\"s-kind\"},\"creationTime\":\"s-creationtime\",\"description\":\"s-description\",\"dnsName\":\"s-dnsname\",\"dnssecConfig\":{\"defaultKeySpecs\":[{\"algorithm\":\"s-algorithm\",\"keyLength\":7,\"keyType\":\"s-keytype\",\"kind\":\"s-kind\"}],\"kind\":\"s-kind\",\"nonExistence\":\"s-nonexistence\",\"state\":\"s-state\"},\"forwardingConfig\":{\"kind\":\"s-kind\",\"targetNameServers\":[{\"forwardingPath\":\"s-forwardingpath\",\"ipv4Address\":\"s-ipv4address\",\"kind\":\"s-kind\"}]},\"id\":\"7\",\"kind\":\"s-kind\",\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"nameServerSet\":\"s-nameserverset\",\"nameServers\":[\"s-nameservers\"],\"peeringConfig\":{\"kind\":\"s-kind\",\"targetNetwork\":{\"deactivateTime\":\"s-deactivatetime\",\"kind\":\"s-kind\",\"networkUrl\":\"s-networkurl\"}},\"privateVisibilityConfig\":{\"gkeClusters\":[{\"gkeClusterName\":\"s-gkeclustername\",\"kind\":\"s-kind\"}],\"kind\":\"s-kind\",\"networks\":[{\"kind\":\"s-kind\",\"networkUrl\":\"s-networkurl\"}]},\"reverseLookupConfig\":{\"kind\":\"s-kind\"},\"serviceDirectoryConfig\":{\"kind\":\"s-kind\",\"namespace\":{\"deletionTime\":\"s-deletiontime\",\"kind\":\"s-kind\",\"namespaceUrl\":\"s-namespaceurl\"}},\"visibility\":\"s-visibility\"}",
+  "  B <1116 bytes> {\"cloudLoggingConfig\":{\"enableLo...}},\"visibility\":\"s-visibility\"}",
   "",
   "  SERVED 200 {\"cloudLoggingConfig\":{\"enableLogging\":true,\"kind\":\"s-kind\"},\"creationTime\":\"s-creationtime\",\"description\":\"s-description\",\"dnsName\":\"s-dnsname\",\"dnssecConfig\":{\"defaultKeySpecs\":[{\"algorithm\":\"s-algorithm\",\"keyLength\":7,\"keyType\":\"s-keytype\",\"kind\":\"s-kind\"}],\"kind\":\"s-kind\",\"nonExistence\":\"s-nonexistence\",\"state\":\"s-state\"},\"forwardingConfig\":{\"kind\":\"s-kind\",\"targetNameServers\":[{\"forwardingPath\":\"s-forwardingpath\",\"ipv4Address\":\"s-ipv4address\",\"kind\":\"s-kind\"}]},\"id\":\"7\",\"kind\":\"s-kind\",\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"nameServerSet\":\"s-nameserverset\",\"nameServers\":[\"s-nameservers\"],\"peeringConfig\":{\"kind\":\"s-kind\",\"targetNetwork\":{\"deactivateTime\":\"s-deactivatetime\",\"kind\":\"s-kind\",\"networkUrl\":\"s-networkurl\"}},\"privateVisibilityConfig\":{\"gkeClusters\":[{\"gkeClusterName\":\"s-gkeclustername\",\"kind\":\"s-kind\"}],\"kind\":\"s-kind\",\"networks\":[{\"kind\":\"s-kind\",\"networkUrl\":\"s-networkurl\"}]},\"reverseLookupConfig\":{\"kind\":\"s-kind\"},\"serviceDirectoryConfig\":{\"kind\":\"s-kind\",\"namespace\":{\"deletionTime\":\"s-deletiontime\",\"kind\":\"s-kind\",\"namespaceUrl\":\"s-namespaceurl\"}},\"visibility\":\"s-visibility\"}",
   "OUT: {\"cloudLoggingConfig\":{\"enableLogging\":true,\"kind\":\"s-kind\"},\"creationTime\":\"s-creationtime\",\"description\":\"s-description\",\"dnsName\":\"s-dnsname\",\"dnssecConfig\":{\"defaultKeySpecs\":[{\"algorithm\":\"s-algorithm\",\"keyLength\":7,\"keyType\":\"s-keytype\",\"kind\":\"s-kind\"}],\"kind\":\"s-kind\",\"nonExistence\":\"s-nonexistence\",\"state\":\"s-state\"},\"forwardingConfig\":{\"kind\":\"s-kind\",\"targetNameServers\":[{\"forwardingPath\":\"s-forwardingpath\",\"ipv4Address\":\"s-ipv4address\",\"kind\":\"s-kind\"}]},\"id\":\"7\",\"kind\":\"s-kind\",\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"nameServerSet\":\"s-nameserverset\",\"nameServers\":[\"s-nameservers\"],\"peeringConfig\":{\"kind\":\"s-kind\",\"targetNetwork\":{\"deactivateTime\":\"s-deactivatetime\",\"kind\":\"s-kind\",\"networkUrl\":\"s-networkurl\"}},\"privateVisibilityConfig\":{\"gkeClusters\":[{\"gkeClusterName\":\"s-gkeclustername\",\"kind\":\"s-kind\"}],\"kind\":\"s-kind\",\"networks\":[{\"kind\":\"s-kind\",\"networkUrl\":\"s-networkurl\"}]},\"reverseLookupConfig\":{\"kind\":\"s-kind\"},\"serviceDirectoryConfig\":{\"kind\":\"s-kind\",\"namespace\":{\"deletionTime\":\"s-deletiontime\",\"kind\":\"s-kind\",\"namespaceUrl\":\"s-namespaceurl\"}},\"visibility\":\"s-visibility\"}",
@@ -175,10 +289,10 @@ test "Go's dns.managedZones.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_7)
+  gv_compare(gv_log_of(f), GO_10)
 }
 
-const GO_8: List[Str] = [
+const GO_11: List[Str] = [
   "CALL dns.managedZones.delete",
   "REQ DELETE https://dns.googleapis.com/dns/v2/projects/id1%2F%20x/locations/id2%2F%20x/managedZones/id3%2F%20x?alt=json&clientOperationId=s-clientoperationid&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -196,10 +310,10 @@ test "Go's dns.managedZones.delete" {
     Ok(_) => gv_note(f, "OUT: ok")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_8)
+  gv_compare(gv_log_of(f), GO_11)
 }
 
-const GO_9: List[Str] = [
+const GO_12: List[Str] = [
   "CALL dns.managedZones.get",
   "REQ GET https://dns.googleapis.com/dns/v2/projects/id1%2F%20x/locations/id2%2F%20x/managedZones/id3%2F%20x?alt=json&clientOperationId=s-clientoperationid&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -217,10 +331,10 @@ test "Go's dns.managedZones.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_9)
+  gv_compare(gv_log_of(f), GO_12)
 }
 
-const GO_10: List[Str] = [
+const GO_13: List[Str] = [
   "CALL dns.managedZones.list",
   "REQ GET https://dns.googleapis.com/dns/v2/projects/id1%2F%20x/locations/id2%2F%20x/managedZones?alt=json&dnsName=s-dnsname&fields=kind%2Cid&maxResults=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -238,14 +352,52 @@ test "Go's dns.managedZones.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_10)
+  gv_compare(gv_log_of(f), GO_13)
 }
 
-const GO_11: List[Str] = [
+const GO_14: List[Str] = [
+  "CALL dns.managedZones.list pages",
+  "REQ GET https://dns.googleapis.com/dns/v2/projects/id1%2F%20x/locations/id2%2F%20x/managedZones?alt=json&dnsName=s-dnsname&fields=kind%2Cid&maxResults=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"header\":{\"operationId\":\"s-operationid\"},\"kind\":\"s-kind\",\"managedZones\":[{\"cloudLoggingConfig\":{\"enableLogging\":true,\"kind\":\"s-kind\"},\"creationTime\":\"s-creationtime\",\"description\":\"s-description\",\"dnsName\":\"s-dnsname\",\"dnssecConfig\":{\"kind\":\"s-kind\",\"nonExistence\":\"s-nonexistence\",\"state\":\"s-state\"},\"forwardingConfig\":{\"kind\":\"s-kind\"},\"id\":\"7\",\"kind\":\"s-kind\",\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"nameServerSet\":\"s-nameserverset\",\"nameServers\":[\"s-nameservers\"],\"peeringConfig\":{\"kind\":\"s-kind\"},\"privateVisibilityConfig\":{\"kind\":\"s-kind\"},\"reverseLookupConfig\":{\"kind\":\"s-kind\"},\"serviceDirectoryConfig\":{\"kind\":\"s-kind\"},\"visibility\":\"s-visibility\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"header\":{\"operationId\":\"s-operationid\"},\"kind\":\"s-kind\",\"managedZones\":[{\"cloudLoggingConfig\":{\"enableLogging\":true,\"kind\":\"s-kind\"},\"creationTime\":\"s-creationtime\",\"description\":\"s-description\",\"dnsName\":\"s-dnsname\",\"dnssecConfig\":{\"kind\":\"s-kind\",\"nonExistence\":\"s-nonexistence\",\"state\":\"s-state\"},\"forwardingConfig\":{\"kind\":\"s-kind\"},\"id\":\"7\",\"kind\":\"s-kind\",\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"nameServerSet\":\"s-nameserverset\",\"nameServers\":[\"s-nameservers\"],\"peeringConfig\":{\"kind\":\"s-kind\"},\"privateVisibilityConfig\":{\"kind\":\"s-kind\"},\"reverseLookupConfig\":{\"kind\":\"s-kind\"},\"serviceDirectoryConfig\":{\"kind\":\"s-kind\"},\"visibility\":\"s-visibility\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://dns.googleapis.com/dns/v2/projects/id1%2F%20x/locations/id2%2F%20x/managedZones?alt=json&dnsName=s-dnsname&fields=kind%2Cid&maxResults=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"header\":{\"operationId\":\"s-operationid\"},\"kind\":\"s-kind\",\"managedZones\":[{\"cloudLoggingConfig\":{\"enableLogging\":true,\"kind\":\"s-kind\"},\"creationTime\":\"s-creationtime\",\"description\":\"s-description\",\"dnsName\":\"s-dnsname\",\"dnssecConfig\":{\"kind\":\"s-kind\",\"nonExistence\":\"s-nonexistence\",\"state\":\"s-state\"},\"forwardingConfig\":{\"kind\":\"s-kind\"},\"id\":\"7\",\"kind\":\"s-kind\",\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"nameServerSet\":\"s-nameserverset\",\"nameServers\":[\"s-nameservers\"],\"peeringConfig\":{\"kind\":\"s-kind\"},\"privateVisibilityConfig\":{\"kind\":\"s-kind\"},\"reverseLookupConfig\":{\"kind\":\"s-kind\"},\"serviceDirectoryConfig\":{\"kind\":\"s-kind\"},\"visibility\":\"s-visibility\"}]}",
+  "OUT: {\"header\":{\"operationId\":\"s-operationid\"},\"kind\":\"s-kind\",\"managedZones\":[{\"cloudLoggingConfig\":{\"enableLogging\":true,\"kind\":\"s-kind\"},\"creationTime\":\"s-creationtime\",\"description\":\"s-description\",\"dnsName\":\"s-dnsname\",\"dnssecConfig\":{\"kind\":\"s-kind\",\"nonExistence\":\"s-nonexistence\",\"state\":\"s-state\"},\"forwardingConfig\":{\"kind\":\"s-kind\"},\"id\":\"7\",\"kind\":\"s-kind\",\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"nameServerSet\":\"s-nameserverset\",\"nameServers\":[\"s-nameservers\"],\"peeringConfig\":{\"kind\":\"s-kind\"},\"privateVisibilityConfig\":{\"kind\":\"s-kind\"},\"reverseLookupConfig\":{\"kind\":\"s-kind\"},\"serviceDirectoryConfig\":{\"kind\":\"s-kind\"},\"visibility\":\"s-visibility\"}]}",
+  "OUT: ok",
+]
+
+test "Go's dns.managedZones.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"header\":{\"operationId\":\"s-operationid\"},\"kind\":\"s-kind\",\"managedZones\":[{\"cloudLoggingConfig\":{\"enableLogging\":true,\"kind\":\"s-kind\"},\"creationTime\":\"s-creationtime\",\"description\":\"s-description\",\"dnsName\":\"s-dnsname\",\"dnssecConfig\":{\"kind\":\"s-kind\",\"nonExistence\":\"s-nonexistence\",\"state\":\"s-state\"},\"forwardingConfig\":{\"kind\":\"s-kind\"},\"id\":\"7\",\"kind\":\"s-kind\",\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"nameServerSet\":\"s-nameserverset\",\"nameServers\":[\"s-nameservers\"],\"peeringConfig\":{\"kind\":\"s-kind\"},\"privateVisibilityConfig\":{\"kind\":\"s-kind\"},\"reverseLookupConfig\":{\"kind\":\"s-kind\"},\"serviceDirectoryConfig\":{\"kind\":\"s-kind\"},\"visibility\":\"s-visibility\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"header\":{\"operationId\":\"s-operationid\"},\"kind\":\"s-kind\",\"managedZones\":[{\"cloudLoggingConfig\":{\"enableLogging\":true,\"kind\":\"s-kind\"},\"creationTime\":\"s-creationtime\",\"description\":\"s-description\",\"dnsName\":\"s-dnsname\",\"dnssecConfig\":{\"kind\":\"s-kind\",\"nonExistence\":\"s-nonexistence\",\"state\":\"s-state\"},\"forwardingConfig\":{\"kind\":\"s-kind\"},\"id\":\"7\",\"kind\":\"s-kind\",\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"nameServerSet\":\"s-nameserverset\",\"nameServers\":[\"s-nameservers\"],\"peeringConfig\":{\"kind\":\"s-kind\"},\"privateVisibilityConfig\":{\"kind\":\"s-kind\"},\"reverseLookupConfig\":{\"kind\":\"s-kind\"},\"serviceDirectoryConfig\":{\"kind\":\"s-kind\"},\"visibility\":\"s-visibility\"}]}")
+  gv_note(f, "CALL dns.managedZones.list pages")
+  var p = svc.managed_zones.list_pages("id1/ x", "id2/ x", options: ManagedZonesListOptions{dns_name: Some("s-dnsname"), max_results: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_14)
+}
+
+const GO_15: List[Str] = [
   "CALL dns.managedZones.patch",
   "REQ PATCH https://dns.googleapis.com/dns/v2/projects/id1%2F%20x/locations/id2%2F%20x/managedZones/id3%2F%20x?alt=json&clientOperationId=s-clientoperationid&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"cloudLoggingConfig\":{\"enableLogging\":true,\"kind\":\"s-kind\"},\"creationTime\":\"s-creationtime\",\"description\":\"s-description\",\"dnsName\":\"s-dnsname\",\"dnssecConfig\":{\"defaultKeySpecs\":[{\"algorithm\":\"s-algorithm\",\"keyLength\":7,\"keyType\":\"s-keytype\",\"kind\":\"s-kind\"}],\"kind\":\"s-kind\",\"nonExistence\":\"s-nonexistence\",\"state\":\"s-state\"},\"forwardingConfig\":{\"kind\":\"s-kind\",\"targetNameServers\":[{\"forwardingPath\":\"s-forwardingpath\",\"ipv4Address\":\"s-ipv4address\",\"kind\":\"s-kind\"}]},\"id\":\"7\",\"kind\":\"s-kind\",\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"nameServerSet\":\"s-nameserverset\",\"nameServers\":[\"s-nameservers\"],\"peeringConfig\":{\"kind\":\"s-kind\",\"targetNetwork\":{\"deactivateTime\":\"s-deactivatetime\",\"kind\":\"s-kind\",\"networkUrl\":\"s-networkurl\"}},\"privateVisibilityConfig\":{\"gkeClusters\":[{\"gkeClusterName\":\"s-gkeclustername\",\"kind\":\"s-kind\"}],\"kind\":\"s-kind\",\"networks\":[{\"kind\":\"s-kind\",\"networkUrl\":\"s-networkurl\"}]},\"reverseLookupConfig\":{\"kind\":\"s-kind\"},\"serviceDirectoryConfig\":{\"kind\":\"s-kind\",\"namespace\":{\"deletionTime\":\"s-deletiontime\",\"kind\":\"s-kind\",\"namespaceUrl\":\"s-namespaceurl\"}},\"visibility\":\"s-visibility\"}",
+  "  B <1116 bytes> {\"cloudLoggingConfig\":{\"enableLo...}},\"visibility\":\"s-visibility\"}",
   "",
   "  SERVED 200 {\"dnsKeyContext\":{\"newValue\":{\"algorithm\":\"s-algorithm\",\"creationTime\":\"s-creationtime\",\"description\":\"s-description\",\"id\":\"s-id\",\"isActive\":true,\"keyLength\":7,\"keyTag\":7,\"kind\":\"s-kind\",\"publicKey\":\"s-publickey\",\"type\":\"s-type\"},\"oldValue\":{\"algorithm\":\"s-algorithm\",\"creationTime\":\"s-creationtime\",\"description\":\"s-description\",\"id\":\"s-id\",\"isActive\":true,\"keyLength\":7,\"keyTag\":7,\"kind\":\"s-kind\",\"publicKey\":\"s-publickey\",\"type\":\"s-type\"}},\"id\":\"s-id\",\"kind\":\"s-kind\",\"startTime\":\"s-starttime\",\"status\":\"s-status\",\"type\":\"s-type\",\"user\":\"s-user\",\"zoneContext\":{\"newValue\":{\"creationTime\":\"s-creationtime\",\"description\":\"s-description\",\"dnsName\":\"s-dnsname\",\"id\":\"7\",\"kind\":\"s-kind\",\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"nameServerSet\":\"s-nameserverset\",\"nameServers\":[\"s-nameservers\"],\"visibility\":\"s-visibility\"},\"oldValue\":{\"creationTime\":\"s-creationtime\",\"description\":\"s-description\",\"dnsName\":\"s-dnsname\",\"id\":\"7\",\"kind\":\"s-kind\",\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"nameServerSet\":\"s-nameserverset\",\"nameServers\":[\"s-nameservers\"],\"visibility\":\"s-visibility\"}}}",
   "OUT: {\"dnsKeyContext\":{\"newValue\":{\"algorithm\":\"s-algorithm\",\"creationTime\":\"s-creationtime\",\"description\":\"s-description\",\"id\":\"s-id\",\"isActive\":true,\"keyLength\":7,\"keyTag\":7,\"kind\":\"s-kind\",\"publicKey\":\"s-publickey\",\"type\":\"s-type\"},\"oldValue\":{\"algorithm\":\"s-algorithm\",\"creationTime\":\"s-creationtime\",\"description\":\"s-description\",\"id\":\"s-id\",\"isActive\":true,\"keyLength\":7,\"keyTag\":7,\"kind\":\"s-kind\",\"publicKey\":\"s-publickey\",\"type\":\"s-type\"}},\"id\":\"s-id\",\"kind\":\"s-kind\",\"startTime\":\"s-starttime\",\"status\":\"s-status\",\"type\":\"s-type\",\"user\":\"s-user\",\"zoneContext\":{\"newValue\":{\"creationTime\":\"s-creationtime\",\"description\":\"s-description\",\"dnsName\":\"s-dnsname\",\"id\":\"7\",\"kind\":\"s-kind\",\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"nameServerSet\":\"s-nameserverset\",\"nameServers\":[\"s-nameservers\"],\"visibility\":\"s-visibility\"},\"oldValue\":{\"creationTime\":\"s-creationtime\",\"description\":\"s-description\",\"dnsName\":\"s-dnsname\",\"id\":\"7\",\"kind\":\"s-kind\",\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"nameServerSet\":\"s-nameserverset\",\"nameServers\":[\"s-nameservers\"],\"visibility\":\"s-visibility\"}}}",
@@ -260,14 +412,14 @@ test "Go's dns.managedZones.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_11)
+  gv_compare(gv_log_of(f), GO_15)
 }
 
-const GO_12: List[Str] = [
+const GO_16: List[Str] = [
   "CALL dns.managedZones.update",
   "REQ PUT https://dns.googleapis.com/dns/v2/projects/id1%2F%20x/locations/id2%2F%20x/managedZones/id3%2F%20x?alt=json&clientOperationId=s-clientoperationid&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"cloudLoggingConfig\":{\"enableLogging\":true,\"kind\":\"s-kind\"},\"creationTime\":\"s-creationtime\",\"description\":\"s-description\",\"dnsName\":\"s-dnsname\",\"dnssecConfig\":{\"defaultKeySpecs\":[{\"algorithm\":\"s-algorithm\",\"keyLength\":7,\"keyType\":\"s-keytype\",\"kind\":\"s-kind\"}],\"kind\":\"s-kind\",\"nonExistence\":\"s-nonexistence\",\"state\":\"s-state\"},\"forwardingConfig\":{\"kind\":\"s-kind\",\"targetNameServers\":[{\"forwardingPath\":\"s-forwardingpath\",\"ipv4Address\":\"s-ipv4address\",\"kind\":\"s-kind\"}]},\"id\":\"7\",\"kind\":\"s-kind\",\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"nameServerSet\":\"s-nameserverset\",\"nameServers\":[\"s-nameservers\"],\"peeringConfig\":{\"kind\":\"s-kind\",\"targetNetwork\":{\"deactivateTime\":\"s-deactivatetime\",\"kind\":\"s-kind\",\"networkUrl\":\"s-networkurl\"}},\"privateVisibilityConfig\":{\"gkeClusters\":[{\"gkeClusterName\":\"s-gkeclustername\",\"kind\":\"s-kind\"}],\"kind\":\"s-kind\",\"networks\":[{\"kind\":\"s-kind\",\"networkUrl\":\"s-networkurl\"}]},\"reverseLookupConfig\":{\"kind\":\"s-kind\"},\"serviceDirectoryConfig\":{\"kind\":\"s-kind\",\"namespace\":{\"deletionTime\":\"s-deletiontime\",\"kind\":\"s-kind\",\"namespaceUrl\":\"s-namespaceurl\"}},\"visibility\":\"s-visibility\"}",
+  "  B <1116 bytes> {\"cloudLoggingConfig\":{\"enableLo...}},\"visibility\":\"s-visibility\"}",
   "",
   "  SERVED 200 {\"dnsKeyContext\":{\"newValue\":{\"algorithm\":\"s-algorithm\",\"creationTime\":\"s-creationtime\",\"description\":\"s-description\",\"id\":\"s-id\",\"isActive\":true,\"keyLength\":7,\"keyTag\":7,\"kind\":\"s-kind\",\"publicKey\":\"s-publickey\",\"type\":\"s-type\"},\"oldValue\":{\"algorithm\":\"s-algorithm\",\"creationTime\":\"s-creationtime\",\"description\":\"s-description\",\"id\":\"s-id\",\"isActive\":true,\"keyLength\":7,\"keyTag\":7,\"kind\":\"s-kind\",\"publicKey\":\"s-publickey\",\"type\":\"s-type\"}},\"id\":\"s-id\",\"kind\":\"s-kind\",\"startTime\":\"s-starttime\",\"status\":\"s-status\",\"type\":\"s-type\",\"user\":\"s-user\",\"zoneContext\":{\"newValue\":{\"creationTime\":\"s-creationtime\",\"description\":\"s-description\",\"dnsName\":\"s-dnsname\",\"id\":\"7\",\"kind\":\"s-kind\",\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"nameServerSet\":\"s-nameserverset\",\"nameServers\":[\"s-nameservers\"],\"visibility\":\"s-visibility\"},\"oldValue\":{\"creationTime\":\"s-creationtime\",\"description\":\"s-description\",\"dnsName\":\"s-dnsname\",\"id\":\"7\",\"kind\":\"s-kind\",\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"nameServerSet\":\"s-nameserverset\",\"nameServers\":[\"s-nameservers\"],\"visibility\":\"s-visibility\"}}}",
   "OUT: {\"dnsKeyContext\":{\"newValue\":{\"algorithm\":\"s-algorithm\",\"creationTime\":\"s-creationtime\",\"description\":\"s-description\",\"id\":\"s-id\",\"isActive\":true,\"keyLength\":7,\"keyTag\":7,\"kind\":\"s-kind\",\"publicKey\":\"s-publickey\",\"type\":\"s-type\"},\"oldValue\":{\"algorithm\":\"s-algorithm\",\"creationTime\":\"s-creationtime\",\"description\":\"s-description\",\"id\":\"s-id\",\"isActive\":true,\"keyLength\":7,\"keyTag\":7,\"kind\":\"s-kind\",\"publicKey\":\"s-publickey\",\"type\":\"s-type\"}},\"id\":\"s-id\",\"kind\":\"s-kind\",\"startTime\":\"s-starttime\",\"status\":\"s-status\",\"type\":\"s-type\",\"user\":\"s-user\",\"zoneContext\":{\"newValue\":{\"creationTime\":\"s-creationtime\",\"description\":\"s-description\",\"dnsName\":\"s-dnsname\",\"id\":\"7\",\"kind\":\"s-kind\",\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"nameServerSet\":\"s-nameserverset\",\"nameServers\":[\"s-nameservers\"],\"visibility\":\"s-visibility\"},\"oldValue\":{\"creationTime\":\"s-creationtime\",\"description\":\"s-description\",\"dnsName\":\"s-dnsname\",\"id\":\"7\",\"kind\":\"s-kind\",\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"nameServerSet\":\"s-nameserverset\",\"nameServers\":[\"s-nameservers\"],\"visibility\":\"s-visibility\"}}}",
@@ -282,10 +434,10 @@ test "Go's dns.managedZones.update" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_12)
+  gv_compare(gv_log_of(f), GO_16)
 }
 
-const GO_13: List[Str] = [
+const GO_17: List[Str] = [
   "CALL dns.policies.create",
   "REQ POST https://dns.googleapis.com/dns/v2/projects/id1%2F%20x/locations/id2%2F%20x/policies?alt=json&clientOperationId=s-clientoperationid&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -304,10 +456,10 @@ test "Go's dns.policies.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_13)
+  gv_compare(gv_log_of(f), GO_17)
 }
 
-const GO_14: List[Str] = [
+const GO_18: List[Str] = [
   "CALL dns.policies.delete",
   "REQ DELETE https://dns.googleapis.com/dns/v2/projects/id1%2F%20x/locations/id2%2F%20x/policies/id3%2F%20x?alt=json&clientOperationId=s-clientoperationid&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -325,10 +477,10 @@ test "Go's dns.policies.delete" {
     Ok(_) => gv_note(f, "OUT: ok")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_14)
+  gv_compare(gv_log_of(f), GO_18)
 }
 
-const GO_15: List[Str] = [
+const GO_19: List[Str] = [
   "CALL dns.policies.get",
   "REQ GET https://dns.googleapis.com/dns/v2/projects/id1%2F%20x/locations/id2%2F%20x/policies/id3%2F%20x?alt=json&clientOperationId=s-clientoperationid&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -346,10 +498,10 @@ test "Go's dns.policies.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_15)
+  gv_compare(gv_log_of(f), GO_19)
 }
 
-const GO_16: List[Str] = [
+const GO_20: List[Str] = [
   "CALL dns.policies.list",
   "REQ GET https://dns.googleapis.com/dns/v2/projects/id1%2F%20x/locations/id2%2F%20x/policies?alt=json&fields=kind%2Cid&maxResults=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -367,10 +519,48 @@ test "Go's dns.policies.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_16)
+  gv_compare(gv_log_of(f), GO_20)
 }
 
-const GO_17: List[Str] = [
+const GO_21: List[Str] = [
+  "CALL dns.policies.list pages",
+  "REQ GET https://dns.googleapis.com/dns/v2/projects/id1%2F%20x/locations/id2%2F%20x/policies?alt=json&fields=kind%2Cid&maxResults=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"header\":{\"operationId\":\"s-operationid\"},\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\",\"policies\":[{\"alternativeNameServerConfig\":{\"kind\":\"s-kind\"},\"description\":\"s-description\",\"enableInboundForwarding\":true,\"enableLogging\":true,\"id\":\"7\",\"kind\":\"s-kind\",\"name\":\"s-name\"}]}",
+  "OUT: {\"header\":{\"operationId\":\"s-operationid\"},\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\",\"policies\":[{\"alternativeNameServerConfig\":{\"kind\":\"s-kind\"},\"description\":\"s-description\",\"enableInboundForwarding\":true,\"enableLogging\":true,\"id\":\"7\",\"kind\":\"s-kind\",\"name\":\"s-name\"}]}",
+  "REQ GET https://dns.googleapis.com/dns/v2/projects/id1%2F%20x/locations/id2%2F%20x/policies?alt=json&fields=kind%2Cid&maxResults=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"header\":{\"operationId\":\"s-operationid\"},\"kind\":\"s-kind\",\"policies\":[{\"alternativeNameServerConfig\":{\"kind\":\"s-kind\"},\"description\":\"s-description\",\"enableInboundForwarding\":true,\"enableLogging\":true,\"id\":\"7\",\"kind\":\"s-kind\",\"name\":\"s-name\"}]}",
+  "OUT: {\"header\":{\"operationId\":\"s-operationid\"},\"kind\":\"s-kind\",\"policies\":[{\"alternativeNameServerConfig\":{\"kind\":\"s-kind\"},\"description\":\"s-description\",\"enableInboundForwarding\":true,\"enableLogging\":true,\"id\":\"7\",\"kind\":\"s-kind\",\"name\":\"s-name\"}]}",
+  "OUT: ok",
+]
+
+test "Go's dns.policies.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"header\":{\"operationId\":\"s-operationid\"},\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\",\"policies\":[{\"alternativeNameServerConfig\":{\"kind\":\"s-kind\"},\"description\":\"s-description\",\"enableInboundForwarding\":true,\"enableLogging\":true,\"id\":\"7\",\"kind\":\"s-kind\",\"name\":\"s-name\"}]}")
+  gv_queue(f, "{\"header\":{\"operationId\":\"s-operationid\"},\"kind\":\"s-kind\",\"policies\":[{\"alternativeNameServerConfig\":{\"kind\":\"s-kind\"},\"description\":\"s-description\",\"enableInboundForwarding\":true,\"enableLogging\":true,\"id\":\"7\",\"kind\":\"s-kind\",\"name\":\"s-name\"}]}")
+  gv_note(f, "CALL dns.policies.list pages")
+  var p = svc.policies.list_pages("id1/ x", "id2/ x", options: PoliciesListOptions{max_results: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_21)
+}
+
+const GO_22: List[Str] = [
   "CALL dns.policies.patch",
   "REQ PATCH https://dns.googleapis.com/dns/v2/projects/id1%2F%20x/locations/id2%2F%20x/policies/id3%2F%20x?alt=json&clientOperationId=s-clientoperationid&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -389,10 +579,10 @@ test "Go's dns.policies.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_17)
+  gv_compare(gv_log_of(f), GO_22)
 }
 
-const GO_18: List[Str] = [
+const GO_23: List[Str] = [
   "CALL dns.policies.update",
   "REQ PUT https://dns.googleapis.com/dns/v2/projects/id1%2F%20x/locations/id2%2F%20x/policies/id3%2F%20x?alt=json&clientOperationId=s-clientoperationid&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -411,10 +601,10 @@ test "Go's dns.policies.update" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_18)
+  gv_compare(gv_log_of(f), GO_23)
 }
 
-const GO_19: List[Str] = [
+const GO_24: List[Str] = [
   "CALL dns.projects.get",
   "REQ GET https://dns.googleapis.com/dns/v2/projects/id1%2F%20x/locations/id2%2F%20x?alt=json&clientOperationId=s-clientoperationid&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -432,10 +622,10 @@ test "Go's dns.projects.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_19)
+  gv_compare(gv_log_of(f), GO_24)
 }
 
-const GO_20: List[Str] = [
+const GO_25: List[Str] = [
   "CALL dns.resourceRecordSets.create",
   "REQ POST https://dns.googleapis.com/dns/v2/projects/id1%2F%20x/locations/id2%2F%20x/managedZones/id3%2F%20x/rrsets?alt=json&clientOperationId=s-clientoperationid&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -454,10 +644,10 @@ test "Go's dns.resourceRecordSets.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_20)
+  gv_compare(gv_log_of(f), GO_25)
 }
 
-const GO_21: List[Str] = [
+const GO_26: List[Str] = [
   "CALL dns.resourceRecordSets.delete",
   "REQ DELETE https://dns.googleapis.com/dns/v2/projects/id1%2F%20x/locations/id2%2F%20x/managedZones/id3%2F%20x/rrsets/id4%2F%20x/id5%2F%20x?alt=json&clientOperationId=s-clientoperationid&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -475,10 +665,10 @@ test "Go's dns.resourceRecordSets.delete" {
     Ok(_) => gv_note(f, "OUT: ok")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_21)
+  gv_compare(gv_log_of(f), GO_26)
 }
 
-const GO_22: List[Str] = [
+const GO_27: List[Str] = [
   "CALL dns.resourceRecordSets.get",
   "REQ GET https://dns.googleapis.com/dns/v2/projects/id1%2F%20x/locations/id2%2F%20x/managedZones/id3%2F%20x/rrsets/id4%2F%20x/id5%2F%20x?alt=json&clientOperationId=s-clientoperationid&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -496,10 +686,10 @@ test "Go's dns.resourceRecordSets.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_22)
+  gv_compare(gv_log_of(f), GO_27)
 }
 
-const GO_23: List[Str] = [
+const GO_28: List[Str] = [
   "CALL dns.resourceRecordSets.list",
   "REQ GET https://dns.googleapis.com/dns/v2/projects/id1%2F%20x/locations/id2%2F%20x/managedZones/id3%2F%20x/rrsets?alt=json&fields=kind%2Cid&maxResults=7&name=s-name&pageToken=s-pagetoken&prettyPrint=false&type=s-type",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -517,10 +707,48 @@ test "Go's dns.resourceRecordSets.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_23)
+  gv_compare(gv_log_of(f), GO_28)
 }
 
-const GO_24: List[Str] = [
+const GO_29: List[Str] = [
+  "CALL dns.resourceRecordSets.list pages",
+  "REQ GET https://dns.googleapis.com/dns/v2/projects/id1%2F%20x/locations/id2%2F%20x/managedZones/id3%2F%20x/rrsets?alt=json&fields=kind%2Cid&maxResults=7&name=s-name&pageToken=s-pagetoken&prettyPrint=false&type=s-type",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"header\":{\"operationId\":\"s-operationid\"},\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\",\"rrsets\":[{\"kind\":\"s-kind\",\"name\":\"s-name\",\"routingPolicy\":{\"kind\":\"s-kind\"},\"rrdatas\":[\"s-rrdatas\"],\"signatureRrdatas\":[\"s-signaturerrdatas\"],\"ttl\":7,\"type\":\"s-type\"}]}",
+  "OUT: {\"header\":{\"operationId\":\"s-operationid\"},\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\",\"rrsets\":[{\"kind\":\"s-kind\",\"name\":\"s-name\",\"routingPolicy\":{\"kind\":\"s-kind\"},\"rrdatas\":[\"s-rrdatas\"],\"signatureRrdatas\":[\"s-signaturerrdatas\"],\"ttl\":7,\"type\":\"s-type\"}]}",
+  "REQ GET https://dns.googleapis.com/dns/v2/projects/id1%2F%20x/locations/id2%2F%20x/managedZones/id3%2F%20x/rrsets?alt=json&fields=kind%2Cid&maxResults=7&name=s-name&pageToken=s-nextpagetoken&prettyPrint=false&type=s-type",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"header\":{\"operationId\":\"s-operationid\"},\"kind\":\"s-kind\",\"rrsets\":[{\"kind\":\"s-kind\",\"name\":\"s-name\",\"routingPolicy\":{\"kind\":\"s-kind\"},\"rrdatas\":[\"s-rrdatas\"],\"signatureRrdatas\":[\"s-signaturerrdatas\"],\"ttl\":7,\"type\":\"s-type\"}]}",
+  "OUT: {\"header\":{\"operationId\":\"s-operationid\"},\"kind\":\"s-kind\",\"rrsets\":[{\"kind\":\"s-kind\",\"name\":\"s-name\",\"routingPolicy\":{\"kind\":\"s-kind\"},\"rrdatas\":[\"s-rrdatas\"],\"signatureRrdatas\":[\"s-signaturerrdatas\"],\"ttl\":7,\"type\":\"s-type\"}]}",
+  "OUT: ok",
+]
+
+test "Go's dns.resourceRecordSets.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"header\":{\"operationId\":\"s-operationid\"},\"kind\":\"s-kind\",\"nextPageToken\":\"s-nextpagetoken\",\"rrsets\":[{\"kind\":\"s-kind\",\"name\":\"s-name\",\"routingPolicy\":{\"kind\":\"s-kind\"},\"rrdatas\":[\"s-rrdatas\"],\"signatureRrdatas\":[\"s-signaturerrdatas\"],\"ttl\":7,\"type\":\"s-type\"}]}")
+  gv_queue(f, "{\"header\":{\"operationId\":\"s-operationid\"},\"kind\":\"s-kind\",\"rrsets\":[{\"kind\":\"s-kind\",\"name\":\"s-name\",\"routingPolicy\":{\"kind\":\"s-kind\"},\"rrdatas\":[\"s-rrdatas\"],\"signatureRrdatas\":[\"s-signaturerrdatas\"],\"ttl\":7,\"type\":\"s-type\"}]}")
+  gv_note(f, "CALL dns.resourceRecordSets.list pages")
+  var p = svc.resource_record_sets.list_pages("id1/ x", "id2/ x", "id3/ x", options: ResourceRecordSetsListOptions{max_results: Some(7), name: Some("s-name"), page_token: Some("s-pagetoken"), type_: Some("s-type"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_29)
+}
+
+const GO_30: List[Str] = [
   "CALL dns.resourceRecordSets.patch",
   "REQ PATCH https://dns.googleapis.com/dns/v2/projects/id1%2F%20x/locations/id2%2F%20x/managedZones/id3%2F%20x/rrsets/id4%2F%20x/id5%2F%20x?alt=json&clientOperationId=s-clientoperationid&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -539,10 +767,10 @@ test "Go's dns.resourceRecordSets.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_24)
+  gv_compare(gv_log_of(f), GO_30)
 }
 
-const GO_25: List[Str] = [
+const GO_31: List[Str] = [
   "CALL dns.responsePolicies.create",
   "REQ POST https://dns.googleapis.com/dns/v2/projects/id1%2F%20x/locations/id2%2F%20x/responsePolicies?alt=json&clientOperationId=s-clientoperationid&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -561,10 +789,10 @@ test "Go's dns.responsePolicies.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_25)
+  gv_compare(gv_log_of(f), GO_31)
 }
 
-const GO_26: List[Str] = [
+const GO_32: List[Str] = [
   "CALL dns.responsePolicies.delete",
   "REQ DELETE https://dns.googleapis.com/dns/v2/projects/id1%2F%20x/locations/id2%2F%20x/responsePolicies/id3%2F%20x?alt=json&clientOperationId=s-clientoperationid&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -582,10 +810,10 @@ test "Go's dns.responsePolicies.delete" {
     Ok(_) => gv_note(f, "OUT: ok")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_26)
+  gv_compare(gv_log_of(f), GO_32)
 }
 
-const GO_27: List[Str] = [
+const GO_33: List[Str] = [
   "CALL dns.responsePolicies.get",
   "REQ GET https://dns.googleapis.com/dns/v2/projects/id1%2F%20x/locations/id2%2F%20x/responsePolicies/id3%2F%20x?alt=json&clientOperationId=s-clientoperationid&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -603,10 +831,10 @@ test "Go's dns.responsePolicies.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_27)
+  gv_compare(gv_log_of(f), GO_33)
 }
 
-const GO_28: List[Str] = [
+const GO_34: List[Str] = [
   "CALL dns.responsePolicies.list",
   "REQ GET https://dns.googleapis.com/dns/v2/projects/id1%2F%20x/locations/id2%2F%20x/responsePolicies?alt=json&fields=kind%2Cid&maxResults=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -624,10 +852,48 @@ test "Go's dns.responsePolicies.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_28)
+  gv_compare(gv_log_of(f), GO_34)
 }
 
-const GO_29: List[Str] = [
+const GO_35: List[Str] = [
+  "CALL dns.responsePolicies.list pages",
+  "REQ GET https://dns.googleapis.com/dns/v2/projects/id1%2F%20x/locations/id2%2F%20x/responsePolicies?alt=json&fields=kind%2Cid&maxResults=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"header\":{\"operationId\":\"s-operationid\"},\"nextPageToken\":\"s-nextpagetoken\",\"responsePolicies\":[{\"description\":\"s-description\",\"id\":\"7\",\"kind\":\"s-kind\",\"responsePolicyName\":\"s-responsepolicyname\"}]}",
+  "OUT: {\"header\":{\"operationId\":\"s-operationid\"},\"nextPageToken\":\"s-nextpagetoken\",\"responsePolicies\":[{\"description\":\"s-description\",\"id\":\"7\",\"kind\":\"s-kind\",\"responsePolicyName\":\"s-responsepolicyname\"}]}",
+  "REQ GET https://dns.googleapis.com/dns/v2/projects/id1%2F%20x/locations/id2%2F%20x/responsePolicies?alt=json&fields=kind%2Cid&maxResults=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"header\":{\"operationId\":\"s-operationid\"},\"responsePolicies\":[{\"description\":\"s-description\",\"id\":\"7\",\"kind\":\"s-kind\",\"responsePolicyName\":\"s-responsepolicyname\"}]}",
+  "OUT: {\"header\":{\"operationId\":\"s-operationid\"},\"responsePolicies\":[{\"description\":\"s-description\",\"id\":\"7\",\"kind\":\"s-kind\",\"responsePolicyName\":\"s-responsepolicyname\"}]}",
+  "OUT: ok",
+]
+
+test "Go's dns.responsePolicies.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"header\":{\"operationId\":\"s-operationid\"},\"nextPageToken\":\"s-nextpagetoken\",\"responsePolicies\":[{\"description\":\"s-description\",\"id\":\"7\",\"kind\":\"s-kind\",\"responsePolicyName\":\"s-responsepolicyname\"}]}")
+  gv_queue(f, "{\"header\":{\"operationId\":\"s-operationid\"},\"responsePolicies\":[{\"description\":\"s-description\",\"id\":\"7\",\"kind\":\"s-kind\",\"responsePolicyName\":\"s-responsepolicyname\"}]}")
+  gv_note(f, "CALL dns.responsePolicies.list pages")
+  var p = svc.response_policies.list_pages("id1/ x", "id2/ x", options: ResponsePoliciesListOptions{max_results: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_35)
+}
+
+const GO_36: List[Str] = [
   "CALL dns.responsePolicies.patch",
   "REQ PATCH https://dns.googleapis.com/dns/v2/projects/id1%2F%20x/locations/id2%2F%20x/responsePolicies/id3%2F%20x?alt=json&clientOperationId=s-clientoperationid&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -646,10 +912,10 @@ test "Go's dns.responsePolicies.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_29)
+  gv_compare(gv_log_of(f), GO_36)
 }
 
-const GO_30: List[Str] = [
+const GO_37: List[Str] = [
   "CALL dns.responsePolicies.update",
   "REQ PUT https://dns.googleapis.com/dns/v2/projects/id1%2F%20x/locations/id2%2F%20x/responsePolicies/id3%2F%20x?alt=json&clientOperationId=s-clientoperationid&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -668,10 +934,10 @@ test "Go's dns.responsePolicies.update" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_30)
+  gv_compare(gv_log_of(f), GO_37)
 }
 
-const GO_31: List[Str] = [
+const GO_38: List[Str] = [
   "CALL dns.responsePolicyRules.create",
   "REQ POST https://dns.googleapis.com/dns/v2/projects/id1%2F%20x/locations/id2%2F%20x/responsePolicies/id3%2F%20x/rules?alt=json&clientOperationId=s-clientoperationid&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -690,10 +956,10 @@ test "Go's dns.responsePolicyRules.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_31)
+  gv_compare(gv_log_of(f), GO_38)
 }
 
-const GO_32: List[Str] = [
+const GO_39: List[Str] = [
   "CALL dns.responsePolicyRules.delete",
   "REQ DELETE https://dns.googleapis.com/dns/v2/projects/id1%2F%20x/locations/id2%2F%20x/responsePolicies/id3%2F%20x/rules/id4%2F%20x?alt=json&clientOperationId=s-clientoperationid&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -711,10 +977,10 @@ test "Go's dns.responsePolicyRules.delete" {
     Ok(_) => gv_note(f, "OUT: ok")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_32)
+  gv_compare(gv_log_of(f), GO_39)
 }
 
-const GO_33: List[Str] = [
+const GO_40: List[Str] = [
   "CALL dns.responsePolicyRules.get",
   "REQ GET https://dns.googleapis.com/dns/v2/projects/id1%2F%20x/locations/id2%2F%20x/responsePolicies/id3%2F%20x/rules/id4%2F%20x?alt=json&clientOperationId=s-clientoperationid&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -732,10 +998,10 @@ test "Go's dns.responsePolicyRules.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_33)
+  gv_compare(gv_log_of(f), GO_40)
 }
 
-const GO_34: List[Str] = [
+const GO_41: List[Str] = [
   "CALL dns.responsePolicyRules.list",
   "REQ GET https://dns.googleapis.com/dns/v2/projects/id1%2F%20x/locations/id2%2F%20x/responsePolicies/id3%2F%20x/rules?alt=json&fields=kind%2Cid&maxResults=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -753,10 +1019,48 @@ test "Go's dns.responsePolicyRules.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_34)
+  gv_compare(gv_log_of(f), GO_41)
 }
 
-const GO_35: List[Str] = [
+const GO_42: List[Str] = [
+  "CALL dns.responsePolicyRules.list pages",
+  "REQ GET https://dns.googleapis.com/dns/v2/projects/id1%2F%20x/locations/id2%2F%20x/responsePolicies/id3%2F%20x/rules?alt=json&fields=kind%2Cid&maxResults=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"header\":{\"operationId\":\"s-operationid\"},\"nextPageToken\":\"s-nextpagetoken\",\"responsePolicyRules\":[{\"behavior\":\"s-behavior\",\"dnsName\":\"s-dnsname\",\"kind\":\"s-kind\",\"localData\":{},\"ruleName\":\"s-rulename\"}]}",
+  "OUT: {\"header\":{\"operationId\":\"s-operationid\"},\"nextPageToken\":\"s-nextpagetoken\",\"responsePolicyRules\":[{\"behavior\":\"s-behavior\",\"dnsName\":\"s-dnsname\",\"kind\":\"s-kind\",\"localData\":{},\"ruleName\":\"s-rulename\"}]}",
+  "REQ GET https://dns.googleapis.com/dns/v2/projects/id1%2F%20x/locations/id2%2F%20x/responsePolicies/id3%2F%20x/rules?alt=json&fields=kind%2Cid&maxResults=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"header\":{\"operationId\":\"s-operationid\"},\"responsePolicyRules\":[{\"behavior\":\"s-behavior\",\"dnsName\":\"s-dnsname\",\"kind\":\"s-kind\",\"localData\":{},\"ruleName\":\"s-rulename\"}]}",
+  "OUT: {\"header\":{\"operationId\":\"s-operationid\"},\"responsePolicyRules\":[{\"behavior\":\"s-behavior\",\"dnsName\":\"s-dnsname\",\"kind\":\"s-kind\",\"localData\":{},\"ruleName\":\"s-rulename\"}]}",
+  "OUT: ok",
+]
+
+test "Go's dns.responsePolicyRules.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"header\":{\"operationId\":\"s-operationid\"},\"nextPageToken\":\"s-nextpagetoken\",\"responsePolicyRules\":[{\"behavior\":\"s-behavior\",\"dnsName\":\"s-dnsname\",\"kind\":\"s-kind\",\"localData\":{},\"ruleName\":\"s-rulename\"}]}")
+  gv_queue(f, "{\"header\":{\"operationId\":\"s-operationid\"},\"responsePolicyRules\":[{\"behavior\":\"s-behavior\",\"dnsName\":\"s-dnsname\",\"kind\":\"s-kind\",\"localData\":{},\"ruleName\":\"s-rulename\"}]}")
+  gv_note(f, "CALL dns.responsePolicyRules.list pages")
+  var p = svc.response_policy_rules.list_pages("id1/ x", "id2/ x", "id3/ x", options: ResponsePolicyRulesListOptions{max_results: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_42)
+}
+
+const GO_43: List[Str] = [
   "CALL dns.responsePolicyRules.patch",
   "REQ PATCH https://dns.googleapis.com/dns/v2/projects/id1%2F%20x/locations/id2%2F%20x/responsePolicies/id3%2F%20x/rules/id4%2F%20x?alt=json&clientOperationId=s-clientoperationid&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -775,10 +1079,10 @@ test "Go's dns.responsePolicyRules.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_35)
+  gv_compare(gv_log_of(f), GO_43)
 }
 
-const GO_36: List[Str] = [
+const GO_44: List[Str] = [
   "CALL dns.responsePolicyRules.update",
   "REQ PUT https://dns.googleapis.com/dns/v2/projects/id1%2F%20x/locations/id2%2F%20x/responsePolicies/id3%2F%20x/rules/id4%2F%20x?alt=json&clientOperationId=s-clientoperationid&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -797,5 +1101,5 @@ test "Go's dns.responsePolicyRules.update" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_36)
+  gv_compare(gv_log_of(f), GO_44)
 }

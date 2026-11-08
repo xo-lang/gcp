@@ -30,6 +30,44 @@ test "Go's analyticsadmin.accountSummaries.list" {
 }
 
 const GO_1: List[Str] = [
+  "CALL analyticsadmin.accountSummaries.list pages",
+  "REQ GET https://analyticsadmin.googleapis.com/v1beta/accountSummaries?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"accountSummaries\":[{\"account\":\"s-account\",\"displayName\":\"s-displayname\",\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"accountSummaries\":[{\"account\":\"s-account\",\"displayName\":\"s-displayname\",\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://analyticsadmin.googleapis.com/v1beta/accountSummaries?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"accountSummaries\":[{\"account\":\"s-account\",\"displayName\":\"s-displayname\",\"name\":\"s-name\"}]}",
+  "OUT: {\"accountSummaries\":[{\"account\":\"s-account\",\"displayName\":\"s-displayname\",\"name\":\"s-name\"}]}",
+  "OUT: ok",
+]
+
+test "Go's analyticsadmin.accountSummaries.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"accountSummaries\":[{\"account\":\"s-account\",\"displayName\":\"s-displayname\",\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"accountSummaries\":[{\"account\":\"s-account\",\"displayName\":\"s-displayname\",\"name\":\"s-name\"}]}")
+  gv_note(f, "CALL analyticsadmin.accountSummaries.list pages")
+  var p = svc.account_summaries.list_pages(options: AccountSummariesListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_1)
+}
+
+const GO_2: List[Str] = [
   "CALL analyticsadmin.accounts.delete",
   "REQ DELETE https://analyticsadmin.googleapis.com/v1beta/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -47,10 +85,10 @@ test "Go's analyticsadmin.accounts.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_1)
+  gv_compare(gv_log_of(f), GO_2)
 }
 
-const GO_2: List[Str] = [
+const GO_3: List[Str] = [
   "CALL analyticsadmin.accounts.get",
   "REQ GET https://analyticsadmin.googleapis.com/v1beta/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -68,10 +106,10 @@ test "Go's analyticsadmin.accounts.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_2)
+  gv_compare(gv_log_of(f), GO_3)
 }
 
-const GO_3: List[Str] = [
+const GO_4: List[Str] = [
   "CALL analyticsadmin.accounts.getDataSharingSettings",
   "REQ GET https://analyticsadmin.googleapis.com/v1beta/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -89,10 +127,10 @@ test "Go's analyticsadmin.accounts.getDataSharingSettings" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_3)
+  gv_compare(gv_log_of(f), GO_4)
 }
 
-const GO_4: List[Str] = [
+const GO_5: List[Str] = [
   "CALL analyticsadmin.accounts.list",
   "REQ GET https://analyticsadmin.googleapis.com/v1beta/accounts?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&showDeleted=true",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -110,10 +148,48 @@ test "Go's analyticsadmin.accounts.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_4)
+  gv_compare(gv_log_of(f), GO_5)
 }
 
-const GO_5: List[Str] = [
+const GO_6: List[Str] = [
+  "CALL analyticsadmin.accounts.list pages",
+  "REQ GET https://analyticsadmin.googleapis.com/v1beta/accounts?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&showDeleted=true",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"accounts\":[{\"createTime\":\"s-createtime\",\"deleted\":true,\"displayName\":\"s-displayname\",\"gmpOrganization\":\"s-gmporganization\",\"name\":\"s-name\",\"regionCode\":\"s-regioncode\",\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"accounts\":[{\"createTime\":\"s-createtime\",\"deleted\":true,\"displayName\":\"s-displayname\",\"gmpOrganization\":\"s-gmporganization\",\"name\":\"s-name\",\"regionCode\":\"s-regioncode\",\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://analyticsadmin.googleapis.com/v1beta/accounts?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false&showDeleted=true",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"accounts\":[{\"createTime\":\"s-createtime\",\"deleted\":true,\"displayName\":\"s-displayname\",\"gmpOrganization\":\"s-gmporganization\",\"name\":\"s-name\",\"regionCode\":\"s-regioncode\",\"updateTime\":\"s-updatetime\"}]}",
+  "OUT: {\"accounts\":[{\"createTime\":\"s-createtime\",\"deleted\":true,\"displayName\":\"s-displayname\",\"gmpOrganization\":\"s-gmporganization\",\"name\":\"s-name\",\"regionCode\":\"s-regioncode\",\"updateTime\":\"s-updatetime\"}]}",
+  "OUT: ok",
+]
+
+test "Go's analyticsadmin.accounts.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"accounts\":[{\"createTime\":\"s-createtime\",\"deleted\":true,\"displayName\":\"s-displayname\",\"gmpOrganization\":\"s-gmporganization\",\"name\":\"s-name\",\"regionCode\":\"s-regioncode\",\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"accounts\":[{\"createTime\":\"s-createtime\",\"deleted\":true,\"displayName\":\"s-displayname\",\"gmpOrganization\":\"s-gmporganization\",\"name\":\"s-name\",\"regionCode\":\"s-regioncode\",\"updateTime\":\"s-updatetime\"}]}")
+  gv_note(f, "CALL analyticsadmin.accounts.list pages")
+  var p = svc.accounts.list_pages(options: AccountsListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), show_deleted: Some(true), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_6)
+}
+
+const GO_7: List[Str] = [
   "CALL analyticsadmin.accounts.patch",
   "REQ PATCH https://analyticsadmin.googleapis.com/v1beta/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
@@ -132,10 +208,10 @@ test "Go's analyticsadmin.accounts.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_5)
+  gv_compare(gv_log_of(f), GO_7)
 }
 
-const GO_6: List[Str] = [
+const GO_8: List[Str] = [
   "CALL analyticsadmin.accounts.provisionAccountTicket",
   "REQ POST https://analyticsadmin.googleapis.com/v1beta/accounts:provisionAccountTicket?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -154,10 +230,10 @@ test "Go's analyticsadmin.accounts.provisionAccountTicket" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_6)
+  gv_compare(gv_log_of(f), GO_8)
 }
 
-const GO_7: List[Str] = [
+const GO_9: List[Str] = [
   "CALL analyticsadmin.accounts.runAccessReport",
   "REQ POST https://analyticsadmin.googleapis.com/v1beta/id1/%20x:runAccessReport?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -176,10 +252,10 @@ test "Go's analyticsadmin.accounts.runAccessReport" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_7)
+  gv_compare(gv_log_of(f), GO_9)
 }
 
-const GO_8: List[Str] = [
+const GO_10: List[Str] = [
   "CALL analyticsadmin.accounts.searchChangeHistoryEvents",
   "REQ POST https://analyticsadmin.googleapis.com/v1beta/id1/%20x:searchChangeHistoryEvents?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -198,10 +274,50 @@ test "Go's analyticsadmin.accounts.searchChangeHistoryEvents" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_8)
+  gv_compare(gv_log_of(f), GO_10)
 }
 
-const GO_9: List[Str] = [
+const GO_11: List[Str] = [
+  "CALL analyticsadmin.accounts.searchChangeHistoryEvents pages",
+  "REQ POST https://analyticsadmin.googleapis.com/v1beta/id1/%20x:searchChangeHistoryEvents?alt=json&fields=kind%2Cid&prettyPrint=false",
+  "  H content-type=application/json | x-extra=v1",
+  "  B {\"action\":[\"s-action\"],\"actorEmail\":[\"s-actoremail\"],\"earliestChangeTime\":\"s-earliestchangetime\",\"latestChangeTime\":\"s-latestchangetime\",\"pageSize\":7,\"pageToken\":\"s-pagetoken\",\"property\":\"s-property\",\"resourceType\":[\"s-resourcetype\"]}",
+  "",
+  "  SERVED 200 {\"changeHistoryEvents\":[{\"actorType\":\"s-actortype\",\"changeTime\":\"s-changetime\",\"changesFiltered\":true,\"id\":\"s-id\",\"userActorEmail\":\"s-useractoremail\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"changeHistoryEvents\":[{\"actorType\":\"s-actortype\",\"changeTime\":\"s-changetime\",\"changesFiltered\":true,\"id\":\"s-id\",\"userActorEmail\":\"s-useractoremail\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ POST https://analyticsadmin.googleapis.com/v1beta/id1/%20x:searchChangeHistoryEvents?alt=json&fields=kind%2Cid&prettyPrint=false",
+  "  H content-type=application/json | x-extra=v1",
+  "  B {\"action\":[\"s-action\"],\"actorEmail\":[\"s-actoremail\"],\"earliestChangeTime\":\"s-earliestchangetime\",\"latestChangeTime\":\"s-latestchangetime\",\"pageSize\":7,\"pageToken\":\"s-nextpagetoken\",\"property\":\"s-property\",\"resourceType\":[\"s-resourcetype\"]}",
+  "",
+  "  SERVED 200 {\"changeHistoryEvents\":[{\"actorType\":\"s-actortype\",\"changeTime\":\"s-changetime\",\"changesFiltered\":true,\"id\":\"s-id\",\"userActorEmail\":\"s-useractoremail\"}]}",
+  "OUT: {\"changeHistoryEvents\":[{\"actorType\":\"s-actortype\",\"changeTime\":\"s-changetime\",\"changesFiltered\":true,\"id\":\"s-id\",\"userActorEmail\":\"s-useractoremail\"}]}",
+  "OUT: ok",
+]
+
+test "Go's analyticsadmin.accounts.searchChangeHistoryEvents pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"changeHistoryEvents\":[{\"actorType\":\"s-actortype\",\"changeTime\":\"s-changetime\",\"changesFiltered\":true,\"id\":\"s-id\",\"userActorEmail\":\"s-useractoremail\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"changeHistoryEvents\":[{\"actorType\":\"s-actortype\",\"changeTime\":\"s-changetime\",\"changesFiltered\":true,\"id\":\"s-id\",\"userActorEmail\":\"s-useractoremail\"}]}")
+  gv_note(f, "CALL analyticsadmin.accounts.searchChangeHistoryEvents pages")
+  var p = svc.accounts.search_change_history_events_pages("id1/ x", json.decode_str[GoogleAnalyticsAdminV1betaSearchChangeHistoryEventsRequest]("{\"action\":[\"s-action\"],\"actorEmail\":[\"s-actoremail\"],\"earliestChangeTime\":\"s-earliestchangetime\",\"latestChangeTime\":\"s-latestchangetime\",\"pageSize\":7,\"pageToken\":\"s-pagetoken\",\"property\":\"s-property\",\"resourceType\":[\"s-resourcetype\"]}") ?? e => fault(e.display()), options: AccountsSearchChangeHistoryEventsOptions{fields: ["kind", "id"], headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_11)
+}
+
+const GO_12: List[Str] = [
   "CALL analyticsadmin.properties.acknowledgeUserDataCollection",
   "REQ POST https://analyticsadmin.googleapis.com/v1beta/id1/%20x:acknowledgeUserDataCollection?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -220,10 +336,10 @@ test "Go's analyticsadmin.properties.acknowledgeUserDataCollection" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_9)
+  gv_compare(gv_log_of(f), GO_12)
 }
 
-const GO_10: List[Str] = [
+const GO_13: List[Str] = [
   "CALL analyticsadmin.properties.create",
   "REQ POST https://analyticsadmin.googleapis.com/v1beta/properties?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -242,10 +358,10 @@ test "Go's analyticsadmin.properties.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_10)
+  gv_compare(gv_log_of(f), GO_13)
 }
 
-const GO_11: List[Str] = [
+const GO_14: List[Str] = [
   "CALL analyticsadmin.properties.delete",
   "REQ DELETE https://analyticsadmin.googleapis.com/v1beta/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -263,10 +379,10 @@ test "Go's analyticsadmin.properties.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_11)
+  gv_compare(gv_log_of(f), GO_14)
 }
 
-const GO_12: List[Str] = [
+const GO_15: List[Str] = [
   "CALL analyticsadmin.properties.get",
   "REQ GET https://analyticsadmin.googleapis.com/v1beta/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -284,10 +400,10 @@ test "Go's analyticsadmin.properties.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_12)
+  gv_compare(gv_log_of(f), GO_15)
 }
 
-const GO_13: List[Str] = [
+const GO_16: List[Str] = [
   "CALL analyticsadmin.properties.getDataRetentionSettings",
   "REQ GET https://analyticsadmin.googleapis.com/v1beta/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -305,10 +421,10 @@ test "Go's analyticsadmin.properties.getDataRetentionSettings" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_13)
+  gv_compare(gv_log_of(f), GO_16)
 }
 
-const GO_14: List[Str] = [
+const GO_17: List[Str] = [
   "CALL analyticsadmin.properties.list",
   "REQ GET https://analyticsadmin.googleapis.com/v1beta/properties?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&showDeleted=true",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -326,10 +442,48 @@ test "Go's analyticsadmin.properties.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_14)
+  gv_compare(gv_log_of(f), GO_17)
 }
 
-const GO_15: List[Str] = [
+const GO_18: List[Str] = [
+  "CALL analyticsadmin.properties.list pages",
+  "REQ GET https://analyticsadmin.googleapis.com/v1beta/properties?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&showDeleted=true",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"properties\":[{\"account\":\"s-account\",\"createTime\":\"s-createtime\",\"currencyCode\":\"s-currencycode\",\"deleteTime\":\"s-deletetime\",\"displayName\":\"s-displayname\",\"expireTime\":\"s-expiretime\",\"industryCategory\":\"s-industrycategory\",\"name\":\"s-name\",\"parent\":\"s-parent\",\"propertyType\":\"s-propertytype\",\"serviceLevel\":\"s-servicelevel\",\"timeZone\":\"s-timezone\",\"updateTime\":\"s-updatetime\"}]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"properties\":[{\"account\":\"s-account\",\"createTime\":\"s-createtime\",\"currencyCode\":\"s-currencycode\",\"deleteTime\":\"s-deletetime\",\"displayName\":\"s-displayname\",\"expireTime\":\"s-expiretime\",\"industryCategory\":\"s-industrycategory\",\"name\":\"s-name\",\"parent\":\"s-parent\",\"propertyType\":\"s-propertytype\",\"serviceLevel\":\"s-servicelevel\",\"timeZone\":\"s-timezone\",\"updateTime\":\"s-updatetime\"}]}",
+  "REQ GET https://analyticsadmin.googleapis.com/v1beta/properties?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false&showDeleted=true",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"properties\":[{\"account\":\"s-account\",\"createTime\":\"s-createtime\",\"currencyCode\":\"s-currencycode\",\"deleteTime\":\"s-deletetime\",\"displayName\":\"s-displayname\",\"expireTime\":\"s-expiretime\",\"industryCategory\":\"s-industrycategory\",\"name\":\"s-name\",\"parent\":\"s-parent\",\"propertyType\":\"s-propertytype\",\"serviceLevel\":\"s-servicelevel\",\"timeZone\":\"s-timezone\",\"updateTime\":\"s-updatetime\"}]}",
+  "OUT: {\"properties\":[{\"account\":\"s-account\",\"createTime\":\"s-createtime\",\"currencyCode\":\"s-currencycode\",\"deleteTime\":\"s-deletetime\",\"displayName\":\"s-displayname\",\"expireTime\":\"s-expiretime\",\"industryCategory\":\"s-industrycategory\",\"name\":\"s-name\",\"parent\":\"s-parent\",\"propertyType\":\"s-propertytype\",\"serviceLevel\":\"s-servicelevel\",\"timeZone\":\"s-timezone\",\"updateTime\":\"s-updatetime\"}]}",
+  "OUT: ok",
+]
+
+test "Go's analyticsadmin.properties.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"properties\":[{\"account\":\"s-account\",\"createTime\":\"s-createtime\",\"currencyCode\":\"s-currencycode\",\"deleteTime\":\"s-deletetime\",\"displayName\":\"s-displayname\",\"expireTime\":\"s-expiretime\",\"industryCategory\":\"s-industrycategory\",\"name\":\"s-name\",\"parent\":\"s-parent\",\"propertyType\":\"s-propertytype\",\"serviceLevel\":\"s-servicelevel\",\"timeZone\":\"s-timezone\",\"updateTime\":\"s-updatetime\"}]}")
+  gv_queue(f, "{\"properties\":[{\"account\":\"s-account\",\"createTime\":\"s-createtime\",\"currencyCode\":\"s-currencycode\",\"deleteTime\":\"s-deletetime\",\"displayName\":\"s-displayname\",\"expireTime\":\"s-expiretime\",\"industryCategory\":\"s-industrycategory\",\"name\":\"s-name\",\"parent\":\"s-parent\",\"propertyType\":\"s-propertytype\",\"serviceLevel\":\"s-servicelevel\",\"timeZone\":\"s-timezone\",\"updateTime\":\"s-updatetime\"}]}")
+  gv_note(f, "CALL analyticsadmin.properties.list pages")
+  var p = svc.properties.list_pages(options: PropertiesListOptions{filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), show_deleted: Some(true), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_18)
+}
+
+const GO_19: List[Str] = [
   "CALL analyticsadmin.properties.patch",
   "REQ PATCH https://analyticsadmin.googleapis.com/v1beta/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
@@ -348,10 +502,10 @@ test "Go's analyticsadmin.properties.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_15)
+  gv_compare(gv_log_of(f), GO_19)
 }
 
-const GO_16: List[Str] = [
+const GO_20: List[Str] = [
   "CALL analyticsadmin.properties.runAccessReport",
   "REQ POST https://analyticsadmin.googleapis.com/v1beta/id1/%20x:runAccessReport?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -370,10 +524,10 @@ test "Go's analyticsadmin.properties.runAccessReport" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_16)
+  gv_compare(gv_log_of(f), GO_20)
 }
 
-const GO_17: List[Str] = [
+const GO_21: List[Str] = [
   "CALL analyticsadmin.properties.updateDataRetentionSettings",
   "REQ PATCH https://analyticsadmin.googleapis.com/v1beta/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
@@ -392,10 +546,10 @@ test "Go's analyticsadmin.properties.updateDataRetentionSettings" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_17)
+  gv_compare(gv_log_of(f), GO_21)
 }
 
-const GO_18: List[Str] = [
+const GO_22: List[Str] = [
   "CALL analyticsadmin.properties.conversionEvents.create",
   "REQ POST https://analyticsadmin.googleapis.com/v1beta/id1/%20x/conversionEvents?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -414,10 +568,10 @@ test "Go's analyticsadmin.properties.conversionEvents.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_18)
+  gv_compare(gv_log_of(f), GO_22)
 }
 
-const GO_19: List[Str] = [
+const GO_23: List[Str] = [
   "CALL analyticsadmin.properties.conversionEvents.delete",
   "REQ DELETE https://analyticsadmin.googleapis.com/v1beta/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -435,10 +589,10 @@ test "Go's analyticsadmin.properties.conversionEvents.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_19)
+  gv_compare(gv_log_of(f), GO_23)
 }
 
-const GO_20: List[Str] = [
+const GO_24: List[Str] = [
   "CALL analyticsadmin.properties.conversionEvents.get",
   "REQ GET https://analyticsadmin.googleapis.com/v1beta/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -456,10 +610,10 @@ test "Go's analyticsadmin.properties.conversionEvents.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_20)
+  gv_compare(gv_log_of(f), GO_24)
 }
 
-const GO_21: List[Str] = [
+const GO_25: List[Str] = [
   "CALL analyticsadmin.properties.conversionEvents.list",
   "REQ GET https://analyticsadmin.googleapis.com/v1beta/id1/%20x/conversionEvents?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -477,10 +631,48 @@ test "Go's analyticsadmin.properties.conversionEvents.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_21)
+  gv_compare(gv_log_of(f), GO_25)
 }
 
-const GO_22: List[Str] = [
+const GO_26: List[Str] = [
+  "CALL analyticsadmin.properties.conversionEvents.list pages",
+  "REQ GET https://analyticsadmin.googleapis.com/v1beta/id1/%20x/conversionEvents?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"conversionEvents\":[{\"countingMethod\":\"s-countingmethod\",\"createTime\":\"s-createtime\",\"custom\":true,\"defaultConversionValue\":{\"currencyCode\":\"s-currencycode\",\"value\":1.5},\"deletable\":true,\"eventName\":\"s-eventname\",\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"conversionEvents\":[{\"countingMethod\":\"s-countingmethod\",\"createTime\":\"s-createtime\",\"custom\":true,\"defaultConversionValue\":{\"currencyCode\":\"s-currencycode\",\"value\":1.5},\"deletable\":true,\"eventName\":\"s-eventname\",\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://analyticsadmin.googleapis.com/v1beta/id1/%20x/conversionEvents?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"conversionEvents\":[{\"countingMethod\":\"s-countingmethod\",\"createTime\":\"s-createtime\",\"custom\":true,\"defaultConversionValue\":{\"currencyCode\":\"s-currencycode\",\"value\":1.5},\"deletable\":true,\"eventName\":\"s-eventname\",\"name\":\"s-name\"}]}",
+  "OUT: {\"conversionEvents\":[{\"countingMethod\":\"s-countingmethod\",\"createTime\":\"s-createtime\",\"custom\":true,\"defaultConversionValue\":{\"currencyCode\":\"s-currencycode\",\"value\":1.5},\"deletable\":true,\"eventName\":\"s-eventname\",\"name\":\"s-name\"}]}",
+  "OUT: ok",
+]
+
+test "Go's analyticsadmin.properties.conversionEvents.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"conversionEvents\":[{\"countingMethod\":\"s-countingmethod\",\"createTime\":\"s-createtime\",\"custom\":true,\"defaultConversionValue\":{\"currencyCode\":\"s-currencycode\",\"value\":1.5},\"deletable\":true,\"eventName\":\"s-eventname\",\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"conversionEvents\":[{\"countingMethod\":\"s-countingmethod\",\"createTime\":\"s-createtime\",\"custom\":true,\"defaultConversionValue\":{\"currencyCode\":\"s-currencycode\",\"value\":1.5},\"deletable\":true,\"eventName\":\"s-eventname\",\"name\":\"s-name\"}]}")
+  gv_note(f, "CALL analyticsadmin.properties.conversionEvents.list pages")
+  var p = svc.properties.conversion_events.list_pages("id1/ x", options: PropertiesConversionEventsListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_26)
+}
+
+const GO_27: List[Str] = [
   "CALL analyticsadmin.properties.conversionEvents.patch",
   "REQ PATCH https://analyticsadmin.googleapis.com/v1beta/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
@@ -499,10 +691,10 @@ test "Go's analyticsadmin.properties.conversionEvents.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_22)
+  gv_compare(gv_log_of(f), GO_27)
 }
 
-const GO_23: List[Str] = [
+const GO_28: List[Str] = [
   "CALL analyticsadmin.properties.customDimensions.archive",
   "REQ POST https://analyticsadmin.googleapis.com/v1beta/id1/%20x:archive?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -521,10 +713,10 @@ test "Go's analyticsadmin.properties.customDimensions.archive" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_23)
+  gv_compare(gv_log_of(f), GO_28)
 }
 
-const GO_24: List[Str] = [
+const GO_29: List[Str] = [
   "CALL analyticsadmin.properties.customDimensions.create",
   "REQ POST https://analyticsadmin.googleapis.com/v1beta/id1/%20x/customDimensions?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -543,10 +735,10 @@ test "Go's analyticsadmin.properties.customDimensions.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_24)
+  gv_compare(gv_log_of(f), GO_29)
 }
 
-const GO_25: List[Str] = [
+const GO_30: List[Str] = [
   "CALL analyticsadmin.properties.customDimensions.get",
   "REQ GET https://analyticsadmin.googleapis.com/v1beta/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -564,10 +756,10 @@ test "Go's analyticsadmin.properties.customDimensions.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_25)
+  gv_compare(gv_log_of(f), GO_30)
 }
 
-const GO_26: List[Str] = [
+const GO_31: List[Str] = [
   "CALL analyticsadmin.properties.customDimensions.list",
   "REQ GET https://analyticsadmin.googleapis.com/v1beta/id1/%20x/customDimensions?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -585,10 +777,48 @@ test "Go's analyticsadmin.properties.customDimensions.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_26)
+  gv_compare(gv_log_of(f), GO_31)
 }
 
-const GO_27: List[Str] = [
+const GO_32: List[Str] = [
+  "CALL analyticsadmin.properties.customDimensions.list pages",
+  "REQ GET https://analyticsadmin.googleapis.com/v1beta/id1/%20x/customDimensions?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"customDimensions\":[{\"description\":\"s-description\",\"disallowAdsPersonalization\":true,\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"parameterName\":\"s-parametername\",\"scope\":\"s-scope\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"customDimensions\":[{\"description\":\"s-description\",\"disallowAdsPersonalization\":true,\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"parameterName\":\"s-parametername\",\"scope\":\"s-scope\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://analyticsadmin.googleapis.com/v1beta/id1/%20x/customDimensions?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"customDimensions\":[{\"description\":\"s-description\",\"disallowAdsPersonalization\":true,\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"parameterName\":\"s-parametername\",\"scope\":\"s-scope\"}]}",
+  "OUT: {\"customDimensions\":[{\"description\":\"s-description\",\"disallowAdsPersonalization\":true,\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"parameterName\":\"s-parametername\",\"scope\":\"s-scope\"}]}",
+  "OUT: ok",
+]
+
+test "Go's analyticsadmin.properties.customDimensions.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"customDimensions\":[{\"description\":\"s-description\",\"disallowAdsPersonalization\":true,\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"parameterName\":\"s-parametername\",\"scope\":\"s-scope\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"customDimensions\":[{\"description\":\"s-description\",\"disallowAdsPersonalization\":true,\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"parameterName\":\"s-parametername\",\"scope\":\"s-scope\"}]}")
+  gv_note(f, "CALL analyticsadmin.properties.customDimensions.list pages")
+  var p = svc.properties.custom_dimensions.list_pages("id1/ x", options: PropertiesCustomDimensionsListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_32)
+}
+
+const GO_33: List[Str] = [
   "CALL analyticsadmin.properties.customDimensions.patch",
   "REQ PATCH https://analyticsadmin.googleapis.com/v1beta/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
@@ -607,10 +837,10 @@ test "Go's analyticsadmin.properties.customDimensions.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_27)
+  gv_compare(gv_log_of(f), GO_33)
 }
 
-const GO_28: List[Str] = [
+const GO_34: List[Str] = [
   "CALL analyticsadmin.properties.customMetrics.archive",
   "REQ POST https://analyticsadmin.googleapis.com/v1beta/id1/%20x:archive?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -629,10 +859,10 @@ test "Go's analyticsadmin.properties.customMetrics.archive" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_28)
+  gv_compare(gv_log_of(f), GO_34)
 }
 
-const GO_29: List[Str] = [
+const GO_35: List[Str] = [
   "CALL analyticsadmin.properties.customMetrics.create",
   "REQ POST https://analyticsadmin.googleapis.com/v1beta/id1/%20x/customMetrics?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -651,10 +881,10 @@ test "Go's analyticsadmin.properties.customMetrics.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_29)
+  gv_compare(gv_log_of(f), GO_35)
 }
 
-const GO_30: List[Str] = [
+const GO_36: List[Str] = [
   "CALL analyticsadmin.properties.customMetrics.get",
   "REQ GET https://analyticsadmin.googleapis.com/v1beta/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -672,10 +902,10 @@ test "Go's analyticsadmin.properties.customMetrics.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_30)
+  gv_compare(gv_log_of(f), GO_36)
 }
 
-const GO_31: List[Str] = [
+const GO_37: List[Str] = [
   "CALL analyticsadmin.properties.customMetrics.list",
   "REQ GET https://analyticsadmin.googleapis.com/v1beta/id1/%20x/customMetrics?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -693,10 +923,48 @@ test "Go's analyticsadmin.properties.customMetrics.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_31)
+  gv_compare(gv_log_of(f), GO_37)
 }
 
-const GO_32: List[Str] = [
+const GO_38: List[Str] = [
+  "CALL analyticsadmin.properties.customMetrics.list pages",
+  "REQ GET https://analyticsadmin.googleapis.com/v1beta/id1/%20x/customMetrics?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"customMetrics\":[{\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"measurementUnit\":\"s-measurementunit\",\"name\":\"s-name\",\"parameterName\":\"s-parametername\",\"restrictedMetricType\":[\"s-restrictedmetrictype\"],\"scope\":\"s-scope\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"customMetrics\":[{\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"measurementUnit\":\"s-measurementunit\",\"name\":\"s-name\",\"parameterName\":\"s-parametername\",\"restrictedMetricType\":[\"s-restrictedmetrictype\"],\"scope\":\"s-scope\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://analyticsadmin.googleapis.com/v1beta/id1/%20x/customMetrics?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"customMetrics\":[{\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"measurementUnit\":\"s-measurementunit\",\"name\":\"s-name\",\"parameterName\":\"s-parametername\",\"restrictedMetricType\":[\"s-restrictedmetrictype\"],\"scope\":\"s-scope\"}]}",
+  "OUT: {\"customMetrics\":[{\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"measurementUnit\":\"s-measurementunit\",\"name\":\"s-name\",\"parameterName\":\"s-parametername\",\"restrictedMetricType\":[\"s-restrictedmetrictype\"],\"scope\":\"s-scope\"}]}",
+  "OUT: ok",
+]
+
+test "Go's analyticsadmin.properties.customMetrics.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"customMetrics\":[{\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"measurementUnit\":\"s-measurementunit\",\"name\":\"s-name\",\"parameterName\":\"s-parametername\",\"restrictedMetricType\":[\"s-restrictedmetrictype\"],\"scope\":\"s-scope\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"customMetrics\":[{\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"measurementUnit\":\"s-measurementunit\",\"name\":\"s-name\",\"parameterName\":\"s-parametername\",\"restrictedMetricType\":[\"s-restrictedmetrictype\"],\"scope\":\"s-scope\"}]}")
+  gv_note(f, "CALL analyticsadmin.properties.customMetrics.list pages")
+  var p = svc.properties.custom_metrics.list_pages("id1/ x", options: PropertiesCustomMetricsListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_38)
+}
+
+const GO_39: List[Str] = [
   "CALL analyticsadmin.properties.customMetrics.patch",
   "REQ PATCH https://analyticsadmin.googleapis.com/v1beta/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
@@ -715,10 +983,10 @@ test "Go's analyticsadmin.properties.customMetrics.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_32)
+  gv_compare(gv_log_of(f), GO_39)
 }
 
-const GO_33: List[Str] = [
+const GO_40: List[Str] = [
   "CALL analyticsadmin.properties.dataStreams.create",
   "REQ POST https://analyticsadmin.googleapis.com/v1beta/id1/%20x/dataStreams?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -737,10 +1005,10 @@ test "Go's analyticsadmin.properties.dataStreams.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_33)
+  gv_compare(gv_log_of(f), GO_40)
 }
 
-const GO_34: List[Str] = [
+const GO_41: List[Str] = [
   "CALL analyticsadmin.properties.dataStreams.delete",
   "REQ DELETE https://analyticsadmin.googleapis.com/v1beta/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -758,10 +1026,10 @@ test "Go's analyticsadmin.properties.dataStreams.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_34)
+  gv_compare(gv_log_of(f), GO_41)
 }
 
-const GO_35: List[Str] = [
+const GO_42: List[Str] = [
   "CALL analyticsadmin.properties.dataStreams.get",
   "REQ GET https://analyticsadmin.googleapis.com/v1beta/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -779,10 +1047,10 @@ test "Go's analyticsadmin.properties.dataStreams.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_35)
+  gv_compare(gv_log_of(f), GO_42)
 }
 
-const GO_36: List[Str] = [
+const GO_43: List[Str] = [
   "CALL analyticsadmin.properties.dataStreams.list",
   "REQ GET https://analyticsadmin.googleapis.com/v1beta/id1/%20x/dataStreams?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -800,10 +1068,48 @@ test "Go's analyticsadmin.properties.dataStreams.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_36)
+  gv_compare(gv_log_of(f), GO_43)
 }
 
-const GO_37: List[Str] = [
+const GO_44: List[Str] = [
+  "CALL analyticsadmin.properties.dataStreams.list pages",
+  "REQ GET https://analyticsadmin.googleapis.com/v1beta/id1/%20x/dataStreams?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"dataStreams\":[{\"androidAppStreamData\":{\"firebaseAppId\":\"s-firebaseappid\",\"packageName\":\"s-packagename\"},\"createTime\":\"s-createtime\",\"displayName\":\"s-displayname\",\"iosAppStreamData\":{\"bundleId\":\"s-bundleid\",\"firebaseAppId\":\"s-firebaseappid\"},\"name\":\"s-name\",\"type\":\"s-type\",\"updateTime\":\"s-updatetime\",\"webStreamData\":{\"defaultUri\":\"s-defaulturi\",\"firebaseAppId\":\"s-firebaseappid\",\"measurementId\":\"s-measurementid\"}}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"dataStreams\":[{\"androidAppStreamData\":{\"firebaseAppId\":\"s-firebaseappid\",\"packageName\":\"s-packagename\"},\"createTime\":\"s-createtime\",\"displayName\":\"s-displayname\",\"iosAppStreamData\":{\"bundleId\":\"s-bundleid\",\"firebaseAppId\":\"s-firebaseappid\"},\"name\":\"s-name\",\"type\":\"s-type\",\"updateTime\":\"s-updatetime\",\"webStreamData\":{\"defaultUri\":\"s-defaulturi\",\"firebaseAppId\":\"s-firebaseappid\",\"measurementId\":\"s-measurementid\"}}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://analyticsadmin.googleapis.com/v1beta/id1/%20x/dataStreams?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"dataStreams\":[{\"androidAppStreamData\":{\"firebaseAppId\":\"s-firebaseappid\",\"packageName\":\"s-packagename\"},\"createTime\":\"s-createtime\",\"displayName\":\"s-displayname\",\"iosAppStreamData\":{\"bundleId\":\"s-bundleid\",\"firebaseAppId\":\"s-firebaseappid\"},\"name\":\"s-name\",\"type\":\"s-type\",\"updateTime\":\"s-updatetime\",\"webStreamData\":{\"defaultUri\":\"s-defaulturi\",\"firebaseAppId\":\"s-firebaseappid\",\"measurementId\":\"s-measurementid\"}}]}",
+  "OUT: {\"dataStreams\":[{\"androidAppStreamData\":{\"firebaseAppId\":\"s-firebaseappid\",\"packageName\":\"s-packagename\"},\"createTime\":\"s-createtime\",\"displayName\":\"s-displayname\",\"iosAppStreamData\":{\"bundleId\":\"s-bundleid\",\"firebaseAppId\":\"s-firebaseappid\"},\"name\":\"s-name\",\"type\":\"s-type\",\"updateTime\":\"s-updatetime\",\"webStreamData\":{\"defaultUri\":\"s-defaulturi\",\"firebaseAppId\":\"s-firebaseappid\",\"measurementId\":\"s-measurementid\"}}]}",
+  "OUT: ok",
+]
+
+test "Go's analyticsadmin.properties.dataStreams.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"dataStreams\":[{\"androidAppStreamData\":{\"firebaseAppId\":\"s-firebaseappid\",\"packageName\":\"s-packagename\"},\"createTime\":\"s-createtime\",\"displayName\":\"s-displayname\",\"iosAppStreamData\":{\"bundleId\":\"s-bundleid\",\"firebaseAppId\":\"s-firebaseappid\"},\"name\":\"s-name\",\"type\":\"s-type\",\"updateTime\":\"s-updatetime\",\"webStreamData\":{\"defaultUri\":\"s-defaulturi\",\"firebaseAppId\":\"s-firebaseappid\",\"measurementId\":\"s-measurementid\"}}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"dataStreams\":[{\"androidAppStreamData\":{\"firebaseAppId\":\"s-firebaseappid\",\"packageName\":\"s-packagename\"},\"createTime\":\"s-createtime\",\"displayName\":\"s-displayname\",\"iosAppStreamData\":{\"bundleId\":\"s-bundleid\",\"firebaseAppId\":\"s-firebaseappid\"},\"name\":\"s-name\",\"type\":\"s-type\",\"updateTime\":\"s-updatetime\",\"webStreamData\":{\"defaultUri\":\"s-defaulturi\",\"firebaseAppId\":\"s-firebaseappid\",\"measurementId\":\"s-measurementid\"}}]}")
+  gv_note(f, "CALL analyticsadmin.properties.dataStreams.list pages")
+  var p = svc.properties.data_streams.list_pages("id1/ x", options: PropertiesDataStreamsListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_44)
+}
+
+const GO_45: List[Str] = [
   "CALL analyticsadmin.properties.dataStreams.patch",
   "REQ PATCH https://analyticsadmin.googleapis.com/v1beta/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
@@ -822,10 +1128,10 @@ test "Go's analyticsadmin.properties.dataStreams.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_37)
+  gv_compare(gv_log_of(f), GO_45)
 }
 
-const GO_38: List[Str] = [
+const GO_46: List[Str] = [
   "CALL analyticsadmin.properties.dataStreams.measurementProtocolSecrets.create",
   "REQ POST https://analyticsadmin.googleapis.com/v1beta/id1/%20x/measurementProtocolSecrets?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -844,10 +1150,10 @@ test "Go's analyticsadmin.properties.dataStreams.measurementProtocolSecrets.crea
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_38)
+  gv_compare(gv_log_of(f), GO_46)
 }
 
-const GO_39: List[Str] = [
+const GO_47: List[Str] = [
   "CALL analyticsadmin.properties.dataStreams.measurementProtocolSecrets.delete",
   "REQ DELETE https://analyticsadmin.googleapis.com/v1beta/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -865,10 +1171,10 @@ test "Go's analyticsadmin.properties.dataStreams.measurementProtocolSecrets.dele
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_39)
+  gv_compare(gv_log_of(f), GO_47)
 }
 
-const GO_40: List[Str] = [
+const GO_48: List[Str] = [
   "CALL analyticsadmin.properties.dataStreams.measurementProtocolSecrets.get",
   "REQ GET https://analyticsadmin.googleapis.com/v1beta/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -886,10 +1192,10 @@ test "Go's analyticsadmin.properties.dataStreams.measurementProtocolSecrets.get"
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_40)
+  gv_compare(gv_log_of(f), GO_48)
 }
 
-const GO_41: List[Str] = [
+const GO_49: List[Str] = [
   "CALL analyticsadmin.properties.dataStreams.measurementProtocolSecrets.list",
   "REQ GET https://analyticsadmin.googleapis.com/v1beta/id1/%20x/measurementProtocolSecrets?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -907,10 +1213,48 @@ test "Go's analyticsadmin.properties.dataStreams.measurementProtocolSecrets.list
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_41)
+  gv_compare(gv_log_of(f), GO_49)
 }
 
-const GO_42: List[Str] = [
+const GO_50: List[Str] = [
+  "CALL analyticsadmin.properties.dataStreams.measurementProtocolSecrets.list pages",
+  "REQ GET https://analyticsadmin.googleapis.com/v1beta/id1/%20x/measurementProtocolSecrets?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"measurementProtocolSecrets\":[{\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"secretValue\":\"s-secretvalue\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"measurementProtocolSecrets\":[{\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"secretValue\":\"s-secretvalue\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://analyticsadmin.googleapis.com/v1beta/id1/%20x/measurementProtocolSecrets?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"measurementProtocolSecrets\":[{\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"secretValue\":\"s-secretvalue\"}]}",
+  "OUT: {\"measurementProtocolSecrets\":[{\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"secretValue\":\"s-secretvalue\"}]}",
+  "OUT: ok",
+]
+
+test "Go's analyticsadmin.properties.dataStreams.measurementProtocolSecrets.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"measurementProtocolSecrets\":[{\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"secretValue\":\"s-secretvalue\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"measurementProtocolSecrets\":[{\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"secretValue\":\"s-secretvalue\"}]}")
+  gv_note(f, "CALL analyticsadmin.properties.dataStreams.measurementProtocolSecrets.list pages")
+  var p = svc.properties.data_streams.measurement_protocol_secrets.list_pages("id1/ x", options: PropertiesDataStreamsMeasurementProtocolSecretsListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_50)
+}
+
+const GO_51: List[Str] = [
   "CALL analyticsadmin.properties.dataStreams.measurementProtocolSecrets.patch",
   "REQ PATCH https://analyticsadmin.googleapis.com/v1beta/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
@@ -929,10 +1273,10 @@ test "Go's analyticsadmin.properties.dataStreams.measurementProtocolSecrets.patc
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_42)
+  gv_compare(gv_log_of(f), GO_51)
 }
 
-const GO_43: List[Str] = [
+const GO_52: List[Str] = [
   "CALL analyticsadmin.properties.firebaseLinks.create",
   "REQ POST https://analyticsadmin.googleapis.com/v1beta/id1/%20x/firebaseLinks?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -951,10 +1295,10 @@ test "Go's analyticsadmin.properties.firebaseLinks.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_43)
+  gv_compare(gv_log_of(f), GO_52)
 }
 
-const GO_44: List[Str] = [
+const GO_53: List[Str] = [
   "CALL analyticsadmin.properties.firebaseLinks.delete",
   "REQ DELETE https://analyticsadmin.googleapis.com/v1beta/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -972,10 +1316,10 @@ test "Go's analyticsadmin.properties.firebaseLinks.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_44)
+  gv_compare(gv_log_of(f), GO_53)
 }
 
-const GO_45: List[Str] = [
+const GO_54: List[Str] = [
   "CALL analyticsadmin.properties.firebaseLinks.list",
   "REQ GET https://analyticsadmin.googleapis.com/v1beta/id1/%20x/firebaseLinks?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -993,10 +1337,48 @@ test "Go's analyticsadmin.properties.firebaseLinks.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_45)
+  gv_compare(gv_log_of(f), GO_54)
 }
 
-const GO_46: List[Str] = [
+const GO_55: List[Str] = [
+  "CALL analyticsadmin.properties.firebaseLinks.list pages",
+  "REQ GET https://analyticsadmin.googleapis.com/v1beta/id1/%20x/firebaseLinks?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"firebaseLinks\":[{\"createTime\":\"s-createtime\",\"name\":\"s-name\",\"project\":\"s-project\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"firebaseLinks\":[{\"createTime\":\"s-createtime\",\"name\":\"s-name\",\"project\":\"s-project\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://analyticsadmin.googleapis.com/v1beta/id1/%20x/firebaseLinks?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"firebaseLinks\":[{\"createTime\":\"s-createtime\",\"name\":\"s-name\",\"project\":\"s-project\"}]}",
+  "OUT: {\"firebaseLinks\":[{\"createTime\":\"s-createtime\",\"name\":\"s-name\",\"project\":\"s-project\"}]}",
+  "OUT: ok",
+]
+
+test "Go's analyticsadmin.properties.firebaseLinks.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"firebaseLinks\":[{\"createTime\":\"s-createtime\",\"name\":\"s-name\",\"project\":\"s-project\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"firebaseLinks\":[{\"createTime\":\"s-createtime\",\"name\":\"s-name\",\"project\":\"s-project\"}]}")
+  gv_note(f, "CALL analyticsadmin.properties.firebaseLinks.list pages")
+  var p = svc.properties.firebase_links.list_pages("id1/ x", options: PropertiesFirebaseLinksListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_55)
+}
+
+const GO_56: List[Str] = [
   "CALL analyticsadmin.properties.googleAdsLinks.create",
   "REQ POST https://analyticsadmin.googleapis.com/v1beta/id1/%20x/googleAdsLinks?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1015,10 +1397,10 @@ test "Go's analyticsadmin.properties.googleAdsLinks.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_46)
+  gv_compare(gv_log_of(f), GO_56)
 }
 
-const GO_47: List[Str] = [
+const GO_57: List[Str] = [
   "CALL analyticsadmin.properties.googleAdsLinks.delete",
   "REQ DELETE https://analyticsadmin.googleapis.com/v1beta/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -1036,10 +1418,10 @@ test "Go's analyticsadmin.properties.googleAdsLinks.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_47)
+  gv_compare(gv_log_of(f), GO_57)
 }
 
-const GO_48: List[Str] = [
+const GO_58: List[Str] = [
   "CALL analyticsadmin.properties.googleAdsLinks.list",
   "REQ GET https://analyticsadmin.googleapis.com/v1beta/id1/%20x/googleAdsLinks?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1057,10 +1439,48 @@ test "Go's analyticsadmin.properties.googleAdsLinks.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_48)
+  gv_compare(gv_log_of(f), GO_58)
 }
 
-const GO_49: List[Str] = [
+const GO_59: List[Str] = [
+  "CALL analyticsadmin.properties.googleAdsLinks.list pages",
+  "REQ GET https://analyticsadmin.googleapis.com/v1beta/id1/%20x/googleAdsLinks?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"googleAdsLinks\":[{\"adsPersonalizationEnabled\":true,\"canManageClients\":true,\"createTime\":\"s-createtime\",\"creatorEmailAddress\":\"s-creatoremailaddress\",\"customerId\":\"s-customerid\",\"name\":\"s-name\",\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"googleAdsLinks\":[{\"adsPersonalizationEnabled\":true,\"canManageClients\":true,\"createTime\":\"s-createtime\",\"creatorEmailAddress\":\"s-creatoremailaddress\",\"customerId\":\"s-customerid\",\"name\":\"s-name\",\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://analyticsadmin.googleapis.com/v1beta/id1/%20x/googleAdsLinks?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"googleAdsLinks\":[{\"adsPersonalizationEnabled\":true,\"canManageClients\":true,\"createTime\":\"s-createtime\",\"creatorEmailAddress\":\"s-creatoremailaddress\",\"customerId\":\"s-customerid\",\"name\":\"s-name\",\"updateTime\":\"s-updatetime\"}]}",
+  "OUT: {\"googleAdsLinks\":[{\"adsPersonalizationEnabled\":true,\"canManageClients\":true,\"createTime\":\"s-createtime\",\"creatorEmailAddress\":\"s-creatoremailaddress\",\"customerId\":\"s-customerid\",\"name\":\"s-name\",\"updateTime\":\"s-updatetime\"}]}",
+  "OUT: ok",
+]
+
+test "Go's analyticsadmin.properties.googleAdsLinks.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"googleAdsLinks\":[{\"adsPersonalizationEnabled\":true,\"canManageClients\":true,\"createTime\":\"s-createtime\",\"creatorEmailAddress\":\"s-creatoremailaddress\",\"customerId\":\"s-customerid\",\"name\":\"s-name\",\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"googleAdsLinks\":[{\"adsPersonalizationEnabled\":true,\"canManageClients\":true,\"createTime\":\"s-createtime\",\"creatorEmailAddress\":\"s-creatoremailaddress\",\"customerId\":\"s-customerid\",\"name\":\"s-name\",\"updateTime\":\"s-updatetime\"}]}")
+  gv_note(f, "CALL analyticsadmin.properties.googleAdsLinks.list pages")
+  var p = svc.properties.google_ads_links.list_pages("id1/ x", options: PropertiesGoogleAdsLinksListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_59)
+}
+
+const GO_60: List[Str] = [
   "CALL analyticsadmin.properties.googleAdsLinks.patch",
   "REQ PATCH https://analyticsadmin.googleapis.com/v1beta/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
@@ -1079,10 +1499,10 @@ test "Go's analyticsadmin.properties.googleAdsLinks.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_49)
+  gv_compare(gv_log_of(f), GO_60)
 }
 
-const GO_50: List[Str] = [
+const GO_61: List[Str] = [
   "CALL analyticsadmin.properties.keyEvents.create",
   "REQ POST https://analyticsadmin.googleapis.com/v1beta/id1/%20x/keyEvents?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1101,10 +1521,10 @@ test "Go's analyticsadmin.properties.keyEvents.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_50)
+  gv_compare(gv_log_of(f), GO_61)
 }
 
-const GO_51: List[Str] = [
+const GO_62: List[Str] = [
   "CALL analyticsadmin.properties.keyEvents.delete",
   "REQ DELETE https://analyticsadmin.googleapis.com/v1beta/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -1122,10 +1542,10 @@ test "Go's analyticsadmin.properties.keyEvents.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_51)
+  gv_compare(gv_log_of(f), GO_62)
 }
 
-const GO_52: List[Str] = [
+const GO_63: List[Str] = [
   "CALL analyticsadmin.properties.keyEvents.get",
   "REQ GET https://analyticsadmin.googleapis.com/v1beta/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1143,10 +1563,10 @@ test "Go's analyticsadmin.properties.keyEvents.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_52)
+  gv_compare(gv_log_of(f), GO_63)
 }
 
-const GO_53: List[Str] = [
+const GO_64: List[Str] = [
   "CALL analyticsadmin.properties.keyEvents.list",
   "REQ GET https://analyticsadmin.googleapis.com/v1beta/id1/%20x/keyEvents?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1164,10 +1584,48 @@ test "Go's analyticsadmin.properties.keyEvents.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_53)
+  gv_compare(gv_log_of(f), GO_64)
 }
 
-const GO_54: List[Str] = [
+const GO_65: List[Str] = [
+  "CALL analyticsadmin.properties.keyEvents.list pages",
+  "REQ GET https://analyticsadmin.googleapis.com/v1beta/id1/%20x/keyEvents?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"keyEvents\":[{\"countingMethod\":\"s-countingmethod\",\"createTime\":\"s-createtime\",\"custom\":true,\"defaultValue\":{\"currencyCode\":\"s-currencycode\",\"numericValue\":1.5},\"deletable\":true,\"eventName\":\"s-eventname\",\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"keyEvents\":[{\"countingMethod\":\"s-countingmethod\",\"createTime\":\"s-createtime\",\"custom\":true,\"defaultValue\":{\"currencyCode\":\"s-currencycode\",\"numericValue\":1.5},\"deletable\":true,\"eventName\":\"s-eventname\",\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://analyticsadmin.googleapis.com/v1beta/id1/%20x/keyEvents?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"keyEvents\":[{\"countingMethod\":\"s-countingmethod\",\"createTime\":\"s-createtime\",\"custom\":true,\"defaultValue\":{\"currencyCode\":\"s-currencycode\",\"numericValue\":1.5},\"deletable\":true,\"eventName\":\"s-eventname\",\"name\":\"s-name\"}]}",
+  "OUT: {\"keyEvents\":[{\"countingMethod\":\"s-countingmethod\",\"createTime\":\"s-createtime\",\"custom\":true,\"defaultValue\":{\"currencyCode\":\"s-currencycode\",\"numericValue\":1.5},\"deletable\":true,\"eventName\":\"s-eventname\",\"name\":\"s-name\"}]}",
+  "OUT: ok",
+]
+
+test "Go's analyticsadmin.properties.keyEvents.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"keyEvents\":[{\"countingMethod\":\"s-countingmethod\",\"createTime\":\"s-createtime\",\"custom\":true,\"defaultValue\":{\"currencyCode\":\"s-currencycode\",\"numericValue\":1.5},\"deletable\":true,\"eventName\":\"s-eventname\",\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"keyEvents\":[{\"countingMethod\":\"s-countingmethod\",\"createTime\":\"s-createtime\",\"custom\":true,\"defaultValue\":{\"currencyCode\":\"s-currencycode\",\"numericValue\":1.5},\"deletable\":true,\"eventName\":\"s-eventname\",\"name\":\"s-name\"}]}")
+  gv_note(f, "CALL analyticsadmin.properties.keyEvents.list pages")
+  var p = svc.properties.key_events.list_pages("id1/ x", options: PropertiesKeyEventsListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_65)
+}
+
+const GO_66: List[Str] = [
   "CALL analyticsadmin.properties.keyEvents.patch",
   "REQ PATCH https://analyticsadmin.googleapis.com/v1beta/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
@@ -1186,5 +1644,5 @@ test "Go's analyticsadmin.properties.keyEvents.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_54)
+  gv_compare(gv_log_of(f), GO_66)
 }

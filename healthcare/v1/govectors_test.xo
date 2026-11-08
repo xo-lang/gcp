@@ -51,6 +51,44 @@ test "Go's healthcare.projects.locations.list" {
 }
 
 const GO_2: List[Str] = [
+  "CALL healthcare.projects.locations.list pages",
+  "REQ GET https://healthcare.googleapis.com/v1/id1/%20x/locations?alt=json&extraLocationTypes=s-extralocationtypes&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://healthcare.googleapis.com/v1/id1/%20x/locations?alt=json&extraLocationTypes=s-extralocationtypes&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}]}",
+  "OUT: {\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}]}",
+  "OUT: ok",
+]
+
+test "Go's healthcare.projects.locations.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}]}")
+  gv_note(f, "CALL healthcare.projects.locations.list pages")
+  var p = svc.projects.locations.list_pages("id1/ x", options: ProjectsLocationsListOptions{extra_location_types: ["s-extralocationtypes"], filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_2)
+}
+
+const GO_3: List[Str] = [
   "CALL healthcare.projects.locations.datasets.create",
   "REQ POST https://healthcare.googleapis.com/v1/id1/%20x/datasets?alt=json&datasetId=s-datasetid&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -69,10 +107,10 @@ test "Go's healthcare.projects.locations.datasets.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_2)
+  gv_compare(gv_log_of(f), GO_3)
 }
 
-const GO_3: List[Str] = [
+const GO_4: List[Str] = [
   "CALL healthcare.projects.locations.datasets.deidentify",
   "REQ POST https://healthcare.googleapis.com/v1/id1/%20x:deidentify?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -91,10 +129,10 @@ test "Go's healthcare.projects.locations.datasets.deidentify" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_3)
+  gv_compare(gv_log_of(f), GO_4)
 }
 
-const GO_4: List[Str] = [
+const GO_5: List[Str] = [
   "CALL healthcare.projects.locations.datasets.delete",
   "REQ DELETE https://healthcare.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -112,10 +150,10 @@ test "Go's healthcare.projects.locations.datasets.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_4)
+  gv_compare(gv_log_of(f), GO_5)
 }
 
-const GO_5: List[Str] = [
+const GO_6: List[Str] = [
   "CALL healthcare.projects.locations.datasets.get",
   "REQ GET https://healthcare.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -133,10 +171,10 @@ test "Go's healthcare.projects.locations.datasets.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_5)
+  gv_compare(gv_log_of(f), GO_6)
 }
 
-const GO_6: List[Str] = [
+const GO_7: List[Str] = [
   "CALL healthcare.projects.locations.datasets.getIamPolicy",
   "REQ GET https://healthcare.googleapis.com/v1/id1/%20x:getIamPolicy?alt=json&fields=kind%2Cid&options.requestedPolicyVersion=7&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -154,10 +192,10 @@ test "Go's healthcare.projects.locations.datasets.getIamPolicy" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_6)
+  gv_compare(gv_log_of(f), GO_7)
 }
 
-const GO_7: List[Str] = [
+const GO_8: List[Str] = [
   "CALL healthcare.projects.locations.datasets.list",
   "REQ GET https://healthcare.googleapis.com/v1/id1/%20x/datasets?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -175,10 +213,48 @@ test "Go's healthcare.projects.locations.datasets.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_7)
+  gv_compare(gv_log_of(f), GO_8)
 }
 
-const GO_8: List[Str] = [
+const GO_9: List[Str] = [
+  "CALL healthcare.projects.locations.datasets.list pages",
+  "REQ GET https://healthcare.googleapis.com/v1/id1/%20x/datasets?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"datasets\":[{\"encryptionSpec\":{\"kmsKeyName\":\"s-kmskeyname\"},\"name\":\"s-name\",\"satisfiesPzi\":true,\"satisfiesPzs\":true,\"timeZone\":\"s-timezone\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"datasets\":[{\"encryptionSpec\":{\"kmsKeyName\":\"s-kmskeyname\"},\"name\":\"s-name\",\"satisfiesPzi\":true,\"satisfiesPzs\":true,\"timeZone\":\"s-timezone\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://healthcare.googleapis.com/v1/id1/%20x/datasets?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"datasets\":[{\"encryptionSpec\":{\"kmsKeyName\":\"s-kmskeyname\"},\"name\":\"s-name\",\"satisfiesPzi\":true,\"satisfiesPzs\":true,\"timeZone\":\"s-timezone\"}]}",
+  "OUT: {\"datasets\":[{\"encryptionSpec\":{\"kmsKeyName\":\"s-kmskeyname\"},\"name\":\"s-name\",\"satisfiesPzi\":true,\"satisfiesPzs\":true,\"timeZone\":\"s-timezone\"}]}",
+  "OUT: ok",
+]
+
+test "Go's healthcare.projects.locations.datasets.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"datasets\":[{\"encryptionSpec\":{\"kmsKeyName\":\"s-kmskeyname\"},\"name\":\"s-name\",\"satisfiesPzi\":true,\"satisfiesPzs\":true,\"timeZone\":\"s-timezone\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"datasets\":[{\"encryptionSpec\":{\"kmsKeyName\":\"s-kmskeyname\"},\"name\":\"s-name\",\"satisfiesPzi\":true,\"satisfiesPzs\":true,\"timeZone\":\"s-timezone\"}]}")
+  gv_note(f, "CALL healthcare.projects.locations.datasets.list pages")
+  var p = svc.projects.locations.datasets.list_pages("id1/ x", options: ProjectsLocationsDatasetsListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_9)
+}
+
+const GO_10: List[Str] = [
   "CALL healthcare.projects.locations.datasets.patch",
   "REQ PATCH https://healthcare.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
@@ -197,10 +273,10 @@ test "Go's healthcare.projects.locations.datasets.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_8)
+  gv_compare(gv_log_of(f), GO_10)
 }
 
-const GO_9: List[Str] = [
+const GO_11: List[Str] = [
   "CALL healthcare.projects.locations.datasets.setIamPolicy",
   "REQ POST https://healthcare.googleapis.com/v1/id1/%20x:setIamPolicy?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -219,10 +295,10 @@ test "Go's healthcare.projects.locations.datasets.setIamPolicy" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_9)
+  gv_compare(gv_log_of(f), GO_11)
 }
 
-const GO_10: List[Str] = [
+const GO_12: List[Str] = [
   "CALL healthcare.projects.locations.datasets.testIamPermissions",
   "REQ POST https://healthcare.googleapis.com/v1/id1/%20x:testIamPermissions?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -241,10 +317,10 @@ test "Go's healthcare.projects.locations.datasets.testIamPermissions" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_10)
+  gv_compare(gv_log_of(f), GO_12)
 }
 
-const GO_11: List[Str] = [
+const GO_13: List[Str] = [
   "CALL healthcare.projects.locations.datasets.consentStores.checkDataAccess",
   "REQ POST https://healthcare.googleapis.com/v1/id1/%20x:checkDataAccess?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -263,10 +339,10 @@ test "Go's healthcare.projects.locations.datasets.consentStores.checkDataAccess"
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_11)
+  gv_compare(gv_log_of(f), GO_13)
 }
 
-const GO_12: List[Str] = [
+const GO_14: List[Str] = [
   "CALL healthcare.projects.locations.datasets.consentStores.create",
   "REQ POST https://healthcare.googleapis.com/v1/id1/%20x/consentStores?alt=json&consentStoreId=s-consentstoreid&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -285,10 +361,10 @@ test "Go's healthcare.projects.locations.datasets.consentStores.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_12)
+  gv_compare(gv_log_of(f), GO_14)
 }
 
-const GO_13: List[Str] = [
+const GO_15: List[Str] = [
   "CALL healthcare.projects.locations.datasets.consentStores.delete",
   "REQ DELETE https://healthcare.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -306,10 +382,10 @@ test "Go's healthcare.projects.locations.datasets.consentStores.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_13)
+  gv_compare(gv_log_of(f), GO_15)
 }
 
-const GO_14: List[Str] = [
+const GO_16: List[Str] = [
   "CALL healthcare.projects.locations.datasets.consentStores.evaluateUserConsents",
   "REQ POST https://healthcare.googleapis.com/v1/id1/%20x:evaluateUserConsents?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -328,10 +404,50 @@ test "Go's healthcare.projects.locations.datasets.consentStores.evaluateUserCons
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_14)
+  gv_compare(gv_log_of(f), GO_16)
 }
 
-const GO_15: List[Str] = [
+const GO_17: List[Str] = [
+  "CALL healthcare.projects.locations.datasets.consentStores.evaluateUserConsents pages",
+  "REQ POST https://healthcare.googleapis.com/v1/id1/%20x:evaluateUserConsents?alt=json&fields=kind%2Cid&prettyPrint=false",
+  "  H content-type=application/json | x-extra=v1",
+  "  B {\"consentList\":{\"consents\":[\"s-consents\"]},\"pageSize\":7,\"pageToken\":\"s-pagetoken\",\"requestAttributes\":{\"k1\":\"s-requestattributes\"},\"resourceAttributes\":{\"k1\":\"s-resourceattributes\"},\"responseView\":\"s-responseview\",\"userId\":\"s-userid\"}",
+  "",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"results\":[{\"consented\":true,\"dataId\":\"s-dataid\"}]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"results\":[{\"consented\":true,\"dataId\":\"s-dataid\"}]}",
+  "REQ POST https://healthcare.googleapis.com/v1/id1/%20x:evaluateUserConsents?alt=json&fields=kind%2Cid&prettyPrint=false",
+  "  H content-type=application/json | x-extra=v1",
+  "  B {\"consentList\":{\"consents\":[\"s-consents\"]},\"pageSize\":7,\"pageToken\":\"s-nextpagetoken\",\"requestAttributes\":{\"k1\":\"s-requestattributes\"},\"resourceAttributes\":{\"k1\":\"s-resourceattributes\"},\"responseView\":\"s-responseview\",\"userId\":\"s-userid\"}",
+  "",
+  "  SERVED 200 {\"results\":[{\"consented\":true,\"dataId\":\"s-dataid\"}]}",
+  "OUT: {\"results\":[{\"consented\":true,\"dataId\":\"s-dataid\"}]}",
+  "OUT: ok",
+]
+
+test "Go's healthcare.projects.locations.datasets.consentStores.evaluateUserConsents pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"results\":[{\"consented\":true,\"dataId\":\"s-dataid\"}]}")
+  gv_queue(f, "{\"results\":[{\"consented\":true,\"dataId\":\"s-dataid\"}]}")
+  gv_note(f, "CALL healthcare.projects.locations.datasets.consentStores.evaluateUserConsents pages")
+  var p = svc.projects.locations.datasets.consent_stores.evaluate_user_consents_pages("id1/ x", json.decode_str[EvaluateUserConsentsRequest]("{\"consentList\":{\"consents\":[\"s-consents\"]},\"pageSize\":7,\"pageToken\":\"s-pagetoken\",\"requestAttributes\":{\"k1\":\"s-requestattributes\"},\"resourceAttributes\":{\"k1\":\"s-resourceattributes\"},\"responseView\":\"s-responseview\",\"userId\":\"s-userid\"}") ?? e => fault(e.display()), options: ProjectsLocationsDatasetsConsentStoresEvaluateUserConsentsOptions{fields: ["kind", "id"], headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_17)
+}
+
+const GO_18: List[Str] = [
   "CALL healthcare.projects.locations.datasets.consentStores.get",
   "REQ GET https://healthcare.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -349,10 +465,10 @@ test "Go's healthcare.projects.locations.datasets.consentStores.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_15)
+  gv_compare(gv_log_of(f), GO_18)
 }
 
-const GO_16: List[Str] = [
+const GO_19: List[Str] = [
   "CALL healthcare.projects.locations.datasets.consentStores.getIamPolicy",
   "REQ GET https://healthcare.googleapis.com/v1/id1/%20x:getIamPolicy?alt=json&fields=kind%2Cid&options.requestedPolicyVersion=7&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -370,10 +486,10 @@ test "Go's healthcare.projects.locations.datasets.consentStores.getIamPolicy" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_16)
+  gv_compare(gv_log_of(f), GO_19)
 }
 
-const GO_17: List[Str] = [
+const GO_20: List[Str] = [
   "CALL healthcare.projects.locations.datasets.consentStores.list",
   "REQ GET https://healthcare.googleapis.com/v1/id1/%20x/consentStores?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -391,10 +507,48 @@ test "Go's healthcare.projects.locations.datasets.consentStores.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_17)
+  gv_compare(gv_log_of(f), GO_20)
 }
 
-const GO_18: List[Str] = [
+const GO_21: List[Str] = [
+  "CALL healthcare.projects.locations.datasets.consentStores.list pages",
+  "REQ GET https://healthcare.googleapis.com/v1/id1/%20x/consentStores?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"consentStores\":[{\"defaultConsentTtl\":\"s-defaultconsentttl\",\"enableConsentCreateOnUpdate\":true,\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"consentStores\":[{\"defaultConsentTtl\":\"s-defaultconsentttl\",\"enableConsentCreateOnUpdate\":true,\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://healthcare.googleapis.com/v1/id1/%20x/consentStores?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"consentStores\":[{\"defaultConsentTtl\":\"s-defaultconsentttl\",\"enableConsentCreateOnUpdate\":true,\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\"}]}",
+  "OUT: {\"consentStores\":[{\"defaultConsentTtl\":\"s-defaultconsentttl\",\"enableConsentCreateOnUpdate\":true,\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\"}]}",
+  "OUT: ok",
+]
+
+test "Go's healthcare.projects.locations.datasets.consentStores.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"consentStores\":[{\"defaultConsentTtl\":\"s-defaultconsentttl\",\"enableConsentCreateOnUpdate\":true,\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"consentStores\":[{\"defaultConsentTtl\":\"s-defaultconsentttl\",\"enableConsentCreateOnUpdate\":true,\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\"}]}")
+  gv_note(f, "CALL healthcare.projects.locations.datasets.consentStores.list pages")
+  var p = svc.projects.locations.datasets.consent_stores.list_pages("id1/ x", options: ProjectsLocationsDatasetsConsentStoresListOptions{filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_21)
+}
+
+const GO_22: List[Str] = [
   "CALL healthcare.projects.locations.datasets.consentStores.patch",
   "REQ PATCH https://healthcare.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
@@ -413,10 +567,10 @@ test "Go's healthcare.projects.locations.datasets.consentStores.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_18)
+  gv_compare(gv_log_of(f), GO_22)
 }
 
-const GO_19: List[Str] = [
+const GO_23: List[Str] = [
   "CALL healthcare.projects.locations.datasets.consentStores.queryAccessibleData",
   "REQ POST https://healthcare.googleapis.com/v1/id1/%20x:queryAccessibleData?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -435,10 +589,10 @@ test "Go's healthcare.projects.locations.datasets.consentStores.queryAccessibleD
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_19)
+  gv_compare(gv_log_of(f), GO_23)
 }
 
-const GO_20: List[Str] = [
+const GO_24: List[Str] = [
   "CALL healthcare.projects.locations.datasets.consentStores.setIamPolicy",
   "REQ POST https://healthcare.googleapis.com/v1/id1/%20x:setIamPolicy?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -457,10 +611,10 @@ test "Go's healthcare.projects.locations.datasets.consentStores.setIamPolicy" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_20)
+  gv_compare(gv_log_of(f), GO_24)
 }
 
-const GO_21: List[Str] = [
+const GO_25: List[Str] = [
   "CALL healthcare.projects.locations.datasets.consentStores.testIamPermissions",
   "REQ POST https://healthcare.googleapis.com/v1/id1/%20x:testIamPermissions?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -479,10 +633,10 @@ test "Go's healthcare.projects.locations.datasets.consentStores.testIamPermissio
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_21)
+  gv_compare(gv_log_of(f), GO_25)
 }
 
-const GO_22: List[Str] = [
+const GO_26: List[Str] = [
   "CALL healthcare.projects.locations.datasets.consentStores.attributeDefinitions.create",
   "REQ POST https://healthcare.googleapis.com/v1/id1/%20x/attributeDefinitions?alt=json&attributeDefinitionId=s-attributedefinitionid&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -501,10 +655,10 @@ test "Go's healthcare.projects.locations.datasets.consentStores.attributeDefinit
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_22)
+  gv_compare(gv_log_of(f), GO_26)
 }
 
-const GO_23: List[Str] = [
+const GO_27: List[Str] = [
   "CALL healthcare.projects.locations.datasets.consentStores.attributeDefinitions.delete",
   "REQ DELETE https://healthcare.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -522,10 +676,10 @@ test "Go's healthcare.projects.locations.datasets.consentStores.attributeDefinit
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_23)
+  gv_compare(gv_log_of(f), GO_27)
 }
 
-const GO_24: List[Str] = [
+const GO_28: List[Str] = [
   "CALL healthcare.projects.locations.datasets.consentStores.attributeDefinitions.get",
   "REQ GET https://healthcare.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -543,10 +697,10 @@ test "Go's healthcare.projects.locations.datasets.consentStores.attributeDefinit
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_24)
+  gv_compare(gv_log_of(f), GO_28)
 }
 
-const GO_25: List[Str] = [
+const GO_29: List[Str] = [
   "CALL healthcare.projects.locations.datasets.consentStores.attributeDefinitions.list",
   "REQ GET https://healthcare.googleapis.com/v1/id1/%20x/attributeDefinitions?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -564,10 +718,48 @@ test "Go's healthcare.projects.locations.datasets.consentStores.attributeDefinit
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_25)
+  gv_compare(gv_log_of(f), GO_29)
 }
 
-const GO_26: List[Str] = [
+const GO_30: List[Str] = [
+  "CALL healthcare.projects.locations.datasets.consentStores.attributeDefinitions.list pages",
+  "REQ GET https://healthcare.googleapis.com/v1/id1/%20x/attributeDefinitions?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"attributeDefinitions\":[{\"allowedValues\":[\"s-allowedvalues\"],\"category\":\"s-category\",\"consentDefaultValues\":[\"s-consentdefaultvalues\"],\"dataMappingDefaultValue\":\"s-datamappingdefaultvalue\",\"description\":\"s-description\",\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"attributeDefinitions\":[{\"allowedValues\":[\"s-allowedvalues\"],\"category\":\"s-category\",\"consentDefaultValues\":[\"s-consentdefaultvalues\"],\"dataMappingDefaultValue\":\"s-datamappingdefaultvalue\",\"description\":\"s-description\",\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://healthcare.googleapis.com/v1/id1/%20x/attributeDefinitions?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"attributeDefinitions\":[{\"allowedValues\":[\"s-allowedvalues\"],\"category\":\"s-category\",\"consentDefaultValues\":[\"s-consentdefaultvalues\"],\"dataMappingDefaultValue\":\"s-datamappingdefaultvalue\",\"description\":\"s-description\",\"name\":\"s-name\"}]}",
+  "OUT: {\"attributeDefinitions\":[{\"allowedValues\":[\"s-allowedvalues\"],\"category\":\"s-category\",\"consentDefaultValues\":[\"s-consentdefaultvalues\"],\"dataMappingDefaultValue\":\"s-datamappingdefaultvalue\",\"description\":\"s-description\",\"name\":\"s-name\"}]}",
+  "OUT: ok",
+]
+
+test "Go's healthcare.projects.locations.datasets.consentStores.attributeDefinitions.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"attributeDefinitions\":[{\"allowedValues\":[\"s-allowedvalues\"],\"category\":\"s-category\",\"consentDefaultValues\":[\"s-consentdefaultvalues\"],\"dataMappingDefaultValue\":\"s-datamappingdefaultvalue\",\"description\":\"s-description\",\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"attributeDefinitions\":[{\"allowedValues\":[\"s-allowedvalues\"],\"category\":\"s-category\",\"consentDefaultValues\":[\"s-consentdefaultvalues\"],\"dataMappingDefaultValue\":\"s-datamappingdefaultvalue\",\"description\":\"s-description\",\"name\":\"s-name\"}]}")
+  gv_note(f, "CALL healthcare.projects.locations.datasets.consentStores.attributeDefinitions.list pages")
+  var p = svc.projects.locations.datasets.consent_stores.attribute_definitions.list_pages("id1/ x", options: ProjectsLocationsDatasetsConsentStoresAttributeDefinitionsListOptions{filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_30)
+}
+
+const GO_31: List[Str] = [
   "CALL healthcare.projects.locations.datasets.consentStores.attributeDefinitions.patch",
   "REQ PATCH https://healthcare.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
@@ -586,10 +778,10 @@ test "Go's healthcare.projects.locations.datasets.consentStores.attributeDefinit
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_26)
+  gv_compare(gv_log_of(f), GO_31)
 }
 
-const GO_27: List[Str] = [
+const GO_32: List[Str] = [
   "CALL healthcare.projects.locations.datasets.consentStores.consentArtifacts.create",
   "REQ POST https://healthcare.googleapis.com/v1/id1/%20x/consentArtifacts?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -608,10 +800,10 @@ test "Go's healthcare.projects.locations.datasets.consentStores.consentArtifacts
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_27)
+  gv_compare(gv_log_of(f), GO_32)
 }
 
-const GO_28: List[Str] = [
+const GO_33: List[Str] = [
   "CALL healthcare.projects.locations.datasets.consentStores.consentArtifacts.delete",
   "REQ DELETE https://healthcare.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -629,10 +821,10 @@ test "Go's healthcare.projects.locations.datasets.consentStores.consentArtifacts
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_28)
+  gv_compare(gv_log_of(f), GO_33)
 }
 
-const GO_29: List[Str] = [
+const GO_34: List[Str] = [
   "CALL healthcare.projects.locations.datasets.consentStores.consentArtifacts.get",
   "REQ GET https://healthcare.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -650,10 +842,10 @@ test "Go's healthcare.projects.locations.datasets.consentStores.consentArtifacts
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_29)
+  gv_compare(gv_log_of(f), GO_34)
 }
 
-const GO_30: List[Str] = [
+const GO_35: List[Str] = [
   "CALL healthcare.projects.locations.datasets.consentStores.consentArtifacts.list",
   "REQ GET https://healthcare.googleapis.com/v1/id1/%20x/consentArtifacts?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -671,10 +863,48 @@ test "Go's healthcare.projects.locations.datasets.consentStores.consentArtifacts
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_30)
+  gv_compare(gv_log_of(f), GO_35)
 }
 
-const GO_31: List[Str] = [
+const GO_36: List[Str] = [
+  "CALL healthcare.projects.locations.datasets.consentStores.consentArtifacts.list pages",
+  "REQ GET https://healthcare.googleapis.com/v1/id1/%20x/consentArtifacts?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"consentArtifacts\":[{\"consentContentVersion\":\"s-consentcontentversion\",\"guardianSignature\":{\"signatureTime\":\"s-signaturetime\",\"userId\":\"s-userid\"},\"metadata\":{\"k1\":\"s-metadata\"},\"name\":\"s-name\",\"userId\":\"s-userid\",\"userSignature\":{\"signatureTime\":\"s-signaturetime\",\"userId\":\"s-userid\"},\"witnessSignature\":{\"signatureTime\":\"s-signaturetime\",\"userId\":\"s-userid\"}}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"consentArtifacts\":[{\"consentContentVersion\":\"s-consentcontentversion\",\"guardianSignature\":{\"signatureTime\":\"s-signaturetime\",\"userId\":\"s-userid\"},\"metadata\":{\"k1\":\"s-metadata\"},\"name\":\"s-name\",\"userId\":\"s-userid\",\"userSignature\":{\"signatureTime\":\"s-signaturetime\",\"userId\":\"s-userid\"},\"witnessSignature\":{\"signatureTime\":\"s-signaturetime\",\"userId\":\"s-userid\"}}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://healthcare.googleapis.com/v1/id1/%20x/consentArtifacts?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"consentArtifacts\":[{\"consentContentVersion\":\"s-consentcontentversion\",\"guardianSignature\":{\"signatureTime\":\"s-signaturetime\",\"userId\":\"s-userid\"},\"metadata\":{\"k1\":\"s-metadata\"},\"name\":\"s-name\",\"userId\":\"s-userid\",\"userSignature\":{\"signatureTime\":\"s-signaturetime\",\"userId\":\"s-userid\"},\"witnessSignature\":{\"signatureTime\":\"s-signaturetime\",\"userId\":\"s-userid\"}}]}",
+  "OUT: {\"consentArtifacts\":[{\"consentContentVersion\":\"s-consentcontentversion\",\"guardianSignature\":{\"signatureTime\":\"s-signaturetime\",\"userId\":\"s-userid\"},\"metadata\":{\"k1\":\"s-metadata\"},\"name\":\"s-name\",\"userId\":\"s-userid\",\"userSignature\":{\"signatureTime\":\"s-signaturetime\",\"userId\":\"s-userid\"},\"witnessSignature\":{\"signatureTime\":\"s-signaturetime\",\"userId\":\"s-userid\"}}]}",
+  "OUT: ok",
+]
+
+test "Go's healthcare.projects.locations.datasets.consentStores.consentArtifacts.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"consentArtifacts\":[{\"consentContentVersion\":\"s-consentcontentversion\",\"guardianSignature\":{\"signatureTime\":\"s-signaturetime\",\"userId\":\"s-userid\"},\"metadata\":{\"k1\":\"s-metadata\"},\"name\":\"s-name\",\"userId\":\"s-userid\",\"userSignature\":{\"signatureTime\":\"s-signaturetime\",\"userId\":\"s-userid\"},\"witnessSignature\":{\"signatureTime\":\"s-signaturetime\",\"userId\":\"s-userid\"}}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"consentArtifacts\":[{\"consentContentVersion\":\"s-consentcontentversion\",\"guardianSignature\":{\"signatureTime\":\"s-signaturetime\",\"userId\":\"s-userid\"},\"metadata\":{\"k1\":\"s-metadata\"},\"name\":\"s-name\",\"userId\":\"s-userid\",\"userSignature\":{\"signatureTime\":\"s-signaturetime\",\"userId\":\"s-userid\"},\"witnessSignature\":{\"signatureTime\":\"s-signaturetime\",\"userId\":\"s-userid\"}}]}")
+  gv_note(f, "CALL healthcare.projects.locations.datasets.consentStores.consentArtifacts.list pages")
+  var p = svc.projects.locations.datasets.consent_stores.consent_artifacts.list_pages("id1/ x", options: ProjectsLocationsDatasetsConsentStoresConsentArtifactsListOptions{filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_36)
+}
+
+const GO_37: List[Str] = [
   "CALL healthcare.projects.locations.datasets.consentStores.consents.activate",
   "REQ POST https://healthcare.googleapis.com/v1/id1/%20x:activate?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -693,10 +923,10 @@ test "Go's healthcare.projects.locations.datasets.consentStores.consents.activat
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_31)
+  gv_compare(gv_log_of(f), GO_37)
 }
 
-const GO_32: List[Str] = [
+const GO_38: List[Str] = [
   "CALL healthcare.projects.locations.datasets.consentStores.consents.create",
   "REQ POST https://healthcare.googleapis.com/v1/id1/%20x/consents?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -715,10 +945,10 @@ test "Go's healthcare.projects.locations.datasets.consentStores.consents.create"
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_32)
+  gv_compare(gv_log_of(f), GO_38)
 }
 
-const GO_33: List[Str] = [
+const GO_39: List[Str] = [
   "CALL healthcare.projects.locations.datasets.consentStores.consents.delete",
   "REQ DELETE https://healthcare.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -736,10 +966,10 @@ test "Go's healthcare.projects.locations.datasets.consentStores.consents.delete"
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_33)
+  gv_compare(gv_log_of(f), GO_39)
 }
 
-const GO_34: List[Str] = [
+const GO_40: List[Str] = [
   "CALL healthcare.projects.locations.datasets.consentStores.consents.deleteRevision",
   "REQ DELETE https://healthcare.googleapis.com/v1/id1/%20x:deleteRevision?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -757,10 +987,10 @@ test "Go's healthcare.projects.locations.datasets.consentStores.consents.deleteR
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_34)
+  gv_compare(gv_log_of(f), GO_40)
 }
 
-const GO_35: List[Str] = [
+const GO_41: List[Str] = [
   "CALL healthcare.projects.locations.datasets.consentStores.consents.get",
   "REQ GET https://healthcare.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -778,10 +1008,10 @@ test "Go's healthcare.projects.locations.datasets.consentStores.consents.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_35)
+  gv_compare(gv_log_of(f), GO_41)
 }
 
-const GO_36: List[Str] = [
+const GO_42: List[Str] = [
   "CALL healthcare.projects.locations.datasets.consentStores.consents.list",
   "REQ GET https://healthcare.googleapis.com/v1/id1/%20x/consents?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -799,10 +1029,48 @@ test "Go's healthcare.projects.locations.datasets.consentStores.consents.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_36)
+  gv_compare(gv_log_of(f), GO_42)
 }
 
-const GO_37: List[Str] = [
+const GO_43: List[Str] = [
+  "CALL healthcare.projects.locations.datasets.consentStores.consents.list pages",
+  "REQ GET https://healthcare.googleapis.com/v1/id1/%20x/consents?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"consents\":[{\"consentArtifact\":\"s-consentartifact\",\"expireTime\":\"s-expiretime\",\"metadata\":{\"k1\":\"s-metadata\"},\"name\":\"s-name\",\"revisionCreateTime\":\"s-revisioncreatetime\",\"revisionId\":\"s-revisionid\",\"state\":\"s-state\",\"ttl\":\"s-ttl\",\"userId\":\"s-userid\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"consents\":[{\"consentArtifact\":\"s-consentartifact\",\"expireTime\":\"s-expiretime\",\"metadata\":{\"k1\":\"s-metadata\"},\"name\":\"s-name\",\"revisionCreateTime\":\"s-revisioncreatetime\",\"revisionId\":\"s-revisionid\",\"state\":\"s-state\",\"ttl\":\"s-ttl\",\"userId\":\"s-userid\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://healthcare.googleapis.com/v1/id1/%20x/consents?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"consents\":[{\"consentArtifact\":\"s-consentartifact\",\"expireTime\":\"s-expiretime\",\"metadata\":{\"k1\":\"s-metadata\"},\"name\":\"s-name\",\"revisionCreateTime\":\"s-revisioncreatetime\",\"revisionId\":\"s-revisionid\",\"state\":\"s-state\",\"ttl\":\"s-ttl\",\"userId\":\"s-userid\"}]}",
+  "OUT: {\"consents\":[{\"consentArtifact\":\"s-consentartifact\",\"expireTime\":\"s-expiretime\",\"metadata\":{\"k1\":\"s-metadata\"},\"name\":\"s-name\",\"revisionCreateTime\":\"s-revisioncreatetime\",\"revisionId\":\"s-revisionid\",\"state\":\"s-state\",\"ttl\":\"s-ttl\",\"userId\":\"s-userid\"}]}",
+  "OUT: ok",
+]
+
+test "Go's healthcare.projects.locations.datasets.consentStores.consents.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"consents\":[{\"consentArtifact\":\"s-consentartifact\",\"expireTime\":\"s-expiretime\",\"metadata\":{\"k1\":\"s-metadata\"},\"name\":\"s-name\",\"revisionCreateTime\":\"s-revisioncreatetime\",\"revisionId\":\"s-revisionid\",\"state\":\"s-state\",\"ttl\":\"s-ttl\",\"userId\":\"s-userid\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"consents\":[{\"consentArtifact\":\"s-consentartifact\",\"expireTime\":\"s-expiretime\",\"metadata\":{\"k1\":\"s-metadata\"},\"name\":\"s-name\",\"revisionCreateTime\":\"s-revisioncreatetime\",\"revisionId\":\"s-revisionid\",\"state\":\"s-state\",\"ttl\":\"s-ttl\",\"userId\":\"s-userid\"}]}")
+  gv_note(f, "CALL healthcare.projects.locations.datasets.consentStores.consents.list pages")
+  var p = svc.projects.locations.datasets.consent_stores.consents.list_pages("id1/ x", options: ProjectsLocationsDatasetsConsentStoresConsentsListOptions{filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_43)
+}
+
+const GO_44: List[Str] = [
   "CALL healthcare.projects.locations.datasets.consentStores.consents.listRevisions",
   "REQ GET https://healthcare.googleapis.com/v1/id1/%20x:listRevisions?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -820,10 +1088,48 @@ test "Go's healthcare.projects.locations.datasets.consentStores.consents.listRev
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_37)
+  gv_compare(gv_log_of(f), GO_44)
 }
 
-const GO_38: List[Str] = [
+const GO_45: List[Str] = [
+  "CALL healthcare.projects.locations.datasets.consentStores.consents.listRevisions pages",
+  "REQ GET https://healthcare.googleapis.com/v1/id1/%20x:listRevisions?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"consents\":[{\"consentArtifact\":\"s-consentartifact\",\"expireTime\":\"s-expiretime\",\"metadata\":{\"k1\":\"s-metadata\"},\"name\":\"s-name\",\"revisionCreateTime\":\"s-revisioncreatetime\",\"revisionId\":\"s-revisionid\",\"state\":\"s-state\",\"ttl\":\"s-ttl\",\"userId\":\"s-userid\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"consents\":[{\"consentArtifact\":\"s-consentartifact\",\"expireTime\":\"s-expiretime\",\"metadata\":{\"k1\":\"s-metadata\"},\"name\":\"s-name\",\"revisionCreateTime\":\"s-revisioncreatetime\",\"revisionId\":\"s-revisionid\",\"state\":\"s-state\",\"ttl\":\"s-ttl\",\"userId\":\"s-userid\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://healthcare.googleapis.com/v1/id1/%20x:listRevisions?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"consents\":[{\"consentArtifact\":\"s-consentartifact\",\"expireTime\":\"s-expiretime\",\"metadata\":{\"k1\":\"s-metadata\"},\"name\":\"s-name\",\"revisionCreateTime\":\"s-revisioncreatetime\",\"revisionId\":\"s-revisionid\",\"state\":\"s-state\",\"ttl\":\"s-ttl\",\"userId\":\"s-userid\"}]}",
+  "OUT: {\"consents\":[{\"consentArtifact\":\"s-consentartifact\",\"expireTime\":\"s-expiretime\",\"metadata\":{\"k1\":\"s-metadata\"},\"name\":\"s-name\",\"revisionCreateTime\":\"s-revisioncreatetime\",\"revisionId\":\"s-revisionid\",\"state\":\"s-state\",\"ttl\":\"s-ttl\",\"userId\":\"s-userid\"}]}",
+  "OUT: ok",
+]
+
+test "Go's healthcare.projects.locations.datasets.consentStores.consents.listRevisions pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"consents\":[{\"consentArtifact\":\"s-consentartifact\",\"expireTime\":\"s-expiretime\",\"metadata\":{\"k1\":\"s-metadata\"},\"name\":\"s-name\",\"revisionCreateTime\":\"s-revisioncreatetime\",\"revisionId\":\"s-revisionid\",\"state\":\"s-state\",\"ttl\":\"s-ttl\",\"userId\":\"s-userid\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"consents\":[{\"consentArtifact\":\"s-consentartifact\",\"expireTime\":\"s-expiretime\",\"metadata\":{\"k1\":\"s-metadata\"},\"name\":\"s-name\",\"revisionCreateTime\":\"s-revisioncreatetime\",\"revisionId\":\"s-revisionid\",\"state\":\"s-state\",\"ttl\":\"s-ttl\",\"userId\":\"s-userid\"}]}")
+  gv_note(f, "CALL healthcare.projects.locations.datasets.consentStores.consents.listRevisions pages")
+  var p = svc.projects.locations.datasets.consent_stores.consents.list_revisions_pages("id1/ x", options: ProjectsLocationsDatasetsConsentStoresConsentsListRevisionsOptions{filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_45)
+}
+
+const GO_46: List[Str] = [
   "CALL healthcare.projects.locations.datasets.consentStores.consents.patch",
   "REQ PATCH https://healthcare.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
@@ -842,10 +1148,10 @@ test "Go's healthcare.projects.locations.datasets.consentStores.consents.patch" 
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_38)
+  gv_compare(gv_log_of(f), GO_46)
 }
 
-const GO_39: List[Str] = [
+const GO_47: List[Str] = [
   "CALL healthcare.projects.locations.datasets.consentStores.consents.reject",
   "REQ POST https://healthcare.googleapis.com/v1/id1/%20x:reject?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -864,10 +1170,10 @@ test "Go's healthcare.projects.locations.datasets.consentStores.consents.reject"
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_39)
+  gv_compare(gv_log_of(f), GO_47)
 }
 
-const GO_40: List[Str] = [
+const GO_48: List[Str] = [
   "CALL healthcare.projects.locations.datasets.consentStores.consents.revoke",
   "REQ POST https://healthcare.googleapis.com/v1/id1/%20x:revoke?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -886,10 +1192,10 @@ test "Go's healthcare.projects.locations.datasets.consentStores.consents.revoke"
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_40)
+  gv_compare(gv_log_of(f), GO_48)
 }
 
-const GO_41: List[Str] = [
+const GO_49: List[Str] = [
   "CALL healthcare.projects.locations.datasets.consentStores.userDataMappings.archive",
   "REQ POST https://healthcare.googleapis.com/v1/id1/%20x:archive?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -908,10 +1214,10 @@ test "Go's healthcare.projects.locations.datasets.consentStores.userDataMappings
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_41)
+  gv_compare(gv_log_of(f), GO_49)
 }
 
-const GO_42: List[Str] = [
+const GO_50: List[Str] = [
   "CALL healthcare.projects.locations.datasets.consentStores.userDataMappings.create",
   "REQ POST https://healthcare.googleapis.com/v1/id1/%20x/userDataMappings?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -930,10 +1236,10 @@ test "Go's healthcare.projects.locations.datasets.consentStores.userDataMappings
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_42)
+  gv_compare(gv_log_of(f), GO_50)
 }
 
-const GO_43: List[Str] = [
+const GO_51: List[Str] = [
   "CALL healthcare.projects.locations.datasets.consentStores.userDataMappings.delete",
   "REQ DELETE https://healthcare.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -951,10 +1257,10 @@ test "Go's healthcare.projects.locations.datasets.consentStores.userDataMappings
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_43)
+  gv_compare(gv_log_of(f), GO_51)
 }
 
-const GO_44: List[Str] = [
+const GO_52: List[Str] = [
   "CALL healthcare.projects.locations.datasets.consentStores.userDataMappings.get",
   "REQ GET https://healthcare.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -972,10 +1278,10 @@ test "Go's healthcare.projects.locations.datasets.consentStores.userDataMappings
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_44)
+  gv_compare(gv_log_of(f), GO_52)
 }
 
-const GO_45: List[Str] = [
+const GO_53: List[Str] = [
   "CALL healthcare.projects.locations.datasets.consentStores.userDataMappings.list",
   "REQ GET https://healthcare.googleapis.com/v1/id1/%20x/userDataMappings?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -993,10 +1299,48 @@ test "Go's healthcare.projects.locations.datasets.consentStores.userDataMappings
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_45)
+  gv_compare(gv_log_of(f), GO_53)
 }
 
-const GO_46: List[Str] = [
+const GO_54: List[Str] = [
+  "CALL healthcare.projects.locations.datasets.consentStores.userDataMappings.list pages",
+  "REQ GET https://healthcare.googleapis.com/v1/id1/%20x/userDataMappings?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"userDataMappings\":[{\"archiveTime\":\"s-archivetime\",\"archived\":true,\"dataId\":\"s-dataid\",\"name\":\"s-name\",\"userId\":\"s-userid\"}]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"userDataMappings\":[{\"archiveTime\":\"s-archivetime\",\"archived\":true,\"dataId\":\"s-dataid\",\"name\":\"s-name\",\"userId\":\"s-userid\"}]}",
+  "REQ GET https://healthcare.googleapis.com/v1/id1/%20x/userDataMappings?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"userDataMappings\":[{\"archiveTime\":\"s-archivetime\",\"archived\":true,\"dataId\":\"s-dataid\",\"name\":\"s-name\",\"userId\":\"s-userid\"}]}",
+  "OUT: {\"userDataMappings\":[{\"archiveTime\":\"s-archivetime\",\"archived\":true,\"dataId\":\"s-dataid\",\"name\":\"s-name\",\"userId\":\"s-userid\"}]}",
+  "OUT: ok",
+]
+
+test "Go's healthcare.projects.locations.datasets.consentStores.userDataMappings.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"userDataMappings\":[{\"archiveTime\":\"s-archivetime\",\"archived\":true,\"dataId\":\"s-dataid\",\"name\":\"s-name\",\"userId\":\"s-userid\"}]}")
+  gv_queue(f, "{\"userDataMappings\":[{\"archiveTime\":\"s-archivetime\",\"archived\":true,\"dataId\":\"s-dataid\",\"name\":\"s-name\",\"userId\":\"s-userid\"}]}")
+  gv_note(f, "CALL healthcare.projects.locations.datasets.consentStores.userDataMappings.list pages")
+  var p = svc.projects.locations.datasets.consent_stores.user_data_mappings.list_pages("id1/ x", options: ProjectsLocationsDatasetsConsentStoresUserDataMappingsListOptions{filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_54)
+}
+
+const GO_55: List[Str] = [
   "CALL healthcare.projects.locations.datasets.consentStores.userDataMappings.patch",
   "REQ PATCH https://healthcare.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
@@ -1015,10 +1359,10 @@ test "Go's healthcare.projects.locations.datasets.consentStores.userDataMappings
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_46)
+  gv_compare(gv_log_of(f), GO_55)
 }
 
-const GO_47: List[Str] = [
+const GO_56: List[Str] = [
   "CALL healthcare.projects.locations.datasets.dataMapperWorkspaces.getIamPolicy",
   "REQ GET https://healthcare.googleapis.com/v1/id1/%20x:getIamPolicy?alt=json&fields=kind%2Cid&options.requestedPolicyVersion=7&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1036,10 +1380,10 @@ test "Go's healthcare.projects.locations.datasets.dataMapperWorkspaces.getIamPol
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_47)
+  gv_compare(gv_log_of(f), GO_56)
 }
 
-const GO_48: List[Str] = [
+const GO_57: List[Str] = [
   "CALL healthcare.projects.locations.datasets.dataMapperWorkspaces.setIamPolicy",
   "REQ POST https://healthcare.googleapis.com/v1/id1/%20x:setIamPolicy?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1058,10 +1402,10 @@ test "Go's healthcare.projects.locations.datasets.dataMapperWorkspaces.setIamPol
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_48)
+  gv_compare(gv_log_of(f), GO_57)
 }
 
-const GO_49: List[Str] = [
+const GO_58: List[Str] = [
   "CALL healthcare.projects.locations.datasets.dataMapperWorkspaces.testIamPermissions",
   "REQ POST https://healthcare.googleapis.com/v1/id1/%20x:testIamPermissions?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1080,10 +1424,10 @@ test "Go's healthcare.projects.locations.datasets.dataMapperWorkspaces.testIamPe
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_49)
+  gv_compare(gv_log_of(f), GO_58)
 }
 
-const GO_50: List[Str] = [
+const GO_59: List[Str] = [
   "CALL healthcare.projects.locations.datasets.dicomStores.create",
   "REQ POST https://healthcare.googleapis.com/v1/id1/%20x/dicomStores?alt=json&dicomStoreId=s-dicomstoreid&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1102,10 +1446,10 @@ test "Go's healthcare.projects.locations.datasets.dicomStores.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_50)
+  gv_compare(gv_log_of(f), GO_59)
 }
 
-const GO_51: List[Str] = [
+const GO_60: List[Str] = [
   "CALL healthcare.projects.locations.datasets.dicomStores.deidentify",
   "REQ POST https://healthcare.googleapis.com/v1/id1/%20x:deidentify?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1124,10 +1468,10 @@ test "Go's healthcare.projects.locations.datasets.dicomStores.deidentify" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_51)
+  gv_compare(gv_log_of(f), GO_60)
 }
 
-const GO_52: List[Str] = [
+const GO_61: List[Str] = [
   "CALL healthcare.projects.locations.datasets.dicomStores.delete",
   "REQ DELETE https://healthcare.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -1145,10 +1489,10 @@ test "Go's healthcare.projects.locations.datasets.dicomStores.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_52)
+  gv_compare(gv_log_of(f), GO_61)
 }
 
-const GO_53: List[Str] = [
+const GO_62: List[Str] = [
   "CALL healthcare.projects.locations.datasets.dicomStores.export",
   "REQ POST https://healthcare.googleapis.com/v1/id1/%20x:export?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1167,10 +1511,10 @@ test "Go's healthcare.projects.locations.datasets.dicomStores.export" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_53)
+  gv_compare(gv_log_of(f), GO_62)
 }
 
-const GO_54: List[Str] = [
+const GO_63: List[Str] = [
   "CALL healthcare.projects.locations.datasets.dicomStores.get",
   "REQ GET https://healthcare.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1188,10 +1532,10 @@ test "Go's healthcare.projects.locations.datasets.dicomStores.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_54)
+  gv_compare(gv_log_of(f), GO_63)
 }
 
-const GO_55: List[Str] = [
+const GO_64: List[Str] = [
   "CALL healthcare.projects.locations.datasets.dicomStores.getDICOMStoreMetrics",
   "REQ GET https://healthcare.googleapis.com/v1/id1/%20x:getDICOMStoreMetrics?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1209,10 +1553,10 @@ test "Go's healthcare.projects.locations.datasets.dicomStores.getDICOMStoreMetri
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_55)
+  gv_compare(gv_log_of(f), GO_64)
 }
 
-const GO_56: List[Str] = [
+const GO_65: List[Str] = [
   "CALL healthcare.projects.locations.datasets.dicomStores.getIamPolicy",
   "REQ GET https://healthcare.googleapis.com/v1/id1/%20x:getIamPolicy?alt=json&fields=kind%2Cid&options.requestedPolicyVersion=7&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1230,10 +1574,10 @@ test "Go's healthcare.projects.locations.datasets.dicomStores.getIamPolicy" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_56)
+  gv_compare(gv_log_of(f), GO_65)
 }
 
-const GO_57: List[Str] = [
+const GO_66: List[Str] = [
   "CALL healthcare.projects.locations.datasets.dicomStores.import",
   "REQ POST https://healthcare.googleapis.com/v1/id1/%20x:import?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1252,10 +1596,10 @@ test "Go's healthcare.projects.locations.datasets.dicomStores.import" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_57)
+  gv_compare(gv_log_of(f), GO_66)
 }
 
-const GO_58: List[Str] = [
+const GO_67: List[Str] = [
   "CALL healthcare.projects.locations.datasets.dicomStores.list",
   "REQ GET https://healthcare.googleapis.com/v1/id1/%20x/dicomStores?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1273,10 +1617,48 @@ test "Go's healthcare.projects.locations.datasets.dicomStores.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_58)
+  gv_compare(gv_log_of(f), GO_67)
 }
 
-const GO_59: List[Str] = [
+const GO_68: List[Str] = [
+  "CALL healthcare.projects.locations.datasets.dicomStores.list pages",
+  "REQ GET https://healthcare.googleapis.com/v1/id1/%20x/dicomStores?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"dicomStores\":[{\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"notificationConfig\":{\"pubsubTopic\":\"s-pubsubtopic\",\"sendForBulkImport\":true}}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"dicomStores\":[{\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"notificationConfig\":{\"pubsubTopic\":\"s-pubsubtopic\",\"sendForBulkImport\":true}}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://healthcare.googleapis.com/v1/id1/%20x/dicomStores?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"dicomStores\":[{\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"notificationConfig\":{\"pubsubTopic\":\"s-pubsubtopic\",\"sendForBulkImport\":true}}]}",
+  "OUT: {\"dicomStores\":[{\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"notificationConfig\":{\"pubsubTopic\":\"s-pubsubtopic\",\"sendForBulkImport\":true}}]}",
+  "OUT: ok",
+]
+
+test "Go's healthcare.projects.locations.datasets.dicomStores.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"dicomStores\":[{\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"notificationConfig\":{\"pubsubTopic\":\"s-pubsubtopic\",\"sendForBulkImport\":true}}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"dicomStores\":[{\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"notificationConfig\":{\"pubsubTopic\":\"s-pubsubtopic\",\"sendForBulkImport\":true}}]}")
+  gv_note(f, "CALL healthcare.projects.locations.datasets.dicomStores.list pages")
+  var p = svc.projects.locations.datasets.dicom_stores.list_pages("id1/ x", options: ProjectsLocationsDatasetsDicomStoresListOptions{filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_68)
+}
+
+const GO_69: List[Str] = [
   "CALL healthcare.projects.locations.datasets.dicomStores.patch",
   "REQ PATCH https://healthcare.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
@@ -1295,10 +1677,10 @@ test "Go's healthcare.projects.locations.datasets.dicomStores.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_59)
+  gv_compare(gv_log_of(f), GO_69)
 }
 
-const GO_60: List[Str] = [
+const GO_70: List[Str] = [
   "CALL healthcare.projects.locations.datasets.dicomStores.setBlobStorageSettings",
   "REQ POST https://healthcare.googleapis.com/v1/id1/%20x:setBlobStorageSettings?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1317,10 +1699,10 @@ test "Go's healthcare.projects.locations.datasets.dicomStores.setBlobStorageSett
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_60)
+  gv_compare(gv_log_of(f), GO_70)
 }
 
-const GO_61: List[Str] = [
+const GO_71: List[Str] = [
   "CALL healthcare.projects.locations.datasets.dicomStores.setIamPolicy",
   "REQ POST https://healthcare.googleapis.com/v1/id1/%20x:setIamPolicy?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1339,10 +1721,10 @@ test "Go's healthcare.projects.locations.datasets.dicomStores.setIamPolicy" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_61)
+  gv_compare(gv_log_of(f), GO_71)
 }
 
-const GO_62: List[Str] = [
+const GO_72: List[Str] = [
   "CALL healthcare.projects.locations.datasets.dicomStores.testIamPermissions",
   "REQ POST https://healthcare.googleapis.com/v1/id1/%20x:testIamPermissions?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1361,10 +1743,10 @@ test "Go's healthcare.projects.locations.datasets.dicomStores.testIamPermissions
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_62)
+  gv_compare(gv_log_of(f), GO_72)
 }
 
-const GO_63: List[Str] = [
+const GO_73: List[Str] = [
   "CALL healthcare.projects.locations.datasets.dicomStores.dicomWeb.studies.getStudyMetrics",
   "REQ GET https://healthcare.googleapis.com/v1/id1/%20x:getStudyMetrics?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1382,10 +1764,10 @@ test "Go's healthcare.projects.locations.datasets.dicomStores.dicomWeb.studies.g
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_63)
+  gv_compare(gv_log_of(f), GO_73)
 }
 
-const GO_64: List[Str] = [
+const GO_74: List[Str] = [
   "CALL healthcare.projects.locations.datasets.dicomStores.dicomWeb.studies.setBlobStorageSettings",
   "REQ POST https://healthcare.googleapis.com/v1/id1/%20x:setBlobStorageSettings?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1404,10 +1786,10 @@ test "Go's healthcare.projects.locations.datasets.dicomStores.dicomWeb.studies.s
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_64)
+  gv_compare(gv_log_of(f), GO_74)
 }
 
-const GO_65: List[Str] = [
+const GO_75: List[Str] = [
   "CALL healthcare.projects.locations.datasets.dicomStores.dicomWeb.studies.series.getSeriesMetrics",
   "REQ GET https://healthcare.googleapis.com/v1/id1/%20x:getSeriesMetrics?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1425,10 +1807,10 @@ test "Go's healthcare.projects.locations.datasets.dicomStores.dicomWeb.studies.s
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_65)
+  gv_compare(gv_log_of(f), GO_75)
 }
 
-const GO_66: List[Str] = [
+const GO_76: List[Str] = [
   "CALL healthcare.projects.locations.datasets.dicomStores.dicomWeb.studies.series.instances.getStorageInfo",
   "REQ GET https://healthcare.googleapis.com/v1/id1/%20x:getStorageInfo?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1446,10 +1828,10 @@ test "Go's healthcare.projects.locations.datasets.dicomStores.dicomWeb.studies.s
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_66)
+  gv_compare(gv_log_of(f), GO_76)
 }
 
-const GO_67: List[Str] = [
+const GO_77: List[Str] = [
   "CALL healthcare.projects.locations.datasets.dicomStores.studies.delete",
   "REQ DELETE https://healthcare.googleapis.com/v1/id1/%20x/dicomWeb/id2/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -1467,10 +1849,10 @@ test "Go's healthcare.projects.locations.datasets.dicomStores.studies.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_67)
+  gv_compare(gv_log_of(f), GO_77)
 }
 
-const GO_68: List[Str] = [
+const GO_78: List[Str] = [
   "CALL healthcare.projects.locations.datasets.dicomStores.studies.series.delete",
   "REQ DELETE https://healthcare.googleapis.com/v1/id1/%20x/dicomWeb/id2/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -1488,10 +1870,10 @@ test "Go's healthcare.projects.locations.datasets.dicomStores.studies.series.del
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_68)
+  gv_compare(gv_log_of(f), GO_78)
 }
 
-const GO_69: List[Str] = [
+const GO_79: List[Str] = [
   "CALL healthcare.projects.locations.datasets.dicomStores.studies.series.instances.delete",
   "REQ DELETE https://healthcare.googleapis.com/v1/id1/%20x/dicomWeb/id2/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -1509,10 +1891,10 @@ test "Go's healthcare.projects.locations.datasets.dicomStores.studies.series.ins
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_69)
+  gv_compare(gv_log_of(f), GO_79)
 }
 
-const GO_70: List[Str] = [
+const GO_80: List[Str] = [
   "CALL healthcare.projects.locations.datasets.fhirStores.applyAdminConsents",
   "REQ POST https://healthcare.googleapis.com/v1/id1/%20x:applyAdminConsents?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1531,10 +1913,10 @@ test "Go's healthcare.projects.locations.datasets.fhirStores.applyAdminConsents"
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_70)
+  gv_compare(gv_log_of(f), GO_80)
 }
 
-const GO_71: List[Str] = [
+const GO_81: List[Str] = [
   "CALL healthcare.projects.locations.datasets.fhirStores.applyConsents",
   "REQ POST https://healthcare.googleapis.com/v1/id1/%20x:applyConsents?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1553,10 +1935,10 @@ test "Go's healthcare.projects.locations.datasets.fhirStores.applyConsents" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_71)
+  gv_compare(gv_log_of(f), GO_81)
 }
 
-const GO_72: List[Str] = [
+const GO_82: List[Str] = [
   "CALL healthcare.projects.locations.datasets.fhirStores.bulkDelete",
   "REQ POST https://healthcare.googleapis.com/v1/id1/%20x:bulkDelete?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1575,14 +1957,14 @@ test "Go's healthcare.projects.locations.datasets.fhirStores.bulkDelete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_72)
+  gv_compare(gv_log_of(f), GO_82)
 }
 
-const GO_73: List[Str] = [
+const GO_83: List[Str] = [
   "CALL healthcare.projects.locations.datasets.fhirStores.create",
   "REQ POST https://healthcare.googleapis.com/v1/id1/%20x/fhirStores?alt=json&fhirStoreId=s-fhirstoreid&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"bulkExportGcsDestination\":{\"uriPrefix\":\"s-uriprefix\"},\"complexDataTypeReferenceParsing\":\"s-complexdatatypereferenceparsing\",\"consentConfig\":{\"accessDeterminationLogConfig\":{\"logLevel\":\"s-loglevel\"},\"accessEnforced\":true,\"consentHeaderHandling\":{\"profile\":\"s-profile\"},\"enforcedAdminConsents\":[\"s-enforcedadminconsents\"],\"version\":\"s-version\"},\"defaultSearchHandlingStrict\":true,\"disableReferentialIntegrity\":true,\"disableResourceVersioning\":true,\"enableUpdateCreate\":true,\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"notificationConfig\":{\"pubsubTopic\":\"s-pubsubtopic\",\"sendForBulkImport\":true},\"notificationConfigs\":[{\"pubsubTopic\":\"s-pubsubtopic\",\"sendFullResource\":true,\"sendPreviousResourceOnDelete\":true}],\"streamConfigs\":[{\"bigqueryDestination\":{\"datasetUri\":\"s-dataseturi\",\"force\":true,\"writeDisposition\":\"s-writedisposition\"},\"deidentifiedStoreDestination\":{\"store\":\"s-store\"},\"resourceTypes\":[\"s-resourcetypes\"]}],\"validationConfig\":{\"disableFhirpathValidation\":true,\"disableProfileValidation\":true,\"disableReferenceTypeValidation\":true,\"disableRequiredFieldValidation\":true,\"enableFhirpathProfileValidation\":true,\"enabledImplementationGuides\":[\"s-enabledimplementationguides\"]},\"version\":\"s-version\"}",
+  "  B <1211 bytes> {\"bulkExportGcsDestination\":{\"ur...uides\"]},\"version\":\"s-version\"}",
   "",
   "  SERVED 200 {\"bulkExportGcsDestination\":{\"uriPrefix\":\"s-uriprefix\"},\"complexDataTypeReferenceParsing\":\"s-complexdatatypereferenceparsing\",\"consentConfig\":{\"accessDeterminationLogConfig\":{\"logLevel\":\"s-loglevel\"},\"accessEnforced\":true,\"consentHeaderHandling\":{\"profile\":\"s-profile\"},\"enforcedAdminConsents\":[\"s-enforcedadminconsents\"],\"version\":\"s-version\"},\"defaultSearchHandlingStrict\":true,\"disableReferentialIntegrity\":true,\"disableResourceVersioning\":true,\"enableUpdateCreate\":true,\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"notificationConfig\":{\"pubsubTopic\":\"s-pubsubtopic\",\"sendForBulkImport\":true},\"notificationConfigs\":[{\"pubsubTopic\":\"s-pubsubtopic\",\"sendFullResource\":true,\"sendPreviousResourceOnDelete\":true}],\"streamConfigs\":[{\"bigqueryDestination\":{\"datasetUri\":\"s-dataseturi\",\"force\":true,\"writeDisposition\":\"s-writedisposition\"},\"deidentifiedStoreDestination\":{\"store\":\"s-store\"},\"resourceTypes\":[\"s-resourcetypes\"]}],\"validationConfig\":{\"disableFhirpathValidation\":true,\"disableProfileValidation\":true,\"disableReferenceTypeValidation\":true,\"disableRequiredFieldValidation\":true,\"enableFhirpathProfileValidation\":true,\"enabledImplementationGuides\":[\"s-enabledimplementationguides\"]},\"version\":\"s-version\"}",
   "OUT: {\"bulkExportGcsDestination\":{\"uriPrefix\":\"s-uriprefix\"},\"complexDataTypeReferenceParsing\":\"s-complexdatatypereferenceparsing\",\"consentConfig\":{\"accessDeterminationLogConfig\":{\"logLevel\":\"s-loglevel\"},\"accessEnforced\":true,\"consentHeaderHandling\":{\"profile\":\"s-profile\"},\"enforcedAdminConsents\":[\"s-enforcedadminconsents\"],\"version\":\"s-version\"},\"defaultSearchHandlingStrict\":true,\"disableReferentialIntegrity\":true,\"disableResourceVersioning\":true,\"enableUpdateCreate\":true,\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"notificationConfig\":{\"pubsubTopic\":\"s-pubsubtopic\",\"sendForBulkImport\":true},\"notificationConfigs\":[{\"pubsubTopic\":\"s-pubsubtopic\",\"sendFullResource\":true,\"sendPreviousResourceOnDelete\":true}],\"streamConfigs\":[{\"bigqueryDestination\":{\"datasetUri\":\"s-dataseturi\",\"force\":true,\"writeDisposition\":\"s-writedisposition\"},\"deidentifiedStoreDestination\":{\"store\":\"s-store\"},\"resourceTypes\":[\"s-resourcetypes\"]}],\"validationConfig\":{\"disableFhirpathValidation\":true,\"disableProfileValidation\":true,\"disableReferenceTypeValidation\":true,\"disableRequiredFieldValidation\":true,\"enableFhirpathProfileValidation\":true,\"enabledImplementationGuides\":[\"s-enabledimplementationguides\"]},\"version\":\"s-version\"}",
@@ -1597,10 +1979,10 @@ test "Go's healthcare.projects.locations.datasets.fhirStores.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_73)
+  gv_compare(gv_log_of(f), GO_83)
 }
 
-const GO_74: List[Str] = [
+const GO_84: List[Str] = [
   "CALL healthcare.projects.locations.datasets.fhirStores.deidentify",
   "REQ POST https://healthcare.googleapis.com/v1/id1/%20x:deidentify?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1619,10 +2001,10 @@ test "Go's healthcare.projects.locations.datasets.fhirStores.deidentify" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_74)
+  gv_compare(gv_log_of(f), GO_84)
 }
 
-const GO_75: List[Str] = [
+const GO_85: List[Str] = [
   "CALL healthcare.projects.locations.datasets.fhirStores.delete",
   "REQ DELETE https://healthcare.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -1640,10 +2022,10 @@ test "Go's healthcare.projects.locations.datasets.fhirStores.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_75)
+  gv_compare(gv_log_of(f), GO_85)
 }
 
-const GO_76: List[Str] = [
+const GO_86: List[Str] = [
   "CALL healthcare.projects.locations.datasets.fhirStores.explainDataAccess",
   "REQ GET https://healthcare.googleapis.com/v1/id1/%20x:explainDataAccess?alt=json&fields=kind%2Cid&prettyPrint=false&resourceId=s-resourceid",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1661,10 +2043,10 @@ test "Go's healthcare.projects.locations.datasets.fhirStores.explainDataAccess" 
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_76)
+  gv_compare(gv_log_of(f), GO_86)
 }
 
-const GO_77: List[Str] = [
+const GO_87: List[Str] = [
   "CALL healthcare.projects.locations.datasets.fhirStores.export",
   "REQ POST https://healthcare.googleapis.com/v1/id1/%20x:export?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1683,10 +2065,10 @@ test "Go's healthcare.projects.locations.datasets.fhirStores.export" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_77)
+  gv_compare(gv_log_of(f), GO_87)
 }
 
-const GO_78: List[Str] = [
+const GO_88: List[Str] = [
   "CALL healthcare.projects.locations.datasets.fhirStores.get",
   "REQ GET https://healthcare.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1704,10 +2086,10 @@ test "Go's healthcare.projects.locations.datasets.fhirStores.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_78)
+  gv_compare(gv_log_of(f), GO_88)
 }
 
-const GO_79: List[Str] = [
+const GO_89: List[Str] = [
   "CALL healthcare.projects.locations.datasets.fhirStores.getFHIRStoreMetrics",
   "REQ GET https://healthcare.googleapis.com/v1/id1/%20x:getFHIRStoreMetrics?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1725,10 +2107,10 @@ test "Go's healthcare.projects.locations.datasets.fhirStores.getFHIRStoreMetrics
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_79)
+  gv_compare(gv_log_of(f), GO_89)
 }
 
-const GO_80: List[Str] = [
+const GO_90: List[Str] = [
   "CALL healthcare.projects.locations.datasets.fhirStores.getIamPolicy",
   "REQ GET https://healthcare.googleapis.com/v1/id1/%20x:getIamPolicy?alt=json&fields=kind%2Cid&options.requestedPolicyVersion=7&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1746,10 +2128,10 @@ test "Go's healthcare.projects.locations.datasets.fhirStores.getIamPolicy" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_80)
+  gv_compare(gv_log_of(f), GO_90)
 }
 
-const GO_81: List[Str] = [
+const GO_91: List[Str] = [
   "CALL healthcare.projects.locations.datasets.fhirStores.import",
   "REQ POST https://healthcare.googleapis.com/v1/id1/%20x:import?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1768,10 +2150,10 @@ test "Go's healthcare.projects.locations.datasets.fhirStores.import" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_81)
+  gv_compare(gv_log_of(f), GO_91)
 }
 
-const GO_82: List[Str] = [
+const GO_92: List[Str] = [
   "CALL healthcare.projects.locations.datasets.fhirStores.list",
   "REQ GET https://healthcare.googleapis.com/v1/id1/%20x/fhirStores?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1789,14 +2171,52 @@ test "Go's healthcare.projects.locations.datasets.fhirStores.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_82)
+  gv_compare(gv_log_of(f), GO_92)
 }
 
-const GO_83: List[Str] = [
+const GO_93: List[Str] = [
+  "CALL healthcare.projects.locations.datasets.fhirStores.list pages",
+  "REQ GET https://healthcare.googleapis.com/v1/id1/%20x/fhirStores?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"fhirStores\":[{\"bulkExportGcsDestination\":{\"uriPrefix\":\"s-uriprefix\"},\"complexDataTypeReferenceParsing\":\"s-complexdatatypereferenceparsing\",\"consentConfig\":{\"accessEnforced\":true,\"version\":\"s-version\"},\"defaultSearchHandlingStrict\":true,\"disableReferentialIntegrity\":true,\"disableResourceVersioning\":true,\"enableUpdateCreate\":true,\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"notificationConfig\":{\"pubsubTopic\":\"s-pubsubtopic\",\"sendForBulkImport\":true},\"validationConfig\":{\"disableFhirpathValidation\":true,\"disableProfileValidation\":true,\"disableReferenceTypeValidation\":true,\"disableRequiredFieldValidation\":true,\"enableFhirpathProfileValidation\":true},\"version\":\"s-version\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"fhirStores\":[{\"bulkExportGcsDestination\":{\"uriPrefix\":\"s-uriprefix\"},\"complexDataTypeReferenceParsing\":\"s-complexdatatypereferenceparsing\",\"consentConfig\":{\"accessEnforced\":true,\"version\":\"s-version\"},\"defaultSearchHandlingStrict\":true,\"disableReferentialIntegrity\":true,\"disableResourceVersioning\":true,\"enableUpdateCreate\":true,\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"notificationConfig\":{\"pubsubTopic\":\"s-pubsubtopic\",\"sendForBulkImport\":true},\"validationConfig\":{\"disableFhirpathValidation\":true,\"disableProfileValidation\":true,\"disableReferenceTypeValidation\":true,\"disableRequiredFieldValidation\":true,\"enableFhirpathProfileValidation\":true},\"version\":\"s-version\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://healthcare.googleapis.com/v1/id1/%20x/fhirStores?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"fhirStores\":[{\"bulkExportGcsDestination\":{\"uriPrefix\":\"s-uriprefix\"},\"complexDataTypeReferenceParsing\":\"s-complexdatatypereferenceparsing\",\"consentConfig\":{\"accessEnforced\":true,\"version\":\"s-version\"},\"defaultSearchHandlingStrict\":true,\"disableReferentialIntegrity\":true,\"disableResourceVersioning\":true,\"enableUpdateCreate\":true,\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"notificationConfig\":{\"pubsubTopic\":\"s-pubsubtopic\",\"sendForBulkImport\":true},\"validationConfig\":{\"disableFhirpathValidation\":true,\"disableProfileValidation\":true,\"disableReferenceTypeValidation\":true,\"disableRequiredFieldValidation\":true,\"enableFhirpathProfileValidation\":true},\"version\":\"s-version\"}]}",
+  "OUT: {\"fhirStores\":[{\"bulkExportGcsDestination\":{\"uriPrefix\":\"s-uriprefix\"},\"complexDataTypeReferenceParsing\":\"s-complexdatatypereferenceparsing\",\"consentConfig\":{\"accessEnforced\":true,\"version\":\"s-version\"},\"defaultSearchHandlingStrict\":true,\"disableReferentialIntegrity\":true,\"disableResourceVersioning\":true,\"enableUpdateCreate\":true,\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"notificationConfig\":{\"pubsubTopic\":\"s-pubsubtopic\",\"sendForBulkImport\":true},\"validationConfig\":{\"disableFhirpathValidation\":true,\"disableProfileValidation\":true,\"disableReferenceTypeValidation\":true,\"disableRequiredFieldValidation\":true,\"enableFhirpathProfileValidation\":true},\"version\":\"s-version\"}]}",
+  "OUT: ok",
+]
+
+test "Go's healthcare.projects.locations.datasets.fhirStores.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"fhirStores\":[{\"bulkExportGcsDestination\":{\"uriPrefix\":\"s-uriprefix\"},\"complexDataTypeReferenceParsing\":\"s-complexdatatypereferenceparsing\",\"consentConfig\":{\"accessEnforced\":true,\"version\":\"s-version\"},\"defaultSearchHandlingStrict\":true,\"disableReferentialIntegrity\":true,\"disableResourceVersioning\":true,\"enableUpdateCreate\":true,\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"notificationConfig\":{\"pubsubTopic\":\"s-pubsubtopic\",\"sendForBulkImport\":true},\"validationConfig\":{\"disableFhirpathValidation\":true,\"disableProfileValidation\":true,\"disableReferenceTypeValidation\":true,\"disableRequiredFieldValidation\":true,\"enableFhirpathProfileValidation\":true},\"version\":\"s-version\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"fhirStores\":[{\"bulkExportGcsDestination\":{\"uriPrefix\":\"s-uriprefix\"},\"complexDataTypeReferenceParsing\":\"s-complexdatatypereferenceparsing\",\"consentConfig\":{\"accessEnforced\":true,\"version\":\"s-version\"},\"defaultSearchHandlingStrict\":true,\"disableReferentialIntegrity\":true,\"disableResourceVersioning\":true,\"enableUpdateCreate\":true,\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"notificationConfig\":{\"pubsubTopic\":\"s-pubsubtopic\",\"sendForBulkImport\":true},\"validationConfig\":{\"disableFhirpathValidation\":true,\"disableProfileValidation\":true,\"disableReferenceTypeValidation\":true,\"disableRequiredFieldValidation\":true,\"enableFhirpathProfileValidation\":true},\"version\":\"s-version\"}]}")
+  gv_note(f, "CALL healthcare.projects.locations.datasets.fhirStores.list pages")
+  var p = svc.projects.locations.datasets.fhir_stores.list_pages("id1/ x", options: ProjectsLocationsDatasetsFhirStoresListOptions{filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_93)
+}
+
+const GO_94: List[Str] = [
   "CALL healthcare.projects.locations.datasets.fhirStores.patch",
   "REQ PATCH https://healthcare.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"bulkExportGcsDestination\":{\"uriPrefix\":\"s-uriprefix\"},\"complexDataTypeReferenceParsing\":\"s-complexdatatypereferenceparsing\",\"consentConfig\":{\"accessDeterminationLogConfig\":{\"logLevel\":\"s-loglevel\"},\"accessEnforced\":true,\"consentHeaderHandling\":{\"profile\":\"s-profile\"},\"enforcedAdminConsents\":[\"s-enforcedadminconsents\"],\"version\":\"s-version\"},\"defaultSearchHandlingStrict\":true,\"disableReferentialIntegrity\":true,\"disableResourceVersioning\":true,\"enableUpdateCreate\":true,\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"notificationConfig\":{\"pubsubTopic\":\"s-pubsubtopic\",\"sendForBulkImport\":true},\"notificationConfigs\":[{\"pubsubTopic\":\"s-pubsubtopic\",\"sendFullResource\":true,\"sendPreviousResourceOnDelete\":true}],\"streamConfigs\":[{\"bigqueryDestination\":{\"datasetUri\":\"s-dataseturi\",\"force\":true,\"writeDisposition\":\"s-writedisposition\"},\"deidentifiedStoreDestination\":{\"store\":\"s-store\"},\"resourceTypes\":[\"s-resourcetypes\"]}],\"validationConfig\":{\"disableFhirpathValidation\":true,\"disableProfileValidation\":true,\"disableReferenceTypeValidation\":true,\"disableRequiredFieldValidation\":true,\"enableFhirpathProfileValidation\":true,\"enabledImplementationGuides\":[\"s-enabledimplementationguides\"]},\"version\":\"s-version\"}",
+  "  B <1211 bytes> {\"bulkExportGcsDestination\":{\"ur...uides\"]},\"version\":\"s-version\"}",
   "",
   "  SERVED 200 {\"bulkExportGcsDestination\":{\"uriPrefix\":\"s-uriprefix\"},\"complexDataTypeReferenceParsing\":\"s-complexdatatypereferenceparsing\",\"consentConfig\":{\"accessDeterminationLogConfig\":{\"logLevel\":\"s-loglevel\"},\"accessEnforced\":true,\"consentHeaderHandling\":{\"profile\":\"s-profile\"},\"enforcedAdminConsents\":[\"s-enforcedadminconsents\"],\"version\":\"s-version\"},\"defaultSearchHandlingStrict\":true,\"disableReferentialIntegrity\":true,\"disableResourceVersioning\":true,\"enableUpdateCreate\":true,\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"notificationConfig\":{\"pubsubTopic\":\"s-pubsubtopic\",\"sendForBulkImport\":true},\"notificationConfigs\":[{\"pubsubTopic\":\"s-pubsubtopic\",\"sendFullResource\":true,\"sendPreviousResourceOnDelete\":true}],\"streamConfigs\":[{\"bigqueryDestination\":{\"datasetUri\":\"s-dataseturi\",\"force\":true,\"writeDisposition\":\"s-writedisposition\"},\"deidentifiedStoreDestination\":{\"store\":\"s-store\"},\"resourceTypes\":[\"s-resourcetypes\"]}],\"validationConfig\":{\"disableFhirpathValidation\":true,\"disableProfileValidation\":true,\"disableReferenceTypeValidation\":true,\"disableRequiredFieldValidation\":true,\"enableFhirpathProfileValidation\":true,\"enabledImplementationGuides\":[\"s-enabledimplementationguides\"]},\"version\":\"s-version\"}",
   "OUT: {\"bulkExportGcsDestination\":{\"uriPrefix\":\"s-uriprefix\"},\"complexDataTypeReferenceParsing\":\"s-complexdatatypereferenceparsing\",\"consentConfig\":{\"accessDeterminationLogConfig\":{\"logLevel\":\"s-loglevel\"},\"accessEnforced\":true,\"consentHeaderHandling\":{\"profile\":\"s-profile\"},\"enforcedAdminConsents\":[\"s-enforcedadminconsents\"],\"version\":\"s-version\"},\"defaultSearchHandlingStrict\":true,\"disableReferentialIntegrity\":true,\"disableResourceVersioning\":true,\"enableUpdateCreate\":true,\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"notificationConfig\":{\"pubsubTopic\":\"s-pubsubtopic\",\"sendForBulkImport\":true},\"notificationConfigs\":[{\"pubsubTopic\":\"s-pubsubtopic\",\"sendFullResource\":true,\"sendPreviousResourceOnDelete\":true}],\"streamConfigs\":[{\"bigqueryDestination\":{\"datasetUri\":\"s-dataseturi\",\"force\":true,\"writeDisposition\":\"s-writedisposition\"},\"deidentifiedStoreDestination\":{\"store\":\"s-store\"},\"resourceTypes\":[\"s-resourcetypes\"]}],\"validationConfig\":{\"disableFhirpathValidation\":true,\"disableProfileValidation\":true,\"disableReferenceTypeValidation\":true,\"disableRequiredFieldValidation\":true,\"enableFhirpathProfileValidation\":true,\"enabledImplementationGuides\":[\"s-enabledimplementationguides\"]},\"version\":\"s-version\"}",
@@ -1811,10 +2231,10 @@ test "Go's healthcare.projects.locations.datasets.fhirStores.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_83)
+  gv_compare(gv_log_of(f), GO_94)
 }
 
-const GO_84: List[Str] = [
+const GO_95: List[Str] = [
   "CALL healthcare.projects.locations.datasets.fhirStores.rollback",
   "REQ POST https://healthcare.googleapis.com/v1/id1/%20x:rollback?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1833,10 +2253,10 @@ test "Go's healthcare.projects.locations.datasets.fhirStores.rollback" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_84)
+  gv_compare(gv_log_of(f), GO_95)
 }
 
-const GO_85: List[Str] = [
+const GO_96: List[Str] = [
   "CALL healthcare.projects.locations.datasets.fhirStores.setIamPolicy",
   "REQ POST https://healthcare.googleapis.com/v1/id1/%20x:setIamPolicy?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1855,10 +2275,10 @@ test "Go's healthcare.projects.locations.datasets.fhirStores.setIamPolicy" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_85)
+  gv_compare(gv_log_of(f), GO_96)
 }
 
-const GO_86: List[Str] = [
+const GO_97: List[Str] = [
   "CALL healthcare.projects.locations.datasets.fhirStores.testIamPermissions",
   "REQ POST https://healthcare.googleapis.com/v1/id1/%20x:testIamPermissions?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1877,10 +2297,10 @@ test "Go's healthcare.projects.locations.datasets.fhirStores.testIamPermissions"
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_86)
+  gv_compare(gv_log_of(f), GO_97)
 }
 
-const GO_87: List[Str] = [
+const GO_98: List[Str] = [
   "CALL healthcare.projects.locations.datasets.fhirStores.fhir.Resource-purge",
   "REQ DELETE https://healthcare.googleapis.com/v1/id1/%20x/\$purge?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -1898,10 +2318,10 @@ test "Go's healthcare.projects.locations.datasets.fhirStores.fhir.Resource-purge
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_87)
+  gv_compare(gv_log_of(f), GO_98)
 }
 
-const GO_88: List[Str] = [
+const GO_99: List[Str] = [
   "CALL healthcare.projects.locations.datasets.fhirStores.fhir.conditionalDelete",
   "REQ DELETE https://healthcare.googleapis.com/v1/id1/%20x/fhir/id2/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -1919,10 +2339,10 @@ test "Go's healthcare.projects.locations.datasets.fhirStores.fhir.conditionalDel
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_88)
+  gv_compare(gv_log_of(f), GO_99)
 }
 
-const GO_89: List[Str] = [
+const GO_100: List[Str] = [
   "CALL healthcare.projects.locations.datasets.hl7V2Stores.create",
   "REQ POST https://healthcare.googleapis.com/v1/id1/%20x/hl7V2Stores?alt=json&fields=kind%2Cid&hl7V2StoreId=s-hl7v2storeid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1941,10 +2361,10 @@ test "Go's healthcare.projects.locations.datasets.hl7V2Stores.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_89)
+  gv_compare(gv_log_of(f), GO_100)
 }
 
-const GO_90: List[Str] = [
+const GO_101: List[Str] = [
   "CALL healthcare.projects.locations.datasets.hl7V2Stores.delete",
   "REQ DELETE https://healthcare.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -1962,10 +2382,10 @@ test "Go's healthcare.projects.locations.datasets.hl7V2Stores.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_90)
+  gv_compare(gv_log_of(f), GO_101)
 }
 
-const GO_91: List[Str] = [
+const GO_102: List[Str] = [
   "CALL healthcare.projects.locations.datasets.hl7V2Stores.export",
   "REQ POST https://healthcare.googleapis.com/v1/id1/%20x:export?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1984,10 +2404,10 @@ test "Go's healthcare.projects.locations.datasets.hl7V2Stores.export" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_91)
+  gv_compare(gv_log_of(f), GO_102)
 }
 
-const GO_92: List[Str] = [
+const GO_103: List[Str] = [
   "CALL healthcare.projects.locations.datasets.hl7V2Stores.get",
   "REQ GET https://healthcare.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -2005,10 +2425,10 @@ test "Go's healthcare.projects.locations.datasets.hl7V2Stores.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_92)
+  gv_compare(gv_log_of(f), GO_103)
 }
 
-const GO_93: List[Str] = [
+const GO_104: List[Str] = [
   "CALL healthcare.projects.locations.datasets.hl7V2Stores.getHL7v2StoreMetrics",
   "REQ GET https://healthcare.googleapis.com/v1/id1/%20x:getHL7v2StoreMetrics?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -2026,10 +2446,10 @@ test "Go's healthcare.projects.locations.datasets.hl7V2Stores.getHL7v2StoreMetri
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_93)
+  gv_compare(gv_log_of(f), GO_104)
 }
 
-const GO_94: List[Str] = [
+const GO_105: List[Str] = [
   "CALL healthcare.projects.locations.datasets.hl7V2Stores.getIamPolicy",
   "REQ GET https://healthcare.googleapis.com/v1/id1/%20x:getIamPolicy?alt=json&fields=kind%2Cid&options.requestedPolicyVersion=7&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -2047,10 +2467,10 @@ test "Go's healthcare.projects.locations.datasets.hl7V2Stores.getIamPolicy" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_94)
+  gv_compare(gv_log_of(f), GO_105)
 }
 
-const GO_95: List[Str] = [
+const GO_106: List[Str] = [
   "CALL healthcare.projects.locations.datasets.hl7V2Stores.import",
   "REQ POST https://healthcare.googleapis.com/v1/id1/%20x:import?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -2069,10 +2489,10 @@ test "Go's healthcare.projects.locations.datasets.hl7V2Stores.import" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_95)
+  gv_compare(gv_log_of(f), GO_106)
 }
 
-const GO_96: List[Str] = [
+const GO_107: List[Str] = [
   "CALL healthcare.projects.locations.datasets.hl7V2Stores.list",
   "REQ GET https://healthcare.googleapis.com/v1/id1/%20x/hl7V2Stores?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -2090,10 +2510,48 @@ test "Go's healthcare.projects.locations.datasets.hl7V2Stores.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_96)
+  gv_compare(gv_log_of(f), GO_107)
 }
 
-const GO_97: List[Str] = [
+const GO_108: List[Str] = [
+  "CALL healthcare.projects.locations.datasets.hl7V2Stores.list pages",
+  "REQ GET https://healthcare.googleapis.com/v1/id1/%20x/hl7V2Stores?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"hl7V2Stores\":[{\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"parserConfig\":{\"allowNullHeader\":true,\"segmentTerminator\":\"YWI=\",\"version\":\"s-version\"},\"rejectDuplicateMessage\":true}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"hl7V2Stores\":[{\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"parserConfig\":{\"allowNullHeader\":true,\"segmentTerminator\":\"YWI=\",\"version\":\"s-version\"},\"rejectDuplicateMessage\":true}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://healthcare.googleapis.com/v1/id1/%20x/hl7V2Stores?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"hl7V2Stores\":[{\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"parserConfig\":{\"allowNullHeader\":true,\"segmentTerminator\":\"YWI=\",\"version\":\"s-version\"},\"rejectDuplicateMessage\":true}]}",
+  "OUT: {\"hl7V2Stores\":[{\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"parserConfig\":{\"allowNullHeader\":true,\"segmentTerminator\":\"YWI=\",\"version\":\"s-version\"},\"rejectDuplicateMessage\":true}]}",
+  "OUT: ok",
+]
+
+test "Go's healthcare.projects.locations.datasets.hl7V2Stores.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"hl7V2Stores\":[{\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"parserConfig\":{\"allowNullHeader\":true,\"segmentTerminator\":\"YWI=\",\"version\":\"s-version\"},\"rejectDuplicateMessage\":true}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"hl7V2Stores\":[{\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"parserConfig\":{\"allowNullHeader\":true,\"segmentTerminator\":\"YWI=\",\"version\":\"s-version\"},\"rejectDuplicateMessage\":true}]}")
+  gv_note(f, "CALL healthcare.projects.locations.datasets.hl7V2Stores.list pages")
+  var p = svc.projects.locations.datasets.hl7_v2_stores.list_pages("id1/ x", options: ProjectsLocationsDatasetsHl7V2StoresListOptions{filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_108)
+}
+
+const GO_109: List[Str] = [
   "CALL healthcare.projects.locations.datasets.hl7V2Stores.patch",
   "REQ PATCH https://healthcare.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
@@ -2112,10 +2570,10 @@ test "Go's healthcare.projects.locations.datasets.hl7V2Stores.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_97)
+  gv_compare(gv_log_of(f), GO_109)
 }
 
-const GO_98: List[Str] = [
+const GO_110: List[Str] = [
   "CALL healthcare.projects.locations.datasets.hl7V2Stores.rollback",
   "REQ POST https://healthcare.googleapis.com/v1/id1/%20x:rollback?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -2134,10 +2592,10 @@ test "Go's healthcare.projects.locations.datasets.hl7V2Stores.rollback" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_98)
+  gv_compare(gv_log_of(f), GO_110)
 }
 
-const GO_99: List[Str] = [
+const GO_111: List[Str] = [
   "CALL healthcare.projects.locations.datasets.hl7V2Stores.setIamPolicy",
   "REQ POST https://healthcare.googleapis.com/v1/id1/%20x:setIamPolicy?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -2156,10 +2614,10 @@ test "Go's healthcare.projects.locations.datasets.hl7V2Stores.setIamPolicy" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_99)
+  gv_compare(gv_log_of(f), GO_111)
 }
 
-const GO_100: List[Str] = [
+const GO_112: List[Str] = [
   "CALL healthcare.projects.locations.datasets.hl7V2Stores.testIamPermissions",
   "REQ POST https://healthcare.googleapis.com/v1/id1/%20x:testIamPermissions?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -2178,10 +2636,10 @@ test "Go's healthcare.projects.locations.datasets.hl7V2Stores.testIamPermissions
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_100)
+  gv_compare(gv_log_of(f), GO_112)
 }
 
-const GO_101: List[Str] = [
+const GO_113: List[Str] = [
   "CALL healthcare.projects.locations.datasets.hl7V2Stores.messages.create",
   "REQ POST https://healthcare.googleapis.com/v1/id1/%20x/messages?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -2200,10 +2658,10 @@ test "Go's healthcare.projects.locations.datasets.hl7V2Stores.messages.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_101)
+  gv_compare(gv_log_of(f), GO_113)
 }
 
-const GO_102: List[Str] = [
+const GO_114: List[Str] = [
   "CALL healthcare.projects.locations.datasets.hl7V2Stores.messages.delete",
   "REQ DELETE https://healthcare.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -2221,10 +2679,10 @@ test "Go's healthcare.projects.locations.datasets.hl7V2Stores.messages.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_102)
+  gv_compare(gv_log_of(f), GO_114)
 }
 
-const GO_103: List[Str] = [
+const GO_115: List[Str] = [
   "CALL healthcare.projects.locations.datasets.hl7V2Stores.messages.get",
   "REQ GET https://healthcare.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&view=s-view",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -2242,10 +2700,10 @@ test "Go's healthcare.projects.locations.datasets.hl7V2Stores.messages.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_103)
+  gv_compare(gv_log_of(f), GO_115)
 }
 
-const GO_104: List[Str] = [
+const GO_116: List[Str] = [
   "CALL healthcare.projects.locations.datasets.hl7V2Stores.messages.ingest",
   "REQ POST https://healthcare.googleapis.com/v1/id1/%20x/messages:ingest?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -2264,10 +2722,10 @@ test "Go's healthcare.projects.locations.datasets.hl7V2Stores.messages.ingest" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_104)
+  gv_compare(gv_log_of(f), GO_116)
 }
 
-const GO_105: List[Str] = [
+const GO_117: List[Str] = [
   "CALL healthcare.projects.locations.datasets.hl7V2Stores.messages.list",
   "REQ GET https://healthcare.googleapis.com/v1/id1/%20x/messages?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&view=s-view",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -2285,10 +2743,48 @@ test "Go's healthcare.projects.locations.datasets.hl7V2Stores.messages.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_105)
+  gv_compare(gv_log_of(f), GO_117)
 }
 
-const GO_106: List[Str] = [
+const GO_118: List[Str] = [
+  "CALL healthcare.projects.locations.datasets.hl7V2Stores.messages.list pages",
+  "REQ GET https://healthcare.googleapis.com/v1/id1/%20x/messages?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&view=s-view",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"hl7V2Messages\":[{\"createTime\":\"s-createtime\",\"data\":\"YWI=\",\"labels\":{\"k1\":\"s-labels\"},\"messageType\":\"s-messagetype\",\"name\":\"s-name\",\"parsedData\":{},\"schematizedData\":{\"data\":\"s-data\",\"error\":\"s-error\"},\"sendFacility\":\"s-sendfacility\",\"sendTime\":\"s-sendtime\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"hl7V2Messages\":[{\"createTime\":\"s-createtime\",\"data\":\"YWI=\",\"labels\":{\"k1\":\"s-labels\"},\"messageType\":\"s-messagetype\",\"name\":\"s-name\",\"parsedData\":{},\"schematizedData\":{\"data\":\"s-data\",\"error\":\"s-error\"},\"sendFacility\":\"s-sendfacility\",\"sendTime\":\"s-sendtime\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://healthcare.googleapis.com/v1/id1/%20x/messages?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false&view=s-view",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"hl7V2Messages\":[{\"createTime\":\"s-createtime\",\"data\":\"YWI=\",\"labels\":{\"k1\":\"s-labels\"},\"messageType\":\"s-messagetype\",\"name\":\"s-name\",\"parsedData\":{},\"schematizedData\":{\"data\":\"s-data\",\"error\":\"s-error\"},\"sendFacility\":\"s-sendfacility\",\"sendTime\":\"s-sendtime\"}]}",
+  "OUT: {\"hl7V2Messages\":[{\"createTime\":\"s-createtime\",\"data\":\"YWI=\",\"labels\":{\"k1\":\"s-labels\"},\"messageType\":\"s-messagetype\",\"name\":\"s-name\",\"parsedData\":{},\"schematizedData\":{\"data\":\"s-data\",\"error\":\"s-error\"},\"sendFacility\":\"s-sendfacility\",\"sendTime\":\"s-sendtime\"}]}",
+  "OUT: ok",
+]
+
+test "Go's healthcare.projects.locations.datasets.hl7V2Stores.messages.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"hl7V2Messages\":[{\"createTime\":\"s-createtime\",\"data\":\"YWI=\",\"labels\":{\"k1\":\"s-labels\"},\"messageType\":\"s-messagetype\",\"name\":\"s-name\",\"parsedData\":{},\"schematizedData\":{\"data\":\"s-data\",\"error\":\"s-error\"},\"sendFacility\":\"s-sendfacility\",\"sendTime\":\"s-sendtime\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"hl7V2Messages\":[{\"createTime\":\"s-createtime\",\"data\":\"YWI=\",\"labels\":{\"k1\":\"s-labels\"},\"messageType\":\"s-messagetype\",\"name\":\"s-name\",\"parsedData\":{},\"schematizedData\":{\"data\":\"s-data\",\"error\":\"s-error\"},\"sendFacility\":\"s-sendfacility\",\"sendTime\":\"s-sendtime\"}]}")
+  gv_note(f, "CALL healthcare.projects.locations.datasets.hl7V2Stores.messages.list pages")
+  var p = svc.projects.locations.datasets.hl7_v2_stores.messages.list_pages("id1/ x", options: ProjectsLocationsDatasetsHl7V2StoresMessagesListOptions{filter: Some("s-filter"), order_by: Some("s-orderby"), page_size: Some(7), page_token: Some("s-pagetoken"), view: Some("s-view"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_118)
+}
+
+const GO_119: List[Str] = [
   "CALL healthcare.projects.locations.datasets.hl7V2Stores.messages.patch",
   "REQ PATCH https://healthcare.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
@@ -2307,10 +2803,10 @@ test "Go's healthcare.projects.locations.datasets.hl7V2Stores.messages.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_106)
+  gv_compare(gv_log_of(f), GO_119)
 }
 
-const GO_107: List[Str] = [
+const GO_120: List[Str] = [
   "CALL healthcare.projects.locations.datasets.operations.cancel",
   "REQ POST https://healthcare.googleapis.com/v1/id1/%20x:cancel?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -2329,10 +2825,10 @@ test "Go's healthcare.projects.locations.datasets.operations.cancel" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_107)
+  gv_compare(gv_log_of(f), GO_120)
 }
 
-const GO_108: List[Str] = [
+const GO_121: List[Str] = [
   "CALL healthcare.projects.locations.datasets.operations.get",
   "REQ GET https://healthcare.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -2350,10 +2846,10 @@ test "Go's healthcare.projects.locations.datasets.operations.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_108)
+  gv_compare(gv_log_of(f), GO_121)
 }
 
-const GO_109: List[Str] = [
+const GO_122: List[Str] = [
   "CALL healthcare.projects.locations.datasets.operations.list",
   "REQ GET https://healthcare.googleapis.com/v1/id1/%20x/operations?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&returnPartialSuccess=true",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -2371,10 +2867,48 @@ test "Go's healthcare.projects.locations.datasets.operations.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_109)
+  gv_compare(gv_log_of(f), GO_122)
 }
 
-const GO_110: List[Str] = [
+const GO_123: List[Str] = [
+  "CALL healthcare.projects.locations.datasets.operations.list pages",
+  "REQ GET https://healthcare.googleapis.com/v1/id1/%20x/operations?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&returnPartialSuccess=true",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "REQ GET https://healthcare.googleapis.com/v1/id1/%20x/operations?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false&returnPartialSuccess=true",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: ok",
+]
+
+test "Go's healthcare.projects.locations.datasets.operations.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_queue(f, "{\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_note(f, "CALL healthcare.projects.locations.datasets.operations.list pages")
+  var p = svc.projects.locations.datasets.operations.list_pages("id1/ x", options: ProjectsLocationsDatasetsOperationsListOptions{filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), return_partial_success: Some(true), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_123)
+}
+
+const GO_124: List[Str] = [
   "CALL healthcare.projects.locations.services.nlp.analyzeEntities",
   "REQ POST https://healthcare.googleapis.com/v1/id1/%20x:analyzeEntities?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -2393,5 +2927,5 @@ test "Go's healthcare.projects.locations.services.nlp.analyzeEntities" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_110)
+  gv_compare(gv_log_of(f), GO_124)
 }

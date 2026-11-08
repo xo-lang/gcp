@@ -137,6 +137,44 @@ test "Go's pubsub.projects.subscriptions.list" {
 }
 
 const GO_6: List[Str] = [
+  "CALL pubsub.projects.subscriptions.list pages",
+  "REQ GET https://pubsub.googleapis.com/v1beta2/id1/%20x/subscriptions?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"subscriptions\":[{\"ackDeadlineSeconds\":7,\"name\":\"s-name\",\"pushConfig\":{\"pushEndpoint\":\"s-pushendpoint\"},\"topic\":\"s-topic\"}]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"subscriptions\":[{\"ackDeadlineSeconds\":7,\"name\":\"s-name\",\"pushConfig\":{\"pushEndpoint\":\"s-pushendpoint\"},\"topic\":\"s-topic\"}]}",
+  "REQ GET https://pubsub.googleapis.com/v1beta2/id1/%20x/subscriptions?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"subscriptions\":[{\"ackDeadlineSeconds\":7,\"name\":\"s-name\",\"pushConfig\":{\"pushEndpoint\":\"s-pushendpoint\"},\"topic\":\"s-topic\"}]}",
+  "OUT: {\"subscriptions\":[{\"ackDeadlineSeconds\":7,\"name\":\"s-name\",\"pushConfig\":{\"pushEndpoint\":\"s-pushendpoint\"},\"topic\":\"s-topic\"}]}",
+  "OUT: ok",
+]
+
+test "Go's pubsub.projects.subscriptions.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"subscriptions\":[{\"ackDeadlineSeconds\":7,\"name\":\"s-name\",\"pushConfig\":{\"pushEndpoint\":\"s-pushendpoint\"},\"topic\":\"s-topic\"}]}")
+  gv_queue(f, "{\"subscriptions\":[{\"ackDeadlineSeconds\":7,\"name\":\"s-name\",\"pushConfig\":{\"pushEndpoint\":\"s-pushendpoint\"},\"topic\":\"s-topic\"}]}")
+  gv_note(f, "CALL pubsub.projects.subscriptions.list pages")
+  var p = svc.projects.subscriptions.list_pages("id1/ x", options: ProjectsSubscriptionsListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_6)
+}
+
+const GO_7: List[Str] = [
   "CALL pubsub.projects.subscriptions.modifyAckDeadline",
   "REQ POST https://pubsub.googleapis.com/v1beta2/id1/%20x:modifyAckDeadline?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -155,10 +193,10 @@ test "Go's pubsub.projects.subscriptions.modifyAckDeadline" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_6)
+  gv_compare(gv_log_of(f), GO_7)
 }
 
-const GO_7: List[Str] = [
+const GO_8: List[Str] = [
   "CALL pubsub.projects.subscriptions.modifyPushConfig",
   "REQ POST https://pubsub.googleapis.com/v1beta2/id1/%20x:modifyPushConfig?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -177,10 +215,10 @@ test "Go's pubsub.projects.subscriptions.modifyPushConfig" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_7)
+  gv_compare(gv_log_of(f), GO_8)
 }
 
-const GO_8: List[Str] = [
+const GO_9: List[Str] = [
   "CALL pubsub.projects.subscriptions.pull",
   "REQ POST https://pubsub.googleapis.com/v1beta2/id1/%20x:pull?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -199,10 +237,10 @@ test "Go's pubsub.projects.subscriptions.pull" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_8)
+  gv_compare(gv_log_of(f), GO_9)
 }
 
-const GO_9: List[Str] = [
+const GO_10: List[Str] = [
   "CALL pubsub.projects.subscriptions.setIamPolicy",
   "REQ POST https://pubsub.googleapis.com/v1beta2/id1/%20x:setIamPolicy?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -221,10 +259,10 @@ test "Go's pubsub.projects.subscriptions.setIamPolicy" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_9)
+  gv_compare(gv_log_of(f), GO_10)
 }
 
-const GO_10: List[Str] = [
+const GO_11: List[Str] = [
   "CALL pubsub.projects.subscriptions.testIamPermissions",
   "REQ POST https://pubsub.googleapis.com/v1beta2/id1/%20x:testIamPermissions?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -243,10 +281,10 @@ test "Go's pubsub.projects.subscriptions.testIamPermissions" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_10)
+  gv_compare(gv_log_of(f), GO_11)
 }
 
-const GO_11: List[Str] = [
+const GO_12: List[Str] = [
   "CALL pubsub.projects.topics.create",
   "REQ PUT https://pubsub.googleapis.com/v1beta2/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -265,10 +303,10 @@ test "Go's pubsub.projects.topics.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_11)
+  gv_compare(gv_log_of(f), GO_12)
 }
 
-const GO_12: List[Str] = [
+const GO_13: List[Str] = [
   "CALL pubsub.projects.topics.delete",
   "REQ DELETE https://pubsub.googleapis.com/v1beta2/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -286,10 +324,10 @@ test "Go's pubsub.projects.topics.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_12)
+  gv_compare(gv_log_of(f), GO_13)
 }
 
-const GO_13: List[Str] = [
+const GO_14: List[Str] = [
   "CALL pubsub.projects.topics.get",
   "REQ GET https://pubsub.googleapis.com/v1beta2/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -307,10 +345,10 @@ test "Go's pubsub.projects.topics.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_13)
+  gv_compare(gv_log_of(f), GO_14)
 }
 
-const GO_14: List[Str] = [
+const GO_15: List[Str] = [
   "CALL pubsub.projects.topics.getIamPolicy",
   "REQ GET https://pubsub.googleapis.com/v1beta2/id1/%20x:getIamPolicy?alt=json&fields=kind%2Cid&options.requestedPolicyVersion=7&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -328,10 +366,10 @@ test "Go's pubsub.projects.topics.getIamPolicy" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_14)
+  gv_compare(gv_log_of(f), GO_15)
 }
 
-const GO_15: List[Str] = [
+const GO_16: List[Str] = [
   "CALL pubsub.projects.topics.list",
   "REQ GET https://pubsub.googleapis.com/v1beta2/id1/%20x/topics?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -349,10 +387,48 @@ test "Go's pubsub.projects.topics.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_15)
+  gv_compare(gv_log_of(f), GO_16)
 }
 
-const GO_16: List[Str] = [
+const GO_17: List[Str] = [
+  "CALL pubsub.projects.topics.list pages",
+  "REQ GET https://pubsub.googleapis.com/v1beta2/id1/%20x/topics?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"topics\":[{\"name\":\"s-name\"}]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"topics\":[{\"name\":\"s-name\"}]}",
+  "REQ GET https://pubsub.googleapis.com/v1beta2/id1/%20x/topics?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"topics\":[{\"name\":\"s-name\"}]}",
+  "OUT: {\"topics\":[{\"name\":\"s-name\"}]}",
+  "OUT: ok",
+]
+
+test "Go's pubsub.projects.topics.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"topics\":[{\"name\":\"s-name\"}]}")
+  gv_queue(f, "{\"topics\":[{\"name\":\"s-name\"}]}")
+  gv_note(f, "CALL pubsub.projects.topics.list pages")
+  var p = svc.projects.topics.list_pages("id1/ x", options: ProjectsTopicsListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_17)
+}
+
+const GO_18: List[Str] = [
   "CALL pubsub.projects.topics.publish",
   "REQ POST https://pubsub.googleapis.com/v1beta2/id1/%20x:publish?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -371,10 +447,10 @@ test "Go's pubsub.projects.topics.publish" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_16)
+  gv_compare(gv_log_of(f), GO_18)
 }
 
-const GO_17: List[Str] = [
+const GO_19: List[Str] = [
   "CALL pubsub.projects.topics.setIamPolicy",
   "REQ POST https://pubsub.googleapis.com/v1beta2/id1/%20x:setIamPolicy?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -393,10 +469,10 @@ test "Go's pubsub.projects.topics.setIamPolicy" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_17)
+  gv_compare(gv_log_of(f), GO_19)
 }
 
-const GO_18: List[Str] = [
+const GO_20: List[Str] = [
   "CALL pubsub.projects.topics.testIamPermissions",
   "REQ POST https://pubsub.googleapis.com/v1beta2/id1/%20x:testIamPermissions?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -415,10 +491,10 @@ test "Go's pubsub.projects.topics.testIamPermissions" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_18)
+  gv_compare(gv_log_of(f), GO_20)
 }
 
-const GO_19: List[Str] = [
+const GO_21: List[Str] = [
   "CALL pubsub.projects.topics.subscriptions.list",
   "REQ GET https://pubsub.googleapis.com/v1beta2/id1/%20x/subscriptions?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -436,5 +512,43 @@ test "Go's pubsub.projects.topics.subscriptions.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_19)
+  gv_compare(gv_log_of(f), GO_21)
+}
+
+const GO_22: List[Str] = [
+  "CALL pubsub.projects.topics.subscriptions.list pages",
+  "REQ GET https://pubsub.googleapis.com/v1beta2/id1/%20x/subscriptions?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"subscriptions\":[\"s-subscriptions\"]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"subscriptions\":[\"s-subscriptions\"]}",
+  "REQ GET https://pubsub.googleapis.com/v1beta2/id1/%20x/subscriptions?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"subscriptions\":[\"s-subscriptions\"]}",
+  "OUT: {\"subscriptions\":[\"s-subscriptions\"]}",
+  "OUT: ok",
+]
+
+test "Go's pubsub.projects.topics.subscriptions.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"subscriptions\":[\"s-subscriptions\"]}")
+  gv_queue(f, "{\"subscriptions\":[\"s-subscriptions\"]}")
+  gv_note(f, "CALL pubsub.projects.topics.subscriptions.list pages")
+  var p = svc.projects.topics.subscriptions.list_pages("id1/ x", options: ProjectsTopicsSubscriptionsListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_22)
 }

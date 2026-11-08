@@ -51,6 +51,44 @@ test "Go's file.projects.locations.list" {
 }
 
 const GO_2: List[Str] = [
+  "CALL file.projects.locations.list pages",
+  "REQ GET https://file.googleapis.com/v1beta1/id1/%20x/locations?alt=json&extraLocationTypes=s-extralocationtypes&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://file.googleapis.com/v1beta1/id1/%20x/locations?alt=json&extraLocationTypes=s-extralocationtypes&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}]}",
+  "OUT: {\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}]}",
+  "OUT: ok",
+]
+
+test "Go's file.projects.locations.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}]}")
+  gv_note(f, "CALL file.projects.locations.list pages")
+  var p = svc.projects.locations.list_pages("id1/ x", options: ProjectsLocationsListOptions{extra_location_types: ["s-extralocationtypes"], filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_2)
+}
+
+const GO_3: List[Str] = [
   "CALL file.projects.locations.backups.create",
   "REQ POST https://file.googleapis.com/v1beta1/id1/%20x/backups?alt=json&backupId=s-backupid&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -69,10 +107,10 @@ test "Go's file.projects.locations.backups.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_2)
+  gv_compare(gv_log_of(f), GO_3)
 }
 
-const GO_3: List[Str] = [
+const GO_4: List[Str] = [
   "CALL file.projects.locations.backups.delete",
   "REQ DELETE https://file.googleapis.com/v1beta1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -90,10 +128,10 @@ test "Go's file.projects.locations.backups.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_3)
+  gv_compare(gv_log_of(f), GO_4)
 }
 
-const GO_4: List[Str] = [
+const GO_5: List[Str] = [
   "CALL file.projects.locations.backups.get",
   "REQ GET https://file.googleapis.com/v1beta1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -111,10 +149,10 @@ test "Go's file.projects.locations.backups.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_4)
+  gv_compare(gv_log_of(f), GO_5)
 }
 
-const GO_5: List[Str] = [
+const GO_6: List[Str] = [
   "CALL file.projects.locations.backups.list",
   "REQ GET https://file.googleapis.com/v1beta1/id1/%20x/backups?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -132,10 +170,48 @@ test "Go's file.projects.locations.backups.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_5)
+  gv_compare(gv_log_of(f), GO_6)
 }
 
-const GO_6: List[Str] = [
+const GO_7: List[Str] = [
+  "CALL file.projects.locations.backups.list pages",
+  "REQ GET https://file.googleapis.com/v1beta1/id1/%20x/backups?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"backups\":[{\"capacityGb\":\"7\",\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"downloadBytes\":\"7\",\"fileSystemProtocol\":\"s-filesystemprotocol\",\"kmsKeyName\":\"s-kmskeyname\",\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"satisfiesPzi\":true,\"satisfiesPzs\":true,\"sourceFileShare\":\"s-sourcefileshare\",\"sourceInstance\":\"s-sourceinstance\",\"sourceInstanceTier\":\"s-sourceinstancetier\",\"sourceVolume\":\"s-sourcevolume\",\"state\":\"s-state\",\"storageBytes\":\"7\",\"tags\":{\"k1\":\"s-tags\"}}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"backups\":[{\"capacityGb\":\"7\",\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"downloadBytes\":\"7\",\"fileSystemProtocol\":\"s-filesystemprotocol\",\"kmsKeyName\":\"s-kmskeyname\",\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"satisfiesPzi\":true,\"satisfiesPzs\":true,\"sourceFileShare\":\"s-sourcefileshare\",\"sourceInstance\":\"s-sourceinstance\",\"sourceInstanceTier\":\"s-sourceinstancetier\",\"sourceVolume\":\"s-sourcevolume\",\"state\":\"s-state\",\"storageBytes\":\"7\",\"tags\":{\"k1\":\"s-tags\"}}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}",
+  "REQ GET https://file.googleapis.com/v1beta1/id1/%20x/backups?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"backups\":[{\"capacityGb\":\"7\",\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"downloadBytes\":\"7\",\"fileSystemProtocol\":\"s-filesystemprotocol\",\"kmsKeyName\":\"s-kmskeyname\",\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"satisfiesPzi\":true,\"satisfiesPzs\":true,\"sourceFileShare\":\"s-sourcefileshare\",\"sourceInstance\":\"s-sourceinstance\",\"sourceInstanceTier\":\"s-sourceinstancetier\",\"sourceVolume\":\"s-sourcevolume\",\"state\":\"s-state\",\"storageBytes\":\"7\",\"tags\":{\"k1\":\"s-tags\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"backups\":[{\"capacityGb\":\"7\",\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"downloadBytes\":\"7\",\"fileSystemProtocol\":\"s-filesystemprotocol\",\"kmsKeyName\":\"s-kmskeyname\",\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"satisfiesPzi\":true,\"satisfiesPzs\":true,\"sourceFileShare\":\"s-sourcefileshare\",\"sourceInstance\":\"s-sourceinstance\",\"sourceInstanceTier\":\"s-sourceinstancetier\",\"sourceVolume\":\"s-sourcevolume\",\"state\":\"s-state\",\"storageBytes\":\"7\",\"tags\":{\"k1\":\"s-tags\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: ok",
+]
+
+test "Go's file.projects.locations.backups.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"backups\":[{\"capacityGb\":\"7\",\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"downloadBytes\":\"7\",\"fileSystemProtocol\":\"s-filesystemprotocol\",\"kmsKeyName\":\"s-kmskeyname\",\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"satisfiesPzi\":true,\"satisfiesPzs\":true,\"sourceFileShare\":\"s-sourcefileshare\",\"sourceInstance\":\"s-sourceinstance\",\"sourceInstanceTier\":\"s-sourceinstancetier\",\"sourceVolume\":\"s-sourcevolume\",\"state\":\"s-state\",\"storageBytes\":\"7\",\"tags\":{\"k1\":\"s-tags\"}}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}")
+  gv_queue(f, "{\"backups\":[{\"capacityGb\":\"7\",\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"downloadBytes\":\"7\",\"fileSystemProtocol\":\"s-filesystemprotocol\",\"kmsKeyName\":\"s-kmskeyname\",\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"satisfiesPzi\":true,\"satisfiesPzs\":true,\"sourceFileShare\":\"s-sourcefileshare\",\"sourceInstance\":\"s-sourceinstance\",\"sourceInstanceTier\":\"s-sourceinstancetier\",\"sourceVolume\":\"s-sourcevolume\",\"state\":\"s-state\",\"storageBytes\":\"7\",\"tags\":{\"k1\":\"s-tags\"}}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_note(f, "CALL file.projects.locations.backups.list pages")
+  var p = svc.projects.locations.backups.list_pages("id1/ x", options: ProjectsLocationsBackupsListOptions{filter: Some("s-filter"), order_by: Some("s-orderby"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_7)
+}
+
+const GO_8: List[Str] = [
   "CALL file.projects.locations.backups.patch",
   "REQ PATCH https://file.googleapis.com/v1beta1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
@@ -154,14 +230,14 @@ test "Go's file.projects.locations.backups.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_6)
+  gv_compare(gv_log_of(f), GO_8)
 }
 
-const GO_7: List[Str] = [
+const GO_9: List[Str] = [
   "CALL file.projects.locations.instances.create",
   "REQ POST https://file.googleapis.com/v1beta1/id1/%20x/instances?alt=json&fields=kind%2Cid&instanceId=s-instanceid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"backendType\":\"s-backendtype\",\"capacityGb\":\"7\",\"capacityStepSizeGb\":\"7\",\"createTime\":\"s-createtime\",\"customPerformanceSupported\":true,\"deletionProtectionEnabled\":true,\"deletionProtectionReason\":\"s-deletionprotectionreason\",\"description\":\"s-description\",\"directoryServices\":{\"ldap\":{\"domain\":\"s-domain\",\"groupsOu\":\"s-groupsou\",\"servers\":[\"s-servers\"],\"usersOu\":\"s-usersou\"},\"managedActiveDirectory\":{\"computer\":\"s-computer\",\"domain\":\"s-domain\"}},\"etag\":\"s-etag\",\"fileShares\":[{\"capacityGb\":\"7\",\"name\":\"s-name\",\"restoreConfig\":{},\"sourceBackup\":\"s-sourcebackup\",\"sourceBackupdrBackup\":\"s-sourcebackupdrbackup\"}],\"kmsKeyName\":\"s-kmskeyname\",\"labels\":{\"k1\":\"s-labels\"},\"maxCapacityGb\":\"7\",\"maxShareCount\":\"7\",\"minCapacityGb\":\"7\",\"multiShareEnabled\":true,\"name\":\"s-name\",\"networks\":[{\"connectMode\":\"s-connectmode\",\"ipAddresses\":[\"s-ipaddresses\"],\"modes\":[\"s-modes\"],\"network\":\"s-network\",\"pscConfig\":{\"endpointProject\":\"s-endpointproject\",\"requestedIpAddress\":\"s-requestedipaddress\"},\"reservedIpRange\":\"s-reservediprange\"}],\"performanceConfig\":{\"fixedIops\":{\"maxIops\":\"7\"},\"iopsPerTb\":{\"maxIopsPerTb\":\"7\"}},\"performanceLimits\":{\"maxIops\":\"7\",\"maxReadIops\":\"7\",\"maxReadThroughputBps\":\"7\",\"maxWriteIops\":\"7\",\"maxWriteThroughputBps\":\"7\"},\"protocol\":\"s-protocol\",\"replication\":{\"replicas\":[{\"lastActiveSyncTime\":\"s-lastactivesynctime\",\"peerInstance\":\"s-peerinstance\",\"state\":\"s-state\",\"stateUpdateTime\":\"s-stateupdatetime\"}],\"role\":\"s-role\"},\"satisfiesPzi\":true,\"satisfiesPzs\":true,\"state\":\"s-state\",\"statusMessage\":\"s-statusmessage\",\"suspensionReasons\":[\"s-suspensionreasons\"],\"tags\":{\"k1\":\"s-tags\"},\"tier\":\"s-tier\"}",
+  "  B <1610 bytes> {\"backendType\":\"s-backendtype\",\"...\"k1\":\"s-tags\"},\"tier\":\"s-tier\"}",
   "",
   "  SERVED 200 {\"done\":true,\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}",
   "OUT: {\"done\":true,\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}",
@@ -176,10 +252,10 @@ test "Go's file.projects.locations.instances.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_7)
+  gv_compare(gv_log_of(f), GO_9)
 }
 
-const GO_8: List[Str] = [
+const GO_10: List[Str] = [
   "CALL file.projects.locations.instances.delete",
   "REQ DELETE https://file.googleapis.com/v1beta1/id1/%20x?alt=json&fields=kind%2Cid&force=true&prettyPrint=false",
   "  H x-extra=v1",
@@ -197,10 +273,10 @@ test "Go's file.projects.locations.instances.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_8)
+  gv_compare(gv_log_of(f), GO_10)
 }
 
-const GO_9: List[Str] = [
+const GO_11: List[Str] = [
   "CALL file.projects.locations.instances.get",
   "REQ GET https://file.googleapis.com/v1beta1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -218,10 +294,10 @@ test "Go's file.projects.locations.instances.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_9)
+  gv_compare(gv_log_of(f), GO_11)
 }
 
-const GO_10: List[Str] = [
+const GO_12: List[Str] = [
   "CALL file.projects.locations.instances.list",
   "REQ GET https://file.googleapis.com/v1beta1/id1/%20x/instances?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -239,14 +315,52 @@ test "Go's file.projects.locations.instances.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_10)
+  gv_compare(gv_log_of(f), GO_12)
 }
 
-const GO_11: List[Str] = [
+const GO_13: List[Str] = [
+  "CALL file.projects.locations.instances.list pages",
+  "REQ GET https://file.googleapis.com/v1beta1/id1/%20x/instances?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"instances\":[{\"backendType\":\"s-backendtype\",\"capacityGb\":\"7\",\"capacityStepSizeGb\":\"7\",\"createTime\":\"s-createtime\",\"customPerformanceSupported\":true,\"deletionProtectionEnabled\":true,\"deletionProtectionReason\":\"s-deletionprotectionreason\",\"description\":\"s-description\",\"directoryServices\":{},\"etag\":\"s-etag\",\"kmsKeyName\":\"s-kmskeyname\",\"labels\":{\"k1\":\"s-labels\"},\"maxCapacityGb\":\"7\",\"maxShareCount\":\"7\",\"minCapacityGb\":\"7\",\"multiShareEnabled\":true,\"name\":\"s-name\",\"performanceConfig\":{},\"performanceLimits\":{\"maxIops\":\"7\",\"maxReadIops\":\"7\",\"maxReadThroughputBps\":\"7\",\"maxWriteIops\":\"7\",\"maxWriteThroughputBps\":\"7\"},\"protocol\":\"s-protocol\",\"replication\":{\"role\":\"s-role\"},\"satisfiesPzi\":true,\"satisfiesPzs\":true,\"state\":\"s-state\",\"statusMessage\":\"s-statusmessage\",\"suspensionReasons\":[\"s-suspensionreasons\"],\"tags\":{\"k1\":\"s-tags\"},\"tier\":\"s-tier\"}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"instances\":[{\"backendType\":\"s-backendtype\",\"capacityGb\":\"7\",\"capacityStepSizeGb\":\"7\",\"createTime\":\"s-createtime\",\"customPerformanceSupported\":true,\"deletionProtectionEnabled\":true,\"deletionProtectionReason\":\"s-deletionprotectionreason\",\"description\":\"s-description\",\"directoryServices\":{},\"etag\":\"s-etag\",\"kmsKeyName\":\"s-kmskeyname\",\"labels\":{\"k1\":\"s-labels\"},\"maxCapacityGb\":\"7\",\"maxShareCount\":\"7\",\"minCapacityGb\":\"7\",\"multiShareEnabled\":true,\"name\":\"s-name\",\"performanceConfig\":{},\"performanceLimits\":{\"maxIops\":\"7\",\"maxReadIops\":\"7\",\"maxReadThroughputBps\":\"7\",\"maxWriteIops\":\"7\",\"maxWriteThroughputBps\":\"7\"},\"protocol\":\"s-protocol\",\"replication\":{\"role\":\"s-role\"},\"satisfiesPzi\":true,\"satisfiesPzs\":true,\"state\":\"s-state\",\"statusMessage\":\"s-statusmessage\",\"suspensionReasons\":[\"s-suspensionreasons\"],\"tags\":{\"k1\":\"s-tags\"},\"tier\":\"s-tier\"}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}",
+  "REQ GET https://file.googleapis.com/v1beta1/id1/%20x/instances?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"instances\":[{\"backendType\":\"s-backendtype\",\"capacityGb\":\"7\",\"capacityStepSizeGb\":\"7\",\"createTime\":\"s-createtime\",\"customPerformanceSupported\":true,\"deletionProtectionEnabled\":true,\"deletionProtectionReason\":\"s-deletionprotectionreason\",\"description\":\"s-description\",\"directoryServices\":{},\"etag\":\"s-etag\",\"kmsKeyName\":\"s-kmskeyname\",\"labels\":{\"k1\":\"s-labels\"},\"maxCapacityGb\":\"7\",\"maxShareCount\":\"7\",\"minCapacityGb\":\"7\",\"multiShareEnabled\":true,\"name\":\"s-name\",\"performanceConfig\":{},\"performanceLimits\":{\"maxIops\":\"7\",\"maxReadIops\":\"7\",\"maxReadThroughputBps\":\"7\",\"maxWriteIops\":\"7\",\"maxWriteThroughputBps\":\"7\"},\"protocol\":\"s-protocol\",\"replication\":{\"role\":\"s-role\"},\"satisfiesPzi\":true,\"satisfiesPzs\":true,\"state\":\"s-state\",\"statusMessage\":\"s-statusmessage\",\"suspensionReasons\":[\"s-suspensionreasons\"],\"tags\":{\"k1\":\"s-tags\"},\"tier\":\"s-tier\"}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"instances\":[{\"backendType\":\"s-backendtype\",\"capacityGb\":\"7\",\"capacityStepSizeGb\":\"7\",\"createTime\":\"s-createtime\",\"customPerformanceSupported\":true,\"deletionProtectionEnabled\":true,\"deletionProtectionReason\":\"s-deletionprotectionreason\",\"description\":\"s-description\",\"directoryServices\":{},\"etag\":\"s-etag\",\"kmsKeyName\":\"s-kmskeyname\",\"labels\":{\"k1\":\"s-labels\"},\"maxCapacityGb\":\"7\",\"maxShareCount\":\"7\",\"minCapacityGb\":\"7\",\"multiShareEnabled\":true,\"name\":\"s-name\",\"performanceConfig\":{},\"performanceLimits\":{\"maxIops\":\"7\",\"maxReadIops\":\"7\",\"maxReadThroughputBps\":\"7\",\"maxWriteIops\":\"7\",\"maxWriteThroughputBps\":\"7\"},\"protocol\":\"s-protocol\",\"replication\":{\"role\":\"s-role\"},\"satisfiesPzi\":true,\"satisfiesPzs\":true,\"state\":\"s-state\",\"statusMessage\":\"s-statusmessage\",\"suspensionReasons\":[\"s-suspensionreasons\"],\"tags\":{\"k1\":\"s-tags\"},\"tier\":\"s-tier\"}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: ok",
+]
+
+test "Go's file.projects.locations.instances.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"instances\":[{\"backendType\":\"s-backendtype\",\"capacityGb\":\"7\",\"capacityStepSizeGb\":\"7\",\"createTime\":\"s-createtime\",\"customPerformanceSupported\":true,\"deletionProtectionEnabled\":true,\"deletionProtectionReason\":\"s-deletionprotectionreason\",\"description\":\"s-description\",\"directoryServices\":{},\"etag\":\"s-etag\",\"kmsKeyName\":\"s-kmskeyname\",\"labels\":{\"k1\":\"s-labels\"},\"maxCapacityGb\":\"7\",\"maxShareCount\":\"7\",\"minCapacityGb\":\"7\",\"multiShareEnabled\":true,\"name\":\"s-name\",\"performanceConfig\":{},\"performanceLimits\":{\"maxIops\":\"7\",\"maxReadIops\":\"7\",\"maxReadThroughputBps\":\"7\",\"maxWriteIops\":\"7\",\"maxWriteThroughputBps\":\"7\"},\"protocol\":\"s-protocol\",\"replication\":{\"role\":\"s-role\"},\"satisfiesPzi\":true,\"satisfiesPzs\":true,\"state\":\"s-state\",\"statusMessage\":\"s-statusmessage\",\"suspensionReasons\":[\"s-suspensionreasons\"],\"tags\":{\"k1\":\"s-tags\"},\"tier\":\"s-tier\"}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}")
+  gv_queue(f, "{\"instances\":[{\"backendType\":\"s-backendtype\",\"capacityGb\":\"7\",\"capacityStepSizeGb\":\"7\",\"createTime\":\"s-createtime\",\"customPerformanceSupported\":true,\"deletionProtectionEnabled\":true,\"deletionProtectionReason\":\"s-deletionprotectionreason\",\"description\":\"s-description\",\"directoryServices\":{},\"etag\":\"s-etag\",\"kmsKeyName\":\"s-kmskeyname\",\"labels\":{\"k1\":\"s-labels\"},\"maxCapacityGb\":\"7\",\"maxShareCount\":\"7\",\"minCapacityGb\":\"7\",\"multiShareEnabled\":true,\"name\":\"s-name\",\"performanceConfig\":{},\"performanceLimits\":{\"maxIops\":\"7\",\"maxReadIops\":\"7\",\"maxReadThroughputBps\":\"7\",\"maxWriteIops\":\"7\",\"maxWriteThroughputBps\":\"7\"},\"protocol\":\"s-protocol\",\"replication\":{\"role\":\"s-role\"},\"satisfiesPzi\":true,\"satisfiesPzs\":true,\"state\":\"s-state\",\"statusMessage\":\"s-statusmessage\",\"suspensionReasons\":[\"s-suspensionreasons\"],\"tags\":{\"k1\":\"s-tags\"},\"tier\":\"s-tier\"}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_note(f, "CALL file.projects.locations.instances.list pages")
+  var p = svc.projects.locations.instances.list_pages("id1/ x", options: ProjectsLocationsInstancesListOptions{filter: Some("s-filter"), order_by: Some("s-orderby"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_13)
+}
+
+const GO_14: List[Str] = [
   "CALL file.projects.locations.instances.patch",
   "REQ PATCH https://file.googleapis.com/v1beta1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"backendType\":\"s-backendtype\",\"capacityGb\":\"7\",\"capacityStepSizeGb\":\"7\",\"createTime\":\"s-createtime\",\"customPerformanceSupported\":true,\"deletionProtectionEnabled\":true,\"deletionProtectionReason\":\"s-deletionprotectionreason\",\"description\":\"s-description\",\"directoryServices\":{\"ldap\":{\"domain\":\"s-domain\",\"groupsOu\":\"s-groupsou\",\"servers\":[\"s-servers\"],\"usersOu\":\"s-usersou\"},\"managedActiveDirectory\":{\"computer\":\"s-computer\",\"domain\":\"s-domain\"}},\"etag\":\"s-etag\",\"fileShares\":[{\"capacityGb\":\"7\",\"name\":\"s-name\",\"restoreConfig\":{},\"sourceBackup\":\"s-sourcebackup\",\"sourceBackupdrBackup\":\"s-sourcebackupdrbackup\"}],\"kmsKeyName\":\"s-kmskeyname\",\"labels\":{\"k1\":\"s-labels\"},\"maxCapacityGb\":\"7\",\"maxShareCount\":\"7\",\"minCapacityGb\":\"7\",\"multiShareEnabled\":true,\"name\":\"s-name\",\"networks\":[{\"connectMode\":\"s-connectmode\",\"ipAddresses\":[\"s-ipaddresses\"],\"modes\":[\"s-modes\"],\"network\":\"s-network\",\"pscConfig\":{\"endpointProject\":\"s-endpointproject\",\"requestedIpAddress\":\"s-requestedipaddress\"},\"reservedIpRange\":\"s-reservediprange\"}],\"performanceConfig\":{\"fixedIops\":{\"maxIops\":\"7\"},\"iopsPerTb\":{\"maxIopsPerTb\":\"7\"}},\"performanceLimits\":{\"maxIops\":\"7\",\"maxReadIops\":\"7\",\"maxReadThroughputBps\":\"7\",\"maxWriteIops\":\"7\",\"maxWriteThroughputBps\":\"7\"},\"protocol\":\"s-protocol\",\"replication\":{\"replicas\":[{\"lastActiveSyncTime\":\"s-lastactivesynctime\",\"peerInstance\":\"s-peerinstance\",\"state\":\"s-state\",\"stateUpdateTime\":\"s-stateupdatetime\"}],\"role\":\"s-role\"},\"satisfiesPzi\":true,\"satisfiesPzs\":true,\"state\":\"s-state\",\"statusMessage\":\"s-statusmessage\",\"suspensionReasons\":[\"s-suspensionreasons\"],\"tags\":{\"k1\":\"s-tags\"},\"tier\":\"s-tier\"}",
+  "  B <1610 bytes> {\"backendType\":\"s-backendtype\",\"...\"k1\":\"s-tags\"},\"tier\":\"s-tier\"}",
   "",
   "  SERVED 200 {\"done\":true,\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}",
   "OUT: {\"done\":true,\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}",
@@ -261,10 +375,10 @@ test "Go's file.projects.locations.instances.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_11)
+  gv_compare(gv_log_of(f), GO_14)
 }
 
-const GO_12: List[Str] = [
+const GO_15: List[Str] = [
   "CALL file.projects.locations.instances.pauseReplica",
   "REQ POST https://file.googleapis.com/v1beta1/id1/%20x:pauseReplica?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -283,10 +397,10 @@ test "Go's file.projects.locations.instances.pauseReplica" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_12)
+  gv_compare(gv_log_of(f), GO_15)
 }
 
-const GO_13: List[Str] = [
+const GO_16: List[Str] = [
   "CALL file.projects.locations.instances.promoteReplica",
   "REQ POST https://file.googleapis.com/v1beta1/id1/%20x:promoteReplica?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -305,10 +419,10 @@ test "Go's file.projects.locations.instances.promoteReplica" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_13)
+  gv_compare(gv_log_of(f), GO_16)
 }
 
-const GO_14: List[Str] = [
+const GO_17: List[Str] = [
   "CALL file.projects.locations.instances.restore",
   "REQ POST https://file.googleapis.com/v1beta1/id1/%20x:restore?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -327,10 +441,10 @@ test "Go's file.projects.locations.instances.restore" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_14)
+  gv_compare(gv_log_of(f), GO_17)
 }
 
-const GO_15: List[Str] = [
+const GO_18: List[Str] = [
   "CALL file.projects.locations.instances.resumeReplica",
   "REQ POST https://file.googleapis.com/v1beta1/id1/%20x:resumeReplica?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -349,10 +463,10 @@ test "Go's file.projects.locations.instances.resumeReplica" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_15)
+  gv_compare(gv_log_of(f), GO_18)
 }
 
-const GO_16: List[Str] = [
+const GO_19: List[Str] = [
   "CALL file.projects.locations.instances.revert",
   "REQ POST https://file.googleapis.com/v1beta1/id1/%20x:revert?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -371,10 +485,10 @@ test "Go's file.projects.locations.instances.revert" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_16)
+  gv_compare(gv_log_of(f), GO_19)
 }
 
-const GO_17: List[Str] = [
+const GO_20: List[Str] = [
   "CALL file.projects.locations.instances.shares.create",
   "REQ POST https://file.googleapis.com/v1beta1/id1/%20x/shares?alt=json&fields=kind%2Cid&prettyPrint=false&shareId=s-shareid",
   "  H content-type=application/json | x-extra=v1",
@@ -393,10 +507,10 @@ test "Go's file.projects.locations.instances.shares.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_17)
+  gv_compare(gv_log_of(f), GO_20)
 }
 
-const GO_18: List[Str] = [
+const GO_21: List[Str] = [
   "CALL file.projects.locations.instances.shares.delete",
   "REQ DELETE https://file.googleapis.com/v1beta1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -414,10 +528,10 @@ test "Go's file.projects.locations.instances.shares.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_18)
+  gv_compare(gv_log_of(f), GO_21)
 }
 
-const GO_19: List[Str] = [
+const GO_22: List[Str] = [
   "CALL file.projects.locations.instances.shares.get",
   "REQ GET https://file.googleapis.com/v1beta1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -435,10 +549,10 @@ test "Go's file.projects.locations.instances.shares.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_19)
+  gv_compare(gv_log_of(f), GO_22)
 }
 
-const GO_20: List[Str] = [
+const GO_23: List[Str] = [
   "CALL file.projects.locations.instances.shares.list",
   "REQ GET https://file.googleapis.com/v1beta1/id1/%20x/shares?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -456,10 +570,48 @@ test "Go's file.projects.locations.instances.shares.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_20)
+  gv_compare(gv_log_of(f), GO_23)
 }
 
-const GO_21: List[Str] = [
+const GO_24: List[Str] = [
+  "CALL file.projects.locations.instances.shares.list pages",
+  "REQ GET https://file.googleapis.com/v1beta1/id1/%20x/shares?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"shares\":[{\"backup\":\"s-backup\",\"capacityGb\":\"7\",\"capacityMb\":\"7\",\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"labels\":{\"k1\":\"s-labels\"},\"mountName\":\"s-mountname\",\"name\":\"s-name\",\"state\":\"s-state\"}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"shares\":[{\"backup\":\"s-backup\",\"capacityGb\":\"7\",\"capacityMb\":\"7\",\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"labels\":{\"k1\":\"s-labels\"},\"mountName\":\"s-mountname\",\"name\":\"s-name\",\"state\":\"s-state\"}],\"unreachable\":[\"s-unreachable\"]}",
+  "REQ GET https://file.googleapis.com/v1beta1/id1/%20x/shares?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"shares\":[{\"backup\":\"s-backup\",\"capacityGb\":\"7\",\"capacityMb\":\"7\",\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"labels\":{\"k1\":\"s-labels\"},\"mountName\":\"s-mountname\",\"name\":\"s-name\",\"state\":\"s-state\"}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"shares\":[{\"backup\":\"s-backup\",\"capacityGb\":\"7\",\"capacityMb\":\"7\",\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"labels\":{\"k1\":\"s-labels\"},\"mountName\":\"s-mountname\",\"name\":\"s-name\",\"state\":\"s-state\"}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: ok",
+]
+
+test "Go's file.projects.locations.instances.shares.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"shares\":[{\"backup\":\"s-backup\",\"capacityGb\":\"7\",\"capacityMb\":\"7\",\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"labels\":{\"k1\":\"s-labels\"},\"mountName\":\"s-mountname\",\"name\":\"s-name\",\"state\":\"s-state\"}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_queue(f, "{\"shares\":[{\"backup\":\"s-backup\",\"capacityGb\":\"7\",\"capacityMb\":\"7\",\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"labels\":{\"k1\":\"s-labels\"},\"mountName\":\"s-mountname\",\"name\":\"s-name\",\"state\":\"s-state\"}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_note(f, "CALL file.projects.locations.instances.shares.list pages")
+  var p = svc.projects.locations.instances.shares.list_pages("id1/ x", options: ProjectsLocationsInstancesSharesListOptions{filter: Some("s-filter"), order_by: Some("s-orderby"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_24)
+}
+
+const GO_25: List[Str] = [
   "CALL file.projects.locations.instances.shares.patch",
   "REQ PATCH https://file.googleapis.com/v1beta1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
@@ -478,10 +630,10 @@ test "Go's file.projects.locations.instances.shares.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_21)
+  gv_compare(gv_log_of(f), GO_25)
 }
 
-const GO_22: List[Str] = [
+const GO_26: List[Str] = [
   "CALL file.projects.locations.instances.snapshots.create",
   "REQ POST https://file.googleapis.com/v1beta1/id1/%20x/snapshots?alt=json&fields=kind%2Cid&prettyPrint=false&snapshotId=s-snapshotid",
   "  H content-type=application/json | x-extra=v1",
@@ -500,10 +652,10 @@ test "Go's file.projects.locations.instances.snapshots.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_22)
+  gv_compare(gv_log_of(f), GO_26)
 }
 
-const GO_23: List[Str] = [
+const GO_27: List[Str] = [
   "CALL file.projects.locations.instances.snapshots.delete",
   "REQ DELETE https://file.googleapis.com/v1beta1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -521,10 +673,10 @@ test "Go's file.projects.locations.instances.snapshots.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_23)
+  gv_compare(gv_log_of(f), GO_27)
 }
 
-const GO_24: List[Str] = [
+const GO_28: List[Str] = [
   "CALL file.projects.locations.instances.snapshots.get",
   "REQ GET https://file.googleapis.com/v1beta1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -542,10 +694,10 @@ test "Go's file.projects.locations.instances.snapshots.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_24)
+  gv_compare(gv_log_of(f), GO_28)
 }
 
-const GO_25: List[Str] = [
+const GO_29: List[Str] = [
   "CALL file.projects.locations.instances.snapshots.list",
   "REQ GET https://file.googleapis.com/v1beta1/id1/%20x/snapshots?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&returnPartialSuccess=true",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -563,10 +715,48 @@ test "Go's file.projects.locations.instances.snapshots.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_25)
+  gv_compare(gv_log_of(f), GO_29)
 }
 
-const GO_26: List[Str] = [
+const GO_30: List[Str] = [
+  "CALL file.projects.locations.instances.snapshots.list pages",
+  "REQ GET https://file.googleapis.com/v1beta1/id1/%20x/snapshots?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&returnPartialSuccess=true",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"snapshots\":[{\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"filesystemUsedBytes\":\"7\",\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"state\":\"s-state\",\"tags\":{\"k1\":\"s-tags\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"snapshots\":[{\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"filesystemUsedBytes\":\"7\",\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"state\":\"s-state\",\"tags\":{\"k1\":\"s-tags\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "REQ GET https://file.googleapis.com/v1beta1/id1/%20x/snapshots?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false&returnPartialSuccess=true",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"snapshots\":[{\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"filesystemUsedBytes\":\"7\",\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"state\":\"s-state\",\"tags\":{\"k1\":\"s-tags\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"snapshots\":[{\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"filesystemUsedBytes\":\"7\",\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"state\":\"s-state\",\"tags\":{\"k1\":\"s-tags\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: ok",
+]
+
+test "Go's file.projects.locations.instances.snapshots.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"snapshots\":[{\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"filesystemUsedBytes\":\"7\",\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"state\":\"s-state\",\"tags\":{\"k1\":\"s-tags\"}}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_queue(f, "{\"snapshots\":[{\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"filesystemUsedBytes\":\"7\",\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"state\":\"s-state\",\"tags\":{\"k1\":\"s-tags\"}}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_note(f, "CALL file.projects.locations.instances.snapshots.list pages")
+  var p = svc.projects.locations.instances.snapshots.list_pages("id1/ x", options: ProjectsLocationsInstancesSnapshotsListOptions{filter: Some("s-filter"), order_by: Some("s-orderby"), page_size: Some(7), page_token: Some("s-pagetoken"), return_partial_success: Some(true), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_30)
+}
+
+const GO_31: List[Str] = [
   "CALL file.projects.locations.instances.snapshots.patch",
   "REQ PATCH https://file.googleapis.com/v1beta1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
@@ -585,10 +775,10 @@ test "Go's file.projects.locations.instances.snapshots.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_26)
+  gv_compare(gv_log_of(f), GO_31)
 }
 
-const GO_27: List[Str] = [
+const GO_32: List[Str] = [
   "CALL file.projects.locations.operations.cancel",
   "REQ POST https://file.googleapis.com/v1beta1/id1/%20x:cancel?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -607,10 +797,10 @@ test "Go's file.projects.locations.operations.cancel" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_27)
+  gv_compare(gv_log_of(f), GO_32)
 }
 
-const GO_28: List[Str] = [
+const GO_33: List[Str] = [
   "CALL file.projects.locations.operations.delete",
   "REQ DELETE https://file.googleapis.com/v1beta1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -628,10 +818,10 @@ test "Go's file.projects.locations.operations.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_28)
+  gv_compare(gv_log_of(f), GO_33)
 }
 
-const GO_29: List[Str] = [
+const GO_34: List[Str] = [
   "CALL file.projects.locations.operations.get",
   "REQ GET https://file.googleapis.com/v1beta1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -649,10 +839,10 @@ test "Go's file.projects.locations.operations.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_29)
+  gv_compare(gv_log_of(f), GO_34)
 }
 
-const GO_30: List[Str] = [
+const GO_35: List[Str] = [
   "CALL file.projects.locations.operations.list",
   "REQ GET https://file.googleapis.com/v1beta1/id1/%20x/operations?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&returnPartialSuccess=true",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -670,10 +860,48 @@ test "Go's file.projects.locations.operations.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_30)
+  gv_compare(gv_log_of(f), GO_35)
 }
 
-const GO_31: List[Str] = [
+const GO_36: List[Str] = [
+  "CALL file.projects.locations.operations.list pages",
+  "REQ GET https://file.googleapis.com/v1beta1/id1/%20x/operations?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&returnPartialSuccess=true",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "REQ GET https://file.googleapis.com/v1beta1/id1/%20x/operations?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false&returnPartialSuccess=true",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: ok",
+]
+
+test "Go's file.projects.locations.operations.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_queue(f, "{\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_note(f, "CALL file.projects.locations.operations.list pages")
+  var p = svc.projects.locations.operations.list_pages("id1/ x", options: ProjectsLocationsOperationsListOptions{filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), return_partial_success: Some(true), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_36)
+}
+
+const GO_37: List[Str] = [
   "CALL file.projects.locations.sharePools.acquireShare",
   "REQ POST https://file.googleapis.com/v1beta1/id1/%20x:acquireShare?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -692,10 +920,10 @@ test "Go's file.projects.locations.sharePools.acquireShare" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_31)
+  gv_compare(gv_log_of(f), GO_37)
 }
 
-const GO_32: List[Str] = [
+const GO_38: List[Str] = [
   "CALL file.projects.locations.sharePools.releaseShare",
   "REQ POST https://file.googleapis.com/v1beta1/id1/%20x:releaseShare?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -714,10 +942,10 @@ test "Go's file.projects.locations.sharePools.releaseShare" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_32)
+  gv_compare(gv_log_of(f), GO_38)
 }
 
-const GO_33: List[Str] = [
+const GO_39: List[Str] = [
   "CALL file.projects.locations.volumePools.create",
   "REQ POST https://file.googleapis.com/v1beta1/id1/%20x/volumePools?alt=json&fields=kind%2Cid&prettyPrint=false&volumePoolId=s-volumepoolid",
   "  H content-type=application/json | x-extra=v1",
@@ -736,10 +964,10 @@ test "Go's file.projects.locations.volumePools.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_33)
+  gv_compare(gv_log_of(f), GO_39)
 }
 
-const GO_34: List[Str] = [
+const GO_40: List[Str] = [
   "CALL file.projects.locations.volumePools.delete",
   "REQ DELETE https://file.googleapis.com/v1beta1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -757,10 +985,10 @@ test "Go's file.projects.locations.volumePools.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_34)
+  gv_compare(gv_log_of(f), GO_40)
 }
 
-const GO_35: List[Str] = [
+const GO_41: List[Str] = [
   "CALL file.projects.locations.volumePools.get",
   "REQ GET https://file.googleapis.com/v1beta1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -778,10 +1006,10 @@ test "Go's file.projects.locations.volumePools.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_35)
+  gv_compare(gv_log_of(f), GO_41)
 }
 
-const GO_36: List[Str] = [
+const GO_42: List[Str] = [
   "CALL file.projects.locations.volumePools.list",
   "REQ GET https://file.googleapis.com/v1beta1/id1/%20x/volumePools?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -799,10 +1027,48 @@ test "Go's file.projects.locations.volumePools.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_36)
+  gv_compare(gv_log_of(f), GO_42)
 }
 
-const GO_37: List[Str] = [
+const GO_43: List[Str] = [
+  "CALL file.projects.locations.volumePools.list pages",
+  "REQ GET https://file.googleapis.com/v1beta1/id1/%20x/volumePools?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"],\"volumePools\":[{\"activeVolumeCount\":7,\"activeVolumeIops\":7,\"createTime\":\"s-createtime\",\"defaultVolumeQuotaMib\":7,\"description\":\"s-description\",\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"network\":\"s-network\",\"state\":\"s-state\",\"uid\":\"s-uid\"}]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"],\"volumePools\":[{\"activeVolumeCount\":7,\"activeVolumeIops\":7,\"createTime\":\"s-createtime\",\"defaultVolumeQuotaMib\":7,\"description\":\"s-description\",\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"network\":\"s-network\",\"state\":\"s-state\",\"uid\":\"s-uid\"}]}",
+  "REQ GET https://file.googleapis.com/v1beta1/id1/%20x/volumePools?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"unreachable\":[\"s-unreachable\"],\"volumePools\":[{\"activeVolumeCount\":7,\"activeVolumeIops\":7,\"createTime\":\"s-createtime\",\"defaultVolumeQuotaMib\":7,\"description\":\"s-description\",\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"network\":\"s-network\",\"state\":\"s-state\",\"uid\":\"s-uid\"}]}",
+  "OUT: {\"unreachable\":[\"s-unreachable\"],\"volumePools\":[{\"activeVolumeCount\":7,\"activeVolumeIops\":7,\"createTime\":\"s-createtime\",\"defaultVolumeQuotaMib\":7,\"description\":\"s-description\",\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"network\":\"s-network\",\"state\":\"s-state\",\"uid\":\"s-uid\"}]}",
+  "OUT: ok",
+]
+
+test "Go's file.projects.locations.volumePools.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"],\"volumePools\":[{\"activeVolumeCount\":7,\"activeVolumeIops\":7,\"createTime\":\"s-createtime\",\"defaultVolumeQuotaMib\":7,\"description\":\"s-description\",\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"network\":\"s-network\",\"state\":\"s-state\",\"uid\":\"s-uid\"}]}")
+  gv_queue(f, "{\"unreachable\":[\"s-unreachable\"],\"volumePools\":[{\"activeVolumeCount\":7,\"activeVolumeIops\":7,\"createTime\":\"s-createtime\",\"defaultVolumeQuotaMib\":7,\"description\":\"s-description\",\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"network\":\"s-network\",\"state\":\"s-state\",\"uid\":\"s-uid\"}]}")
+  gv_note(f, "CALL file.projects.locations.volumePools.list pages")
+  var p = svc.projects.locations.volume_pools.list_pages("id1/ x", options: ProjectsLocationsVolumePoolsListOptions{filter: Some("s-filter"), order_by: Some("s-orderby"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_43)
+}
+
+const GO_44: List[Str] = [
   "CALL file.projects.locations.volumePools.patch",
   "REQ PATCH https://file.googleapis.com/v1beta1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
@@ -821,10 +1087,10 @@ test "Go's file.projects.locations.volumePools.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_37)
+  gv_compare(gv_log_of(f), GO_44)
 }
 
-const GO_38: List[Str] = [
+const GO_45: List[Str] = [
   "CALL file.projects.locations.volumePools.volumes.create",
   "REQ POST https://file.googleapis.com/v1beta1/id1/%20x/volumes?alt=json&fields=kind%2Cid&prettyPrint=false&volumeId=s-volumeid",
   "  H content-type=application/json | x-extra=v1",
@@ -843,10 +1109,10 @@ test "Go's file.projects.locations.volumePools.volumes.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_38)
+  gv_compare(gv_log_of(f), GO_45)
 }
 
-const GO_39: List[Str] = [
+const GO_46: List[Str] = [
   "CALL file.projects.locations.volumePools.volumes.createFromSource",
   "REQ POST https://file.googleapis.com/v1beta1/id1/%20x/volumes:createFromSource?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -865,10 +1131,10 @@ test "Go's file.projects.locations.volumePools.volumes.createFromSource" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_39)
+  gv_compare(gv_log_of(f), GO_46)
 }
 
-const GO_40: List[Str] = [
+const GO_47: List[Str] = [
   "CALL file.projects.locations.volumePools.volumes.delete",
   "REQ DELETE https://file.googleapis.com/v1beta1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -886,10 +1152,10 @@ test "Go's file.projects.locations.volumePools.volumes.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_40)
+  gv_compare(gv_log_of(f), GO_47)
 }
 
-const GO_41: List[Str] = [
+const GO_48: List[Str] = [
   "CALL file.projects.locations.volumePools.volumes.directCreate",
   "REQ POST https://file.googleapis.com/v1beta1/id1/%20x/volumes:directCreate?alt=json&fields=kind%2Cid&prettyPrint=false&volumeId=s-volumeid",
   "  H content-type=application/json | x-extra=v1",
@@ -908,10 +1174,10 @@ test "Go's file.projects.locations.volumePools.volumes.directCreate" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_41)
+  gv_compare(gv_log_of(f), GO_48)
 }
 
-const GO_42: List[Str] = [
+const GO_49: List[Str] = [
   "CALL file.projects.locations.volumePools.volumes.directDelete",
   "REQ POST https://file.googleapis.com/v1beta1/id1/%20x:directDelete?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -930,10 +1196,10 @@ test "Go's file.projects.locations.volumePools.volumes.directDelete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_42)
+  gv_compare(gv_log_of(f), GO_49)
 }
 
-const GO_43: List[Str] = [
+const GO_50: List[Str] = [
   "CALL file.projects.locations.volumePools.volumes.get",
   "REQ GET https://file.googleapis.com/v1beta1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -951,10 +1217,10 @@ test "Go's file.projects.locations.volumePools.volumes.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_43)
+  gv_compare(gv_log_of(f), GO_50)
 }
 
-const GO_44: List[Str] = [
+const GO_51: List[Str] = [
   "CALL file.projects.locations.volumePools.volumes.list",
   "REQ GET https://file.googleapis.com/v1beta1/id1/%20x/volumes?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -972,10 +1238,48 @@ test "Go's file.projects.locations.volumePools.volumes.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_44)
+  gv_compare(gv_log_of(f), GO_51)
 }
 
-const GO_45: List[Str] = [
+const GO_52: List[Str] = [
+  "CALL file.projects.locations.volumePools.volumes.list pages",
+  "REQ GET https://file.googleapis.com/v1beta1/id1/%20x/volumes?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"],\"volumes\":[{\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"labels\":{\"k1\":\"s-labels\"},\"mountPoint\":{\"ipAddress\":\"s-ipaddress\",\"mountName\":\"s-mountname\"},\"name\":\"s-name\",\"quotaMib\":\"7\",\"state\":\"s-state\"}]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"],\"volumes\":[{\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"labels\":{\"k1\":\"s-labels\"},\"mountPoint\":{\"ipAddress\":\"s-ipaddress\",\"mountName\":\"s-mountname\"},\"name\":\"s-name\",\"quotaMib\":\"7\",\"state\":\"s-state\"}]}",
+  "REQ GET https://file.googleapis.com/v1beta1/id1/%20x/volumes?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"unreachable\":[\"s-unreachable\"],\"volumes\":[{\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"labels\":{\"k1\":\"s-labels\"},\"mountPoint\":{\"ipAddress\":\"s-ipaddress\",\"mountName\":\"s-mountname\"},\"name\":\"s-name\",\"quotaMib\":\"7\",\"state\":\"s-state\"}]}",
+  "OUT: {\"unreachable\":[\"s-unreachable\"],\"volumes\":[{\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"labels\":{\"k1\":\"s-labels\"},\"mountPoint\":{\"ipAddress\":\"s-ipaddress\",\"mountName\":\"s-mountname\"},\"name\":\"s-name\",\"quotaMib\":\"7\",\"state\":\"s-state\"}]}",
+  "OUT: ok",
+]
+
+test "Go's file.projects.locations.volumePools.volumes.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"],\"volumes\":[{\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"labels\":{\"k1\":\"s-labels\"},\"mountPoint\":{\"ipAddress\":\"s-ipaddress\",\"mountName\":\"s-mountname\"},\"name\":\"s-name\",\"quotaMib\":\"7\",\"state\":\"s-state\"}]}")
+  gv_queue(f, "{\"unreachable\":[\"s-unreachable\"],\"volumes\":[{\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"labels\":{\"k1\":\"s-labels\"},\"mountPoint\":{\"ipAddress\":\"s-ipaddress\",\"mountName\":\"s-mountname\"},\"name\":\"s-name\",\"quotaMib\":\"7\",\"state\":\"s-state\"}]}")
+  gv_note(f, "CALL file.projects.locations.volumePools.volumes.list pages")
+  var p = svc.projects.locations.volume_pools.volumes.list_pages("id1/ x", options: ProjectsLocationsVolumePoolsVolumesListOptions{filter: Some("s-filter"), order_by: Some("s-orderby"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_52)
+}
+
+const GO_53: List[Str] = [
   "CALL file.projects.locations.volumePools.volumes.patch",
   "REQ PATCH https://file.googleapis.com/v1beta1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
@@ -994,10 +1298,10 @@ test "Go's file.projects.locations.volumePools.volumes.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_45)
+  gv_compare(gv_log_of(f), GO_53)
 }
 
-const GO_46: List[Str] = [
+const GO_54: List[Str] = [
   "CALL file.projects.locations.volumePools.volumes.unfreeze",
   "REQ POST https://file.googleapis.com/v1beta1/id1/%20x:unfreeze?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1016,5 +1320,5 @@ test "Go's file.projects.locations.volumePools.volumes.unfreeze" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_46)
+  gv_compare(gv_log_of(f), GO_54)
 }

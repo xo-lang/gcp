@@ -158,6 +158,44 @@ test "Go's sourcerepo.projects.repos.list" {
 }
 
 const GO_7: List[Str] = [
+  "CALL sourcerepo.projects.repos.list pages",
+  "REQ GET https://sourcerepo.googleapis.com/v1/id1/%20x/repos?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"repos\":[{\"mirrorConfig\":{\"deployKeyId\":\"s-deploykeyid\",\"url\":\"s-url\",\"webhookId\":\"s-webhookid\"},\"name\":\"s-name\",\"size\":\"7\",\"url\":\"s-url\"}]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"repos\":[{\"mirrorConfig\":{\"deployKeyId\":\"s-deploykeyid\",\"url\":\"s-url\",\"webhookId\":\"s-webhookid\"},\"name\":\"s-name\",\"size\":\"7\",\"url\":\"s-url\"}]}",
+  "REQ GET https://sourcerepo.googleapis.com/v1/id1/%20x/repos?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"repos\":[{\"mirrorConfig\":{\"deployKeyId\":\"s-deploykeyid\",\"url\":\"s-url\",\"webhookId\":\"s-webhookid\"},\"name\":\"s-name\",\"size\":\"7\",\"url\":\"s-url\"}]}",
+  "OUT: {\"repos\":[{\"mirrorConfig\":{\"deployKeyId\":\"s-deploykeyid\",\"url\":\"s-url\",\"webhookId\":\"s-webhookid\"},\"name\":\"s-name\",\"size\":\"7\",\"url\":\"s-url\"}]}",
+  "OUT: ok",
+]
+
+test "Go's sourcerepo.projects.repos.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"repos\":[{\"mirrorConfig\":{\"deployKeyId\":\"s-deploykeyid\",\"url\":\"s-url\",\"webhookId\":\"s-webhookid\"},\"name\":\"s-name\",\"size\":\"7\",\"url\":\"s-url\"}]}")
+  gv_queue(f, "{\"repos\":[{\"mirrorConfig\":{\"deployKeyId\":\"s-deploykeyid\",\"url\":\"s-url\",\"webhookId\":\"s-webhookid\"},\"name\":\"s-name\",\"size\":\"7\",\"url\":\"s-url\"}]}")
+  gv_note(f, "CALL sourcerepo.projects.repos.list pages")
+  var p = svc.projects.repos.list_pages("id1/ x", options: ProjectsReposListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_7)
+}
+
+const GO_8: List[Str] = [
   "CALL sourcerepo.projects.repos.patch",
   "REQ PATCH https://sourcerepo.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -176,10 +214,10 @@ test "Go's sourcerepo.projects.repos.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_7)
+  gv_compare(gv_log_of(f), GO_8)
 }
 
-const GO_8: List[Str] = [
+const GO_9: List[Str] = [
   "CALL sourcerepo.projects.repos.setIamPolicy",
   "REQ POST https://sourcerepo.googleapis.com/v1/id1/%20x:setIamPolicy?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -198,10 +236,10 @@ test "Go's sourcerepo.projects.repos.setIamPolicy" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_8)
+  gv_compare(gv_log_of(f), GO_9)
 }
 
-const GO_9: List[Str] = [
+const GO_10: List[Str] = [
   "CALL sourcerepo.projects.repos.sync",
   "REQ POST https://sourcerepo.googleapis.com/v1/id1/%20x:sync?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -220,10 +258,10 @@ test "Go's sourcerepo.projects.repos.sync" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_9)
+  gv_compare(gv_log_of(f), GO_10)
 }
 
-const GO_10: List[Str] = [
+const GO_11: List[Str] = [
   "CALL sourcerepo.projects.repos.testIamPermissions",
   "REQ POST https://sourcerepo.googleapis.com/v1/id1/%20x:testIamPermissions?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -242,5 +280,5 @@ test "Go's sourcerepo.projects.repos.testIamPermissions" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_10)
+  gv_compare(gv_log_of(f), GO_11)
 }

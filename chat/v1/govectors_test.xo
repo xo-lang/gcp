@@ -5,6 +5,7 @@
 // compares the request, the response served and the result.
 
 use std/json
+use github.com/xo-lang/gcp/gensupport
 
 const GV_HOST: Str = "https://chat.googleapis.com"
 
@@ -94,6 +95,44 @@ test "Go's chat.customEmojis.list" {
 }
 
 const GO_4: List[Str] = [
+  "CALL chat.customEmojis.list pages",
+  "REQ GET https://chat.googleapis.com/v1/customEmojis?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"customEmojis\":[{\"emojiName\":\"s-emojiname\",\"name\":\"s-name\",\"payload\":{\"fileContent\":\"YWI=\",\"filename\":\"s-filename\"},\"temporaryImageUri\":\"s-temporaryimageuri\",\"uid\":\"s-uid\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"customEmojis\":[{\"emojiName\":\"s-emojiname\",\"name\":\"s-name\",\"payload\":{\"fileContent\":\"YWI=\",\"filename\":\"s-filename\"},\"temporaryImageUri\":\"s-temporaryimageuri\",\"uid\":\"s-uid\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://chat.googleapis.com/v1/customEmojis?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"customEmojis\":[{\"emojiName\":\"s-emojiname\",\"name\":\"s-name\",\"payload\":{\"fileContent\":\"YWI=\",\"filename\":\"s-filename\"},\"temporaryImageUri\":\"s-temporaryimageuri\",\"uid\":\"s-uid\"}]}",
+  "OUT: {\"customEmojis\":[{\"emojiName\":\"s-emojiname\",\"name\":\"s-name\",\"payload\":{\"fileContent\":\"YWI=\",\"filename\":\"s-filename\"},\"temporaryImageUri\":\"s-temporaryimageuri\",\"uid\":\"s-uid\"}]}",
+  "OUT: ok",
+]
+
+test "Go's chat.customEmojis.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"customEmojis\":[{\"emojiName\":\"s-emojiname\",\"name\":\"s-name\",\"payload\":{\"fileContent\":\"YWI=\",\"filename\":\"s-filename\"},\"temporaryImageUri\":\"s-temporaryimageuri\",\"uid\":\"s-uid\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"customEmojis\":[{\"emojiName\":\"s-emojiname\",\"name\":\"s-name\",\"payload\":{\"fileContent\":\"YWI=\",\"filename\":\"s-filename\"},\"temporaryImageUri\":\"s-temporaryimageuri\",\"uid\":\"s-uid\"}]}")
+  gv_note(f, "CALL chat.customEmojis.list pages")
+  var p = svc.custom_emojis.list_pages(options: CustomEmojisListOptions{filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_4)
+}
+
+const GO_5: List[Str] = [
   "CALL chat.media.download",
   "REQ GET https://chat.googleapis.com/v1/media/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -111,10 +150,31 @@ test "Go's chat.media.download" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_4)
+  gv_compare(gv_log_of(f), GO_5)
 }
 
-const GO_5: List[Str] = [
+const GO_6: List[Str] = [
+  "CALL chat.media.download download",
+  "REQ GET https://chat.googleapis.com/v1/media/id1/%20x?alt=media&fields=kind%2Cid&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 media-bytes \u{0001}ÿ",
+  "OUT: media 200 media-bytes \u{0001}ÿ",
+]
+
+test "Go's chat.media.download download" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "media-bytes \u{0001}ÿ")
+  gv_note(f, "CALL chat.media.download download")
+  match svc.media.download_download("id1/ x", options: MediaDownloadOptions{fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]}) {
+    Ok(r) => gv_note(f, "OUT: media ${r.status} ${r.body.to_str_lossy()}")
+    Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+  }
+  gv_compare(gv_log_of(f), GO_6)
+}
+
+const GO_7: List[Str] = [
   "CALL chat.media.upload",
   "REQ POST https://chat.googleapis.com/v1/id1/%20x/attachments:upload?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -133,10 +193,73 @@ test "Go's chat.media.upload" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_5)
+  gv_compare(gv_log_of(f), GO_7)
 }
 
-const GO_6: List[Str] = [
+const GO_8: List[Str] = [
+  "CALL chat.media.upload media",
+  "REQ POST https://chat.googleapis.com/upload/v1/id1/%20x/attachments:upload?alt=json&fields=kind%2Cid&prettyPrint=false&uploadType=multipart",
+  "  H content-type=multipart/related; boundary=BOUNDARY | x-extra=v1",
+  "  B --BOUNDARY\u{000d}",
+  "Content-Type: application/json\u{000d}",
+  "\u{000d}",
+  "{\"filename\":\"s-filename\"}",
+  "\u{000d}",
+  "--BOUNDARY\u{000d}",
+  "Content-Type: text/plain\u{000d}",
+  "\u{000d}",
+  "hello media\u{000d}",
+  "--BOUNDARY--\u{000d}",
+  "",
+  "  SERVED 200 {\"attachmentDataRef\":{\"attachmentUploadToken\":\"s-attachmentuploadtoken\",\"resourceName\":\"s-resourcename\"}}",
+  "OUT: {\"attachmentDataRef\":{\"attachmentUploadToken\":\"s-attachmentuploadtoken\",\"resourceName\":\"s-resourcename\"}}",
+]
+
+test "Go's chat.media.upload media" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"attachmentDataRef\":{\"attachmentUploadToken\":\"s-attachmentuploadtoken\",\"resourceName\":\"s-resourcename\"}}")
+  gv_note(f, "CALL chat.media.upload media")
+  match svc.media.upload_media(os.clock, os.rand, "id1/ x", json.decode_str[UploadAttachmentRequest]("{\"filename\":\"s-filename\"}") ?? e => fault(e.display()), media: gensupport.Media{data: "hello media".bytes(), content_type: "text/plain"}, options: MediaUploadOptions{fields: ["kind", "id"], headers: [("X-Extra", "v1")]}) {
+    Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+    Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+  }
+  gv_compare(gv_log_of(f), GO_8)
+}
+
+const GO_9: List[Str] = [
+  "CALL chat.media.upload resumable",
+  "REQ POST https://chat.googleapis.com/upload/v1/id1/%20x/attachments:upload?alt=json&fields=kind%2Cid&prettyPrint=false&uploadType=resumable",
+  "  H content-type=application/json | x-extra=v1 | x-upload-content-type=text/plain",
+  "  B {\"filename\":\"s-filename\"}",
+  "",
+  "  SERVED 200 @H Location=https://chat.googleapis.com/upload/session-1 @B ",
+  "REQ POST https://chat.googleapis.com/upload/session-1",
+  "  H content-range=bytes 0-262143/* | content-type=text/plain | x-goog-gcs-idempotency-token=UUID | x-guploader-no-308=yes",
+  "  B <262144 bytes> 0123456789abcdef0123456789abcdef...0123456789abcdef0123456789abcdef",
+  "  SERVED 200 @H X-Http-Status-Code-Override=308 @B ",
+  "REQ POST https://chat.googleapis.com/upload/session-1",
+  "  H content-range=bytes 262144-262153/262154 | content-type=text/plain | x-goog-gcs-idempotency-token=UUID | x-guploader-no-308=yes",
+  "  B 0123456789",
+  "  SERVED 200 {\"attachmentDataRef\":{\"attachmentUploadToken\":\"s-attachmentuploadtoken\",\"resourceName\":\"s-resourcename\"}}",
+  "OUT: {\"attachmentDataRef\":{\"attachmentUploadToken\":\"s-attachmentuploadtoken\",\"resourceName\":\"s-resourcename\"}}",
+]
+
+test "Go's chat.media.upload resumable" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "@H Location=https://chat.googleapis.com/upload/session-1 @B ")
+  gv_queue(f, "@H X-Http-Status-Code-Override=308 @B ")
+  gv_queue(f, "{\"attachmentDataRef\":{\"attachmentUploadToken\":\"s-attachmentuploadtoken\",\"resourceName\":\"s-resourcename\"}}")
+  gv_note(f, "CALL chat.media.upload resumable")
+  match svc.media.upload_media(os.clock, os.rand, "id1/ x", json.decode_str[UploadAttachmentRequest]("{\"filename\":\"s-filename\"}") ?? e => fault(e.display()), media: gensupport.Media{data: gv_big(), content_type: "text/plain", chunk_size: 262144}, options: MediaUploadOptions{fields: ["kind", "id"], headers: [("X-Extra", "v1")]}) {
+    Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+    Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+  }
+  gv_compare(gv_log_of(f), GO_9)
+}
+
+const GO_10: List[Str] = [
   "CALL chat.spaces.completeImport",
   "REQ POST https://chat.googleapis.com/v1/id1/%20x:completeImport?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -155,14 +278,14 @@ test "Go's chat.spaces.completeImport" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_6)
+  gv_compare(gv_log_of(f), GO_10)
 }
 
-const GO_7: List[Str] = [
+const GO_11: List[Str] = [
   "CALL chat.spaces.create",
   "REQ POST https://chat.googleapis.com/v1/spaces?alt=json&fields=kind%2Cid&prettyPrint=false&requestId=s-requestid",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"accessSettings\":{\"accessPermissionSettings\":{},\"accessState\":\"s-accessstate\",\"audience\":\"s-audience\"},\"adminInstalled\":true,\"createTime\":\"s-createtime\",\"customer\":\"s-customer\",\"displayName\":\"s-displayname\",\"externalUserAllowed\":true,\"importMode\":true,\"importModeExpireTime\":\"s-importmodeexpiretime\",\"lastActiveTime\":\"s-lastactivetime\",\"membershipCount\":{\"joinedDirectHumanUserCount\":7,\"joinedGroupCount\":7},\"name\":\"s-name\",\"permissionSettings\":{\"manageApps\":{\"assistantManagersAllowed\":true,\"managersAllowed\":true,\"membersAllowed\":true},\"manageMembersAndGroups\":{\"assistantManagersAllowed\":true,\"managersAllowed\":true,\"membersAllowed\":true},\"manageWebhooks\":{\"assistantManagersAllowed\":true,\"managersAllowed\":true,\"membersAllowed\":true},\"modifySpaceDetails\":{\"assistantManagersAllowed\":true,\"managersAllowed\":true,\"membersAllowed\":true},\"postMessages\":{\"assistantManagersAllowed\":true,\"managersAllowed\":true,\"membersAllowed\":true},\"replyMessages\":{\"assistantManagersAllowed\":true,\"managersAllowed\":true,\"membersAllowed\":true},\"toggleHistory\":{\"assistantManagersAllowed\":true,\"managersAllowed\":true,\"membersAllowed\":true},\"useAtMentionAll\":{\"assistantManagersAllowed\":true,\"managersAllowed\":true,\"membersAllowed\":true},\"viewSpaceMembership\":{\"assistantManagersAllowed\":true,\"managersAllowed\":true,\"membersAllowed\":true}},\"predefinedPermissionSettings\":\"s-predefinedpermissionsettings\",\"singleUserBotDm\":true,\"spaceDetails\":{\"description\":\"s-description\",\"guidelines\":\"s-guidelines\"},\"spaceHistoryState\":\"s-spacehistorystate\",\"spaceThreadingState\":\"s-spacethreadingstate\",\"spaceType\":\"s-spacetype\",\"spaceUri\":\"s-spaceuri\",\"threaded\":true,\"type\":\"s-type\"}",
+  "  B <1655 bytes> {\"accessSettings\":{\"accessPermis...threaded\":true,\"type\":\"s-type\"}",
   "",
   "  SERVED 200 {\"accessSettings\":{\"accessPermissionSettings\":{},\"accessState\":\"s-accessstate\",\"audience\":\"s-audience\"},\"adminInstalled\":true,\"createTime\":\"s-createtime\",\"customer\":\"s-customer\",\"displayName\":\"s-displayname\",\"externalUserAllowed\":true,\"importMode\":true,\"importModeExpireTime\":\"s-importmodeexpiretime\",\"lastActiveTime\":\"s-lastactivetime\",\"membershipCount\":{\"joinedDirectHumanUserCount\":7,\"joinedGroupCount\":7},\"name\":\"s-name\",\"permissionSettings\":{\"manageApps\":{\"assistantManagersAllowed\":true,\"managersAllowed\":true,\"membersAllowed\":true},\"manageMembersAndGroups\":{\"assistantManagersAllowed\":true,\"managersAllowed\":true,\"membersAllowed\":true},\"manageWebhooks\":{\"assistantManagersAllowed\":true,\"managersAllowed\":true,\"membersAllowed\":true},\"modifySpaceDetails\":{\"assistantManagersAllowed\":true,\"managersAllowed\":true,\"membersAllowed\":true},\"postMessages\":{\"assistantManagersAllowed\":true,\"managersAllowed\":true,\"membersAllowed\":true},\"replyMessages\":{\"assistantManagersAllowed\":true,\"managersAllowed\":true,\"membersAllowed\":true},\"toggleHistory\":{\"assistantManagersAllowed\":true,\"managersAllowed\":true,\"membersAllowed\":true},\"useAtMentionAll\":{\"assistantManagersAllowed\":true,\"managersAllowed\":true,\"membersAllowed\":true},\"viewSpaceMembership\":{\"assistantManagersAllowed\":true,\"managersAllowed\":true,\"membersAllowed\":true}},\"predefinedPermissionSettings\":\"s-predefinedpermissionsettings\",\"singleUserBotDm\":true,\"spaceDetails\":{\"description\":\"s-description\",\"guidelines\":\"s-guidelines\"},\"spaceHistoryState\":\"s-spacehistorystate\",\"spaceThreadingState\":\"s-spacethreadingstate\",\"spaceType\":\"s-spacetype\",\"spaceUri\":\"s-spaceuri\",\"threaded\":true,\"type\":\"s-type\"}",
   "OUT: {\"accessSettings\":{\"accessPermissionSettings\":{},\"accessState\":\"s-accessstate\",\"audience\":\"s-audience\"},\"adminInstalled\":true,\"createTime\":\"s-createtime\",\"customer\":\"s-customer\",\"displayName\":\"s-displayname\",\"externalUserAllowed\":true,\"importMode\":true,\"importModeExpireTime\":\"s-importmodeexpiretime\",\"lastActiveTime\":\"s-lastactivetime\",\"membershipCount\":{\"joinedDirectHumanUserCount\":7,\"joinedGroupCount\":7},\"name\":\"s-name\",\"permissionSettings\":{\"manageApps\":{\"assistantManagersAllowed\":true,\"managersAllowed\":true,\"membersAllowed\":true},\"manageMembersAndGroups\":{\"assistantManagersAllowed\":true,\"managersAllowed\":true,\"membersAllowed\":true},\"manageWebhooks\":{\"assistantManagersAllowed\":true,\"managersAllowed\":true,\"membersAllowed\":true},\"modifySpaceDetails\":{\"assistantManagersAllowed\":true,\"managersAllowed\":true,\"membersAllowed\":true},\"postMessages\":{\"assistantManagersAllowed\":true,\"managersAllowed\":true,\"membersAllowed\":true},\"replyMessages\":{\"assistantManagersAllowed\":true,\"managersAllowed\":true,\"membersAllowed\":true},\"toggleHistory\":{\"assistantManagersAllowed\":true,\"managersAllowed\":true,\"membersAllowed\":true},\"useAtMentionAll\":{\"assistantManagersAllowed\":true,\"managersAllowed\":true,\"membersAllowed\":true},\"viewSpaceMembership\":{\"assistantManagersAllowed\":true,\"managersAllowed\":true,\"membersAllowed\":true}},\"predefinedPermissionSettings\":\"s-predefinedpermissionsettings\",\"singleUserBotDm\":true,\"spaceDetails\":{\"description\":\"s-description\",\"guidelines\":\"s-guidelines\"},\"spaceHistoryState\":\"s-spacehistorystate\",\"spaceThreadingState\":\"s-spacethreadingstate\",\"spaceType\":\"s-spacetype\",\"spaceUri\":\"s-spaceuri\",\"threaded\":true,\"type\":\"s-type\"}",
@@ -177,10 +300,10 @@ test "Go's chat.spaces.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_7)
+  gv_compare(gv_log_of(f), GO_11)
 }
 
-const GO_8: List[Str] = [
+const GO_12: List[Str] = [
   "CALL chat.spaces.delete",
   "REQ DELETE https://chat.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&useAdminAccess=true",
   "  H x-extra=v1",
@@ -198,10 +321,10 @@ test "Go's chat.spaces.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_8)
+  gv_compare(gv_log_of(f), GO_12)
 }
 
-const GO_9: List[Str] = [
+const GO_13: List[Str] = [
   "CALL chat.spaces.findDirectMessage",
   "REQ GET https://chat.googleapis.com/v1/spaces:findDirectMessage?alt=json&fields=kind%2Cid&name=s-name&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -219,10 +342,10 @@ test "Go's chat.spaces.findDirectMessage" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_9)
+  gv_compare(gv_log_of(f), GO_13)
 }
 
-const GO_10: List[Str] = [
+const GO_14: List[Str] = [
   "CALL chat.spaces.findGroupChats",
   "REQ GET https://chat.googleapis.com/v1/spaces:findGroupChats?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&spaceView=s-spaceview&users=s-users",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -240,10 +363,48 @@ test "Go's chat.spaces.findGroupChats" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_10)
+  gv_compare(gv_log_of(f), GO_14)
 }
 
-const GO_11: List[Str] = [
+const GO_15: List[Str] = [
+  "CALL chat.spaces.findGroupChats pages",
+  "REQ GET https://chat.googleapis.com/v1/spaces:findGroupChats?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&spaceView=s-spaceview&users=s-users",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"spaces\":[{\"accessSettings\":{\"accessState\":\"s-accessstate\",\"audience\":\"s-audience\"},\"adminInstalled\":true,\"createTime\":\"s-createtime\",\"customer\":\"s-customer\",\"displayName\":\"s-displayname\",\"externalUserAllowed\":true,\"importMode\":true,\"importModeExpireTime\":\"s-importmodeexpiretime\",\"lastActiveTime\":\"s-lastactivetime\",\"membershipCount\":{\"joinedDirectHumanUserCount\":7,\"joinedGroupCount\":7},\"name\":\"s-name\",\"permissionSettings\":{},\"predefinedPermissionSettings\":\"s-predefinedpermissionsettings\",\"singleUserBotDm\":true,\"spaceDetails\":{\"description\":\"s-description\",\"guidelines\":\"s-guidelines\"},\"spaceHistoryState\":\"s-spacehistorystate\",\"spaceThreadingState\":\"s-spacethreadingstate\",\"spaceType\":\"s-spacetype\",\"spaceUri\":\"s-spaceuri\",\"threaded\":true,\"type\":\"s-type\"}]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"spaces\":[{\"accessSettings\":{\"accessState\":\"s-accessstate\",\"audience\":\"s-audience\"},\"adminInstalled\":true,\"createTime\":\"s-createtime\",\"customer\":\"s-customer\",\"displayName\":\"s-displayname\",\"externalUserAllowed\":true,\"importMode\":true,\"importModeExpireTime\":\"s-importmodeexpiretime\",\"lastActiveTime\":\"s-lastactivetime\",\"membershipCount\":{\"joinedDirectHumanUserCount\":7,\"joinedGroupCount\":7},\"name\":\"s-name\",\"permissionSettings\":{},\"predefinedPermissionSettings\":\"s-predefinedpermissionsettings\",\"singleUserBotDm\":true,\"spaceDetails\":{\"description\":\"s-description\",\"guidelines\":\"s-guidelines\"},\"spaceHistoryState\":\"s-spacehistorystate\",\"spaceThreadingState\":\"s-spacethreadingstate\",\"spaceType\":\"s-spacetype\",\"spaceUri\":\"s-spaceuri\",\"threaded\":true,\"type\":\"s-type\"}]}",
+  "REQ GET https://chat.googleapis.com/v1/spaces:findGroupChats?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false&spaceView=s-spaceview&users=s-users",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"spaces\":[{\"accessSettings\":{\"accessState\":\"s-accessstate\",\"audience\":\"s-audience\"},\"adminInstalled\":true,\"createTime\":\"s-createtime\",\"customer\":\"s-customer\",\"displayName\":\"s-displayname\",\"externalUserAllowed\":true,\"importMode\":true,\"importModeExpireTime\":\"s-importmodeexpiretime\",\"lastActiveTime\":\"s-lastactivetime\",\"membershipCount\":{\"joinedDirectHumanUserCount\":7,\"joinedGroupCount\":7},\"name\":\"s-name\",\"permissionSettings\":{},\"predefinedPermissionSettings\":\"s-predefinedpermissionsettings\",\"singleUserBotDm\":true,\"spaceDetails\":{\"description\":\"s-description\",\"guidelines\":\"s-guidelines\"},\"spaceHistoryState\":\"s-spacehistorystate\",\"spaceThreadingState\":\"s-spacethreadingstate\",\"spaceType\":\"s-spacetype\",\"spaceUri\":\"s-spaceuri\",\"threaded\":true,\"type\":\"s-type\"}]}",
+  "OUT: {\"spaces\":[{\"accessSettings\":{\"accessState\":\"s-accessstate\",\"audience\":\"s-audience\"},\"adminInstalled\":true,\"createTime\":\"s-createtime\",\"customer\":\"s-customer\",\"displayName\":\"s-displayname\",\"externalUserAllowed\":true,\"importMode\":true,\"importModeExpireTime\":\"s-importmodeexpiretime\",\"lastActiveTime\":\"s-lastactivetime\",\"membershipCount\":{\"joinedDirectHumanUserCount\":7,\"joinedGroupCount\":7},\"name\":\"s-name\",\"permissionSettings\":{},\"predefinedPermissionSettings\":\"s-predefinedpermissionsettings\",\"singleUserBotDm\":true,\"spaceDetails\":{\"description\":\"s-description\",\"guidelines\":\"s-guidelines\"},\"spaceHistoryState\":\"s-spacehistorystate\",\"spaceThreadingState\":\"s-spacethreadingstate\",\"spaceType\":\"s-spacetype\",\"spaceUri\":\"s-spaceuri\",\"threaded\":true,\"type\":\"s-type\"}]}",
+  "OUT: ok",
+]
+
+test "Go's chat.spaces.findGroupChats pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"spaces\":[{\"accessSettings\":{\"accessState\":\"s-accessstate\",\"audience\":\"s-audience\"},\"adminInstalled\":true,\"createTime\":\"s-createtime\",\"customer\":\"s-customer\",\"displayName\":\"s-displayname\",\"externalUserAllowed\":true,\"importMode\":true,\"importModeExpireTime\":\"s-importmodeexpiretime\",\"lastActiveTime\":\"s-lastactivetime\",\"membershipCount\":{\"joinedDirectHumanUserCount\":7,\"joinedGroupCount\":7},\"name\":\"s-name\",\"permissionSettings\":{},\"predefinedPermissionSettings\":\"s-predefinedpermissionsettings\",\"singleUserBotDm\":true,\"spaceDetails\":{\"description\":\"s-description\",\"guidelines\":\"s-guidelines\"},\"spaceHistoryState\":\"s-spacehistorystate\",\"spaceThreadingState\":\"s-spacethreadingstate\",\"spaceType\":\"s-spacetype\",\"spaceUri\":\"s-spaceuri\",\"threaded\":true,\"type\":\"s-type\"}]}")
+  gv_queue(f, "{\"spaces\":[{\"accessSettings\":{\"accessState\":\"s-accessstate\",\"audience\":\"s-audience\"},\"adminInstalled\":true,\"createTime\":\"s-createtime\",\"customer\":\"s-customer\",\"displayName\":\"s-displayname\",\"externalUserAllowed\":true,\"importMode\":true,\"importModeExpireTime\":\"s-importmodeexpiretime\",\"lastActiveTime\":\"s-lastactivetime\",\"membershipCount\":{\"joinedDirectHumanUserCount\":7,\"joinedGroupCount\":7},\"name\":\"s-name\",\"permissionSettings\":{},\"predefinedPermissionSettings\":\"s-predefinedpermissionsettings\",\"singleUserBotDm\":true,\"spaceDetails\":{\"description\":\"s-description\",\"guidelines\":\"s-guidelines\"},\"spaceHistoryState\":\"s-spacehistorystate\",\"spaceThreadingState\":\"s-spacethreadingstate\",\"spaceType\":\"s-spacetype\",\"spaceUri\":\"s-spaceuri\",\"threaded\":true,\"type\":\"s-type\"}]}")
+  gv_note(f, "CALL chat.spaces.findGroupChats pages")
+  var p = svc.spaces.find_group_chats_pages(options: SpacesFindGroupChatsOptions{page_size: Some(7), page_token: Some("s-pagetoken"), space_view: Some("s-spaceview"), users: ["s-users"], fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_15)
+}
+
+const GO_16: List[Str] = [
   "CALL chat.spaces.get",
   "REQ GET https://chat.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&useAdminAccess=true",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -261,10 +422,10 @@ test "Go's chat.spaces.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_11)
+  gv_compare(gv_log_of(f), GO_16)
 }
 
-const GO_12: List[Str] = [
+const GO_17: List[Str] = [
   "CALL chat.spaces.list",
   "REQ GET https://chat.googleapis.com/v1/spaces?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -282,14 +443,52 @@ test "Go's chat.spaces.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_12)
+  gv_compare(gv_log_of(f), GO_17)
 }
 
-const GO_13: List[Str] = [
+const GO_18: List[Str] = [
+  "CALL chat.spaces.list pages",
+  "REQ GET https://chat.googleapis.com/v1/spaces?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"spaces\":[{\"accessSettings\":{\"accessState\":\"s-accessstate\",\"audience\":\"s-audience\"},\"adminInstalled\":true,\"createTime\":\"s-createtime\",\"customer\":\"s-customer\",\"displayName\":\"s-displayname\",\"externalUserAllowed\":true,\"importMode\":true,\"importModeExpireTime\":\"s-importmodeexpiretime\",\"lastActiveTime\":\"s-lastactivetime\",\"membershipCount\":{\"joinedDirectHumanUserCount\":7,\"joinedGroupCount\":7},\"name\":\"s-name\",\"permissionSettings\":{},\"predefinedPermissionSettings\":\"s-predefinedpermissionsettings\",\"singleUserBotDm\":true,\"spaceDetails\":{\"description\":\"s-description\",\"guidelines\":\"s-guidelines\"},\"spaceHistoryState\":\"s-spacehistorystate\",\"spaceThreadingState\":\"s-spacethreadingstate\",\"spaceType\":\"s-spacetype\",\"spaceUri\":\"s-spaceuri\",\"threaded\":true,\"type\":\"s-type\"}]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"spaces\":[{\"accessSettings\":{\"accessState\":\"s-accessstate\",\"audience\":\"s-audience\"},\"adminInstalled\":true,\"createTime\":\"s-createtime\",\"customer\":\"s-customer\",\"displayName\":\"s-displayname\",\"externalUserAllowed\":true,\"importMode\":true,\"importModeExpireTime\":\"s-importmodeexpiretime\",\"lastActiveTime\":\"s-lastactivetime\",\"membershipCount\":{\"joinedDirectHumanUserCount\":7,\"joinedGroupCount\":7},\"name\":\"s-name\",\"permissionSettings\":{},\"predefinedPermissionSettings\":\"s-predefinedpermissionsettings\",\"singleUserBotDm\":true,\"spaceDetails\":{\"description\":\"s-description\",\"guidelines\":\"s-guidelines\"},\"spaceHistoryState\":\"s-spacehistorystate\",\"spaceThreadingState\":\"s-spacethreadingstate\",\"spaceType\":\"s-spacetype\",\"spaceUri\":\"s-spaceuri\",\"threaded\":true,\"type\":\"s-type\"}]}",
+  "REQ GET https://chat.googleapis.com/v1/spaces?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"spaces\":[{\"accessSettings\":{\"accessState\":\"s-accessstate\",\"audience\":\"s-audience\"},\"adminInstalled\":true,\"createTime\":\"s-createtime\",\"customer\":\"s-customer\",\"displayName\":\"s-displayname\",\"externalUserAllowed\":true,\"importMode\":true,\"importModeExpireTime\":\"s-importmodeexpiretime\",\"lastActiveTime\":\"s-lastactivetime\",\"membershipCount\":{\"joinedDirectHumanUserCount\":7,\"joinedGroupCount\":7},\"name\":\"s-name\",\"permissionSettings\":{},\"predefinedPermissionSettings\":\"s-predefinedpermissionsettings\",\"singleUserBotDm\":true,\"spaceDetails\":{\"description\":\"s-description\",\"guidelines\":\"s-guidelines\"},\"spaceHistoryState\":\"s-spacehistorystate\",\"spaceThreadingState\":\"s-spacethreadingstate\",\"spaceType\":\"s-spacetype\",\"spaceUri\":\"s-spaceuri\",\"threaded\":true,\"type\":\"s-type\"}]}",
+  "OUT: {\"spaces\":[{\"accessSettings\":{\"accessState\":\"s-accessstate\",\"audience\":\"s-audience\"},\"adminInstalled\":true,\"createTime\":\"s-createtime\",\"customer\":\"s-customer\",\"displayName\":\"s-displayname\",\"externalUserAllowed\":true,\"importMode\":true,\"importModeExpireTime\":\"s-importmodeexpiretime\",\"lastActiveTime\":\"s-lastactivetime\",\"membershipCount\":{\"joinedDirectHumanUserCount\":7,\"joinedGroupCount\":7},\"name\":\"s-name\",\"permissionSettings\":{},\"predefinedPermissionSettings\":\"s-predefinedpermissionsettings\",\"singleUserBotDm\":true,\"spaceDetails\":{\"description\":\"s-description\",\"guidelines\":\"s-guidelines\"},\"spaceHistoryState\":\"s-spacehistorystate\",\"spaceThreadingState\":\"s-spacethreadingstate\",\"spaceType\":\"s-spacetype\",\"spaceUri\":\"s-spaceuri\",\"threaded\":true,\"type\":\"s-type\"}]}",
+  "OUT: ok",
+]
+
+test "Go's chat.spaces.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"spaces\":[{\"accessSettings\":{\"accessState\":\"s-accessstate\",\"audience\":\"s-audience\"},\"adminInstalled\":true,\"createTime\":\"s-createtime\",\"customer\":\"s-customer\",\"displayName\":\"s-displayname\",\"externalUserAllowed\":true,\"importMode\":true,\"importModeExpireTime\":\"s-importmodeexpiretime\",\"lastActiveTime\":\"s-lastactivetime\",\"membershipCount\":{\"joinedDirectHumanUserCount\":7,\"joinedGroupCount\":7},\"name\":\"s-name\",\"permissionSettings\":{},\"predefinedPermissionSettings\":\"s-predefinedpermissionsettings\",\"singleUserBotDm\":true,\"spaceDetails\":{\"description\":\"s-description\",\"guidelines\":\"s-guidelines\"},\"spaceHistoryState\":\"s-spacehistorystate\",\"spaceThreadingState\":\"s-spacethreadingstate\",\"spaceType\":\"s-spacetype\",\"spaceUri\":\"s-spaceuri\",\"threaded\":true,\"type\":\"s-type\"}]}")
+  gv_queue(f, "{\"spaces\":[{\"accessSettings\":{\"accessState\":\"s-accessstate\",\"audience\":\"s-audience\"},\"adminInstalled\":true,\"createTime\":\"s-createtime\",\"customer\":\"s-customer\",\"displayName\":\"s-displayname\",\"externalUserAllowed\":true,\"importMode\":true,\"importModeExpireTime\":\"s-importmodeexpiretime\",\"lastActiveTime\":\"s-lastactivetime\",\"membershipCount\":{\"joinedDirectHumanUserCount\":7,\"joinedGroupCount\":7},\"name\":\"s-name\",\"permissionSettings\":{},\"predefinedPermissionSettings\":\"s-predefinedpermissionsettings\",\"singleUserBotDm\":true,\"spaceDetails\":{\"description\":\"s-description\",\"guidelines\":\"s-guidelines\"},\"spaceHistoryState\":\"s-spacehistorystate\",\"spaceThreadingState\":\"s-spacethreadingstate\",\"spaceType\":\"s-spacetype\",\"spaceUri\":\"s-spaceuri\",\"threaded\":true,\"type\":\"s-type\"}]}")
+  gv_note(f, "CALL chat.spaces.list pages")
+  var p = svc.spaces.list_pages(options: SpacesListOptions{filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_18)
+}
+
+const GO_19: List[Str] = [
   "CALL chat.spaces.patch",
   "REQ PATCH https://chat.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask&useAdminAccess=true",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"accessSettings\":{\"accessPermissionSettings\":{},\"accessState\":\"s-accessstate\",\"audience\":\"s-audience\"},\"adminInstalled\":true,\"createTime\":\"s-createtime\",\"customer\":\"s-customer\",\"displayName\":\"s-displayname\",\"externalUserAllowed\":true,\"importMode\":true,\"importModeExpireTime\":\"s-importmodeexpiretime\",\"lastActiveTime\":\"s-lastactivetime\",\"membershipCount\":{\"joinedDirectHumanUserCount\":7,\"joinedGroupCount\":7},\"name\":\"s-name\",\"permissionSettings\":{\"manageApps\":{\"assistantManagersAllowed\":true,\"managersAllowed\":true,\"membersAllowed\":true},\"manageMembersAndGroups\":{\"assistantManagersAllowed\":true,\"managersAllowed\":true,\"membersAllowed\":true},\"manageWebhooks\":{\"assistantManagersAllowed\":true,\"managersAllowed\":true,\"membersAllowed\":true},\"modifySpaceDetails\":{\"assistantManagersAllowed\":true,\"managersAllowed\":true,\"membersAllowed\":true},\"postMessages\":{\"assistantManagersAllowed\":true,\"managersAllowed\":true,\"membersAllowed\":true},\"replyMessages\":{\"assistantManagersAllowed\":true,\"managersAllowed\":true,\"membersAllowed\":true},\"toggleHistory\":{\"assistantManagersAllowed\":true,\"managersAllowed\":true,\"membersAllowed\":true},\"useAtMentionAll\":{\"assistantManagersAllowed\":true,\"managersAllowed\":true,\"membersAllowed\":true},\"viewSpaceMembership\":{\"assistantManagersAllowed\":true,\"managersAllowed\":true,\"membersAllowed\":true}},\"predefinedPermissionSettings\":\"s-predefinedpermissionsettings\",\"singleUserBotDm\":true,\"spaceDetails\":{\"description\":\"s-description\",\"guidelines\":\"s-guidelines\"},\"spaceHistoryState\":\"s-spacehistorystate\",\"spaceThreadingState\":\"s-spacethreadingstate\",\"spaceType\":\"s-spacetype\",\"spaceUri\":\"s-spaceuri\",\"threaded\":true,\"type\":\"s-type\"}",
+  "  B <1655 bytes> {\"accessSettings\":{\"accessPermis...threaded\":true,\"type\":\"s-type\"}",
   "",
   "  SERVED 200 {\"accessSettings\":{\"accessPermissionSettings\":{},\"accessState\":\"s-accessstate\",\"audience\":\"s-audience\"},\"adminInstalled\":true,\"createTime\":\"s-createtime\",\"customer\":\"s-customer\",\"displayName\":\"s-displayname\",\"externalUserAllowed\":true,\"importMode\":true,\"importModeExpireTime\":\"s-importmodeexpiretime\",\"lastActiveTime\":\"s-lastactivetime\",\"membershipCount\":{\"joinedDirectHumanUserCount\":7,\"joinedGroupCount\":7},\"name\":\"s-name\",\"permissionSettings\":{\"manageApps\":{\"assistantManagersAllowed\":true,\"managersAllowed\":true,\"membersAllowed\":true},\"manageMembersAndGroups\":{\"assistantManagersAllowed\":true,\"managersAllowed\":true,\"membersAllowed\":true},\"manageWebhooks\":{\"assistantManagersAllowed\":true,\"managersAllowed\":true,\"membersAllowed\":true},\"modifySpaceDetails\":{\"assistantManagersAllowed\":true,\"managersAllowed\":true,\"membersAllowed\":true},\"postMessages\":{\"assistantManagersAllowed\":true,\"managersAllowed\":true,\"membersAllowed\":true},\"replyMessages\":{\"assistantManagersAllowed\":true,\"managersAllowed\":true,\"membersAllowed\":true},\"toggleHistory\":{\"assistantManagersAllowed\":true,\"managersAllowed\":true,\"membersAllowed\":true},\"useAtMentionAll\":{\"assistantManagersAllowed\":true,\"managersAllowed\":true,\"membersAllowed\":true},\"viewSpaceMembership\":{\"assistantManagersAllowed\":true,\"managersAllowed\":true,\"membersAllowed\":true}},\"predefinedPermissionSettings\":\"s-predefinedpermissionsettings\",\"singleUserBotDm\":true,\"spaceDetails\":{\"description\":\"s-description\",\"guidelines\":\"s-guidelines\"},\"spaceHistoryState\":\"s-spacehistorystate\",\"spaceThreadingState\":\"s-spacethreadingstate\",\"spaceType\":\"s-spacetype\",\"spaceUri\":\"s-spaceuri\",\"threaded\":true,\"type\":\"s-type\"}",
   "OUT: {\"accessSettings\":{\"accessPermissionSettings\":{},\"accessState\":\"s-accessstate\",\"audience\":\"s-audience\"},\"adminInstalled\":true,\"createTime\":\"s-createtime\",\"customer\":\"s-customer\",\"displayName\":\"s-displayname\",\"externalUserAllowed\":true,\"importMode\":true,\"importModeExpireTime\":\"s-importmodeexpiretime\",\"lastActiveTime\":\"s-lastactivetime\",\"membershipCount\":{\"joinedDirectHumanUserCount\":7,\"joinedGroupCount\":7},\"name\":\"s-name\",\"permissionSettings\":{\"manageApps\":{\"assistantManagersAllowed\":true,\"managersAllowed\":true,\"membersAllowed\":true},\"manageMembersAndGroups\":{\"assistantManagersAllowed\":true,\"managersAllowed\":true,\"membersAllowed\":true},\"manageWebhooks\":{\"assistantManagersAllowed\":true,\"managersAllowed\":true,\"membersAllowed\":true},\"modifySpaceDetails\":{\"assistantManagersAllowed\":true,\"managersAllowed\":true,\"membersAllowed\":true},\"postMessages\":{\"assistantManagersAllowed\":true,\"managersAllowed\":true,\"membersAllowed\":true},\"replyMessages\":{\"assistantManagersAllowed\":true,\"managersAllowed\":true,\"membersAllowed\":true},\"toggleHistory\":{\"assistantManagersAllowed\":true,\"managersAllowed\":true,\"membersAllowed\":true},\"useAtMentionAll\":{\"assistantManagersAllowed\":true,\"managersAllowed\":true,\"membersAllowed\":true},\"viewSpaceMembership\":{\"assistantManagersAllowed\":true,\"managersAllowed\":true,\"membersAllowed\":true}},\"predefinedPermissionSettings\":\"s-predefinedpermissionsettings\",\"singleUserBotDm\":true,\"spaceDetails\":{\"description\":\"s-description\",\"guidelines\":\"s-guidelines\"},\"spaceHistoryState\":\"s-spacehistorystate\",\"spaceThreadingState\":\"s-spacethreadingstate\",\"spaceType\":\"s-spacetype\",\"spaceUri\":\"s-spaceuri\",\"threaded\":true,\"type\":\"s-type\"}",
@@ -304,10 +503,10 @@ test "Go's chat.spaces.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_13)
+  gv_compare(gv_log_of(f), GO_19)
 }
 
-const GO_14: List[Str] = [
+const GO_20: List[Str] = [
   "CALL chat.spaces.search",
   "REQ GET https://chat.googleapis.com/v1/spaces:search?alt=json&fields=kind%2Cid&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&query=s-query&useAdminAccess=true",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -325,14 +524,52 @@ test "Go's chat.spaces.search" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_14)
+  gv_compare(gv_log_of(f), GO_20)
 }
 
-const GO_15: List[Str] = [
+const GO_21: List[Str] = [
+  "CALL chat.spaces.search pages",
+  "REQ GET https://chat.googleapis.com/v1/spaces:search?alt=json&fields=kind%2Cid&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&query=s-query&useAdminAccess=true",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"results\":[{\"space\":{\"adminInstalled\":true,\"createTime\":\"s-createtime\",\"customer\":\"s-customer\",\"displayName\":\"s-displayname\",\"externalUserAllowed\":true,\"importMode\":true,\"importModeExpireTime\":\"s-importmodeexpiretime\",\"lastActiveTime\":\"s-lastactivetime\",\"name\":\"s-name\",\"predefinedPermissionSettings\":\"s-predefinedpermissionsettings\",\"singleUserBotDm\":true,\"spaceHistoryState\":\"s-spacehistorystate\",\"spaceThreadingState\":\"s-spacethreadingstate\",\"spaceType\":\"s-spacetype\",\"spaceUri\":\"s-spaceuri\",\"threaded\":true,\"type\":\"s-type\"}}],\"spaces\":[{\"accessSettings\":{\"accessState\":\"s-accessstate\",\"audience\":\"s-audience\"},\"adminInstalled\":true,\"createTime\":\"s-createtime\",\"customer\":\"s-customer\",\"displayName\":\"s-displayname\",\"externalUserAllowed\":true,\"importMode\":true,\"importModeExpireTime\":\"s-importmodeexpiretime\",\"lastActiveTime\":\"s-lastactivetime\",\"membershipCount\":{\"joinedDirectHumanUserCount\":7,\"joinedGroupCount\":7},\"name\":\"s-name\",\"permissionSettings\":{},\"predefinedPermissionSettings\":\"s-predefinedpermissionsettings\",\"singleUserBotDm\":true,\"spaceDetails\":{\"description\":\"s-description\",\"guidelines\":\"s-guidelines\"},\"spaceHistoryState\":\"s-spacehistorystate\",\"spaceThreadingState\":\"s-spacethreadingstate\",\"spaceType\":\"s-spacetype\",\"spaceUri\":\"s-spaceuri\",\"threaded\":true,\"type\":\"s-type\"}],\"totalSize\":7}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"results\":[{\"space\":{\"adminInstalled\":true,\"createTime\":\"s-createtime\",\"customer\":\"s-customer\",\"displayName\":\"s-displayname\",\"externalUserAllowed\":true,\"importMode\":true,\"importModeExpireTime\":\"s-importmodeexpiretime\",\"lastActiveTime\":\"s-lastactivetime\",\"name\":\"s-name\",\"predefinedPermissionSettings\":\"s-predefinedpermissionsettings\",\"singleUserBotDm\":true,\"spaceHistoryState\":\"s-spacehistorystate\",\"spaceThreadingState\":\"s-spacethreadingstate\",\"spaceType\":\"s-spacetype\",\"spaceUri\":\"s-spaceuri\",\"threaded\":true,\"type\":\"s-type\"}}],\"spaces\":[{\"accessSettings\":{\"accessState\":\"s-accessstate\",\"audience\":\"s-audience\"},\"adminInstalled\":true,\"createTime\":\"s-createtime\",\"customer\":\"s-customer\",\"displayName\":\"s-displayname\",\"externalUserAllowed\":true,\"importMode\":true,\"importModeExpireTime\":\"s-importmodeexpiretime\",\"lastActiveTime\":\"s-lastactivetime\",\"membershipCount\":{\"joinedDirectHumanUserCount\":7,\"joinedGroupCount\":7},\"name\":\"s-name\",\"permissionSettings\":{},\"predefinedPermissionSettings\":\"s-predefinedpermissionsettings\",\"singleUserBotDm\":true,\"spaceDetails\":{\"description\":\"s-description\",\"guidelines\":\"s-guidelines\"},\"spaceHistoryState\":\"s-spacehistorystate\",\"spaceThreadingState\":\"s-spacethreadingstate\",\"spaceType\":\"s-spacetype\",\"spaceUri\":\"s-spaceuri\",\"threaded\":true,\"type\":\"s-type\"}],\"totalSize\":7}",
+  "REQ GET https://chat.googleapis.com/v1/spaces:search?alt=json&fields=kind%2Cid&orderBy=s-orderby&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false&query=s-query&useAdminAccess=true",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"results\":[{\"space\":{\"adminInstalled\":true,\"createTime\":\"s-createtime\",\"customer\":\"s-customer\",\"displayName\":\"s-displayname\",\"externalUserAllowed\":true,\"importMode\":true,\"importModeExpireTime\":\"s-importmodeexpiretime\",\"lastActiveTime\":\"s-lastactivetime\",\"name\":\"s-name\",\"predefinedPermissionSettings\":\"s-predefinedpermissionsettings\",\"singleUserBotDm\":true,\"spaceHistoryState\":\"s-spacehistorystate\",\"spaceThreadingState\":\"s-spacethreadingstate\",\"spaceType\":\"s-spacetype\",\"spaceUri\":\"s-spaceuri\",\"threaded\":true,\"type\":\"s-type\"}}],\"spaces\":[{\"accessSettings\":{\"accessState\":\"s-accessstate\",\"audience\":\"s-audience\"},\"adminInstalled\":true,\"createTime\":\"s-createtime\",\"customer\":\"s-customer\",\"displayName\":\"s-displayname\",\"externalUserAllowed\":true,\"importMode\":true,\"importModeExpireTime\":\"s-importmodeexpiretime\",\"lastActiveTime\":\"s-lastactivetime\",\"membershipCount\":{\"joinedDirectHumanUserCount\":7,\"joinedGroupCount\":7},\"name\":\"s-name\",\"permissionSettings\":{},\"predefinedPermissionSettings\":\"s-predefinedpermissionsettings\",\"singleUserBotDm\":true,\"spaceDetails\":{\"description\":\"s-description\",\"guidelines\":\"s-guidelines\"},\"spaceHistoryState\":\"s-spacehistorystate\",\"spaceThreadingState\":\"s-spacethreadingstate\",\"spaceType\":\"s-spacetype\",\"spaceUri\":\"s-spaceuri\",\"threaded\":true,\"type\":\"s-type\"}],\"totalSize\":7}",
+  "OUT: {\"results\":[{\"space\":{\"adminInstalled\":true,\"createTime\":\"s-createtime\",\"customer\":\"s-customer\",\"displayName\":\"s-displayname\",\"externalUserAllowed\":true,\"importMode\":true,\"importModeExpireTime\":\"s-importmodeexpiretime\",\"lastActiveTime\":\"s-lastactivetime\",\"name\":\"s-name\",\"predefinedPermissionSettings\":\"s-predefinedpermissionsettings\",\"singleUserBotDm\":true,\"spaceHistoryState\":\"s-spacehistorystate\",\"spaceThreadingState\":\"s-spacethreadingstate\",\"spaceType\":\"s-spacetype\",\"spaceUri\":\"s-spaceuri\",\"threaded\":true,\"type\":\"s-type\"}}],\"spaces\":[{\"accessSettings\":{\"accessState\":\"s-accessstate\",\"audience\":\"s-audience\"},\"adminInstalled\":true,\"createTime\":\"s-createtime\",\"customer\":\"s-customer\",\"displayName\":\"s-displayname\",\"externalUserAllowed\":true,\"importMode\":true,\"importModeExpireTime\":\"s-importmodeexpiretime\",\"lastActiveTime\":\"s-lastactivetime\",\"membershipCount\":{\"joinedDirectHumanUserCount\":7,\"joinedGroupCount\":7},\"name\":\"s-name\",\"permissionSettings\":{},\"predefinedPermissionSettings\":\"s-predefinedpermissionsettings\",\"singleUserBotDm\":true,\"spaceDetails\":{\"description\":\"s-description\",\"guidelines\":\"s-guidelines\"},\"spaceHistoryState\":\"s-spacehistorystate\",\"spaceThreadingState\":\"s-spacethreadingstate\",\"spaceType\":\"s-spacetype\",\"spaceUri\":\"s-spaceuri\",\"threaded\":true,\"type\":\"s-type\"}],\"totalSize\":7}",
+  "OUT: ok",
+]
+
+test "Go's chat.spaces.search pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"results\":[{\"space\":{\"adminInstalled\":true,\"createTime\":\"s-createtime\",\"customer\":\"s-customer\",\"displayName\":\"s-displayname\",\"externalUserAllowed\":true,\"importMode\":true,\"importModeExpireTime\":\"s-importmodeexpiretime\",\"lastActiveTime\":\"s-lastactivetime\",\"name\":\"s-name\",\"predefinedPermissionSettings\":\"s-predefinedpermissionsettings\",\"singleUserBotDm\":true,\"spaceHistoryState\":\"s-spacehistorystate\",\"spaceThreadingState\":\"s-spacethreadingstate\",\"spaceType\":\"s-spacetype\",\"spaceUri\":\"s-spaceuri\",\"threaded\":true,\"type\":\"s-type\"}}],\"spaces\":[{\"accessSettings\":{\"accessState\":\"s-accessstate\",\"audience\":\"s-audience\"},\"adminInstalled\":true,\"createTime\":\"s-createtime\",\"customer\":\"s-customer\",\"displayName\":\"s-displayname\",\"externalUserAllowed\":true,\"importMode\":true,\"importModeExpireTime\":\"s-importmodeexpiretime\",\"lastActiveTime\":\"s-lastactivetime\",\"membershipCount\":{\"joinedDirectHumanUserCount\":7,\"joinedGroupCount\":7},\"name\":\"s-name\",\"permissionSettings\":{},\"predefinedPermissionSettings\":\"s-predefinedpermissionsettings\",\"singleUserBotDm\":true,\"spaceDetails\":{\"description\":\"s-description\",\"guidelines\":\"s-guidelines\"},\"spaceHistoryState\":\"s-spacehistorystate\",\"spaceThreadingState\":\"s-spacethreadingstate\",\"spaceType\":\"s-spacetype\",\"spaceUri\":\"s-spaceuri\",\"threaded\":true,\"type\":\"s-type\"}],\"totalSize\":7}")
+  gv_queue(f, "{\"results\":[{\"space\":{\"adminInstalled\":true,\"createTime\":\"s-createtime\",\"customer\":\"s-customer\",\"displayName\":\"s-displayname\",\"externalUserAllowed\":true,\"importMode\":true,\"importModeExpireTime\":\"s-importmodeexpiretime\",\"lastActiveTime\":\"s-lastactivetime\",\"name\":\"s-name\",\"predefinedPermissionSettings\":\"s-predefinedpermissionsettings\",\"singleUserBotDm\":true,\"spaceHistoryState\":\"s-spacehistorystate\",\"spaceThreadingState\":\"s-spacethreadingstate\",\"spaceType\":\"s-spacetype\",\"spaceUri\":\"s-spaceuri\",\"threaded\":true,\"type\":\"s-type\"}}],\"spaces\":[{\"accessSettings\":{\"accessState\":\"s-accessstate\",\"audience\":\"s-audience\"},\"adminInstalled\":true,\"createTime\":\"s-createtime\",\"customer\":\"s-customer\",\"displayName\":\"s-displayname\",\"externalUserAllowed\":true,\"importMode\":true,\"importModeExpireTime\":\"s-importmodeexpiretime\",\"lastActiveTime\":\"s-lastactivetime\",\"membershipCount\":{\"joinedDirectHumanUserCount\":7,\"joinedGroupCount\":7},\"name\":\"s-name\",\"permissionSettings\":{},\"predefinedPermissionSettings\":\"s-predefinedpermissionsettings\",\"singleUserBotDm\":true,\"spaceDetails\":{\"description\":\"s-description\",\"guidelines\":\"s-guidelines\"},\"spaceHistoryState\":\"s-spacehistorystate\",\"spaceThreadingState\":\"s-spacethreadingstate\",\"spaceType\":\"s-spacetype\",\"spaceUri\":\"s-spaceuri\",\"threaded\":true,\"type\":\"s-type\"}],\"totalSize\":7}")
+  gv_note(f, "CALL chat.spaces.search pages")
+  var p = svc.spaces.search_pages(options: SpacesSearchOptions{order_by: Some("s-orderby"), page_size: Some(7), page_token: Some("s-pagetoken"), query: Some("s-query"), use_admin_access: Some(true), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_21)
+}
+
+const GO_22: List[Str] = [
   "CALL chat.spaces.setup",
   "REQ POST https://chat.googleapis.com/v1/spaces:setup?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"memberships\":[{\"affiliation\":\"s-affiliation\",\"createTime\":\"s-createtime\",\"deleteTime\":\"s-deletetime\",\"groupMember\":{\"name\":\"s-name\"},\"member\":{\"avatarUrl\":\"s-avatarurl\",\"displayName\":\"s-displayname\",\"domainId\":\"s-domainid\",\"email\":\"s-email\",\"isAnonymous\":true,\"name\":\"s-name\",\"type\":\"s-type\"},\"name\":\"s-name\",\"role\":\"s-role\",\"state\":\"s-state\"}],\"requestId\":\"s-requestid\",\"space\":{\"accessSettings\":{\"accessState\":\"s-accessstate\",\"audience\":\"s-audience\"},\"adminInstalled\":true,\"createTime\":\"s-createtime\",\"customer\":\"s-customer\",\"displayName\":\"s-displayname\",\"externalUserAllowed\":true,\"importMode\":true,\"importModeExpireTime\":\"s-importmodeexpiretime\",\"lastActiveTime\":\"s-lastactivetime\",\"membershipCount\":{\"joinedDirectHumanUserCount\":7,\"joinedGroupCount\":7},\"name\":\"s-name\",\"permissionSettings\":{},\"predefinedPermissionSettings\":\"s-predefinedpermissionsettings\",\"singleUserBotDm\":true,\"spaceDetails\":{\"description\":\"s-description\",\"guidelines\":\"s-guidelines\"},\"spaceHistoryState\":\"s-spacehistorystate\",\"spaceThreadingState\":\"s-spacethreadingstate\",\"spaceType\":\"s-spacetype\",\"spaceUri\":\"s-spaceuri\",\"threaded\":true,\"type\":\"s-type\"}}",
+  "  B <1134 bytes> {\"memberships\":[{\"affiliation\":\"...hreaded\":true,\"type\":\"s-type\"}}",
   "",
   "  SERVED 200 {\"accessSettings\":{\"accessPermissionSettings\":{},\"accessState\":\"s-accessstate\",\"audience\":\"s-audience\"},\"adminInstalled\":true,\"createTime\":\"s-createtime\",\"customer\":\"s-customer\",\"displayName\":\"s-displayname\",\"externalUserAllowed\":true,\"importMode\":true,\"importModeExpireTime\":\"s-importmodeexpiretime\",\"lastActiveTime\":\"s-lastactivetime\",\"membershipCount\":{\"joinedDirectHumanUserCount\":7,\"joinedGroupCount\":7},\"name\":\"s-name\",\"permissionSettings\":{\"manageApps\":{\"assistantManagersAllowed\":true,\"managersAllowed\":true,\"membersAllowed\":true},\"manageMembersAndGroups\":{\"assistantManagersAllowed\":true,\"managersAllowed\":true,\"membersAllowed\":true},\"manageWebhooks\":{\"assistantManagersAllowed\":true,\"managersAllowed\":true,\"membersAllowed\":true},\"modifySpaceDetails\":{\"assistantManagersAllowed\":true,\"managersAllowed\":true,\"membersAllowed\":true},\"postMessages\":{\"assistantManagersAllowed\":true,\"managersAllowed\":true,\"membersAllowed\":true},\"replyMessages\":{\"assistantManagersAllowed\":true,\"managersAllowed\":true,\"membersAllowed\":true},\"toggleHistory\":{\"assistantManagersAllowed\":true,\"managersAllowed\":true,\"membersAllowed\":true},\"useAtMentionAll\":{\"assistantManagersAllowed\":true,\"managersAllowed\":true,\"membersAllowed\":true},\"viewSpaceMembership\":{\"assistantManagersAllowed\":true,\"managersAllowed\":true,\"membersAllowed\":true}},\"predefinedPermissionSettings\":\"s-predefinedpermissionsettings\",\"singleUserBotDm\":true,\"spaceDetails\":{\"description\":\"s-description\",\"guidelines\":\"s-guidelines\"},\"spaceHistoryState\":\"s-spacehistorystate\",\"spaceThreadingState\":\"s-spacethreadingstate\",\"spaceType\":\"s-spacetype\",\"spaceUri\":\"s-spaceuri\",\"threaded\":true,\"type\":\"s-type\"}",
   "OUT: {\"accessSettings\":{\"accessPermissionSettings\":{},\"accessState\":\"s-accessstate\",\"audience\":\"s-audience\"},\"adminInstalled\":true,\"createTime\":\"s-createtime\",\"customer\":\"s-customer\",\"displayName\":\"s-displayname\",\"externalUserAllowed\":true,\"importMode\":true,\"importModeExpireTime\":\"s-importmodeexpiretime\",\"lastActiveTime\":\"s-lastactivetime\",\"membershipCount\":{\"joinedDirectHumanUserCount\":7,\"joinedGroupCount\":7},\"name\":\"s-name\",\"permissionSettings\":{\"manageApps\":{\"assistantManagersAllowed\":true,\"managersAllowed\":true,\"membersAllowed\":true},\"manageMembersAndGroups\":{\"assistantManagersAllowed\":true,\"managersAllowed\":true,\"membersAllowed\":true},\"manageWebhooks\":{\"assistantManagersAllowed\":true,\"managersAllowed\":true,\"membersAllowed\":true},\"modifySpaceDetails\":{\"assistantManagersAllowed\":true,\"managersAllowed\":true,\"membersAllowed\":true},\"postMessages\":{\"assistantManagersAllowed\":true,\"managersAllowed\":true,\"membersAllowed\":true},\"replyMessages\":{\"assistantManagersAllowed\":true,\"managersAllowed\":true,\"membersAllowed\":true},\"toggleHistory\":{\"assistantManagersAllowed\":true,\"managersAllowed\":true,\"membersAllowed\":true},\"useAtMentionAll\":{\"assistantManagersAllowed\":true,\"managersAllowed\":true,\"membersAllowed\":true},\"viewSpaceMembership\":{\"assistantManagersAllowed\":true,\"managersAllowed\":true,\"membersAllowed\":true}},\"predefinedPermissionSettings\":\"s-predefinedpermissionsettings\",\"singleUserBotDm\":true,\"spaceDetails\":{\"description\":\"s-description\",\"guidelines\":\"s-guidelines\"},\"spaceHistoryState\":\"s-spacehistorystate\",\"spaceThreadingState\":\"s-spacethreadingstate\",\"spaceType\":\"s-spacetype\",\"spaceUri\":\"s-spaceuri\",\"threaded\":true,\"type\":\"s-type\"}",
@@ -347,10 +584,10 @@ test "Go's chat.spaces.setup" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_15)
+  gv_compare(gv_log_of(f), GO_22)
 }
 
-const GO_16: List[Str] = [
+const GO_23: List[Str] = [
   "CALL chat.spaces.members.create",
   "REQ POST https://chat.googleapis.com/v1/id1/%20x/members?alt=json&fields=kind%2Cid&prettyPrint=false&useAdminAccess=true",
   "  H content-type=application/json | x-extra=v1",
@@ -369,10 +606,10 @@ test "Go's chat.spaces.members.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_16)
+  gv_compare(gv_log_of(f), GO_23)
 }
 
-const GO_17: List[Str] = [
+const GO_24: List[Str] = [
   "CALL chat.spaces.members.delete",
   "REQ DELETE https://chat.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&useAdminAccess=true",
   "  H x-extra=v1",
@@ -390,10 +627,10 @@ test "Go's chat.spaces.members.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_17)
+  gv_compare(gv_log_of(f), GO_24)
 }
 
-const GO_18: List[Str] = [
+const GO_25: List[Str] = [
   "CALL chat.spaces.members.get",
   "REQ GET https://chat.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&useAdminAccess=true",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -411,10 +648,10 @@ test "Go's chat.spaces.members.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_18)
+  gv_compare(gv_log_of(f), GO_25)
 }
 
-const GO_19: List[Str] = [
+const GO_26: List[Str] = [
   "CALL chat.spaces.members.list",
   "REQ GET https://chat.googleapis.com/v1/id1/%20x/members?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&showGroups=true&showInvited=true&useAdminAccess=true",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -432,10 +669,48 @@ test "Go's chat.spaces.members.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_19)
+  gv_compare(gv_log_of(f), GO_26)
 }
 
-const GO_20: List[Str] = [
+const GO_27: List[Str] = [
+  "CALL chat.spaces.members.list pages",
+  "REQ GET https://chat.googleapis.com/v1/id1/%20x/members?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&showGroups=true&showInvited=true&useAdminAccess=true",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"memberships\":[{\"affiliation\":\"s-affiliation\",\"createTime\":\"s-createtime\",\"deleteTime\":\"s-deletetime\",\"groupMember\":{\"name\":\"s-name\"},\"member\":{\"avatarUrl\":\"s-avatarurl\",\"displayName\":\"s-displayname\",\"domainId\":\"s-domainid\",\"email\":\"s-email\",\"isAnonymous\":true,\"name\":\"s-name\",\"type\":\"s-type\"},\"name\":\"s-name\",\"role\":\"s-role\",\"state\":\"s-state\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"memberships\":[{\"affiliation\":\"s-affiliation\",\"createTime\":\"s-createtime\",\"deleteTime\":\"s-deletetime\",\"groupMember\":{\"name\":\"s-name\"},\"member\":{\"avatarUrl\":\"s-avatarurl\",\"displayName\":\"s-displayname\",\"domainId\":\"s-domainid\",\"email\":\"s-email\",\"isAnonymous\":true,\"name\":\"s-name\",\"type\":\"s-type\"},\"name\":\"s-name\",\"role\":\"s-role\",\"state\":\"s-state\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://chat.googleapis.com/v1/id1/%20x/members?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false&showGroups=true&showInvited=true&useAdminAccess=true",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"memberships\":[{\"affiliation\":\"s-affiliation\",\"createTime\":\"s-createtime\",\"deleteTime\":\"s-deletetime\",\"groupMember\":{\"name\":\"s-name\"},\"member\":{\"avatarUrl\":\"s-avatarurl\",\"displayName\":\"s-displayname\",\"domainId\":\"s-domainid\",\"email\":\"s-email\",\"isAnonymous\":true,\"name\":\"s-name\",\"type\":\"s-type\"},\"name\":\"s-name\",\"role\":\"s-role\",\"state\":\"s-state\"}]}",
+  "OUT: {\"memberships\":[{\"affiliation\":\"s-affiliation\",\"createTime\":\"s-createtime\",\"deleteTime\":\"s-deletetime\",\"groupMember\":{\"name\":\"s-name\"},\"member\":{\"avatarUrl\":\"s-avatarurl\",\"displayName\":\"s-displayname\",\"domainId\":\"s-domainid\",\"email\":\"s-email\",\"isAnonymous\":true,\"name\":\"s-name\",\"type\":\"s-type\"},\"name\":\"s-name\",\"role\":\"s-role\",\"state\":\"s-state\"}]}",
+  "OUT: ok",
+]
+
+test "Go's chat.spaces.members.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"memberships\":[{\"affiliation\":\"s-affiliation\",\"createTime\":\"s-createtime\",\"deleteTime\":\"s-deletetime\",\"groupMember\":{\"name\":\"s-name\"},\"member\":{\"avatarUrl\":\"s-avatarurl\",\"displayName\":\"s-displayname\",\"domainId\":\"s-domainid\",\"email\":\"s-email\",\"isAnonymous\":true,\"name\":\"s-name\",\"type\":\"s-type\"},\"name\":\"s-name\",\"role\":\"s-role\",\"state\":\"s-state\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"memberships\":[{\"affiliation\":\"s-affiliation\",\"createTime\":\"s-createtime\",\"deleteTime\":\"s-deletetime\",\"groupMember\":{\"name\":\"s-name\"},\"member\":{\"avatarUrl\":\"s-avatarurl\",\"displayName\":\"s-displayname\",\"domainId\":\"s-domainid\",\"email\":\"s-email\",\"isAnonymous\":true,\"name\":\"s-name\",\"type\":\"s-type\"},\"name\":\"s-name\",\"role\":\"s-role\",\"state\":\"s-state\"}]}")
+  gv_note(f, "CALL chat.spaces.members.list pages")
+  var p = svc.spaces.members.list_pages("id1/ x", options: SpacesMembersListOptions{filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), show_groups: Some(true), show_invited: Some(true), use_admin_access: Some(true), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_27)
+}
+
+const GO_28: List[Str] = [
   "CALL chat.spaces.members.patch",
   "REQ PATCH https://chat.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask&useAdminAccess=true",
   "  H content-type=application/json | x-extra=v1",
@@ -454,10 +729,10 @@ test "Go's chat.spaces.members.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_20)
+  gv_compare(gv_log_of(f), GO_28)
 }
 
-const GO_21: List[Str] = [
+const GO_29: List[Str] = [
   "CALL chat.spaces.messagePins.create",
   "REQ POST https://chat.googleapis.com/v1/id1/%20x/messagePins?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -476,10 +751,10 @@ test "Go's chat.spaces.messagePins.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_21)
+  gv_compare(gv_log_of(f), GO_29)
 }
 
-const GO_22: List[Str] = [
+const GO_30: List[Str] = [
   "CALL chat.spaces.messagePins.delete",
   "REQ DELETE https://chat.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -497,10 +772,10 @@ test "Go's chat.spaces.messagePins.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_22)
+  gv_compare(gv_log_of(f), GO_30)
 }
 
-const GO_23: List[Str] = [
+const GO_31: List[Str] = [
   "CALL chat.spaces.messagePins.list",
   "REQ GET https://chat.googleapis.com/v1/id1/%20x/messagePins?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -518,14 +793,52 @@ test "Go's chat.spaces.messagePins.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_23)
+  gv_compare(gv_log_of(f), GO_31)
 }
 
-const GO_24: List[Str] = [
+const GO_32: List[Str] = [
+  "CALL chat.spaces.messagePins.list pages",
+  "REQ GET https://chat.googleapis.com/v1/id1/%20x/messagePins?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"messagePins\":[{\"message\":\"s-message\",\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"messagePins\":[{\"message\":\"s-message\",\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://chat.googleapis.com/v1/id1/%20x/messagePins?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"messagePins\":[{\"message\":\"s-message\",\"name\":\"s-name\"}]}",
+  "OUT: {\"messagePins\":[{\"message\":\"s-message\",\"name\":\"s-name\"}]}",
+  "OUT: ok",
+]
+
+test "Go's chat.spaces.messagePins.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"messagePins\":[{\"message\":\"s-message\",\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"messagePins\":[{\"message\":\"s-message\",\"name\":\"s-name\"}]}")
+  gv_note(f, "CALL chat.spaces.messagePins.list pages")
+  var p = svc.spaces.message_pins.list_pages("id1/ x", options: SpacesMessagePinsListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_32)
+}
+
+const GO_33: List[Str] = [
   "CALL chat.spaces.messages.create",
   "REQ POST https://chat.googleapis.com/v1/id1/%20x/messages?alt=json&createMessageNotificationOptions.notificationType=s-createmessagenotificationoptions.notificationtype&fields=kind%2Cid&messageId=s-messageid&messageReplyOption=s-messagereplyoption&prettyPrint=false&requestId=s-requestid&threadKey=s-threadkey",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"accessoryWidgets\":[{\"buttonList\":{}}],\"actionResponse\":{\"dialogAction\":{},\"type\":\"s-type\",\"updatedWidget\":{\"widget\":\"s-widget\"},\"url\":\"s-url\"},\"annotations\":[{\"customEmojiMetadata\":{},\"length\":7,\"richLinkMetadata\":{\"richLinkType\":\"s-richlinktype\",\"uri\":\"s-uri\"},\"slashCommand\":{\"commandId\":\"7\",\"commandName\":\"s-commandname\",\"triggersDialog\":true,\"type\":\"s-type\"},\"startIndex\":7,\"type\":\"s-type\",\"userMention\":{\"type\":\"s-type\"}}],\"argumentText\":\"s-argumenttext\",\"attachedGifs\":[{\"uri\":\"s-uri\"}],\"attachment\":[{\"attachmentDataRef\":{\"attachmentUploadToken\":\"s-attachmentuploadtoken\",\"resourceName\":\"s-resourcename\"},\"contentName\":\"s-contentname\",\"contentType\":\"s-contenttype\",\"downloadUri\":\"s-downloaduri\",\"driveDataRef\":{\"driveFileId\":\"s-drivefileid\"},\"name\":\"s-name\",\"source\":\"s-source\",\"thumbnailUri\":\"s-thumbnailuri\"}],\"cards\":[{\"header\":{\"imageStyle\":\"s-imagestyle\",\"imageUrl\":\"s-imageurl\",\"subtitle\":\"s-subtitle\",\"title\":\"s-title\"},\"name\":\"s-name\"}],\"cardsV2\":[{\"card\":{\"displayStyle\":\"s-displaystyle\",\"name\":\"s-name\",\"sectionDividerStyle\":\"s-sectiondividerstyle\"},\"cardId\":\"s-cardid\",\"ownerUser\":{\"avatarUrl\":\"s-avatarurl\",\"displayName\":\"s-displayname\",\"domainId\":\"s-domainid\",\"email\":\"s-email\",\"isAnonymous\":true,\"name\":\"s-name\",\"type\":\"s-type\"}}],\"clientAssignedMessageId\":\"s-clientassignedmessageid\",\"createTime\":\"s-createtime\",\"deleteTime\":\"s-deletetime\",\"deletionMetadata\":{\"deletionType\":\"s-deletiontype\"},\"elements\":{\"citations\":[{\"id\":\"s-id\"}],\"citedSources\":[{\"title\":\"s-title\",\"uri\":\"s-uri\"}]},\"emojiReactionSummaries\":[{\"emoji\":{\"unicode\":\"s-unicode\"},\"reactionCount\":7}],\"fallbackText\":\"s-fallbacktext\",\"formattedText\":\"s-formattedtext\",\"lastUpdateTime\":\"s-lastupdatetime\",\"markupSyntax\":\"s-markupsyntax\",\"matchedUrl\":{\"url\":\"s-url\"},\"name\":\"s-name\",\"privateMessageViewer\":{\"avatarUrl\":\"s-avatarurl\",\"displayName\":\"s-displayname\",\"domainId\":\"s-domainid\",\"email\":\"s-email\",\"isAnonymous\":true,\"name\":\"s-name\",\"type\":\"s-type\"},\"quotedMessageMetadata\":{\"forwardedMetadata\":{\"space\":\"s-space\",\"spaceDisplayName\":\"s-spacedisplayname\"},\"lastUpdateTime\":\"s-lastupdatetime\",\"name\":\"s-name\",\"quoteType\":\"s-quotetype\",\"quotedMessageSnapshot\":{\"formattedText\":\"s-formattedtext\",\"sender\":\"s-sender\",\"text\":\"s-text\"}},\"sender\":{\"avatarUrl\":\"s-avatarurl\",\"displayName\":\"s-displayname\",\"domainId\":\"s-domainid\",\"email\":\"s-email\",\"isAnonymous\":true,\"name\":\"s-name\",\"type\":\"s-type\"},\"silent\":true,\"slashCommand\":{\"commandId\":\"7\"},\"space\":{\"accessSettings\":{\"accessState\":\"s-accessstate\",\"audience\":\"s-audience\"},\"adminInstalled\":true,\"createTime\":\"s-createtime\",\"customer\":\"s-customer\",\"displayName\":\"s-displayname\",\"externalUserAllowed\":true,\"importMode\":true,\"importModeExpireTime\":\"s-importmodeexpiretime\",\"lastActiveTime\":\"s-lastactivetime\",\"membershipCount\":{\"joinedDirectHumanUserCount\":7,\"joinedGroupCount\":7},\"name\":\"s-name\",\"permissionSettings\":{},\"predefinedPermissionSettings\":\"s-predefinedpermissionsettings\",\"singleUserBotDm\":true,\"spaceDetails\":{\"description\":\"s-description\",\"guidelines\":\"s-guidelines\"},\"spaceHistoryState\":\"s-spacehistorystate\",\"spaceThreadingState\":\"s-spacethreadingstate\",\"spaceType\":\"s-spacetype\",\"spaceUri\":\"s-spaceuri\",\"threaded\":true,\"type\":\"s-type\"},\"text\":\"s-text\",\"thread\":{\"name\":\"s-name\",\"threadKey\":\"s-threadkey\"},\"threadReply\":true}",
+  "  B <3277 bytes> {\"accessoryWidgets\":[{\"buttonLis...threadkey\"},\"threadReply\":true}",
   "",
   "  SERVED 200 {\"accessoryWidgets\":[{\"buttonList\":{}}],\"actionResponse\":{\"dialogAction\":{},\"type\":\"s-type\",\"updatedWidget\":{\"widget\":\"s-widget\"},\"url\":\"s-url\"},\"annotations\":[{\"customEmojiMetadata\":{},\"length\":7,\"richLinkMetadata\":{\"richLinkType\":\"s-richlinktype\",\"uri\":\"s-uri\"},\"slashCommand\":{\"commandId\":\"7\",\"commandName\":\"s-commandname\",\"triggersDialog\":true,\"type\":\"s-type\"},\"startIndex\":7,\"type\":\"s-type\",\"userMention\":{\"type\":\"s-type\"}}],\"argumentText\":\"s-argumenttext\",\"attachedGifs\":[{\"uri\":\"s-uri\"}],\"attachment\":[{\"attachmentDataRef\":{\"attachmentUploadToken\":\"s-attachmentuploadtoken\",\"resourceName\":\"s-resourcename\"},\"contentName\":\"s-contentname\",\"contentType\":\"s-contenttype\",\"downloadUri\":\"s-downloaduri\",\"driveDataRef\":{\"driveFileId\":\"s-drivefileid\"},\"name\":\"s-name\",\"source\":\"s-source\",\"thumbnailUri\":\"s-thumbnailuri\"}],\"cards\":[{\"header\":{\"imageStyle\":\"s-imagestyle\",\"imageUrl\":\"s-imageurl\",\"subtitle\":\"s-subtitle\",\"title\":\"s-title\"},\"name\":\"s-name\"}],\"cardsV2\":[{\"card\":{\"displayStyle\":\"s-displaystyle\",\"name\":\"s-name\",\"sectionDividerStyle\":\"s-sectiondividerstyle\"},\"cardId\":\"s-cardid\",\"ownerUser\":{\"avatarUrl\":\"s-avatarurl\",\"displayName\":\"s-displayname\",\"domainId\":\"s-domainid\",\"email\":\"s-email\",\"isAnonymous\":true,\"name\":\"s-name\",\"type\":\"s-type\"}}],\"clientAssignedMessageId\":\"s-clientassignedmessageid\",\"createTime\":\"s-createtime\",\"deleteTime\":\"s-deletetime\",\"deletionMetadata\":{\"deletionType\":\"s-deletiontype\"},\"elements\":{\"citations\":[{\"id\":\"s-id\"}],\"citedSources\":[{\"title\":\"s-title\",\"uri\":\"s-uri\"}]},\"emojiReactionSummaries\":[{\"emoji\":{\"unicode\":\"s-unicode\"},\"reactionCount\":7}],\"fallbackText\":\"s-fallbacktext\",\"formattedText\":\"s-formattedtext\",\"lastUpdateTime\":\"s-lastupdatetime\",\"markupSyntax\":\"s-markupsyntax\",\"matchedUrl\":{\"url\":\"s-url\"},\"name\":\"s-name\",\"privateMessageViewer\":{\"avatarUrl\":\"s-avatarurl\",\"displayName\":\"s-displayname\",\"domainId\":\"s-domainid\",\"email\":\"s-email\",\"isAnonymous\":true,\"name\":\"s-name\",\"type\":\"s-type\"},\"quotedMessageMetadata\":{\"forwardedMetadata\":{\"space\":\"s-space\",\"spaceDisplayName\":\"s-spacedisplayname\"},\"lastUpdateTime\":\"s-lastupdatetime\",\"name\":\"s-name\",\"quoteType\":\"s-quotetype\",\"quotedMessageSnapshot\":{\"formattedText\":\"s-formattedtext\",\"sender\":\"s-sender\",\"text\":\"s-text\"}},\"sender\":{\"avatarUrl\":\"s-avatarurl\",\"displayName\":\"s-displayname\",\"domainId\":\"s-domainid\",\"email\":\"s-email\",\"isAnonymous\":true,\"name\":\"s-name\",\"type\":\"s-type\"},\"silent\":true,\"slashCommand\":{\"commandId\":\"7\"},\"space\":{\"accessSettings\":{\"accessState\":\"s-accessstate\",\"audience\":\"s-audience\"},\"adminInstalled\":true,\"createTime\":\"s-createtime\",\"customer\":\"s-customer\",\"displayName\":\"s-displayname\",\"externalUserAllowed\":true,\"importMode\":true,\"importModeExpireTime\":\"s-importmodeexpiretime\",\"lastActiveTime\":\"s-lastactivetime\",\"membershipCount\":{\"joinedDirectHumanUserCount\":7,\"joinedGroupCount\":7},\"name\":\"s-name\",\"permissionSettings\":{},\"predefinedPermissionSettings\":\"s-predefinedpermissionsettings\",\"singleUserBotDm\":true,\"spaceDetails\":{\"description\":\"s-description\",\"guidelines\":\"s-guidelines\"},\"spaceHistoryState\":\"s-spacehistorystate\",\"spaceThreadingState\":\"s-spacethreadingstate\",\"spaceType\":\"s-spacetype\",\"spaceUri\":\"s-spaceuri\",\"threaded\":true,\"type\":\"s-type\"},\"text\":\"s-text\",\"thread\":{\"name\":\"s-name\",\"threadKey\":\"s-threadkey\"},\"threadReply\":true}",
   "OUT: {\"accessoryWidgets\":[{\"buttonList\":{}}],\"actionResponse\":{\"dialogAction\":{},\"type\":\"s-type\",\"updatedWidget\":{\"widget\":\"s-widget\"},\"url\":\"s-url\"},\"annotations\":[{\"customEmojiMetadata\":{},\"length\":7,\"richLinkMetadata\":{\"richLinkType\":\"s-richlinktype\",\"uri\":\"s-uri\"},\"slashCommand\":{\"commandId\":\"7\",\"commandName\":\"s-commandname\",\"triggersDialog\":true,\"type\":\"s-type\"},\"startIndex\":7,\"type\":\"s-type\",\"userMention\":{\"type\":\"s-type\"}}],\"argumentText\":\"s-argumenttext\",\"attachedGifs\":[{\"uri\":\"s-uri\"}],\"attachment\":[{\"attachmentDataRef\":{\"attachmentUploadToken\":\"s-attachmentuploadtoken\",\"resourceName\":\"s-resourcename\"},\"contentName\":\"s-contentname\",\"contentType\":\"s-contenttype\",\"downloadUri\":\"s-downloaduri\",\"driveDataRef\":{\"driveFileId\":\"s-drivefileid\"},\"name\":\"s-name\",\"source\":\"s-source\",\"thumbnailUri\":\"s-thumbnailuri\"}],\"cards\":[{\"header\":{\"imageStyle\":\"s-imagestyle\",\"imageUrl\":\"s-imageurl\",\"subtitle\":\"s-subtitle\",\"title\":\"s-title\"},\"name\":\"s-name\"}],\"cardsV2\":[{\"card\":{\"displayStyle\":\"s-displaystyle\",\"name\":\"s-name\",\"sectionDividerStyle\":\"s-sectiondividerstyle\"},\"cardId\":\"s-cardid\",\"ownerUser\":{\"avatarUrl\":\"s-avatarurl\",\"displayName\":\"s-displayname\",\"domainId\":\"s-domainid\",\"email\":\"s-email\",\"isAnonymous\":true,\"name\":\"s-name\",\"type\":\"s-type\"}}],\"clientAssignedMessageId\":\"s-clientassignedmessageid\",\"createTime\":\"s-createtime\",\"deleteTime\":\"s-deletetime\",\"deletionMetadata\":{\"deletionType\":\"s-deletiontype\"},\"elements\":{\"citations\":[{\"id\":\"s-id\"}],\"citedSources\":[{\"title\":\"s-title\",\"uri\":\"s-uri\"}]},\"emojiReactionSummaries\":[{\"emoji\":{\"unicode\":\"s-unicode\"},\"reactionCount\":7}],\"fallbackText\":\"s-fallbacktext\",\"formattedText\":\"s-formattedtext\",\"lastUpdateTime\":\"s-lastupdatetime\",\"markupSyntax\":\"s-markupsyntax\",\"matchedUrl\":{\"url\":\"s-url\"},\"name\":\"s-name\",\"privateMessageViewer\":{\"avatarUrl\":\"s-avatarurl\",\"displayName\":\"s-displayname\",\"domainId\":\"s-domainid\",\"email\":\"s-email\",\"isAnonymous\":true,\"name\":\"s-name\",\"type\":\"s-type\"},\"quotedMessageMetadata\":{\"forwardedMetadata\":{\"space\":\"s-space\",\"spaceDisplayName\":\"s-spacedisplayname\"},\"lastUpdateTime\":\"s-lastupdatetime\",\"name\":\"s-name\",\"quoteType\":\"s-quotetype\",\"quotedMessageSnapshot\":{\"formattedText\":\"s-formattedtext\",\"sender\":\"s-sender\",\"text\":\"s-text\"}},\"sender\":{\"avatarUrl\":\"s-avatarurl\",\"displayName\":\"s-displayname\",\"domainId\":\"s-domainid\",\"email\":\"s-email\",\"isAnonymous\":true,\"name\":\"s-name\",\"type\":\"s-type\"},\"silent\":true,\"slashCommand\":{\"commandId\":\"7\"},\"space\":{\"accessSettings\":{\"accessState\":\"s-accessstate\",\"audience\":\"s-audience\"},\"adminInstalled\":true,\"createTime\":\"s-createtime\",\"customer\":\"s-customer\",\"displayName\":\"s-displayname\",\"externalUserAllowed\":true,\"importMode\":true,\"importModeExpireTime\":\"s-importmodeexpiretime\",\"lastActiveTime\":\"s-lastactivetime\",\"membershipCount\":{\"joinedDirectHumanUserCount\":7,\"joinedGroupCount\":7},\"name\":\"s-name\",\"permissionSettings\":{},\"predefinedPermissionSettings\":\"s-predefinedpermissionsettings\",\"singleUserBotDm\":true,\"spaceDetails\":{\"description\":\"s-description\",\"guidelines\":\"s-guidelines\"},\"spaceHistoryState\":\"s-spacehistorystate\",\"spaceThreadingState\":\"s-spacethreadingstate\",\"spaceType\":\"s-spacetype\",\"spaceUri\":\"s-spaceuri\",\"threaded\":true,\"type\":\"s-type\"},\"text\":\"s-text\",\"thread\":{\"name\":\"s-name\",\"threadKey\":\"s-threadkey\"},\"threadReply\":true}",
@@ -540,10 +853,10 @@ test "Go's chat.spaces.messages.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_24)
+  gv_compare(gv_log_of(f), GO_33)
 }
 
-const GO_25: List[Str] = [
+const GO_34: List[Str] = [
   "CALL chat.spaces.messages.delete",
   "REQ DELETE https://chat.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&force=true&prettyPrint=false",
   "  H x-extra=v1",
@@ -561,10 +874,10 @@ test "Go's chat.spaces.messages.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_25)
+  gv_compare(gv_log_of(f), GO_34)
 }
 
-const GO_26: List[Str] = [
+const GO_35: List[Str] = [
   "CALL chat.spaces.messages.get",
   "REQ GET https://chat.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&markupSyntax=s-markupsyntax&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -582,10 +895,10 @@ test "Go's chat.spaces.messages.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_26)
+  gv_compare(gv_log_of(f), GO_35)
 }
 
-const GO_27: List[Str] = [
+const GO_36: List[Str] = [
   "CALL chat.spaces.messages.list",
   "REQ GET https://chat.googleapis.com/v1/id1/%20x/messages?alt=json&fields=kind%2Cid&filter=s-filter&markupSyntax=s-markupsyntax&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&showDeleted=true",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -603,14 +916,52 @@ test "Go's chat.spaces.messages.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_27)
+  gv_compare(gv_log_of(f), GO_36)
 }
 
-const GO_28: List[Str] = [
+const GO_37: List[Str] = [
+  "CALL chat.spaces.messages.list pages",
+  "REQ GET https://chat.googleapis.com/v1/id1/%20x/messages?alt=json&fields=kind%2Cid&filter=s-filter&markupSyntax=s-markupsyntax&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&showDeleted=true",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"messages\":[{\"actionResponse\":{\"type\":\"s-type\",\"url\":\"s-url\"},\"argumentText\":\"s-argumenttext\",\"clientAssignedMessageId\":\"s-clientassignedmessageid\",\"createTime\":\"s-createtime\",\"deleteTime\":\"s-deletetime\",\"deletionMetadata\":{\"deletionType\":\"s-deletiontype\"},\"elements\":{},\"fallbackText\":\"s-fallbacktext\",\"formattedText\":\"s-formattedtext\",\"lastUpdateTime\":\"s-lastupdatetime\",\"markupSyntax\":\"s-markupsyntax\",\"matchedUrl\":{\"url\":\"s-url\"},\"name\":\"s-name\",\"privateMessageViewer\":{\"avatarUrl\":\"s-avatarurl\",\"displayName\":\"s-displayname\",\"domainId\":\"s-domainid\",\"email\":\"s-email\",\"isAnonymous\":true,\"name\":\"s-name\",\"type\":\"s-type\"},\"quotedMessageMetadata\":{\"lastUpdateTime\":\"s-lastupdatetime\",\"name\":\"s-name\",\"quoteType\":\"s-quotetype\"},\"sender\":{\"avatarUrl\":\"s-avatarurl\",\"displayName\":\"s-displayname\",\"domainId\":\"s-domainid\",\"email\":\"s-email\",\"isAnonymous\":true,\"name\":\"s-name\",\"type\":\"s-type\"},\"silent\":true,\"slashCommand\":{\"commandId\":\"7\"},\"space\":{\"adminInstalled\":true,\"createTime\":\"s-createtime\",\"customer\":\"s-customer\",\"displayName\":\"s-displayname\",\"externalUserAllowed\":true,\"importMode\":true,\"importModeExpireTime\":\"s-importmodeexpiretime\",\"lastActiveTime\":\"s-lastactivetime\",\"name\":\"s-name\",\"predefinedPermissionSettings\":\"s-predefinedpermissionsettings\",\"singleUserBotDm\":true,\"spaceHistoryState\":\"s-spacehistorystate\",\"spaceThreadingState\":\"s-spacethreadingstate\",\"spaceType\":\"s-spacetype\",\"spaceUri\":\"s-spaceuri\",\"threaded\":true,\"type\":\"s-type\"},\"text\":\"s-text\",\"thread\":{\"name\":\"s-name\",\"threadKey\":\"s-threadkey\"},\"threadReply\":true}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"messages\":[{\"actionResponse\":{\"type\":\"s-type\",\"url\":\"s-url\"},\"argumentText\":\"s-argumenttext\",\"clientAssignedMessageId\":\"s-clientassignedmessageid\",\"createTime\":\"s-createtime\",\"deleteTime\":\"s-deletetime\",\"deletionMetadata\":{\"deletionType\":\"s-deletiontype\"},\"elements\":{},\"fallbackText\":\"s-fallbacktext\",\"formattedText\":\"s-formattedtext\",\"lastUpdateTime\":\"s-lastupdatetime\",\"markupSyntax\":\"s-markupsyntax\",\"matchedUrl\":{\"url\":\"s-url\"},\"name\":\"s-name\",\"privateMessageViewer\":{\"avatarUrl\":\"s-avatarurl\",\"displayName\":\"s-displayname\",\"domainId\":\"s-domainid\",\"email\":\"s-email\",\"isAnonymous\":true,\"name\":\"s-name\",\"type\":\"s-type\"},\"quotedMessageMetadata\":{\"lastUpdateTime\":\"s-lastupdatetime\",\"name\":\"s-name\",\"quoteType\":\"s-quotetype\"},\"sender\":{\"avatarUrl\":\"s-avatarurl\",\"displayName\":\"s-displayname\",\"domainId\":\"s-domainid\",\"email\":\"s-email\",\"isAnonymous\":true,\"name\":\"s-name\",\"type\":\"s-type\"},\"silent\":true,\"slashCommand\":{\"commandId\":\"7\"},\"space\":{\"adminInstalled\":true,\"createTime\":\"s-createtime\",\"customer\":\"s-customer\",\"displayName\":\"s-displayname\",\"externalUserAllowed\":true,\"importMode\":true,\"importModeExpireTime\":\"s-importmodeexpiretime\",\"lastActiveTime\":\"s-lastactivetime\",\"name\":\"s-name\",\"predefinedPermissionSettings\":\"s-predefinedpermissionsettings\",\"singleUserBotDm\":true,\"spaceHistoryState\":\"s-spacehistorystate\",\"spaceThreadingState\":\"s-spacethreadingstate\",\"spaceType\":\"s-spacetype\",\"spaceUri\":\"s-spaceuri\",\"threaded\":true,\"type\":\"s-type\"},\"text\":\"s-text\",\"thread\":{\"name\":\"s-name\",\"threadKey\":\"s-threadkey\"},\"threadReply\":true}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://chat.googleapis.com/v1/id1/%20x/messages?alt=json&fields=kind%2Cid&filter=s-filter&markupSyntax=s-markupsyntax&orderBy=s-orderby&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false&showDeleted=true",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"messages\":[{\"actionResponse\":{\"type\":\"s-type\",\"url\":\"s-url\"},\"argumentText\":\"s-argumenttext\",\"clientAssignedMessageId\":\"s-clientassignedmessageid\",\"createTime\":\"s-createtime\",\"deleteTime\":\"s-deletetime\",\"deletionMetadata\":{\"deletionType\":\"s-deletiontype\"},\"elements\":{},\"fallbackText\":\"s-fallbacktext\",\"formattedText\":\"s-formattedtext\",\"lastUpdateTime\":\"s-lastupdatetime\",\"markupSyntax\":\"s-markupsyntax\",\"matchedUrl\":{\"url\":\"s-url\"},\"name\":\"s-name\",\"privateMessageViewer\":{\"avatarUrl\":\"s-avatarurl\",\"displayName\":\"s-displayname\",\"domainId\":\"s-domainid\",\"email\":\"s-email\",\"isAnonymous\":true,\"name\":\"s-name\",\"type\":\"s-type\"},\"quotedMessageMetadata\":{\"lastUpdateTime\":\"s-lastupdatetime\",\"name\":\"s-name\",\"quoteType\":\"s-quotetype\"},\"sender\":{\"avatarUrl\":\"s-avatarurl\",\"displayName\":\"s-displayname\",\"domainId\":\"s-domainid\",\"email\":\"s-email\",\"isAnonymous\":true,\"name\":\"s-name\",\"type\":\"s-type\"},\"silent\":true,\"slashCommand\":{\"commandId\":\"7\"},\"space\":{\"adminInstalled\":true,\"createTime\":\"s-createtime\",\"customer\":\"s-customer\",\"displayName\":\"s-displayname\",\"externalUserAllowed\":true,\"importMode\":true,\"importModeExpireTime\":\"s-importmodeexpiretime\",\"lastActiveTime\":\"s-lastactivetime\",\"name\":\"s-name\",\"predefinedPermissionSettings\":\"s-predefinedpermissionsettings\",\"singleUserBotDm\":true,\"spaceHistoryState\":\"s-spacehistorystate\",\"spaceThreadingState\":\"s-spacethreadingstate\",\"spaceType\":\"s-spacetype\",\"spaceUri\":\"s-spaceuri\",\"threaded\":true,\"type\":\"s-type\"},\"text\":\"s-text\",\"thread\":{\"name\":\"s-name\",\"threadKey\":\"s-threadkey\"},\"threadReply\":true}]}",
+  "OUT: {\"messages\":[{\"actionResponse\":{\"type\":\"s-type\",\"url\":\"s-url\"},\"argumentText\":\"s-argumenttext\",\"clientAssignedMessageId\":\"s-clientassignedmessageid\",\"createTime\":\"s-createtime\",\"deleteTime\":\"s-deletetime\",\"deletionMetadata\":{\"deletionType\":\"s-deletiontype\"},\"elements\":{},\"fallbackText\":\"s-fallbacktext\",\"formattedText\":\"s-formattedtext\",\"lastUpdateTime\":\"s-lastupdatetime\",\"markupSyntax\":\"s-markupsyntax\",\"matchedUrl\":{\"url\":\"s-url\"},\"name\":\"s-name\",\"privateMessageViewer\":{\"avatarUrl\":\"s-avatarurl\",\"displayName\":\"s-displayname\",\"domainId\":\"s-domainid\",\"email\":\"s-email\",\"isAnonymous\":true,\"name\":\"s-name\",\"type\":\"s-type\"},\"quotedMessageMetadata\":{\"lastUpdateTime\":\"s-lastupdatetime\",\"name\":\"s-name\",\"quoteType\":\"s-quotetype\"},\"sender\":{\"avatarUrl\":\"s-avatarurl\",\"displayName\":\"s-displayname\",\"domainId\":\"s-domainid\",\"email\":\"s-email\",\"isAnonymous\":true,\"name\":\"s-name\",\"type\":\"s-type\"},\"silent\":true,\"slashCommand\":{\"commandId\":\"7\"},\"space\":{\"adminInstalled\":true,\"createTime\":\"s-createtime\",\"customer\":\"s-customer\",\"displayName\":\"s-displayname\",\"externalUserAllowed\":true,\"importMode\":true,\"importModeExpireTime\":\"s-importmodeexpiretime\",\"lastActiveTime\":\"s-lastactivetime\",\"name\":\"s-name\",\"predefinedPermissionSettings\":\"s-predefinedpermissionsettings\",\"singleUserBotDm\":true,\"spaceHistoryState\":\"s-spacehistorystate\",\"spaceThreadingState\":\"s-spacethreadingstate\",\"spaceType\":\"s-spacetype\",\"spaceUri\":\"s-spaceuri\",\"threaded\":true,\"type\":\"s-type\"},\"text\":\"s-text\",\"thread\":{\"name\":\"s-name\",\"threadKey\":\"s-threadkey\"},\"threadReply\":true}]}",
+  "OUT: ok",
+]
+
+test "Go's chat.spaces.messages.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"messages\":[{\"actionResponse\":{\"type\":\"s-type\",\"url\":\"s-url\"},\"argumentText\":\"s-argumenttext\",\"clientAssignedMessageId\":\"s-clientassignedmessageid\",\"createTime\":\"s-createtime\",\"deleteTime\":\"s-deletetime\",\"deletionMetadata\":{\"deletionType\":\"s-deletiontype\"},\"elements\":{},\"fallbackText\":\"s-fallbacktext\",\"formattedText\":\"s-formattedtext\",\"lastUpdateTime\":\"s-lastupdatetime\",\"markupSyntax\":\"s-markupsyntax\",\"matchedUrl\":{\"url\":\"s-url\"},\"name\":\"s-name\",\"privateMessageViewer\":{\"avatarUrl\":\"s-avatarurl\",\"displayName\":\"s-displayname\",\"domainId\":\"s-domainid\",\"email\":\"s-email\",\"isAnonymous\":true,\"name\":\"s-name\",\"type\":\"s-type\"},\"quotedMessageMetadata\":{\"lastUpdateTime\":\"s-lastupdatetime\",\"name\":\"s-name\",\"quoteType\":\"s-quotetype\"},\"sender\":{\"avatarUrl\":\"s-avatarurl\",\"displayName\":\"s-displayname\",\"domainId\":\"s-domainid\",\"email\":\"s-email\",\"isAnonymous\":true,\"name\":\"s-name\",\"type\":\"s-type\"},\"silent\":true,\"slashCommand\":{\"commandId\":\"7\"},\"space\":{\"adminInstalled\":true,\"createTime\":\"s-createtime\",\"customer\":\"s-customer\",\"displayName\":\"s-displayname\",\"externalUserAllowed\":true,\"importMode\":true,\"importModeExpireTime\":\"s-importmodeexpiretime\",\"lastActiveTime\":\"s-lastactivetime\",\"name\":\"s-name\",\"predefinedPermissionSettings\":\"s-predefinedpermissionsettings\",\"singleUserBotDm\":true,\"spaceHistoryState\":\"s-spacehistorystate\",\"spaceThreadingState\":\"s-spacethreadingstate\",\"spaceType\":\"s-spacetype\",\"spaceUri\":\"s-spaceuri\",\"threaded\":true,\"type\":\"s-type\"},\"text\":\"s-text\",\"thread\":{\"name\":\"s-name\",\"threadKey\":\"s-threadkey\"},\"threadReply\":true}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"messages\":[{\"actionResponse\":{\"type\":\"s-type\",\"url\":\"s-url\"},\"argumentText\":\"s-argumenttext\",\"clientAssignedMessageId\":\"s-clientassignedmessageid\",\"createTime\":\"s-createtime\",\"deleteTime\":\"s-deletetime\",\"deletionMetadata\":{\"deletionType\":\"s-deletiontype\"},\"elements\":{},\"fallbackText\":\"s-fallbacktext\",\"formattedText\":\"s-formattedtext\",\"lastUpdateTime\":\"s-lastupdatetime\",\"markupSyntax\":\"s-markupsyntax\",\"matchedUrl\":{\"url\":\"s-url\"},\"name\":\"s-name\",\"privateMessageViewer\":{\"avatarUrl\":\"s-avatarurl\",\"displayName\":\"s-displayname\",\"domainId\":\"s-domainid\",\"email\":\"s-email\",\"isAnonymous\":true,\"name\":\"s-name\",\"type\":\"s-type\"},\"quotedMessageMetadata\":{\"lastUpdateTime\":\"s-lastupdatetime\",\"name\":\"s-name\",\"quoteType\":\"s-quotetype\"},\"sender\":{\"avatarUrl\":\"s-avatarurl\",\"displayName\":\"s-displayname\",\"domainId\":\"s-domainid\",\"email\":\"s-email\",\"isAnonymous\":true,\"name\":\"s-name\",\"type\":\"s-type\"},\"silent\":true,\"slashCommand\":{\"commandId\":\"7\"},\"space\":{\"adminInstalled\":true,\"createTime\":\"s-createtime\",\"customer\":\"s-customer\",\"displayName\":\"s-displayname\",\"externalUserAllowed\":true,\"importMode\":true,\"importModeExpireTime\":\"s-importmodeexpiretime\",\"lastActiveTime\":\"s-lastactivetime\",\"name\":\"s-name\",\"predefinedPermissionSettings\":\"s-predefinedpermissionsettings\",\"singleUserBotDm\":true,\"spaceHistoryState\":\"s-spacehistorystate\",\"spaceThreadingState\":\"s-spacethreadingstate\",\"spaceType\":\"s-spacetype\",\"spaceUri\":\"s-spaceuri\",\"threaded\":true,\"type\":\"s-type\"},\"text\":\"s-text\",\"thread\":{\"name\":\"s-name\",\"threadKey\":\"s-threadkey\"},\"threadReply\":true}]}")
+  gv_note(f, "CALL chat.spaces.messages.list pages")
+  var p = svc.spaces.messages.list_pages("id1/ x", options: SpacesMessagesListOptions{filter: Some("s-filter"), markup_syntax: Some("s-markupsyntax"), order_by: Some("s-orderby"), page_size: Some(7), page_token: Some("s-pagetoken"), show_deleted: Some(true), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_37)
+}
+
+const GO_38: List[Str] = [
   "CALL chat.spaces.messages.patch",
   "REQ PATCH https://chat.googleapis.com/v1/id1/%20x?allowMissing=true&alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"accessoryWidgets\":[{\"buttonList\":{}}],\"actionResponse\":{\"dialogAction\":{},\"type\":\"s-type\",\"updatedWidget\":{\"widget\":\"s-widget\"},\"url\":\"s-url\"},\"annotations\":[{\"customEmojiMetadata\":{},\"length\":7,\"richLinkMetadata\":{\"richLinkType\":\"s-richlinktype\",\"uri\":\"s-uri\"},\"slashCommand\":{\"commandId\":\"7\",\"commandName\":\"s-commandname\",\"triggersDialog\":true,\"type\":\"s-type\"},\"startIndex\":7,\"type\":\"s-type\",\"userMention\":{\"type\":\"s-type\"}}],\"argumentText\":\"s-argumenttext\",\"attachedGifs\":[{\"uri\":\"s-uri\"}],\"attachment\":[{\"attachmentDataRef\":{\"attachmentUploadToken\":\"s-attachmentuploadtoken\",\"resourceName\":\"s-resourcename\"},\"contentName\":\"s-contentname\",\"contentType\":\"s-contenttype\",\"downloadUri\":\"s-downloaduri\",\"driveDataRef\":{\"driveFileId\":\"s-drivefileid\"},\"name\":\"s-name\",\"source\":\"s-source\",\"thumbnailUri\":\"s-thumbnailuri\"}],\"cards\":[{\"header\":{\"imageStyle\":\"s-imagestyle\",\"imageUrl\":\"s-imageurl\",\"subtitle\":\"s-subtitle\",\"title\":\"s-title\"},\"name\":\"s-name\"}],\"cardsV2\":[{\"card\":{\"displayStyle\":\"s-displaystyle\",\"name\":\"s-name\",\"sectionDividerStyle\":\"s-sectiondividerstyle\"},\"cardId\":\"s-cardid\",\"ownerUser\":{\"avatarUrl\":\"s-avatarurl\",\"displayName\":\"s-displayname\",\"domainId\":\"s-domainid\",\"email\":\"s-email\",\"isAnonymous\":true,\"name\":\"s-name\",\"type\":\"s-type\"}}],\"clientAssignedMessageId\":\"s-clientassignedmessageid\",\"createTime\":\"s-createtime\",\"deleteTime\":\"s-deletetime\",\"deletionMetadata\":{\"deletionType\":\"s-deletiontype\"},\"elements\":{\"citations\":[{\"id\":\"s-id\"}],\"citedSources\":[{\"title\":\"s-title\",\"uri\":\"s-uri\"}]},\"emojiReactionSummaries\":[{\"emoji\":{\"unicode\":\"s-unicode\"},\"reactionCount\":7}],\"fallbackText\":\"s-fallbacktext\",\"formattedText\":\"s-formattedtext\",\"lastUpdateTime\":\"s-lastupdatetime\",\"markupSyntax\":\"s-markupsyntax\",\"matchedUrl\":{\"url\":\"s-url\"},\"name\":\"s-name\",\"privateMessageViewer\":{\"avatarUrl\":\"s-avatarurl\",\"displayName\":\"s-displayname\",\"domainId\":\"s-domainid\",\"email\":\"s-email\",\"isAnonymous\":true,\"name\":\"s-name\",\"type\":\"s-type\"},\"quotedMessageMetadata\":{\"forwardedMetadata\":{\"space\":\"s-space\",\"spaceDisplayName\":\"s-spacedisplayname\"},\"lastUpdateTime\":\"s-lastupdatetime\",\"name\":\"s-name\",\"quoteType\":\"s-quotetype\",\"quotedMessageSnapshot\":{\"formattedText\":\"s-formattedtext\",\"sender\":\"s-sender\",\"text\":\"s-text\"}},\"sender\":{\"avatarUrl\":\"s-avatarurl\",\"displayName\":\"s-displayname\",\"domainId\":\"s-domainid\",\"email\":\"s-email\",\"isAnonymous\":true,\"name\":\"s-name\",\"type\":\"s-type\"},\"silent\":true,\"slashCommand\":{\"commandId\":\"7\"},\"space\":{\"accessSettings\":{\"accessState\":\"s-accessstate\",\"audience\":\"s-audience\"},\"adminInstalled\":true,\"createTime\":\"s-createtime\",\"customer\":\"s-customer\",\"displayName\":\"s-displayname\",\"externalUserAllowed\":true,\"importMode\":true,\"importModeExpireTime\":\"s-importmodeexpiretime\",\"lastActiveTime\":\"s-lastactivetime\",\"membershipCount\":{\"joinedDirectHumanUserCount\":7,\"joinedGroupCount\":7},\"name\":\"s-name\",\"permissionSettings\":{},\"predefinedPermissionSettings\":\"s-predefinedpermissionsettings\",\"singleUserBotDm\":true,\"spaceDetails\":{\"description\":\"s-description\",\"guidelines\":\"s-guidelines\"},\"spaceHistoryState\":\"s-spacehistorystate\",\"spaceThreadingState\":\"s-spacethreadingstate\",\"spaceType\":\"s-spacetype\",\"spaceUri\":\"s-spaceuri\",\"threaded\":true,\"type\":\"s-type\"},\"text\":\"s-text\",\"thread\":{\"name\":\"s-name\",\"threadKey\":\"s-threadkey\"},\"threadReply\":true}",
+  "  B <3277 bytes> {\"accessoryWidgets\":[{\"buttonLis...threadkey\"},\"threadReply\":true}",
   "",
   "  SERVED 200 {\"accessoryWidgets\":[{\"buttonList\":{}}],\"actionResponse\":{\"dialogAction\":{},\"type\":\"s-type\",\"updatedWidget\":{\"widget\":\"s-widget\"},\"url\":\"s-url\"},\"annotations\":[{\"customEmojiMetadata\":{},\"length\":7,\"richLinkMetadata\":{\"richLinkType\":\"s-richlinktype\",\"uri\":\"s-uri\"},\"slashCommand\":{\"commandId\":\"7\",\"commandName\":\"s-commandname\",\"triggersDialog\":true,\"type\":\"s-type\"},\"startIndex\":7,\"type\":\"s-type\",\"userMention\":{\"type\":\"s-type\"}}],\"argumentText\":\"s-argumenttext\",\"attachedGifs\":[{\"uri\":\"s-uri\"}],\"attachment\":[{\"attachmentDataRef\":{\"attachmentUploadToken\":\"s-attachmentuploadtoken\",\"resourceName\":\"s-resourcename\"},\"contentName\":\"s-contentname\",\"contentType\":\"s-contenttype\",\"downloadUri\":\"s-downloaduri\",\"driveDataRef\":{\"driveFileId\":\"s-drivefileid\"},\"name\":\"s-name\",\"source\":\"s-source\",\"thumbnailUri\":\"s-thumbnailuri\"}],\"cards\":[{\"header\":{\"imageStyle\":\"s-imagestyle\",\"imageUrl\":\"s-imageurl\",\"subtitle\":\"s-subtitle\",\"title\":\"s-title\"},\"name\":\"s-name\"}],\"cardsV2\":[{\"card\":{\"displayStyle\":\"s-displaystyle\",\"name\":\"s-name\",\"sectionDividerStyle\":\"s-sectiondividerstyle\"},\"cardId\":\"s-cardid\",\"ownerUser\":{\"avatarUrl\":\"s-avatarurl\",\"displayName\":\"s-displayname\",\"domainId\":\"s-domainid\",\"email\":\"s-email\",\"isAnonymous\":true,\"name\":\"s-name\",\"type\":\"s-type\"}}],\"clientAssignedMessageId\":\"s-clientassignedmessageid\",\"createTime\":\"s-createtime\",\"deleteTime\":\"s-deletetime\",\"deletionMetadata\":{\"deletionType\":\"s-deletiontype\"},\"elements\":{\"citations\":[{\"id\":\"s-id\"}],\"citedSources\":[{\"title\":\"s-title\",\"uri\":\"s-uri\"}]},\"emojiReactionSummaries\":[{\"emoji\":{\"unicode\":\"s-unicode\"},\"reactionCount\":7}],\"fallbackText\":\"s-fallbacktext\",\"formattedText\":\"s-formattedtext\",\"lastUpdateTime\":\"s-lastupdatetime\",\"markupSyntax\":\"s-markupsyntax\",\"matchedUrl\":{\"url\":\"s-url\"},\"name\":\"s-name\",\"privateMessageViewer\":{\"avatarUrl\":\"s-avatarurl\",\"displayName\":\"s-displayname\",\"domainId\":\"s-domainid\",\"email\":\"s-email\",\"isAnonymous\":true,\"name\":\"s-name\",\"type\":\"s-type\"},\"quotedMessageMetadata\":{\"forwardedMetadata\":{\"space\":\"s-space\",\"spaceDisplayName\":\"s-spacedisplayname\"},\"lastUpdateTime\":\"s-lastupdatetime\",\"name\":\"s-name\",\"quoteType\":\"s-quotetype\",\"quotedMessageSnapshot\":{\"formattedText\":\"s-formattedtext\",\"sender\":\"s-sender\",\"text\":\"s-text\"}},\"sender\":{\"avatarUrl\":\"s-avatarurl\",\"displayName\":\"s-displayname\",\"domainId\":\"s-domainid\",\"email\":\"s-email\",\"isAnonymous\":true,\"name\":\"s-name\",\"type\":\"s-type\"},\"silent\":true,\"slashCommand\":{\"commandId\":\"7\"},\"space\":{\"accessSettings\":{\"accessState\":\"s-accessstate\",\"audience\":\"s-audience\"},\"adminInstalled\":true,\"createTime\":\"s-createtime\",\"customer\":\"s-customer\",\"displayName\":\"s-displayname\",\"externalUserAllowed\":true,\"importMode\":true,\"importModeExpireTime\":\"s-importmodeexpiretime\",\"lastActiveTime\":\"s-lastactivetime\",\"membershipCount\":{\"joinedDirectHumanUserCount\":7,\"joinedGroupCount\":7},\"name\":\"s-name\",\"permissionSettings\":{},\"predefinedPermissionSettings\":\"s-predefinedpermissionsettings\",\"singleUserBotDm\":true,\"spaceDetails\":{\"description\":\"s-description\",\"guidelines\":\"s-guidelines\"},\"spaceHistoryState\":\"s-spacehistorystate\",\"spaceThreadingState\":\"s-spacethreadingstate\",\"spaceType\":\"s-spacetype\",\"spaceUri\":\"s-spaceuri\",\"threaded\":true,\"type\":\"s-type\"},\"text\":\"s-text\",\"thread\":{\"name\":\"s-name\",\"threadKey\":\"s-threadkey\"},\"threadReply\":true}",
   "OUT: {\"accessoryWidgets\":[{\"buttonList\":{}}],\"actionResponse\":{\"dialogAction\":{},\"type\":\"s-type\",\"updatedWidget\":{\"widget\":\"s-widget\"},\"url\":\"s-url\"},\"annotations\":[{\"customEmojiMetadata\":{},\"length\":7,\"richLinkMetadata\":{\"richLinkType\":\"s-richlinktype\",\"uri\":\"s-uri\"},\"slashCommand\":{\"commandId\":\"7\",\"commandName\":\"s-commandname\",\"triggersDialog\":true,\"type\":\"s-type\"},\"startIndex\":7,\"type\":\"s-type\",\"userMention\":{\"type\":\"s-type\"}}],\"argumentText\":\"s-argumenttext\",\"attachedGifs\":[{\"uri\":\"s-uri\"}],\"attachment\":[{\"attachmentDataRef\":{\"attachmentUploadToken\":\"s-attachmentuploadtoken\",\"resourceName\":\"s-resourcename\"},\"contentName\":\"s-contentname\",\"contentType\":\"s-contenttype\",\"downloadUri\":\"s-downloaduri\",\"driveDataRef\":{\"driveFileId\":\"s-drivefileid\"},\"name\":\"s-name\",\"source\":\"s-source\",\"thumbnailUri\":\"s-thumbnailuri\"}],\"cards\":[{\"header\":{\"imageStyle\":\"s-imagestyle\",\"imageUrl\":\"s-imageurl\",\"subtitle\":\"s-subtitle\",\"title\":\"s-title\"},\"name\":\"s-name\"}],\"cardsV2\":[{\"card\":{\"displayStyle\":\"s-displaystyle\",\"name\":\"s-name\",\"sectionDividerStyle\":\"s-sectiondividerstyle\"},\"cardId\":\"s-cardid\",\"ownerUser\":{\"avatarUrl\":\"s-avatarurl\",\"displayName\":\"s-displayname\",\"domainId\":\"s-domainid\",\"email\":\"s-email\",\"isAnonymous\":true,\"name\":\"s-name\",\"type\":\"s-type\"}}],\"clientAssignedMessageId\":\"s-clientassignedmessageid\",\"createTime\":\"s-createtime\",\"deleteTime\":\"s-deletetime\",\"deletionMetadata\":{\"deletionType\":\"s-deletiontype\"},\"elements\":{\"citations\":[{\"id\":\"s-id\"}],\"citedSources\":[{\"title\":\"s-title\",\"uri\":\"s-uri\"}]},\"emojiReactionSummaries\":[{\"emoji\":{\"unicode\":\"s-unicode\"},\"reactionCount\":7}],\"fallbackText\":\"s-fallbacktext\",\"formattedText\":\"s-formattedtext\",\"lastUpdateTime\":\"s-lastupdatetime\",\"markupSyntax\":\"s-markupsyntax\",\"matchedUrl\":{\"url\":\"s-url\"},\"name\":\"s-name\",\"privateMessageViewer\":{\"avatarUrl\":\"s-avatarurl\",\"displayName\":\"s-displayname\",\"domainId\":\"s-domainid\",\"email\":\"s-email\",\"isAnonymous\":true,\"name\":\"s-name\",\"type\":\"s-type\"},\"quotedMessageMetadata\":{\"forwardedMetadata\":{\"space\":\"s-space\",\"spaceDisplayName\":\"s-spacedisplayname\"},\"lastUpdateTime\":\"s-lastupdatetime\",\"name\":\"s-name\",\"quoteType\":\"s-quotetype\",\"quotedMessageSnapshot\":{\"formattedText\":\"s-formattedtext\",\"sender\":\"s-sender\",\"text\":\"s-text\"}},\"sender\":{\"avatarUrl\":\"s-avatarurl\",\"displayName\":\"s-displayname\",\"domainId\":\"s-domainid\",\"email\":\"s-email\",\"isAnonymous\":true,\"name\":\"s-name\",\"type\":\"s-type\"},\"silent\":true,\"slashCommand\":{\"commandId\":\"7\"},\"space\":{\"accessSettings\":{\"accessState\":\"s-accessstate\",\"audience\":\"s-audience\"},\"adminInstalled\":true,\"createTime\":\"s-createtime\",\"customer\":\"s-customer\",\"displayName\":\"s-displayname\",\"externalUserAllowed\":true,\"importMode\":true,\"importModeExpireTime\":\"s-importmodeexpiretime\",\"lastActiveTime\":\"s-lastactivetime\",\"membershipCount\":{\"joinedDirectHumanUserCount\":7,\"joinedGroupCount\":7},\"name\":\"s-name\",\"permissionSettings\":{},\"predefinedPermissionSettings\":\"s-predefinedpermissionsettings\",\"singleUserBotDm\":true,\"spaceDetails\":{\"description\":\"s-description\",\"guidelines\":\"s-guidelines\"},\"spaceHistoryState\":\"s-spacehistorystate\",\"spaceThreadingState\":\"s-spacethreadingstate\",\"spaceType\":\"s-spacetype\",\"spaceUri\":\"s-spaceuri\",\"threaded\":true,\"type\":\"s-type\"},\"text\":\"s-text\",\"thread\":{\"name\":\"s-name\",\"threadKey\":\"s-threadkey\"},\"threadReply\":true}",
@@ -625,10 +976,10 @@ test "Go's chat.spaces.messages.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_28)
+  gv_compare(gv_log_of(f), GO_38)
 }
 
-const GO_29: List[Str] = [
+const GO_39: List[Str] = [
   "CALL chat.spaces.messages.replaceCards",
   "REQ POST https://chat.googleapis.com/v1/id1/%20x:replaceCards?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -647,10 +998,10 @@ test "Go's chat.spaces.messages.replaceCards" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_29)
+  gv_compare(gv_log_of(f), GO_39)
 }
 
-const GO_30: List[Str] = [
+const GO_40: List[Str] = [
   "CALL chat.spaces.messages.search",
   "REQ POST https://chat.googleapis.com/v1/id1/%20x/messages:search?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -669,14 +1020,54 @@ test "Go's chat.spaces.messages.search" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_30)
+  gv_compare(gv_log_of(f), GO_40)
 }
 
-const GO_31: List[Str] = [
+const GO_41: List[Str] = [
+  "CALL chat.spaces.messages.search pages",
+  "REQ POST https://chat.googleapis.com/v1/id1/%20x/messages:search?alt=json&fields=kind%2Cid&prettyPrint=false",
+  "  H content-type=application/json | x-extra=v1",
+  "  B {\"filter\":\"s-filter\",\"markupSyntax\":\"s-markupsyntax\",\"orderBy\":\"s-orderby\",\"pageSize\":7,\"pageToken\":\"s-pagetoken\",\"view\":\"s-view\"}",
+  "",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"results\":[{\"message\":{\"argumentText\":\"s-argumenttext\",\"clientAssignedMessageId\":\"s-clientassignedmessageid\",\"createTime\":\"s-createtime\",\"deleteTime\":\"s-deletetime\",\"fallbackText\":\"s-fallbacktext\",\"formattedText\":\"s-formattedtext\",\"lastUpdateTime\":\"s-lastupdatetime\",\"markupSyntax\":\"s-markupsyntax\",\"name\":\"s-name\",\"silent\":true,\"text\":\"s-text\",\"threadReply\":true},\"read\":true,\"spaceMuteSetting\":\"s-spacemutesetting\"}]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"results\":[{\"message\":{\"argumentText\":\"s-argumenttext\",\"clientAssignedMessageId\":\"s-clientassignedmessageid\",\"createTime\":\"s-createtime\",\"deleteTime\":\"s-deletetime\",\"fallbackText\":\"s-fallbacktext\",\"formattedText\":\"s-formattedtext\",\"lastUpdateTime\":\"s-lastupdatetime\",\"markupSyntax\":\"s-markupsyntax\",\"name\":\"s-name\",\"silent\":true,\"text\":\"s-text\",\"threadReply\":true},\"read\":true,\"spaceMuteSetting\":\"s-spacemutesetting\"}]}",
+  "REQ POST https://chat.googleapis.com/v1/id1/%20x/messages:search?alt=json&fields=kind%2Cid&prettyPrint=false",
+  "  H content-type=application/json | x-extra=v1",
+  "  B {\"filter\":\"s-filter\",\"markupSyntax\":\"s-markupsyntax\",\"orderBy\":\"s-orderby\",\"pageSize\":7,\"pageToken\":\"s-nextpagetoken\",\"view\":\"s-view\"}",
+  "",
+  "  SERVED 200 {\"results\":[{\"message\":{\"argumentText\":\"s-argumenttext\",\"clientAssignedMessageId\":\"s-clientassignedmessageid\",\"createTime\":\"s-createtime\",\"deleteTime\":\"s-deletetime\",\"fallbackText\":\"s-fallbacktext\",\"formattedText\":\"s-formattedtext\",\"lastUpdateTime\":\"s-lastupdatetime\",\"markupSyntax\":\"s-markupsyntax\",\"name\":\"s-name\",\"silent\":true,\"text\":\"s-text\",\"threadReply\":true},\"read\":true,\"spaceMuteSetting\":\"s-spacemutesetting\"}]}",
+  "OUT: {\"results\":[{\"message\":{\"argumentText\":\"s-argumenttext\",\"clientAssignedMessageId\":\"s-clientassignedmessageid\",\"createTime\":\"s-createtime\",\"deleteTime\":\"s-deletetime\",\"fallbackText\":\"s-fallbacktext\",\"formattedText\":\"s-formattedtext\",\"lastUpdateTime\":\"s-lastupdatetime\",\"markupSyntax\":\"s-markupsyntax\",\"name\":\"s-name\",\"silent\":true,\"text\":\"s-text\",\"threadReply\":true},\"read\":true,\"spaceMuteSetting\":\"s-spacemutesetting\"}]}",
+  "OUT: ok",
+]
+
+test "Go's chat.spaces.messages.search pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"results\":[{\"message\":{\"argumentText\":\"s-argumenttext\",\"clientAssignedMessageId\":\"s-clientassignedmessageid\",\"createTime\":\"s-createtime\",\"deleteTime\":\"s-deletetime\",\"fallbackText\":\"s-fallbacktext\",\"formattedText\":\"s-formattedtext\",\"lastUpdateTime\":\"s-lastupdatetime\",\"markupSyntax\":\"s-markupsyntax\",\"name\":\"s-name\",\"silent\":true,\"text\":\"s-text\",\"threadReply\":true},\"read\":true,\"spaceMuteSetting\":\"s-spacemutesetting\"}]}")
+  gv_queue(f, "{\"results\":[{\"message\":{\"argumentText\":\"s-argumenttext\",\"clientAssignedMessageId\":\"s-clientassignedmessageid\",\"createTime\":\"s-createtime\",\"deleteTime\":\"s-deletetime\",\"fallbackText\":\"s-fallbacktext\",\"formattedText\":\"s-formattedtext\",\"lastUpdateTime\":\"s-lastupdatetime\",\"markupSyntax\":\"s-markupsyntax\",\"name\":\"s-name\",\"silent\":true,\"text\":\"s-text\",\"threadReply\":true},\"read\":true,\"spaceMuteSetting\":\"s-spacemutesetting\"}]}")
+  gv_note(f, "CALL chat.spaces.messages.search pages")
+  var p = svc.spaces.messages.search_pages("id1/ x", json.decode_str[SearchMessagesRequest]("{\"filter\":\"s-filter\",\"markupSyntax\":\"s-markupsyntax\",\"orderBy\":\"s-orderby\",\"pageSize\":7,\"pageToken\":\"s-pagetoken\",\"view\":\"s-view\"}") ?? e => fault(e.display()), options: SpacesMessagesSearchOptions{fields: ["kind", "id"], headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_41)
+}
+
+const GO_42: List[Str] = [
   "CALL chat.spaces.messages.update",
   "REQ PUT https://chat.googleapis.com/v1/id1/%20x?allowMissing=true&alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"accessoryWidgets\":[{\"buttonList\":{}}],\"actionResponse\":{\"dialogAction\":{},\"type\":\"s-type\",\"updatedWidget\":{\"widget\":\"s-widget\"},\"url\":\"s-url\"},\"annotations\":[{\"customEmojiMetadata\":{},\"length\":7,\"richLinkMetadata\":{\"richLinkType\":\"s-richlinktype\",\"uri\":\"s-uri\"},\"slashCommand\":{\"commandId\":\"7\",\"commandName\":\"s-commandname\",\"triggersDialog\":true,\"type\":\"s-type\"},\"startIndex\":7,\"type\":\"s-type\",\"userMention\":{\"type\":\"s-type\"}}],\"argumentText\":\"s-argumenttext\",\"attachedGifs\":[{\"uri\":\"s-uri\"}],\"attachment\":[{\"attachmentDataRef\":{\"attachmentUploadToken\":\"s-attachmentuploadtoken\",\"resourceName\":\"s-resourcename\"},\"contentName\":\"s-contentname\",\"contentType\":\"s-contenttype\",\"downloadUri\":\"s-downloaduri\",\"driveDataRef\":{\"driveFileId\":\"s-drivefileid\"},\"name\":\"s-name\",\"source\":\"s-source\",\"thumbnailUri\":\"s-thumbnailuri\"}],\"cards\":[{\"header\":{\"imageStyle\":\"s-imagestyle\",\"imageUrl\":\"s-imageurl\",\"subtitle\":\"s-subtitle\",\"title\":\"s-title\"},\"name\":\"s-name\"}],\"cardsV2\":[{\"card\":{\"displayStyle\":\"s-displaystyle\",\"name\":\"s-name\",\"sectionDividerStyle\":\"s-sectiondividerstyle\"},\"cardId\":\"s-cardid\",\"ownerUser\":{\"avatarUrl\":\"s-avatarurl\",\"displayName\":\"s-displayname\",\"domainId\":\"s-domainid\",\"email\":\"s-email\",\"isAnonymous\":true,\"name\":\"s-name\",\"type\":\"s-type\"}}],\"clientAssignedMessageId\":\"s-clientassignedmessageid\",\"createTime\":\"s-createtime\",\"deleteTime\":\"s-deletetime\",\"deletionMetadata\":{\"deletionType\":\"s-deletiontype\"},\"elements\":{\"citations\":[{\"id\":\"s-id\"}],\"citedSources\":[{\"title\":\"s-title\",\"uri\":\"s-uri\"}]},\"emojiReactionSummaries\":[{\"emoji\":{\"unicode\":\"s-unicode\"},\"reactionCount\":7}],\"fallbackText\":\"s-fallbacktext\",\"formattedText\":\"s-formattedtext\",\"lastUpdateTime\":\"s-lastupdatetime\",\"markupSyntax\":\"s-markupsyntax\",\"matchedUrl\":{\"url\":\"s-url\"},\"name\":\"s-name\",\"privateMessageViewer\":{\"avatarUrl\":\"s-avatarurl\",\"displayName\":\"s-displayname\",\"domainId\":\"s-domainid\",\"email\":\"s-email\",\"isAnonymous\":true,\"name\":\"s-name\",\"type\":\"s-type\"},\"quotedMessageMetadata\":{\"forwardedMetadata\":{\"space\":\"s-space\",\"spaceDisplayName\":\"s-spacedisplayname\"},\"lastUpdateTime\":\"s-lastupdatetime\",\"name\":\"s-name\",\"quoteType\":\"s-quotetype\",\"quotedMessageSnapshot\":{\"formattedText\":\"s-formattedtext\",\"sender\":\"s-sender\",\"text\":\"s-text\"}},\"sender\":{\"avatarUrl\":\"s-avatarurl\",\"displayName\":\"s-displayname\",\"domainId\":\"s-domainid\",\"email\":\"s-email\",\"isAnonymous\":true,\"name\":\"s-name\",\"type\":\"s-type\"},\"silent\":true,\"slashCommand\":{\"commandId\":\"7\"},\"space\":{\"accessSettings\":{\"accessState\":\"s-accessstate\",\"audience\":\"s-audience\"},\"adminInstalled\":true,\"createTime\":\"s-createtime\",\"customer\":\"s-customer\",\"displayName\":\"s-displayname\",\"externalUserAllowed\":true,\"importMode\":true,\"importModeExpireTime\":\"s-importmodeexpiretime\",\"lastActiveTime\":\"s-lastactivetime\",\"membershipCount\":{\"joinedDirectHumanUserCount\":7,\"joinedGroupCount\":7},\"name\":\"s-name\",\"permissionSettings\":{},\"predefinedPermissionSettings\":\"s-predefinedpermissionsettings\",\"singleUserBotDm\":true,\"spaceDetails\":{\"description\":\"s-description\",\"guidelines\":\"s-guidelines\"},\"spaceHistoryState\":\"s-spacehistorystate\",\"spaceThreadingState\":\"s-spacethreadingstate\",\"spaceType\":\"s-spacetype\",\"spaceUri\":\"s-spaceuri\",\"threaded\":true,\"type\":\"s-type\"},\"text\":\"s-text\",\"thread\":{\"name\":\"s-name\",\"threadKey\":\"s-threadkey\"},\"threadReply\":true}",
+  "  B <3277 bytes> {\"accessoryWidgets\":[{\"buttonLis...threadkey\"},\"threadReply\":true}",
   "",
   "  SERVED 200 {\"accessoryWidgets\":[{\"buttonList\":{}}],\"actionResponse\":{\"dialogAction\":{},\"type\":\"s-type\",\"updatedWidget\":{\"widget\":\"s-widget\"},\"url\":\"s-url\"},\"annotations\":[{\"customEmojiMetadata\":{},\"length\":7,\"richLinkMetadata\":{\"richLinkType\":\"s-richlinktype\",\"uri\":\"s-uri\"},\"slashCommand\":{\"commandId\":\"7\",\"commandName\":\"s-commandname\",\"triggersDialog\":true,\"type\":\"s-type\"},\"startIndex\":7,\"type\":\"s-type\",\"userMention\":{\"type\":\"s-type\"}}],\"argumentText\":\"s-argumenttext\",\"attachedGifs\":[{\"uri\":\"s-uri\"}],\"attachment\":[{\"attachmentDataRef\":{\"attachmentUploadToken\":\"s-attachmentuploadtoken\",\"resourceName\":\"s-resourcename\"},\"contentName\":\"s-contentname\",\"contentType\":\"s-contenttype\",\"downloadUri\":\"s-downloaduri\",\"driveDataRef\":{\"driveFileId\":\"s-drivefileid\"},\"name\":\"s-name\",\"source\":\"s-source\",\"thumbnailUri\":\"s-thumbnailuri\"}],\"cards\":[{\"header\":{\"imageStyle\":\"s-imagestyle\",\"imageUrl\":\"s-imageurl\",\"subtitle\":\"s-subtitle\",\"title\":\"s-title\"},\"name\":\"s-name\"}],\"cardsV2\":[{\"card\":{\"displayStyle\":\"s-displaystyle\",\"name\":\"s-name\",\"sectionDividerStyle\":\"s-sectiondividerstyle\"},\"cardId\":\"s-cardid\",\"ownerUser\":{\"avatarUrl\":\"s-avatarurl\",\"displayName\":\"s-displayname\",\"domainId\":\"s-domainid\",\"email\":\"s-email\",\"isAnonymous\":true,\"name\":\"s-name\",\"type\":\"s-type\"}}],\"clientAssignedMessageId\":\"s-clientassignedmessageid\",\"createTime\":\"s-createtime\",\"deleteTime\":\"s-deletetime\",\"deletionMetadata\":{\"deletionType\":\"s-deletiontype\"},\"elements\":{\"citations\":[{\"id\":\"s-id\"}],\"citedSources\":[{\"title\":\"s-title\",\"uri\":\"s-uri\"}]},\"emojiReactionSummaries\":[{\"emoji\":{\"unicode\":\"s-unicode\"},\"reactionCount\":7}],\"fallbackText\":\"s-fallbacktext\",\"formattedText\":\"s-formattedtext\",\"lastUpdateTime\":\"s-lastupdatetime\",\"markupSyntax\":\"s-markupsyntax\",\"matchedUrl\":{\"url\":\"s-url\"},\"name\":\"s-name\",\"privateMessageViewer\":{\"avatarUrl\":\"s-avatarurl\",\"displayName\":\"s-displayname\",\"domainId\":\"s-domainid\",\"email\":\"s-email\",\"isAnonymous\":true,\"name\":\"s-name\",\"type\":\"s-type\"},\"quotedMessageMetadata\":{\"forwardedMetadata\":{\"space\":\"s-space\",\"spaceDisplayName\":\"s-spacedisplayname\"},\"lastUpdateTime\":\"s-lastupdatetime\",\"name\":\"s-name\",\"quoteType\":\"s-quotetype\",\"quotedMessageSnapshot\":{\"formattedText\":\"s-formattedtext\",\"sender\":\"s-sender\",\"text\":\"s-text\"}},\"sender\":{\"avatarUrl\":\"s-avatarurl\",\"displayName\":\"s-displayname\",\"domainId\":\"s-domainid\",\"email\":\"s-email\",\"isAnonymous\":true,\"name\":\"s-name\",\"type\":\"s-type\"},\"silent\":true,\"slashCommand\":{\"commandId\":\"7\"},\"space\":{\"accessSettings\":{\"accessState\":\"s-accessstate\",\"audience\":\"s-audience\"},\"adminInstalled\":true,\"createTime\":\"s-createtime\",\"customer\":\"s-customer\",\"displayName\":\"s-displayname\",\"externalUserAllowed\":true,\"importMode\":true,\"importModeExpireTime\":\"s-importmodeexpiretime\",\"lastActiveTime\":\"s-lastactivetime\",\"membershipCount\":{\"joinedDirectHumanUserCount\":7,\"joinedGroupCount\":7},\"name\":\"s-name\",\"permissionSettings\":{},\"predefinedPermissionSettings\":\"s-predefinedpermissionsettings\",\"singleUserBotDm\":true,\"spaceDetails\":{\"description\":\"s-description\",\"guidelines\":\"s-guidelines\"},\"spaceHistoryState\":\"s-spacehistorystate\",\"spaceThreadingState\":\"s-spacethreadingstate\",\"spaceType\":\"s-spacetype\",\"spaceUri\":\"s-spaceuri\",\"threaded\":true,\"type\":\"s-type\"},\"text\":\"s-text\",\"thread\":{\"name\":\"s-name\",\"threadKey\":\"s-threadkey\"},\"threadReply\":true}",
   "OUT: {\"accessoryWidgets\":[{\"buttonList\":{}}],\"actionResponse\":{\"dialogAction\":{},\"type\":\"s-type\",\"updatedWidget\":{\"widget\":\"s-widget\"},\"url\":\"s-url\"},\"annotations\":[{\"customEmojiMetadata\":{},\"length\":7,\"richLinkMetadata\":{\"richLinkType\":\"s-richlinktype\",\"uri\":\"s-uri\"},\"slashCommand\":{\"commandId\":\"7\",\"commandName\":\"s-commandname\",\"triggersDialog\":true,\"type\":\"s-type\"},\"startIndex\":7,\"type\":\"s-type\",\"userMention\":{\"type\":\"s-type\"}}],\"argumentText\":\"s-argumenttext\",\"attachedGifs\":[{\"uri\":\"s-uri\"}],\"attachment\":[{\"attachmentDataRef\":{\"attachmentUploadToken\":\"s-attachmentuploadtoken\",\"resourceName\":\"s-resourcename\"},\"contentName\":\"s-contentname\",\"contentType\":\"s-contenttype\",\"downloadUri\":\"s-downloaduri\",\"driveDataRef\":{\"driveFileId\":\"s-drivefileid\"},\"name\":\"s-name\",\"source\":\"s-source\",\"thumbnailUri\":\"s-thumbnailuri\"}],\"cards\":[{\"header\":{\"imageStyle\":\"s-imagestyle\",\"imageUrl\":\"s-imageurl\",\"subtitle\":\"s-subtitle\",\"title\":\"s-title\"},\"name\":\"s-name\"}],\"cardsV2\":[{\"card\":{\"displayStyle\":\"s-displaystyle\",\"name\":\"s-name\",\"sectionDividerStyle\":\"s-sectiondividerstyle\"},\"cardId\":\"s-cardid\",\"ownerUser\":{\"avatarUrl\":\"s-avatarurl\",\"displayName\":\"s-displayname\",\"domainId\":\"s-domainid\",\"email\":\"s-email\",\"isAnonymous\":true,\"name\":\"s-name\",\"type\":\"s-type\"}}],\"clientAssignedMessageId\":\"s-clientassignedmessageid\",\"createTime\":\"s-createtime\",\"deleteTime\":\"s-deletetime\",\"deletionMetadata\":{\"deletionType\":\"s-deletiontype\"},\"elements\":{\"citations\":[{\"id\":\"s-id\"}],\"citedSources\":[{\"title\":\"s-title\",\"uri\":\"s-uri\"}]},\"emojiReactionSummaries\":[{\"emoji\":{\"unicode\":\"s-unicode\"},\"reactionCount\":7}],\"fallbackText\":\"s-fallbacktext\",\"formattedText\":\"s-formattedtext\",\"lastUpdateTime\":\"s-lastupdatetime\",\"markupSyntax\":\"s-markupsyntax\",\"matchedUrl\":{\"url\":\"s-url\"},\"name\":\"s-name\",\"privateMessageViewer\":{\"avatarUrl\":\"s-avatarurl\",\"displayName\":\"s-displayname\",\"domainId\":\"s-domainid\",\"email\":\"s-email\",\"isAnonymous\":true,\"name\":\"s-name\",\"type\":\"s-type\"},\"quotedMessageMetadata\":{\"forwardedMetadata\":{\"space\":\"s-space\",\"spaceDisplayName\":\"s-spacedisplayname\"},\"lastUpdateTime\":\"s-lastupdatetime\",\"name\":\"s-name\",\"quoteType\":\"s-quotetype\",\"quotedMessageSnapshot\":{\"formattedText\":\"s-formattedtext\",\"sender\":\"s-sender\",\"text\":\"s-text\"}},\"sender\":{\"avatarUrl\":\"s-avatarurl\",\"displayName\":\"s-displayname\",\"domainId\":\"s-domainid\",\"email\":\"s-email\",\"isAnonymous\":true,\"name\":\"s-name\",\"type\":\"s-type\"},\"silent\":true,\"slashCommand\":{\"commandId\":\"7\"},\"space\":{\"accessSettings\":{\"accessState\":\"s-accessstate\",\"audience\":\"s-audience\"},\"adminInstalled\":true,\"createTime\":\"s-createtime\",\"customer\":\"s-customer\",\"displayName\":\"s-displayname\",\"externalUserAllowed\":true,\"importMode\":true,\"importModeExpireTime\":\"s-importmodeexpiretime\",\"lastActiveTime\":\"s-lastactivetime\",\"membershipCount\":{\"joinedDirectHumanUserCount\":7,\"joinedGroupCount\":7},\"name\":\"s-name\",\"permissionSettings\":{},\"predefinedPermissionSettings\":\"s-predefinedpermissionsettings\",\"singleUserBotDm\":true,\"spaceDetails\":{\"description\":\"s-description\",\"guidelines\":\"s-guidelines\"},\"spaceHistoryState\":\"s-spacehistorystate\",\"spaceThreadingState\":\"s-spacethreadingstate\",\"spaceType\":\"s-spacetype\",\"spaceUri\":\"s-spaceuri\",\"threaded\":true,\"type\":\"s-type\"},\"text\":\"s-text\",\"thread\":{\"name\":\"s-name\",\"threadKey\":\"s-threadkey\"},\"threadReply\":true}",
@@ -691,10 +1082,10 @@ test "Go's chat.spaces.messages.update" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_31)
+  gv_compare(gv_log_of(f), GO_42)
 }
 
-const GO_32: List[Str] = [
+const GO_43: List[Str] = [
   "CALL chat.spaces.messages.attachments.get",
   "REQ GET https://chat.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -712,10 +1103,10 @@ test "Go's chat.spaces.messages.attachments.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_32)
+  gv_compare(gv_log_of(f), GO_43)
 }
 
-const GO_33: List[Str] = [
+const GO_44: List[Str] = [
   "CALL chat.spaces.messages.reactions.create",
   "REQ POST https://chat.googleapis.com/v1/id1/%20x/reactions?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -734,10 +1125,10 @@ test "Go's chat.spaces.messages.reactions.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_33)
+  gv_compare(gv_log_of(f), GO_44)
 }
 
-const GO_34: List[Str] = [
+const GO_45: List[Str] = [
   "CALL chat.spaces.messages.reactions.delete",
   "REQ DELETE https://chat.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -755,10 +1146,10 @@ test "Go's chat.spaces.messages.reactions.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_34)
+  gv_compare(gv_log_of(f), GO_45)
 }
 
-const GO_35: List[Str] = [
+const GO_46: List[Str] = [
   "CALL chat.spaces.messages.reactions.list",
   "REQ GET https://chat.googleapis.com/v1/id1/%20x/reactions?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -776,10 +1167,48 @@ test "Go's chat.spaces.messages.reactions.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_35)
+  gv_compare(gv_log_of(f), GO_46)
 }
 
-const GO_36: List[Str] = [
+const GO_47: List[Str] = [
+  "CALL chat.spaces.messages.reactions.list pages",
+  "REQ GET https://chat.googleapis.com/v1/id1/%20x/reactions?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"reactions\":[{\"emoji\":{\"unicode\":\"s-unicode\"},\"name\":\"s-name\",\"user\":{\"avatarUrl\":\"s-avatarurl\",\"displayName\":\"s-displayname\",\"domainId\":\"s-domainid\",\"email\":\"s-email\",\"isAnonymous\":true,\"name\":\"s-name\",\"type\":\"s-type\"}}]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"reactions\":[{\"emoji\":{\"unicode\":\"s-unicode\"},\"name\":\"s-name\",\"user\":{\"avatarUrl\":\"s-avatarurl\",\"displayName\":\"s-displayname\",\"domainId\":\"s-domainid\",\"email\":\"s-email\",\"isAnonymous\":true,\"name\":\"s-name\",\"type\":\"s-type\"}}]}",
+  "REQ GET https://chat.googleapis.com/v1/id1/%20x/reactions?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"reactions\":[{\"emoji\":{\"unicode\":\"s-unicode\"},\"name\":\"s-name\",\"user\":{\"avatarUrl\":\"s-avatarurl\",\"displayName\":\"s-displayname\",\"domainId\":\"s-domainid\",\"email\":\"s-email\",\"isAnonymous\":true,\"name\":\"s-name\",\"type\":\"s-type\"}}]}",
+  "OUT: {\"reactions\":[{\"emoji\":{\"unicode\":\"s-unicode\"},\"name\":\"s-name\",\"user\":{\"avatarUrl\":\"s-avatarurl\",\"displayName\":\"s-displayname\",\"domainId\":\"s-domainid\",\"email\":\"s-email\",\"isAnonymous\":true,\"name\":\"s-name\",\"type\":\"s-type\"}}]}",
+  "OUT: ok",
+]
+
+test "Go's chat.spaces.messages.reactions.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"reactions\":[{\"emoji\":{\"unicode\":\"s-unicode\"},\"name\":\"s-name\",\"user\":{\"avatarUrl\":\"s-avatarurl\",\"displayName\":\"s-displayname\",\"domainId\":\"s-domainid\",\"email\":\"s-email\",\"isAnonymous\":true,\"name\":\"s-name\",\"type\":\"s-type\"}}]}")
+  gv_queue(f, "{\"reactions\":[{\"emoji\":{\"unicode\":\"s-unicode\"},\"name\":\"s-name\",\"user\":{\"avatarUrl\":\"s-avatarurl\",\"displayName\":\"s-displayname\",\"domainId\":\"s-domainid\",\"email\":\"s-email\",\"isAnonymous\":true,\"name\":\"s-name\",\"type\":\"s-type\"}}]}")
+  gv_note(f, "CALL chat.spaces.messages.reactions.list pages")
+  var p = svc.spaces.messages.reactions.list_pages("id1/ x", options: SpacesMessagesReactionsListOptions{filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_47)
+}
+
+const GO_48: List[Str] = [
   "CALL chat.spaces.spaceEvents.get",
   "REQ GET https://chat.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -797,10 +1226,10 @@ test "Go's chat.spaces.spaceEvents.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_36)
+  gv_compare(gv_log_of(f), GO_48)
 }
 
-const GO_37: List[Str] = [
+const GO_49: List[Str] = [
   "CALL chat.spaces.spaceEvents.list",
   "REQ GET https://chat.googleapis.com/v1/id1/%20x/spaceEvents?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -818,10 +1247,48 @@ test "Go's chat.spaces.spaceEvents.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_37)
+  gv_compare(gv_log_of(f), GO_49)
 }
 
-const GO_38: List[Str] = [
+const GO_50: List[Str] = [
+  "CALL chat.spaces.spaceEvents.list pages",
+  "REQ GET https://chat.googleapis.com/v1/id1/%20x/spaceEvents?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"spaceEvents\":[{\"eventTime\":\"s-eventtime\",\"eventType\":\"s-eventtype\",\"membershipBatchCreatedEventData\":{},\"membershipBatchDeletedEventData\":{},\"membershipBatchUpdatedEventData\":{},\"membershipCreatedEventData\":{},\"membershipDeletedEventData\":{},\"membershipUpdatedEventData\":{},\"messageBatchCreatedEventData\":{},\"messageBatchDeletedEventData\":{},\"messageBatchUpdatedEventData\":{},\"messageCreatedEventData\":{},\"messageDeletedEventData\":{},\"messageUpdatedEventData\":{},\"name\":\"s-name\",\"reactionBatchCreatedEventData\":{},\"reactionBatchDeletedEventData\":{},\"reactionCreatedEventData\":{},\"reactionDeletedEventData\":{},\"spaceBatchUpdatedEventData\":{},\"spaceUpdatedEventData\":{}}]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"spaceEvents\":[{\"eventTime\":\"s-eventtime\",\"eventType\":\"s-eventtype\",\"membershipBatchCreatedEventData\":{},\"membershipBatchDeletedEventData\":{},\"membershipBatchUpdatedEventData\":{},\"membershipCreatedEventData\":{},\"membershipDeletedEventData\":{},\"membershipUpdatedEventData\":{},\"messageBatchCreatedEventData\":{},\"messageBatchDeletedEventData\":{},\"messageBatchUpdatedEventData\":{},\"messageCreatedEventData\":{},\"messageDeletedEventData\":{},\"messageUpdatedEventData\":{},\"name\":\"s-name\",\"reactionBatchCreatedEventData\":{},\"reactionBatchDeletedEventData\":{},\"reactionCreatedEventData\":{},\"reactionDeletedEventData\":{},\"spaceBatchUpdatedEventData\":{},\"spaceUpdatedEventData\":{}}]}",
+  "REQ GET https://chat.googleapis.com/v1/id1/%20x/spaceEvents?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"spaceEvents\":[{\"eventTime\":\"s-eventtime\",\"eventType\":\"s-eventtype\",\"membershipBatchCreatedEventData\":{},\"membershipBatchDeletedEventData\":{},\"membershipBatchUpdatedEventData\":{},\"membershipCreatedEventData\":{},\"membershipDeletedEventData\":{},\"membershipUpdatedEventData\":{},\"messageBatchCreatedEventData\":{},\"messageBatchDeletedEventData\":{},\"messageBatchUpdatedEventData\":{},\"messageCreatedEventData\":{},\"messageDeletedEventData\":{},\"messageUpdatedEventData\":{},\"name\":\"s-name\",\"reactionBatchCreatedEventData\":{},\"reactionBatchDeletedEventData\":{},\"reactionCreatedEventData\":{},\"reactionDeletedEventData\":{},\"spaceBatchUpdatedEventData\":{},\"spaceUpdatedEventData\":{}}]}",
+  "OUT: {\"spaceEvents\":[{\"eventTime\":\"s-eventtime\",\"eventType\":\"s-eventtype\",\"membershipBatchCreatedEventData\":{},\"membershipBatchDeletedEventData\":{},\"membershipBatchUpdatedEventData\":{},\"membershipCreatedEventData\":{},\"membershipDeletedEventData\":{},\"membershipUpdatedEventData\":{},\"messageBatchCreatedEventData\":{},\"messageBatchDeletedEventData\":{},\"messageBatchUpdatedEventData\":{},\"messageCreatedEventData\":{},\"messageDeletedEventData\":{},\"messageUpdatedEventData\":{},\"name\":\"s-name\",\"reactionBatchCreatedEventData\":{},\"reactionBatchDeletedEventData\":{},\"reactionCreatedEventData\":{},\"reactionDeletedEventData\":{},\"spaceBatchUpdatedEventData\":{},\"spaceUpdatedEventData\":{}}]}",
+  "OUT: ok",
+]
+
+test "Go's chat.spaces.spaceEvents.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"spaceEvents\":[{\"eventTime\":\"s-eventtime\",\"eventType\":\"s-eventtype\",\"membershipBatchCreatedEventData\":{},\"membershipBatchDeletedEventData\":{},\"membershipBatchUpdatedEventData\":{},\"membershipCreatedEventData\":{},\"membershipDeletedEventData\":{},\"membershipUpdatedEventData\":{},\"messageBatchCreatedEventData\":{},\"messageBatchDeletedEventData\":{},\"messageBatchUpdatedEventData\":{},\"messageCreatedEventData\":{},\"messageDeletedEventData\":{},\"messageUpdatedEventData\":{},\"name\":\"s-name\",\"reactionBatchCreatedEventData\":{},\"reactionBatchDeletedEventData\":{},\"reactionCreatedEventData\":{},\"reactionDeletedEventData\":{},\"spaceBatchUpdatedEventData\":{},\"spaceUpdatedEventData\":{}}]}")
+  gv_queue(f, "{\"spaceEvents\":[{\"eventTime\":\"s-eventtime\",\"eventType\":\"s-eventtype\",\"membershipBatchCreatedEventData\":{},\"membershipBatchDeletedEventData\":{},\"membershipBatchUpdatedEventData\":{},\"membershipCreatedEventData\":{},\"membershipDeletedEventData\":{},\"membershipUpdatedEventData\":{},\"messageBatchCreatedEventData\":{},\"messageBatchDeletedEventData\":{},\"messageBatchUpdatedEventData\":{},\"messageCreatedEventData\":{},\"messageDeletedEventData\":{},\"messageUpdatedEventData\":{},\"name\":\"s-name\",\"reactionBatchCreatedEventData\":{},\"reactionBatchDeletedEventData\":{},\"reactionCreatedEventData\":{},\"reactionDeletedEventData\":{},\"spaceBatchUpdatedEventData\":{},\"spaceUpdatedEventData\":{}}]}")
+  gv_note(f, "CALL chat.spaces.spaceEvents.list pages")
+  var p = svc.spaces.space_events.list_pages("id1/ x", options: SpacesSpaceEventsListOptions{filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_50)
+}
+
+const GO_51: List[Str] = [
   "CALL chat.users.availability.get",
   "REQ GET https://chat.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -839,10 +1306,10 @@ test "Go's chat.users.availability.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_38)
+  gv_compare(gv_log_of(f), GO_51)
 }
 
-const GO_39: List[Str] = [
+const GO_52: List[Str] = [
   "CALL chat.users.availability.markAsActive",
   "REQ POST https://chat.googleapis.com/v1/id1/%20x:markAsActive?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -861,10 +1328,10 @@ test "Go's chat.users.availability.markAsActive" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_39)
+  gv_compare(gv_log_of(f), GO_52)
 }
 
-const GO_40: List[Str] = [
+const GO_53: List[Str] = [
   "CALL chat.users.availability.markAsAway",
   "REQ POST https://chat.googleapis.com/v1/id1/%20x:markAsAway?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -883,10 +1350,10 @@ test "Go's chat.users.availability.markAsAway" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_40)
+  gv_compare(gv_log_of(f), GO_53)
 }
 
-const GO_41: List[Str] = [
+const GO_54: List[Str] = [
   "CALL chat.users.availability.markAsDoNotDisturb",
   "REQ POST https://chat.googleapis.com/v1/id1/%20x:markAsDoNotDisturb?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -905,10 +1372,10 @@ test "Go's chat.users.availability.markAsDoNotDisturb" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_41)
+  gv_compare(gv_log_of(f), GO_54)
 }
 
-const GO_42: List[Str] = [
+const GO_55: List[Str] = [
   "CALL chat.users.availability.patch",
   "REQ PATCH https://chat.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
@@ -927,10 +1394,10 @@ test "Go's chat.users.availability.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_42)
+  gv_compare(gv_log_of(f), GO_55)
 }
 
-const GO_43: List[Str] = [
+const GO_56: List[Str] = [
   "CALL chat.users.sections.create",
   "REQ POST https://chat.googleapis.com/v1/id1/%20x/sections?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -949,10 +1416,10 @@ test "Go's chat.users.sections.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_43)
+  gv_compare(gv_log_of(f), GO_56)
 }
 
-const GO_44: List[Str] = [
+const GO_57: List[Str] = [
   "CALL chat.users.sections.delete",
   "REQ DELETE https://chat.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -970,10 +1437,10 @@ test "Go's chat.users.sections.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_44)
+  gv_compare(gv_log_of(f), GO_57)
 }
 
-const GO_45: List[Str] = [
+const GO_58: List[Str] = [
   "CALL chat.users.sections.list",
   "REQ GET https://chat.googleapis.com/v1/id1/%20x/sections?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -991,10 +1458,48 @@ test "Go's chat.users.sections.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_45)
+  gv_compare(gv_log_of(f), GO_58)
 }
 
-const GO_46: List[Str] = [
+const GO_59: List[Str] = [
+  "CALL chat.users.sections.list pages",
+  "REQ GET https://chat.googleapis.com/v1/id1/%20x/sections?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"sections\":[{\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"sortOrder\":7,\"type\":\"s-type\"}]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"sections\":[{\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"sortOrder\":7,\"type\":\"s-type\"}]}",
+  "REQ GET https://chat.googleapis.com/v1/id1/%20x/sections?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"sections\":[{\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"sortOrder\":7,\"type\":\"s-type\"}]}",
+  "OUT: {\"sections\":[{\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"sortOrder\":7,\"type\":\"s-type\"}]}",
+  "OUT: ok",
+]
+
+test "Go's chat.users.sections.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"sections\":[{\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"sortOrder\":7,\"type\":\"s-type\"}]}")
+  gv_queue(f, "{\"sections\":[{\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"sortOrder\":7,\"type\":\"s-type\"}]}")
+  gv_note(f, "CALL chat.users.sections.list pages")
+  var p = svc.users.sections.list_pages("id1/ x", options: UsersSectionsListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_59)
+}
+
+const GO_60: List[Str] = [
   "CALL chat.users.sections.patch",
   "REQ PATCH https://chat.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
@@ -1013,10 +1518,10 @@ test "Go's chat.users.sections.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_46)
+  gv_compare(gv_log_of(f), GO_60)
 }
 
-const GO_47: List[Str] = [
+const GO_61: List[Str] = [
   "CALL chat.users.sections.position",
   "REQ POST https://chat.googleapis.com/v1/id1/%20x:position?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1035,10 +1540,10 @@ test "Go's chat.users.sections.position" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_47)
+  gv_compare(gv_log_of(f), GO_61)
 }
 
-const GO_48: List[Str] = [
+const GO_62: List[Str] = [
   "CALL chat.users.sections.items.list",
   "REQ GET https://chat.googleapis.com/v1/id1/%20x/items?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1056,10 +1561,48 @@ test "Go's chat.users.sections.items.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_48)
+  gv_compare(gv_log_of(f), GO_62)
 }
 
-const GO_49: List[Str] = [
+const GO_63: List[Str] = [
+  "CALL chat.users.sections.items.list pages",
+  "REQ GET https://chat.googleapis.com/v1/id1/%20x/items?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"sectionItems\":[{\"name\":\"s-name\",\"space\":\"s-space\"}]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"sectionItems\":[{\"name\":\"s-name\",\"space\":\"s-space\"}]}",
+  "REQ GET https://chat.googleapis.com/v1/id1/%20x/items?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"sectionItems\":[{\"name\":\"s-name\",\"space\":\"s-space\"}]}",
+  "OUT: {\"sectionItems\":[{\"name\":\"s-name\",\"space\":\"s-space\"}]}",
+  "OUT: ok",
+]
+
+test "Go's chat.users.sections.items.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"sectionItems\":[{\"name\":\"s-name\",\"space\":\"s-space\"}]}")
+  gv_queue(f, "{\"sectionItems\":[{\"name\":\"s-name\",\"space\":\"s-space\"}]}")
+  gv_note(f, "CALL chat.users.sections.items.list pages")
+  var p = svc.users.sections.items.list_pages("id1/ x", options: UsersSectionsItemsListOptions{filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_63)
+}
+
+const GO_64: List[Str] = [
   "CALL chat.users.sections.items.move",
   "REQ POST https://chat.googleapis.com/v1/id1/%20x:move?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1078,10 +1621,10 @@ test "Go's chat.users.sections.items.move" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_49)
+  gv_compare(gv_log_of(f), GO_64)
 }
 
-const GO_50: List[Str] = [
+const GO_65: List[Str] = [
   "CALL chat.users.spaces.getSpaceReadState",
   "REQ GET https://chat.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1099,10 +1642,10 @@ test "Go's chat.users.spaces.getSpaceReadState" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_50)
+  gv_compare(gv_log_of(f), GO_65)
 }
 
-const GO_51: List[Str] = [
+const GO_66: List[Str] = [
   "CALL chat.users.spaces.updateSpaceReadState",
   "REQ PATCH https://chat.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
@@ -1121,10 +1664,10 @@ test "Go's chat.users.spaces.updateSpaceReadState" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_51)
+  gv_compare(gv_log_of(f), GO_66)
 }
 
-const GO_52: List[Str] = [
+const GO_67: List[Str] = [
   "CALL chat.users.spaces.spaceNotificationSetting.get",
   "REQ GET https://chat.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1142,10 +1685,10 @@ test "Go's chat.users.spaces.spaceNotificationSetting.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_52)
+  gv_compare(gv_log_of(f), GO_67)
 }
 
-const GO_53: List[Str] = [
+const GO_68: List[Str] = [
   "CALL chat.users.spaces.spaceNotificationSetting.patch",
   "REQ PATCH https://chat.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
@@ -1164,10 +1707,10 @@ test "Go's chat.users.spaces.spaceNotificationSetting.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_53)
+  gv_compare(gv_log_of(f), GO_68)
 }
 
-const GO_54: List[Str] = [
+const GO_69: List[Str] = [
   "CALL chat.users.spaces.threads.getThreadReadState",
   "REQ GET https://chat.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1185,5 +1728,5 @@ test "Go's chat.users.spaces.threads.getThreadReadState" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_54)
+  gv_compare(gv_log_of(f), GO_69)
 }

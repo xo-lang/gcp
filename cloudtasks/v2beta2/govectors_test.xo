@@ -94,6 +94,44 @@ test "Go's cloudtasks.projects.locations.list" {
 }
 
 const GO_4: List[Str] = [
+  "CALL cloudtasks.projects.locations.list pages",
+  "REQ GET https://cloudtasks.googleapis.com/v2beta2/id1/%20x/locations?alt=json&extraLocationTypes=s-extralocationtypes&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://cloudtasks.googleapis.com/v2beta2/id1/%20x/locations?alt=json&extraLocationTypes=s-extralocationtypes&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}]}",
+  "OUT: {\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}]}",
+  "OUT: ok",
+]
+
+test "Go's cloudtasks.projects.locations.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}]}")
+  gv_note(f, "CALL cloudtasks.projects.locations.list pages")
+  var p = svc.projects.locations.list_pages("id1/ x", options: ProjectsLocationsListOptions{extra_location_types: ["s-extralocationtypes"], filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_4)
+}
+
+const GO_5: List[Str] = [
   "CALL cloudtasks.projects.locations.updateCmekConfig",
   "REQ PATCH https://cloudtasks.googleapis.com/v2beta2/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
@@ -112,10 +150,10 @@ test "Go's cloudtasks.projects.locations.updateCmekConfig" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_4)
+  gv_compare(gv_log_of(f), GO_5)
 }
 
-const GO_5: List[Str] = [
+const GO_6: List[Str] = [
   "CALL cloudtasks.projects.locations.operations.get",
   "REQ GET https://cloudtasks.googleapis.com/v2beta2/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -133,14 +171,14 @@ test "Go's cloudtasks.projects.locations.operations.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_5)
+  gv_compare(gv_log_of(f), GO_6)
 }
 
-const GO_6: List[Str] = [
+const GO_7: List[Str] = [
   "CALL cloudtasks.projects.locations.queues.create",
   "REQ POST https://cloudtasks.googleapis.com/v2beta2/id1/%20x/queues?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"appEngineHttpTarget\":{\"appEngineRoutingOverride\":{\"host\":\"s-host\",\"instance\":\"s-instance\",\"service\":\"s-service\",\"version\":\"s-version\"}},\"httpTarget\":{\"headerOverrides\":[{}],\"httpMethod\":\"s-httpmethod\",\"oauthToken\":{\"scope\":\"s-scope\",\"serviceAccountEmail\":\"s-serviceaccountemail\"},\"oidcToken\":{\"audience\":\"s-audience\",\"serviceAccountEmail\":\"s-serviceaccountemail\"},\"uriOverride\":{\"host\":\"s-host\",\"port\":\"7\",\"scheme\":\"s-scheme\",\"uriOverrideEnforceMode\":\"s-urioverrideenforcemode\"}},\"name\":\"s-name\",\"pullTarget\":{},\"purgeTime\":\"s-purgetime\",\"rateLimits\":{\"maxBurstSize\":7,\"maxConcurrentTasks\":7,\"maxTasksDispatchedPerSecond\":1.5},\"retryConfig\":{\"maxAttempts\":7,\"maxBackoff\":\"s-maxbackoff\",\"maxDoublings\":7,\"maxRetryDuration\":\"s-maxretryduration\",\"minBackoff\":\"s-minbackoff\",\"unlimitedAttempts\":true},\"state\":\"s-state\",\"stats\":{\"concurrentDispatchesCount\":\"7\",\"effectiveExecutionRate\":1.5,\"executedLastMinuteCount\":\"7\",\"oldestEstimatedArrivalTime\":\"s-oldestestimatedarrivaltime\",\"tasksCount\":\"7\"},\"taskTtl\":\"s-taskttl\",\"tombstoneTtl\":\"s-tombstonettl\"}",
+  "  B <1050 bytes> {\"appEngineHttpTarget\":{\"appEngi...tombstoneTtl\":\"s-tombstonettl\"}",
   "",
   "  SERVED 200 {\"appEngineHttpTarget\":{\"appEngineRoutingOverride\":{\"host\":\"s-host\",\"instance\":\"s-instance\",\"service\":\"s-service\",\"version\":\"s-version\"}},\"httpTarget\":{\"headerOverrides\":[{}],\"httpMethod\":\"s-httpmethod\",\"oauthToken\":{\"scope\":\"s-scope\",\"serviceAccountEmail\":\"s-serviceaccountemail\"},\"oidcToken\":{\"audience\":\"s-audience\",\"serviceAccountEmail\":\"s-serviceaccountemail\"},\"uriOverride\":{\"host\":\"s-host\",\"port\":\"7\",\"scheme\":\"s-scheme\",\"uriOverrideEnforceMode\":\"s-urioverrideenforcemode\"}},\"name\":\"s-name\",\"pullTarget\":{},\"purgeTime\":\"s-purgetime\",\"rateLimits\":{\"maxBurstSize\":7,\"maxConcurrentTasks\":7,\"maxTasksDispatchedPerSecond\":1.5},\"retryConfig\":{\"maxAttempts\":7,\"maxBackoff\":\"s-maxbackoff\",\"maxDoublings\":7,\"maxRetryDuration\":\"s-maxretryduration\",\"minBackoff\":\"s-minbackoff\",\"unlimitedAttempts\":true},\"state\":\"s-state\",\"stats\":{\"concurrentDispatchesCount\":\"7\",\"effectiveExecutionRate\":1.5,\"executedLastMinuteCount\":\"7\",\"oldestEstimatedArrivalTime\":\"s-oldestestimatedarrivaltime\",\"tasksCount\":\"7\"},\"taskTtl\":\"s-taskttl\",\"tombstoneTtl\":\"s-tombstonettl\"}",
   "OUT: {\"appEngineHttpTarget\":{\"appEngineRoutingOverride\":{\"host\":\"s-host\",\"instance\":\"s-instance\",\"service\":\"s-service\",\"version\":\"s-version\"}},\"httpTarget\":{\"headerOverrides\":[{}],\"httpMethod\":\"s-httpmethod\",\"oauthToken\":{\"scope\":\"s-scope\",\"serviceAccountEmail\":\"s-serviceaccountemail\"},\"oidcToken\":{\"audience\":\"s-audience\",\"serviceAccountEmail\":\"s-serviceaccountemail\"},\"uriOverride\":{\"host\":\"s-host\",\"port\":\"7\",\"scheme\":\"s-scheme\",\"uriOverrideEnforceMode\":\"s-urioverrideenforcemode\"}},\"name\":\"s-name\",\"pullTarget\":{},\"purgeTime\":\"s-purgetime\",\"rateLimits\":{\"maxBurstSize\":7,\"maxConcurrentTasks\":7,\"maxTasksDispatchedPerSecond\":1.5},\"retryConfig\":{\"maxAttempts\":7,\"maxBackoff\":\"s-maxbackoff\",\"maxDoublings\":7,\"maxRetryDuration\":\"s-maxretryduration\",\"minBackoff\":\"s-minbackoff\",\"unlimitedAttempts\":true},\"state\":\"s-state\",\"stats\":{\"concurrentDispatchesCount\":\"7\",\"effectiveExecutionRate\":1.5,\"executedLastMinuteCount\":\"7\",\"oldestEstimatedArrivalTime\":\"s-oldestestimatedarrivaltime\",\"tasksCount\":\"7\"},\"taskTtl\":\"s-taskttl\",\"tombstoneTtl\":\"s-tombstonettl\"}",
@@ -155,10 +193,10 @@ test "Go's cloudtasks.projects.locations.queues.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_6)
+  gv_compare(gv_log_of(f), GO_7)
 }
 
-const GO_7: List[Str] = [
+const GO_8: List[Str] = [
   "CALL cloudtasks.projects.locations.queues.delete",
   "REQ DELETE https://cloudtasks.googleapis.com/v2beta2/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -176,10 +214,10 @@ test "Go's cloudtasks.projects.locations.queues.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_7)
+  gv_compare(gv_log_of(f), GO_8)
 }
 
-const GO_8: List[Str] = [
+const GO_9: List[Str] = [
   "CALL cloudtasks.projects.locations.queues.get",
   "REQ GET https://cloudtasks.googleapis.com/v2beta2/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&readMask=s-readmask",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -197,10 +235,10 @@ test "Go's cloudtasks.projects.locations.queues.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_8)
+  gv_compare(gv_log_of(f), GO_9)
 }
 
-const GO_9: List[Str] = [
+const GO_10: List[Str] = [
   "CALL cloudtasks.projects.locations.queues.getIamPolicy",
   "REQ POST https://cloudtasks.googleapis.com/v2beta2/id1/%20x:getIamPolicy?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -219,10 +257,10 @@ test "Go's cloudtasks.projects.locations.queues.getIamPolicy" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_9)
+  gv_compare(gv_log_of(f), GO_10)
 }
 
-const GO_10: List[Str] = [
+const GO_11: List[Str] = [
   "CALL cloudtasks.projects.locations.queues.list",
   "REQ GET https://cloudtasks.googleapis.com/v2beta2/id1/%20x/queues?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&readMask=s-readmask",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -240,14 +278,52 @@ test "Go's cloudtasks.projects.locations.queues.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_10)
+  gv_compare(gv_log_of(f), GO_11)
 }
 
-const GO_11: List[Str] = [
+const GO_12: List[Str] = [
+  "CALL cloudtasks.projects.locations.queues.list pages",
+  "REQ GET https://cloudtasks.googleapis.com/v2beta2/id1/%20x/queues?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&readMask=s-readmask",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"queues\":[{\"appEngineHttpTarget\":{},\"httpTarget\":{\"httpMethod\":\"s-httpmethod\"},\"name\":\"s-name\",\"pullTarget\":{},\"purgeTime\":\"s-purgetime\",\"rateLimits\":{\"maxBurstSize\":7,\"maxConcurrentTasks\":7,\"maxTasksDispatchedPerSecond\":1.5},\"retryConfig\":{\"maxAttempts\":7,\"maxBackoff\":\"s-maxbackoff\",\"maxDoublings\":7,\"maxRetryDuration\":\"s-maxretryduration\",\"minBackoff\":\"s-minbackoff\",\"unlimitedAttempts\":true},\"state\":\"s-state\",\"stats\":{\"concurrentDispatchesCount\":\"7\",\"effectiveExecutionRate\":1.5,\"executedLastMinuteCount\":\"7\",\"oldestEstimatedArrivalTime\":\"s-oldestestimatedarrivaltime\",\"tasksCount\":\"7\"},\"taskTtl\":\"s-taskttl\",\"tombstoneTtl\":\"s-tombstonettl\"}]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"queues\":[{\"appEngineHttpTarget\":{},\"httpTarget\":{\"httpMethod\":\"s-httpmethod\"},\"name\":\"s-name\",\"pullTarget\":{},\"purgeTime\":\"s-purgetime\",\"rateLimits\":{\"maxBurstSize\":7,\"maxConcurrentTasks\":7,\"maxTasksDispatchedPerSecond\":1.5},\"retryConfig\":{\"maxAttempts\":7,\"maxBackoff\":\"s-maxbackoff\",\"maxDoublings\":7,\"maxRetryDuration\":\"s-maxretryduration\",\"minBackoff\":\"s-minbackoff\",\"unlimitedAttempts\":true},\"state\":\"s-state\",\"stats\":{\"concurrentDispatchesCount\":\"7\",\"effectiveExecutionRate\":1.5,\"executedLastMinuteCount\":\"7\",\"oldestEstimatedArrivalTime\":\"s-oldestestimatedarrivaltime\",\"tasksCount\":\"7\"},\"taskTtl\":\"s-taskttl\",\"tombstoneTtl\":\"s-tombstonettl\"}]}",
+  "REQ GET https://cloudtasks.googleapis.com/v2beta2/id1/%20x/queues?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false&readMask=s-readmask",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"queues\":[{\"appEngineHttpTarget\":{},\"httpTarget\":{\"httpMethod\":\"s-httpmethod\"},\"name\":\"s-name\",\"pullTarget\":{},\"purgeTime\":\"s-purgetime\",\"rateLimits\":{\"maxBurstSize\":7,\"maxConcurrentTasks\":7,\"maxTasksDispatchedPerSecond\":1.5},\"retryConfig\":{\"maxAttempts\":7,\"maxBackoff\":\"s-maxbackoff\",\"maxDoublings\":7,\"maxRetryDuration\":\"s-maxretryduration\",\"minBackoff\":\"s-minbackoff\",\"unlimitedAttempts\":true},\"state\":\"s-state\",\"stats\":{\"concurrentDispatchesCount\":\"7\",\"effectiveExecutionRate\":1.5,\"executedLastMinuteCount\":\"7\",\"oldestEstimatedArrivalTime\":\"s-oldestestimatedarrivaltime\",\"tasksCount\":\"7\"},\"taskTtl\":\"s-taskttl\",\"tombstoneTtl\":\"s-tombstonettl\"}]}",
+  "OUT: {\"queues\":[{\"appEngineHttpTarget\":{},\"httpTarget\":{\"httpMethod\":\"s-httpmethod\"},\"name\":\"s-name\",\"pullTarget\":{},\"purgeTime\":\"s-purgetime\",\"rateLimits\":{\"maxBurstSize\":7,\"maxConcurrentTasks\":7,\"maxTasksDispatchedPerSecond\":1.5},\"retryConfig\":{\"maxAttempts\":7,\"maxBackoff\":\"s-maxbackoff\",\"maxDoublings\":7,\"maxRetryDuration\":\"s-maxretryduration\",\"minBackoff\":\"s-minbackoff\",\"unlimitedAttempts\":true},\"state\":\"s-state\",\"stats\":{\"concurrentDispatchesCount\":\"7\",\"effectiveExecutionRate\":1.5,\"executedLastMinuteCount\":\"7\",\"oldestEstimatedArrivalTime\":\"s-oldestestimatedarrivaltime\",\"tasksCount\":\"7\"},\"taskTtl\":\"s-taskttl\",\"tombstoneTtl\":\"s-tombstonettl\"}]}",
+  "OUT: ok",
+]
+
+test "Go's cloudtasks.projects.locations.queues.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"queues\":[{\"appEngineHttpTarget\":{},\"httpTarget\":{\"httpMethod\":\"s-httpmethod\"},\"name\":\"s-name\",\"pullTarget\":{},\"purgeTime\":\"s-purgetime\",\"rateLimits\":{\"maxBurstSize\":7,\"maxConcurrentTasks\":7,\"maxTasksDispatchedPerSecond\":1.5},\"retryConfig\":{\"maxAttempts\":7,\"maxBackoff\":\"s-maxbackoff\",\"maxDoublings\":7,\"maxRetryDuration\":\"s-maxretryduration\",\"minBackoff\":\"s-minbackoff\",\"unlimitedAttempts\":true},\"state\":\"s-state\",\"stats\":{\"concurrentDispatchesCount\":\"7\",\"effectiveExecutionRate\":1.5,\"executedLastMinuteCount\":\"7\",\"oldestEstimatedArrivalTime\":\"s-oldestestimatedarrivaltime\",\"tasksCount\":\"7\"},\"taskTtl\":\"s-taskttl\",\"tombstoneTtl\":\"s-tombstonettl\"}]}")
+  gv_queue(f, "{\"queues\":[{\"appEngineHttpTarget\":{},\"httpTarget\":{\"httpMethod\":\"s-httpmethod\"},\"name\":\"s-name\",\"pullTarget\":{},\"purgeTime\":\"s-purgetime\",\"rateLimits\":{\"maxBurstSize\":7,\"maxConcurrentTasks\":7,\"maxTasksDispatchedPerSecond\":1.5},\"retryConfig\":{\"maxAttempts\":7,\"maxBackoff\":\"s-maxbackoff\",\"maxDoublings\":7,\"maxRetryDuration\":\"s-maxretryduration\",\"minBackoff\":\"s-minbackoff\",\"unlimitedAttempts\":true},\"state\":\"s-state\",\"stats\":{\"concurrentDispatchesCount\":\"7\",\"effectiveExecutionRate\":1.5,\"executedLastMinuteCount\":\"7\",\"oldestEstimatedArrivalTime\":\"s-oldestestimatedarrivaltime\",\"tasksCount\":\"7\"},\"taskTtl\":\"s-taskttl\",\"tombstoneTtl\":\"s-tombstonettl\"}]}")
+  gv_note(f, "CALL cloudtasks.projects.locations.queues.list pages")
+  var p = svc.projects.locations.queues.list_pages("id1/ x", options: ProjectsLocationsQueuesListOptions{filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), read_mask: Some("s-readmask"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_12)
+}
+
+const GO_13: List[Str] = [
   "CALL cloudtasks.projects.locations.queues.patch",
   "REQ PATCH https://cloudtasks.googleapis.com/v2beta2/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"appEngineHttpTarget\":{\"appEngineRoutingOverride\":{\"host\":\"s-host\",\"instance\":\"s-instance\",\"service\":\"s-service\",\"version\":\"s-version\"}},\"httpTarget\":{\"headerOverrides\":[{}],\"httpMethod\":\"s-httpmethod\",\"oauthToken\":{\"scope\":\"s-scope\",\"serviceAccountEmail\":\"s-serviceaccountemail\"},\"oidcToken\":{\"audience\":\"s-audience\",\"serviceAccountEmail\":\"s-serviceaccountemail\"},\"uriOverride\":{\"host\":\"s-host\",\"port\":\"7\",\"scheme\":\"s-scheme\",\"uriOverrideEnforceMode\":\"s-urioverrideenforcemode\"}},\"name\":\"s-name\",\"pullTarget\":{},\"purgeTime\":\"s-purgetime\",\"rateLimits\":{\"maxBurstSize\":7,\"maxConcurrentTasks\":7,\"maxTasksDispatchedPerSecond\":1.5},\"retryConfig\":{\"maxAttempts\":7,\"maxBackoff\":\"s-maxbackoff\",\"maxDoublings\":7,\"maxRetryDuration\":\"s-maxretryduration\",\"minBackoff\":\"s-minbackoff\",\"unlimitedAttempts\":true},\"state\":\"s-state\",\"stats\":{\"concurrentDispatchesCount\":\"7\",\"effectiveExecutionRate\":1.5,\"executedLastMinuteCount\":\"7\",\"oldestEstimatedArrivalTime\":\"s-oldestestimatedarrivaltime\",\"tasksCount\":\"7\"},\"taskTtl\":\"s-taskttl\",\"tombstoneTtl\":\"s-tombstonettl\"}",
+  "  B <1050 bytes> {\"appEngineHttpTarget\":{\"appEngi...tombstoneTtl\":\"s-tombstonettl\"}",
   "",
   "  SERVED 200 {\"appEngineHttpTarget\":{\"appEngineRoutingOverride\":{\"host\":\"s-host\",\"instance\":\"s-instance\",\"service\":\"s-service\",\"version\":\"s-version\"}},\"httpTarget\":{\"headerOverrides\":[{}],\"httpMethod\":\"s-httpmethod\",\"oauthToken\":{\"scope\":\"s-scope\",\"serviceAccountEmail\":\"s-serviceaccountemail\"},\"oidcToken\":{\"audience\":\"s-audience\",\"serviceAccountEmail\":\"s-serviceaccountemail\"},\"uriOverride\":{\"host\":\"s-host\",\"port\":\"7\",\"scheme\":\"s-scheme\",\"uriOverrideEnforceMode\":\"s-urioverrideenforcemode\"}},\"name\":\"s-name\",\"pullTarget\":{},\"purgeTime\":\"s-purgetime\",\"rateLimits\":{\"maxBurstSize\":7,\"maxConcurrentTasks\":7,\"maxTasksDispatchedPerSecond\":1.5},\"retryConfig\":{\"maxAttempts\":7,\"maxBackoff\":\"s-maxbackoff\",\"maxDoublings\":7,\"maxRetryDuration\":\"s-maxretryduration\",\"minBackoff\":\"s-minbackoff\",\"unlimitedAttempts\":true},\"state\":\"s-state\",\"stats\":{\"concurrentDispatchesCount\":\"7\",\"effectiveExecutionRate\":1.5,\"executedLastMinuteCount\":\"7\",\"oldestEstimatedArrivalTime\":\"s-oldestestimatedarrivaltime\",\"tasksCount\":\"7\"},\"taskTtl\":\"s-taskttl\",\"tombstoneTtl\":\"s-tombstonettl\"}",
   "OUT: {\"appEngineHttpTarget\":{\"appEngineRoutingOverride\":{\"host\":\"s-host\",\"instance\":\"s-instance\",\"service\":\"s-service\",\"version\":\"s-version\"}},\"httpTarget\":{\"headerOverrides\":[{}],\"httpMethod\":\"s-httpmethod\",\"oauthToken\":{\"scope\":\"s-scope\",\"serviceAccountEmail\":\"s-serviceaccountemail\"},\"oidcToken\":{\"audience\":\"s-audience\",\"serviceAccountEmail\":\"s-serviceaccountemail\"},\"uriOverride\":{\"host\":\"s-host\",\"port\":\"7\",\"scheme\":\"s-scheme\",\"uriOverrideEnforceMode\":\"s-urioverrideenforcemode\"}},\"name\":\"s-name\",\"pullTarget\":{},\"purgeTime\":\"s-purgetime\",\"rateLimits\":{\"maxBurstSize\":7,\"maxConcurrentTasks\":7,\"maxTasksDispatchedPerSecond\":1.5},\"retryConfig\":{\"maxAttempts\":7,\"maxBackoff\":\"s-maxbackoff\",\"maxDoublings\":7,\"maxRetryDuration\":\"s-maxretryduration\",\"minBackoff\":\"s-minbackoff\",\"unlimitedAttempts\":true},\"state\":\"s-state\",\"stats\":{\"concurrentDispatchesCount\":\"7\",\"effectiveExecutionRate\":1.5,\"executedLastMinuteCount\":\"7\",\"oldestEstimatedArrivalTime\":\"s-oldestestimatedarrivaltime\",\"tasksCount\":\"7\"},\"taskTtl\":\"s-taskttl\",\"tombstoneTtl\":\"s-tombstonettl\"}",
@@ -262,10 +338,10 @@ test "Go's cloudtasks.projects.locations.queues.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_11)
+  gv_compare(gv_log_of(f), GO_13)
 }
 
-const GO_12: List[Str] = [
+const GO_14: List[Str] = [
   "CALL cloudtasks.projects.locations.queues.pause",
   "REQ POST https://cloudtasks.googleapis.com/v2beta2/id1/%20x:pause?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -284,10 +360,10 @@ test "Go's cloudtasks.projects.locations.queues.pause" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_12)
+  gv_compare(gv_log_of(f), GO_14)
 }
 
-const GO_13: List[Str] = [
+const GO_15: List[Str] = [
   "CALL cloudtasks.projects.locations.queues.purge",
   "REQ POST https://cloudtasks.googleapis.com/v2beta2/id1/%20x:purge?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -306,10 +382,10 @@ test "Go's cloudtasks.projects.locations.queues.purge" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_13)
+  gv_compare(gv_log_of(f), GO_15)
 }
 
-const GO_14: List[Str] = [
+const GO_16: List[Str] = [
   "CALL cloudtasks.projects.locations.queues.resume",
   "REQ POST https://cloudtasks.googleapis.com/v2beta2/id1/%20x:resume?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -328,10 +404,10 @@ test "Go's cloudtasks.projects.locations.queues.resume" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_14)
+  gv_compare(gv_log_of(f), GO_16)
 }
 
-const GO_15: List[Str] = [
+const GO_17: List[Str] = [
   "CALL cloudtasks.projects.locations.queues.setIamPolicy",
   "REQ POST https://cloudtasks.googleapis.com/v2beta2/id1/%20x:setIamPolicy?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -350,10 +426,10 @@ test "Go's cloudtasks.projects.locations.queues.setIamPolicy" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_15)
+  gv_compare(gv_log_of(f), GO_17)
 }
 
-const GO_16: List[Str] = [
+const GO_18: List[Str] = [
   "CALL cloudtasks.projects.locations.queues.testIamPermissions",
   "REQ POST https://cloudtasks.googleapis.com/v2beta2/id1/%20x:testIamPermissions?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -372,10 +448,10 @@ test "Go's cloudtasks.projects.locations.queues.testIamPermissions" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_16)
+  gv_compare(gv_log_of(f), GO_18)
 }
 
-const GO_17: List[Str] = [
+const GO_19: List[Str] = [
   "CALL cloudtasks.projects.locations.queues.tasks.acknowledge",
   "REQ POST https://cloudtasks.googleapis.com/v2beta2/id1/%20x:acknowledge?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -394,10 +470,10 @@ test "Go's cloudtasks.projects.locations.queues.tasks.acknowledge" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_17)
+  gv_compare(gv_log_of(f), GO_19)
 }
 
-const GO_18: List[Str] = [
+const GO_20: List[Str] = [
   "CALL cloudtasks.projects.locations.queues.tasks.batchCreate",
   "REQ POST https://cloudtasks.googleapis.com/v2beta2/id1/%20x/tasks:batchCreate?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -416,10 +492,10 @@ test "Go's cloudtasks.projects.locations.queues.tasks.batchCreate" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_18)
+  gv_compare(gv_log_of(f), GO_20)
 }
 
-const GO_19: List[Str] = [
+const GO_21: List[Str] = [
   "CALL cloudtasks.projects.locations.queues.tasks.batchDelete",
   "REQ POST https://cloudtasks.googleapis.com/v2beta2/id1/%20x/tasks:batchDelete?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -438,10 +514,10 @@ test "Go's cloudtasks.projects.locations.queues.tasks.batchDelete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_19)
+  gv_compare(gv_log_of(f), GO_21)
 }
 
-const GO_20: List[Str] = [
+const GO_22: List[Str] = [
   "CALL cloudtasks.projects.locations.queues.tasks.buffer",
   "REQ POST https://cloudtasks.googleapis.com/v2beta2/id1/%20x/tasks/id2%2F%20x:buffer?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -460,10 +536,10 @@ test "Go's cloudtasks.projects.locations.queues.tasks.buffer" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_20)
+  gv_compare(gv_log_of(f), GO_22)
 }
 
-const GO_21: List[Str] = [
+const GO_23: List[Str] = [
   "CALL cloudtasks.projects.locations.queues.tasks.cancelLease",
   "REQ POST https://cloudtasks.googleapis.com/v2beta2/id1/%20x:cancelLease?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -482,10 +558,10 @@ test "Go's cloudtasks.projects.locations.queues.tasks.cancelLease" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_21)
+  gv_compare(gv_log_of(f), GO_23)
 }
 
-const GO_22: List[Str] = [
+const GO_24: List[Str] = [
   "CALL cloudtasks.projects.locations.queues.tasks.create",
   "REQ POST https://cloudtasks.googleapis.com/v2beta2/id1/%20x/tasks?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -504,10 +580,10 @@ test "Go's cloudtasks.projects.locations.queues.tasks.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_22)
+  gv_compare(gv_log_of(f), GO_24)
 }
 
-const GO_23: List[Str] = [
+const GO_25: List[Str] = [
   "CALL cloudtasks.projects.locations.queues.tasks.delete",
   "REQ DELETE https://cloudtasks.googleapis.com/v2beta2/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -525,10 +601,10 @@ test "Go's cloudtasks.projects.locations.queues.tasks.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_23)
+  gv_compare(gv_log_of(f), GO_25)
 }
 
-const GO_24: List[Str] = [
+const GO_26: List[Str] = [
   "CALL cloudtasks.projects.locations.queues.tasks.get",
   "REQ GET https://cloudtasks.googleapis.com/v2beta2/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&responseView=s-responseview",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -546,10 +622,10 @@ test "Go's cloudtasks.projects.locations.queues.tasks.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_24)
+  gv_compare(gv_log_of(f), GO_26)
 }
 
-const GO_25: List[Str] = [
+const GO_27: List[Str] = [
   "CALL cloudtasks.projects.locations.queues.tasks.lease",
   "REQ POST https://cloudtasks.googleapis.com/v2beta2/id1/%20x/tasks:lease?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -568,10 +644,10 @@ test "Go's cloudtasks.projects.locations.queues.tasks.lease" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_25)
+  gv_compare(gv_log_of(f), GO_27)
 }
 
-const GO_26: List[Str] = [
+const GO_28: List[Str] = [
   "CALL cloudtasks.projects.locations.queues.tasks.list",
   "REQ GET https://cloudtasks.googleapis.com/v2beta2/id1/%20x/tasks?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&responseView=s-responseview",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -589,10 +665,48 @@ test "Go's cloudtasks.projects.locations.queues.tasks.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_26)
+  gv_compare(gv_log_of(f), GO_28)
 }
 
-const GO_27: List[Str] = [
+const GO_29: List[Str] = [
+  "CALL cloudtasks.projects.locations.queues.tasks.list pages",
+  "REQ GET https://cloudtasks.googleapis.com/v2beta2/id1/%20x/tasks?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&responseView=s-responseview",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"tasks\":[{\"appEngineHttpRequest\":{\"httpMethod\":\"s-httpmethod\",\"payload\":\"YWI=\",\"relativeUrl\":\"s-relativeurl\"},\"createTime\":\"s-createtime\",\"httpRequest\":{\"body\":\"YWI=\",\"httpMethod\":\"s-httpmethod\",\"url\":\"s-url\"},\"name\":\"s-name\",\"pullMessage\":{\"payload\":\"YWI=\",\"tag\":\"s-tag\"},\"retryConfig\":{\"maxAttempts\":7,\"maxBackoff\":\"s-maxbackoff\",\"maxDoublings\":7,\"maxRetryDuration\":\"s-maxretryduration\",\"minBackoff\":\"s-minbackoff\",\"unlimitedAttempts\":true},\"scheduleTime\":\"s-scheduletime\",\"status\":{\"attemptDispatchCount\":7,\"attemptResponseCount\":7},\"view\":\"s-view\"}]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"tasks\":[{\"appEngineHttpRequest\":{\"httpMethod\":\"s-httpmethod\",\"payload\":\"YWI=\",\"relativeUrl\":\"s-relativeurl\"},\"createTime\":\"s-createtime\",\"httpRequest\":{\"body\":\"YWI=\",\"httpMethod\":\"s-httpmethod\",\"url\":\"s-url\"},\"name\":\"s-name\",\"pullMessage\":{\"payload\":\"YWI=\",\"tag\":\"s-tag\"},\"retryConfig\":{\"maxAttempts\":7,\"maxBackoff\":\"s-maxbackoff\",\"maxDoublings\":7,\"maxRetryDuration\":\"s-maxretryduration\",\"minBackoff\":\"s-minbackoff\",\"unlimitedAttempts\":true},\"scheduleTime\":\"s-scheduletime\",\"status\":{\"attemptDispatchCount\":7,\"attemptResponseCount\":7},\"view\":\"s-view\"}]}",
+  "REQ GET https://cloudtasks.googleapis.com/v2beta2/id1/%20x/tasks?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false&responseView=s-responseview",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"tasks\":[{\"appEngineHttpRequest\":{\"httpMethod\":\"s-httpmethod\",\"payload\":\"YWI=\",\"relativeUrl\":\"s-relativeurl\"},\"createTime\":\"s-createtime\",\"httpRequest\":{\"body\":\"YWI=\",\"httpMethod\":\"s-httpmethod\",\"url\":\"s-url\"},\"name\":\"s-name\",\"pullMessage\":{\"payload\":\"YWI=\",\"tag\":\"s-tag\"},\"retryConfig\":{\"maxAttempts\":7,\"maxBackoff\":\"s-maxbackoff\",\"maxDoublings\":7,\"maxRetryDuration\":\"s-maxretryduration\",\"minBackoff\":\"s-minbackoff\",\"unlimitedAttempts\":true},\"scheduleTime\":\"s-scheduletime\",\"status\":{\"attemptDispatchCount\":7,\"attemptResponseCount\":7},\"view\":\"s-view\"}]}",
+  "OUT: {\"tasks\":[{\"appEngineHttpRequest\":{\"httpMethod\":\"s-httpmethod\",\"payload\":\"YWI=\",\"relativeUrl\":\"s-relativeurl\"},\"createTime\":\"s-createtime\",\"httpRequest\":{\"body\":\"YWI=\",\"httpMethod\":\"s-httpmethod\",\"url\":\"s-url\"},\"name\":\"s-name\",\"pullMessage\":{\"payload\":\"YWI=\",\"tag\":\"s-tag\"},\"retryConfig\":{\"maxAttempts\":7,\"maxBackoff\":\"s-maxbackoff\",\"maxDoublings\":7,\"maxRetryDuration\":\"s-maxretryduration\",\"minBackoff\":\"s-minbackoff\",\"unlimitedAttempts\":true},\"scheduleTime\":\"s-scheduletime\",\"status\":{\"attemptDispatchCount\":7,\"attemptResponseCount\":7},\"view\":\"s-view\"}]}",
+  "OUT: ok",
+]
+
+test "Go's cloudtasks.projects.locations.queues.tasks.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"tasks\":[{\"appEngineHttpRequest\":{\"httpMethod\":\"s-httpmethod\",\"payload\":\"YWI=\",\"relativeUrl\":\"s-relativeurl\"},\"createTime\":\"s-createtime\",\"httpRequest\":{\"body\":\"YWI=\",\"httpMethod\":\"s-httpmethod\",\"url\":\"s-url\"},\"name\":\"s-name\",\"pullMessage\":{\"payload\":\"YWI=\",\"tag\":\"s-tag\"},\"retryConfig\":{\"maxAttempts\":7,\"maxBackoff\":\"s-maxbackoff\",\"maxDoublings\":7,\"maxRetryDuration\":\"s-maxretryduration\",\"minBackoff\":\"s-minbackoff\",\"unlimitedAttempts\":true},\"scheduleTime\":\"s-scheduletime\",\"status\":{\"attemptDispatchCount\":7,\"attemptResponseCount\":7},\"view\":\"s-view\"}]}")
+  gv_queue(f, "{\"tasks\":[{\"appEngineHttpRequest\":{\"httpMethod\":\"s-httpmethod\",\"payload\":\"YWI=\",\"relativeUrl\":\"s-relativeurl\"},\"createTime\":\"s-createtime\",\"httpRequest\":{\"body\":\"YWI=\",\"httpMethod\":\"s-httpmethod\",\"url\":\"s-url\"},\"name\":\"s-name\",\"pullMessage\":{\"payload\":\"YWI=\",\"tag\":\"s-tag\"},\"retryConfig\":{\"maxAttempts\":7,\"maxBackoff\":\"s-maxbackoff\",\"maxDoublings\":7,\"maxRetryDuration\":\"s-maxretryduration\",\"minBackoff\":\"s-minbackoff\",\"unlimitedAttempts\":true},\"scheduleTime\":\"s-scheduletime\",\"status\":{\"attemptDispatchCount\":7,\"attemptResponseCount\":7},\"view\":\"s-view\"}]}")
+  gv_note(f, "CALL cloudtasks.projects.locations.queues.tasks.list pages")
+  var p = svc.projects.locations.queues.tasks.list_pages("id1/ x", options: ProjectsLocationsQueuesTasksListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), response_view: Some("s-responseview"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_29)
+}
+
+const GO_30: List[Str] = [
   "CALL cloudtasks.projects.locations.queues.tasks.renewLease",
   "REQ POST https://cloudtasks.googleapis.com/v2beta2/id1/%20x:renewLease?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -611,10 +725,10 @@ test "Go's cloudtasks.projects.locations.queues.tasks.renewLease" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_27)
+  gv_compare(gv_log_of(f), GO_30)
 }
 
-const GO_28: List[Str] = [
+const GO_31: List[Str] = [
   "CALL cloudtasks.projects.locations.queues.tasks.run",
   "REQ POST https://cloudtasks.googleapis.com/v2beta2/id1/%20x:run?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -633,5 +747,5 @@ test "Go's cloudtasks.projects.locations.queues.tasks.run" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_28)
+  gv_compare(gv_log_of(f), GO_31)
 }

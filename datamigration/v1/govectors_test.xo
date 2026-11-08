@@ -30,6 +30,44 @@ test "Go's datamigration.projects.locations.fetchStaticIps" {
 }
 
 const GO_1: List[Str] = [
+  "CALL datamigration.projects.locations.fetchStaticIps pages",
+  "REQ GET https://datamigration.googleapis.com/v1/id1/%20x:fetchStaticIps?alt=json&fetchReservedPublicIps=true&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"staticIps\":[\"s-staticips\"]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"staticIps\":[\"s-staticips\"]}",
+  "REQ GET https://datamigration.googleapis.com/v1/id1/%20x:fetchStaticIps?alt=json&fetchReservedPublicIps=true&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"staticIps\":[\"s-staticips\"]}",
+  "OUT: {\"staticIps\":[\"s-staticips\"]}",
+  "OUT: ok",
+]
+
+test "Go's datamigration.projects.locations.fetchStaticIps pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"staticIps\":[\"s-staticips\"]}")
+  gv_queue(f, "{\"staticIps\":[\"s-staticips\"]}")
+  gv_note(f, "CALL datamigration.projects.locations.fetchStaticIps pages")
+  var p = svc.projects.locations.fetch_static_ips_pages("id1/ x", options: ProjectsLocationsFetchStaticIpsOptions{fetch_reserved_public_ips: Some(true), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_1)
+}
+
+const GO_2: List[Str] = [
   "CALL datamigration.projects.locations.get",
   "REQ GET https://datamigration.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -47,10 +85,10 @@ test "Go's datamigration.projects.locations.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_1)
+  gv_compare(gv_log_of(f), GO_2)
 }
 
-const GO_2: List[Str] = [
+const GO_3: List[Str] = [
   "CALL datamigration.projects.locations.list",
   "REQ GET https://datamigration.googleapis.com/v1/id1/%20x/locations?alt=json&extraLocationTypes=s-extralocationtypes&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -68,14 +106,52 @@ test "Go's datamigration.projects.locations.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_2)
+  gv_compare(gv_log_of(f), GO_3)
 }
 
-const GO_3: List[Str] = [
+const GO_4: List[Str] = [
+  "CALL datamigration.projects.locations.list pages",
+  "REQ GET https://datamigration.googleapis.com/v1/id1/%20x/locations?alt=json&extraLocationTypes=s-extralocationtypes&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://datamigration.googleapis.com/v1/id1/%20x/locations?alt=json&extraLocationTypes=s-extralocationtypes&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}]}",
+  "OUT: {\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}]}",
+  "OUT: ok",
+]
+
+test "Go's datamigration.projects.locations.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}]}")
+  gv_note(f, "CALL datamigration.projects.locations.list pages")
+  var p = svc.projects.locations.list_pages("id1/ x", options: ProjectsLocationsListOptions{extra_location_types: ["s-extralocationtypes"], filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_4)
+}
+
+const GO_5: List[Str] = [
   "CALL datamigration.projects.locations.connectionProfiles.create",
   "REQ POST https://datamigration.googleapis.com/v1/id1/%20x/connectionProfiles?alt=json&connectionProfileId=s-connectionprofileid&fields=kind%2Cid&prettyPrint=false&requestId=s-requestid&skipValidation=true&validateOnly=true",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"alloydb\":{\"clusterId\":\"s-clusterid\",\"settings\":{\"databaseVersion\":\"s-databaseversion\",\"labels\":{\"k1\":\"s-labels\"},\"vpcNetwork\":\"s-vpcnetwork\"}},\"cloudsql\":{\"additionalPublicIp\":\"s-additionalpublicip\",\"cloudSqlId\":\"s-cloudsqlid\",\"privateIp\":\"s-privateip\",\"publicIp\":\"s-publicip\",\"settings\":{\"activationPolicy\":\"s-activationpolicy\",\"autoStorageIncrease\":true,\"availabilityType\":\"s-availabilitytype\",\"cmekKeyName\":\"s-cmekkeyname\",\"collation\":\"s-collation\",\"dataDiskProvisionedIops\":\"7\",\"dataDiskProvisionedThroughput\":\"7\",\"dataDiskSizeGb\":\"7\",\"dataDiskType\":\"s-datadisktype\",\"databaseFlags\":{\"k1\":\"s-databaseflags\"},\"databaseVersion\":\"s-databaseversion\",\"databaseVersionName\":\"s-databaseversionname\",\"edition\":\"s-edition\",\"rootPassword\":\"s-rootpassword\",\"rootPasswordSet\":true,\"secondaryZone\":\"s-secondaryzone\",\"sourceId\":\"s-sourceid\",\"storageAutoResizeLimit\":\"7\",\"tier\":\"s-tier\",\"userLabels\":{\"k1\":\"s-userlabels\"},\"zone\":\"s-zone\"}},\"createTime\":\"s-createtime\",\"displayName\":\"s-displayname\",\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"labels\":{\"k1\":\"s-labels\"},\"mysql\":{\"cloudSqlId\":\"s-cloudsqlid\",\"host\":\"s-host\",\"password\":\"s-password\",\"passwordSet\":true,\"port\":7,\"privateConnectivity\":{\"privateConnection\":\"s-privateconnection\"},\"privateServiceConnectConnectivity\":{\"serviceAttachment\":\"s-serviceattachment\"},\"ssl\":{\"caCertificate\":\"s-cacertificate\",\"clientCertificate\":\"s-clientcertificate\",\"clientKey\":\"s-clientkey\",\"sslFlags\":{\"k1\":\"s-sslflags\"},\"type\":\"s-type\"},\"staticServiceIpConnectivity\":{},\"username\":\"s-username\"},\"name\":\"s-name\",\"oracle\":{\"databaseService\":\"s-databaseservice\",\"forwardSshConnectivity\":{\"hostname\":\"s-hostname\",\"password\":\"s-password\",\"port\":7,\"privateKey\":\"s-privatekey\",\"username\":\"s-username\"},\"host\":\"s-host\",\"oracleAsmConfig\":{\"asmService\":\"s-asmservice\",\"hostname\":\"s-hostname\",\"password\":\"s-password\",\"passwordSet\":true,\"port\":7,\"username\":\"s-username\"},\"password\":\"s-password\",\"passwordSet\":true,\"port\":7,\"privateConnectivity\":{\"privateConnection\":\"s-privateconnection\"},\"ssl\":{\"caCertificate\":\"s-cacertificate\",\"clientCertificate\":\"s-clientcertificate\",\"clientKey\":\"s-clientkey\",\"sslFlags\":{\"k1\":\"s-sslflags\"},\"type\":\"s-type\"},\"staticServiceIpConnectivity\":{},\"username\":\"s-username\"},\"postgresql\":{\"alloydbClusterId\":\"s-alloydbclusterid\",\"cloudSqlId\":\"s-cloudsqlid\",\"database\":\"s-database\",\"enableIamAuthentication\":true,\"forwardSshConnectivity\":{\"hostname\":\"s-hostname\",\"password\":\"s-password\",\"port\":7,\"privateKey\":\"s-privatekey\",\"username\":\"s-username\"},\"host\":\"s-host\",\"networkArchitecture\":\"s-networkarchitecture\",\"password\":\"s-password\",\"passwordSet\":true,\"port\":7,\"privateConnectivity\":{\"privateConnection\":\"s-privateconnection\"},\"privateServiceConnectConnectivity\":{\"serviceAttachment\":\"s-serviceattachment\"},\"ssl\":{\"caCertificate\":\"s-cacertificate\",\"clientCertificate\":\"s-clientcertificate\",\"clientKey\":\"s-clientkey\",\"sslFlags\":{\"k1\":\"s-sslflags\"},\"type\":\"s-type\"},\"staticIpConnectivity\":{},\"username\":\"s-username\"},\"provider\":\"s-provider\",\"role\":\"s-role\",\"satisfiesPzi\":true,\"satisfiesPzs\":true,\"sqlserver\":{\"backups\":{\"gcsBucket\":\"s-gcsbucket\",\"gcsPrefix\":\"s-gcsprefix\"},\"cloudSqlId\":\"s-cloudsqlid\",\"cloudSqlProjectId\":\"s-cloudsqlprojectid\",\"database\":\"s-database\",\"dbmPort\":7,\"forwardSshConnectivity\":{\"hostname\":\"s-hostname\",\"password\":\"s-password\",\"port\":7,\"privateKey\":\"s-privatekey\",\"username\":\"s-username\"},\"host\":\"s-host\",\"password\":\"s-password\",\"passwordSet\":true,\"port\":7,\"privateConnectivity\":{\"privateConnection\":\"s-privateconnection\"},\"privateServiceConnectConnectivity\":{\"serviceAttachment\":\"s-serviceattachment\"},\"ssl\":{\"caCertificate\":\"s-cacertificate\",\"clientCertificate\":\"s-clientcertificate\",\"clientKey\":\"s-clientkey\",\"sslFlags\":{\"k1\":\"s-sslflags\"},\"type\":\"s-type\"},\"staticIpConnectivity\":{},\"username\":\"s-username\"},\"state\":\"s-state\",\"updateTime\":\"s-updatetime\"}",
+  "  B <3851 bytes> {\"alloydb\":{\"clusterId\":\"s-clust...e\",\"updateTime\":\"s-updatetime\"}",
   "",
   "  SERVED 200 {\"done\":true,\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}",
   "OUT: {\"done\":true,\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}",
@@ -90,10 +166,10 @@ test "Go's datamigration.projects.locations.connectionProfiles.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_3)
+  gv_compare(gv_log_of(f), GO_5)
 }
 
-const GO_4: List[Str] = [
+const GO_6: List[Str] = [
   "CALL datamigration.projects.locations.connectionProfiles.delete",
   "REQ DELETE https://datamigration.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&force=true&prettyPrint=false&requestId=s-requestid",
   "  H x-extra=v1",
@@ -111,10 +187,10 @@ test "Go's datamigration.projects.locations.connectionProfiles.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_4)
+  gv_compare(gv_log_of(f), GO_6)
 }
 
-const GO_5: List[Str] = [
+const GO_7: List[Str] = [
   "CALL datamigration.projects.locations.connectionProfiles.get",
   "REQ GET https://datamigration.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -132,10 +208,10 @@ test "Go's datamigration.projects.locations.connectionProfiles.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_5)
+  gv_compare(gv_log_of(f), GO_7)
 }
 
-const GO_6: List[Str] = [
+const GO_8: List[Str] = [
   "CALL datamigration.projects.locations.connectionProfiles.getIamPolicy",
   "REQ GET https://datamigration.googleapis.com/v1/id1/%20x:getIamPolicy?alt=json&fields=kind%2Cid&options.requestedPolicyVersion=7&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -153,10 +229,10 @@ test "Go's datamigration.projects.locations.connectionProfiles.getIamPolicy" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_6)
+  gv_compare(gv_log_of(f), GO_8)
 }
 
-const GO_7: List[Str] = [
+const GO_9: List[Str] = [
   "CALL datamigration.projects.locations.connectionProfiles.list",
   "REQ GET https://datamigration.googleapis.com/v1/id1/%20x/connectionProfiles?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -174,14 +250,52 @@ test "Go's datamigration.projects.locations.connectionProfiles.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_7)
+  gv_compare(gv_log_of(f), GO_9)
 }
 
-const GO_8: List[Str] = [
+const GO_10: List[Str] = [
+  "CALL datamigration.projects.locations.connectionProfiles.list pages",
+  "REQ GET https://datamigration.googleapis.com/v1/id1/%20x/connectionProfiles?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"connectionProfiles\":[{\"alloydb\":{\"clusterId\":\"s-clusterid\"},\"cloudsql\":{\"additionalPublicIp\":\"s-additionalpublicip\",\"cloudSqlId\":\"s-cloudsqlid\",\"privateIp\":\"s-privateip\",\"publicIp\":\"s-publicip\"},\"createTime\":\"s-createtime\",\"displayName\":\"s-displayname\",\"error\":{\"code\":7,\"message\":\"s-message\"},\"labels\":{\"k1\":\"s-labels\"},\"mysql\":{\"cloudSqlId\":\"s-cloudsqlid\",\"host\":\"s-host\",\"password\":\"s-password\",\"passwordSet\":true,\"port\":7,\"username\":\"s-username\"},\"name\":\"s-name\",\"oracle\":{\"databaseService\":\"s-databaseservice\",\"host\":\"s-host\",\"password\":\"s-password\",\"passwordSet\":true,\"port\":7,\"username\":\"s-username\"},\"postgresql\":{\"alloydbClusterId\":\"s-alloydbclusterid\",\"cloudSqlId\":\"s-cloudsqlid\",\"database\":\"s-database\",\"enableIamAuthentication\":true,\"host\":\"s-host\",\"networkArchitecture\":\"s-networkarchitecture\",\"password\":\"s-password\",\"passwordSet\":true,\"port\":7,\"username\":\"s-username\"},\"provider\":\"s-provider\",\"role\":\"s-role\",\"satisfiesPzi\":true,\"satisfiesPzs\":true,\"sqlserver\":{\"cloudSqlId\":\"s-cloudsqlid\",\"cloudSqlProjectId\":\"s-cloudsqlprojectid\",\"database\":\"s-database\",\"dbmPort\":7,\"host\":\"s-host\",\"password\":\"s-password\",\"passwordSet\":true,\"port\":7,\"username\":\"s-username\"},\"state\":\"s-state\",\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"connectionProfiles\":[{\"alloydb\":{\"clusterId\":\"s-clusterid\"},\"cloudsql\":{\"additionalPublicIp\":\"s-additionalpublicip\",\"cloudSqlId\":\"s-cloudsqlid\",\"privateIp\":\"s-privateip\",\"publicIp\":\"s-publicip\"},\"createTime\":\"s-createtime\",\"displayName\":\"s-displayname\",\"error\":{\"code\":7,\"message\":\"s-message\"},\"labels\":{\"k1\":\"s-labels\"},\"mysql\":{\"cloudSqlId\":\"s-cloudsqlid\",\"host\":\"s-host\",\"password\":\"s-password\",\"passwordSet\":true,\"port\":7,\"username\":\"s-username\"},\"name\":\"s-name\",\"oracle\":{\"databaseService\":\"s-databaseservice\",\"host\":\"s-host\",\"password\":\"s-password\",\"passwordSet\":true,\"port\":7,\"username\":\"s-username\"},\"postgresql\":{\"alloydbClusterId\":\"s-alloydbclusterid\",\"cloudSqlId\":\"s-cloudsqlid\",\"database\":\"s-database\",\"enableIamAuthentication\":true,\"host\":\"s-host\",\"networkArchitecture\":\"s-networkarchitecture\",\"password\":\"s-password\",\"passwordSet\":true,\"port\":7,\"username\":\"s-username\"},\"provider\":\"s-provider\",\"role\":\"s-role\",\"satisfiesPzi\":true,\"satisfiesPzs\":true,\"sqlserver\":{\"cloudSqlId\":\"s-cloudsqlid\",\"cloudSqlProjectId\":\"s-cloudsqlprojectid\",\"database\":\"s-database\",\"dbmPort\":7,\"host\":\"s-host\",\"password\":\"s-password\",\"passwordSet\":true,\"port\":7,\"username\":\"s-username\"},\"state\":\"s-state\",\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}",
+  "REQ GET https://datamigration.googleapis.com/v1/id1/%20x/connectionProfiles?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"connectionProfiles\":[{\"alloydb\":{\"clusterId\":\"s-clusterid\"},\"cloudsql\":{\"additionalPublicIp\":\"s-additionalpublicip\",\"cloudSqlId\":\"s-cloudsqlid\",\"privateIp\":\"s-privateip\",\"publicIp\":\"s-publicip\"},\"createTime\":\"s-createtime\",\"displayName\":\"s-displayname\",\"error\":{\"code\":7,\"message\":\"s-message\"},\"labels\":{\"k1\":\"s-labels\"},\"mysql\":{\"cloudSqlId\":\"s-cloudsqlid\",\"host\":\"s-host\",\"password\":\"s-password\",\"passwordSet\":true,\"port\":7,\"username\":\"s-username\"},\"name\":\"s-name\",\"oracle\":{\"databaseService\":\"s-databaseservice\",\"host\":\"s-host\",\"password\":\"s-password\",\"passwordSet\":true,\"port\":7,\"username\":\"s-username\"},\"postgresql\":{\"alloydbClusterId\":\"s-alloydbclusterid\",\"cloudSqlId\":\"s-cloudsqlid\",\"database\":\"s-database\",\"enableIamAuthentication\":true,\"host\":\"s-host\",\"networkArchitecture\":\"s-networkarchitecture\",\"password\":\"s-password\",\"passwordSet\":true,\"port\":7,\"username\":\"s-username\"},\"provider\":\"s-provider\",\"role\":\"s-role\",\"satisfiesPzi\":true,\"satisfiesPzs\":true,\"sqlserver\":{\"cloudSqlId\":\"s-cloudsqlid\",\"cloudSqlProjectId\":\"s-cloudsqlprojectid\",\"database\":\"s-database\",\"dbmPort\":7,\"host\":\"s-host\",\"password\":\"s-password\",\"passwordSet\":true,\"port\":7,\"username\":\"s-username\"},\"state\":\"s-state\",\"updateTime\":\"s-updatetime\"}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"connectionProfiles\":[{\"alloydb\":{\"clusterId\":\"s-clusterid\"},\"cloudsql\":{\"additionalPublicIp\":\"s-additionalpublicip\",\"cloudSqlId\":\"s-cloudsqlid\",\"privateIp\":\"s-privateip\",\"publicIp\":\"s-publicip\"},\"createTime\":\"s-createtime\",\"displayName\":\"s-displayname\",\"error\":{\"code\":7,\"message\":\"s-message\"},\"labels\":{\"k1\":\"s-labels\"},\"mysql\":{\"cloudSqlId\":\"s-cloudsqlid\",\"host\":\"s-host\",\"password\":\"s-password\",\"passwordSet\":true,\"port\":7,\"username\":\"s-username\"},\"name\":\"s-name\",\"oracle\":{\"databaseService\":\"s-databaseservice\",\"host\":\"s-host\",\"password\":\"s-password\",\"passwordSet\":true,\"port\":7,\"username\":\"s-username\"},\"postgresql\":{\"alloydbClusterId\":\"s-alloydbclusterid\",\"cloudSqlId\":\"s-cloudsqlid\",\"database\":\"s-database\",\"enableIamAuthentication\":true,\"host\":\"s-host\",\"networkArchitecture\":\"s-networkarchitecture\",\"password\":\"s-password\",\"passwordSet\":true,\"port\":7,\"username\":\"s-username\"},\"provider\":\"s-provider\",\"role\":\"s-role\",\"satisfiesPzi\":true,\"satisfiesPzs\":true,\"sqlserver\":{\"cloudSqlId\":\"s-cloudsqlid\",\"cloudSqlProjectId\":\"s-cloudsqlprojectid\",\"database\":\"s-database\",\"dbmPort\":7,\"host\":\"s-host\",\"password\":\"s-password\",\"passwordSet\":true,\"port\":7,\"username\":\"s-username\"},\"state\":\"s-state\",\"updateTime\":\"s-updatetime\"}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: ok",
+]
+
+test "Go's datamigration.projects.locations.connectionProfiles.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"connectionProfiles\":[{\"alloydb\":{\"clusterId\":\"s-clusterid\"},\"cloudsql\":{\"additionalPublicIp\":\"s-additionalpublicip\",\"cloudSqlId\":\"s-cloudsqlid\",\"privateIp\":\"s-privateip\",\"publicIp\":\"s-publicip\"},\"createTime\":\"s-createtime\",\"displayName\":\"s-displayname\",\"error\":{\"code\":7,\"message\":\"s-message\"},\"labels\":{\"k1\":\"s-labels\"},\"mysql\":{\"cloudSqlId\":\"s-cloudsqlid\",\"host\":\"s-host\",\"password\":\"s-password\",\"passwordSet\":true,\"port\":7,\"username\":\"s-username\"},\"name\":\"s-name\",\"oracle\":{\"databaseService\":\"s-databaseservice\",\"host\":\"s-host\",\"password\":\"s-password\",\"passwordSet\":true,\"port\":7,\"username\":\"s-username\"},\"postgresql\":{\"alloydbClusterId\":\"s-alloydbclusterid\",\"cloudSqlId\":\"s-cloudsqlid\",\"database\":\"s-database\",\"enableIamAuthentication\":true,\"host\":\"s-host\",\"networkArchitecture\":\"s-networkarchitecture\",\"password\":\"s-password\",\"passwordSet\":true,\"port\":7,\"username\":\"s-username\"},\"provider\":\"s-provider\",\"role\":\"s-role\",\"satisfiesPzi\":true,\"satisfiesPzs\":true,\"sqlserver\":{\"cloudSqlId\":\"s-cloudsqlid\",\"cloudSqlProjectId\":\"s-cloudsqlprojectid\",\"database\":\"s-database\",\"dbmPort\":7,\"host\":\"s-host\",\"password\":\"s-password\",\"passwordSet\":true,\"port\":7,\"username\":\"s-username\"},\"state\":\"s-state\",\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}")
+  gv_queue(f, "{\"connectionProfiles\":[{\"alloydb\":{\"clusterId\":\"s-clusterid\"},\"cloudsql\":{\"additionalPublicIp\":\"s-additionalpublicip\",\"cloudSqlId\":\"s-cloudsqlid\",\"privateIp\":\"s-privateip\",\"publicIp\":\"s-publicip\"},\"createTime\":\"s-createtime\",\"displayName\":\"s-displayname\",\"error\":{\"code\":7,\"message\":\"s-message\"},\"labels\":{\"k1\":\"s-labels\"},\"mysql\":{\"cloudSqlId\":\"s-cloudsqlid\",\"host\":\"s-host\",\"password\":\"s-password\",\"passwordSet\":true,\"port\":7,\"username\":\"s-username\"},\"name\":\"s-name\",\"oracle\":{\"databaseService\":\"s-databaseservice\",\"host\":\"s-host\",\"password\":\"s-password\",\"passwordSet\":true,\"port\":7,\"username\":\"s-username\"},\"postgresql\":{\"alloydbClusterId\":\"s-alloydbclusterid\",\"cloudSqlId\":\"s-cloudsqlid\",\"database\":\"s-database\",\"enableIamAuthentication\":true,\"host\":\"s-host\",\"networkArchitecture\":\"s-networkarchitecture\",\"password\":\"s-password\",\"passwordSet\":true,\"port\":7,\"username\":\"s-username\"},\"provider\":\"s-provider\",\"role\":\"s-role\",\"satisfiesPzi\":true,\"satisfiesPzs\":true,\"sqlserver\":{\"cloudSqlId\":\"s-cloudsqlid\",\"cloudSqlProjectId\":\"s-cloudsqlprojectid\",\"database\":\"s-database\",\"dbmPort\":7,\"host\":\"s-host\",\"password\":\"s-password\",\"passwordSet\":true,\"port\":7,\"username\":\"s-username\"},\"state\":\"s-state\",\"updateTime\":\"s-updatetime\"}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_note(f, "CALL datamigration.projects.locations.connectionProfiles.list pages")
+  var p = svc.projects.locations.connection_profiles.list_pages("id1/ x", options: ProjectsLocationsConnectionProfilesListOptions{filter: Some("s-filter"), order_by: Some("s-orderby"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_10)
+}
+
+const GO_11: List[Str] = [
   "CALL datamigration.projects.locations.connectionProfiles.patch",
   "REQ PATCH https://datamigration.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&requestId=s-requestid&skipValidation=true&updateMask=s-updatemask&validateOnly=true",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"alloydb\":{\"clusterId\":\"s-clusterid\",\"settings\":{\"databaseVersion\":\"s-databaseversion\",\"labels\":{\"k1\":\"s-labels\"},\"vpcNetwork\":\"s-vpcnetwork\"}},\"cloudsql\":{\"additionalPublicIp\":\"s-additionalpublicip\",\"cloudSqlId\":\"s-cloudsqlid\",\"privateIp\":\"s-privateip\",\"publicIp\":\"s-publicip\",\"settings\":{\"activationPolicy\":\"s-activationpolicy\",\"autoStorageIncrease\":true,\"availabilityType\":\"s-availabilitytype\",\"cmekKeyName\":\"s-cmekkeyname\",\"collation\":\"s-collation\",\"dataDiskProvisionedIops\":\"7\",\"dataDiskProvisionedThroughput\":\"7\",\"dataDiskSizeGb\":\"7\",\"dataDiskType\":\"s-datadisktype\",\"databaseFlags\":{\"k1\":\"s-databaseflags\"},\"databaseVersion\":\"s-databaseversion\",\"databaseVersionName\":\"s-databaseversionname\",\"edition\":\"s-edition\",\"rootPassword\":\"s-rootpassword\",\"rootPasswordSet\":true,\"secondaryZone\":\"s-secondaryzone\",\"sourceId\":\"s-sourceid\",\"storageAutoResizeLimit\":\"7\",\"tier\":\"s-tier\",\"userLabels\":{\"k1\":\"s-userlabels\"},\"zone\":\"s-zone\"}},\"createTime\":\"s-createtime\",\"displayName\":\"s-displayname\",\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"labels\":{\"k1\":\"s-labels\"},\"mysql\":{\"cloudSqlId\":\"s-cloudsqlid\",\"host\":\"s-host\",\"password\":\"s-password\",\"passwordSet\":true,\"port\":7,\"privateConnectivity\":{\"privateConnection\":\"s-privateconnection\"},\"privateServiceConnectConnectivity\":{\"serviceAttachment\":\"s-serviceattachment\"},\"ssl\":{\"caCertificate\":\"s-cacertificate\",\"clientCertificate\":\"s-clientcertificate\",\"clientKey\":\"s-clientkey\",\"sslFlags\":{\"k1\":\"s-sslflags\"},\"type\":\"s-type\"},\"staticServiceIpConnectivity\":{},\"username\":\"s-username\"},\"name\":\"s-name\",\"oracle\":{\"databaseService\":\"s-databaseservice\",\"forwardSshConnectivity\":{\"hostname\":\"s-hostname\",\"password\":\"s-password\",\"port\":7,\"privateKey\":\"s-privatekey\",\"username\":\"s-username\"},\"host\":\"s-host\",\"oracleAsmConfig\":{\"asmService\":\"s-asmservice\",\"hostname\":\"s-hostname\",\"password\":\"s-password\",\"passwordSet\":true,\"port\":7,\"username\":\"s-username\"},\"password\":\"s-password\",\"passwordSet\":true,\"port\":7,\"privateConnectivity\":{\"privateConnection\":\"s-privateconnection\"},\"ssl\":{\"caCertificate\":\"s-cacertificate\",\"clientCertificate\":\"s-clientcertificate\",\"clientKey\":\"s-clientkey\",\"sslFlags\":{\"k1\":\"s-sslflags\"},\"type\":\"s-type\"},\"staticServiceIpConnectivity\":{},\"username\":\"s-username\"},\"postgresql\":{\"alloydbClusterId\":\"s-alloydbclusterid\",\"cloudSqlId\":\"s-cloudsqlid\",\"database\":\"s-database\",\"enableIamAuthentication\":true,\"forwardSshConnectivity\":{\"hostname\":\"s-hostname\",\"password\":\"s-password\",\"port\":7,\"privateKey\":\"s-privatekey\",\"username\":\"s-username\"},\"host\":\"s-host\",\"networkArchitecture\":\"s-networkarchitecture\",\"password\":\"s-password\",\"passwordSet\":true,\"port\":7,\"privateConnectivity\":{\"privateConnection\":\"s-privateconnection\"},\"privateServiceConnectConnectivity\":{\"serviceAttachment\":\"s-serviceattachment\"},\"ssl\":{\"caCertificate\":\"s-cacertificate\",\"clientCertificate\":\"s-clientcertificate\",\"clientKey\":\"s-clientkey\",\"sslFlags\":{\"k1\":\"s-sslflags\"},\"type\":\"s-type\"},\"staticIpConnectivity\":{},\"username\":\"s-username\"},\"provider\":\"s-provider\",\"role\":\"s-role\",\"satisfiesPzi\":true,\"satisfiesPzs\":true,\"sqlserver\":{\"backups\":{\"gcsBucket\":\"s-gcsbucket\",\"gcsPrefix\":\"s-gcsprefix\"},\"cloudSqlId\":\"s-cloudsqlid\",\"cloudSqlProjectId\":\"s-cloudsqlprojectid\",\"database\":\"s-database\",\"dbmPort\":7,\"forwardSshConnectivity\":{\"hostname\":\"s-hostname\",\"password\":\"s-password\",\"port\":7,\"privateKey\":\"s-privatekey\",\"username\":\"s-username\"},\"host\":\"s-host\",\"password\":\"s-password\",\"passwordSet\":true,\"port\":7,\"privateConnectivity\":{\"privateConnection\":\"s-privateconnection\"},\"privateServiceConnectConnectivity\":{\"serviceAttachment\":\"s-serviceattachment\"},\"ssl\":{\"caCertificate\":\"s-cacertificate\",\"clientCertificate\":\"s-clientcertificate\",\"clientKey\":\"s-clientkey\",\"sslFlags\":{\"k1\":\"s-sslflags\"},\"type\":\"s-type\"},\"staticIpConnectivity\":{},\"username\":\"s-username\"},\"state\":\"s-state\",\"updateTime\":\"s-updatetime\"}",
+  "  B <3851 bytes> {\"alloydb\":{\"clusterId\":\"s-clust...e\",\"updateTime\":\"s-updatetime\"}",
   "",
   "  SERVED 200 {\"done\":true,\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}",
   "OUT: {\"done\":true,\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}",
@@ -196,10 +310,10 @@ test "Go's datamigration.projects.locations.connectionProfiles.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_8)
+  gv_compare(gv_log_of(f), GO_11)
 }
 
-const GO_9: List[Str] = [
+const GO_12: List[Str] = [
   "CALL datamigration.projects.locations.connectionProfiles.setIamPolicy",
   "REQ POST https://datamigration.googleapis.com/v1/id1/%20x:setIamPolicy?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -218,10 +332,10 @@ test "Go's datamigration.projects.locations.connectionProfiles.setIamPolicy" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_9)
+  gv_compare(gv_log_of(f), GO_12)
 }
 
-const GO_10: List[Str] = [
+const GO_13: List[Str] = [
   "CALL datamigration.projects.locations.connectionProfiles.testIamPermissions",
   "REQ POST https://datamigration.googleapis.com/v1/id1/%20x:testIamPermissions?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -240,10 +354,10 @@ test "Go's datamigration.projects.locations.connectionProfiles.testIamPermission
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_10)
+  gv_compare(gv_log_of(f), GO_13)
 }
 
-const GO_11: List[Str] = [
+const GO_14: List[Str] = [
   "CALL datamigration.projects.locations.conversionWorkspaces.apply",
   "REQ POST https://datamigration.googleapis.com/v1/id1/%20x:apply?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -262,10 +376,10 @@ test "Go's datamigration.projects.locations.conversionWorkspaces.apply" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_11)
+  gv_compare(gv_log_of(f), GO_14)
 }
 
-const GO_12: List[Str] = [
+const GO_15: List[Str] = [
   "CALL datamigration.projects.locations.conversionWorkspaces.commit",
   "REQ POST https://datamigration.googleapis.com/v1/id1/%20x:commit?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -284,10 +398,10 @@ test "Go's datamigration.projects.locations.conversionWorkspaces.commit" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_12)
+  gv_compare(gv_log_of(f), GO_15)
 }
 
-const GO_13: List[Str] = [
+const GO_16: List[Str] = [
   "CALL datamigration.projects.locations.conversionWorkspaces.convert",
   "REQ POST https://datamigration.googleapis.com/v1/id1/%20x:convert?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -306,10 +420,10 @@ test "Go's datamigration.projects.locations.conversionWorkspaces.convert" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_13)
+  gv_compare(gv_log_of(f), GO_16)
 }
 
-const GO_14: List[Str] = [
+const GO_17: List[Str] = [
   "CALL datamigration.projects.locations.conversionWorkspaces.create",
   "REQ POST https://datamigration.googleapis.com/v1/id1/%20x/conversionWorkspaces?alt=json&conversionWorkspaceId=s-conversionworkspaceid&fields=kind%2Cid&prettyPrint=false&requestId=s-requestid",
   "  H content-type=application/json | x-extra=v1",
@@ -328,10 +442,10 @@ test "Go's datamigration.projects.locations.conversionWorkspaces.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_14)
+  gv_compare(gv_log_of(f), GO_17)
 }
 
-const GO_15: List[Str] = [
+const GO_18: List[Str] = [
   "CALL datamigration.projects.locations.conversionWorkspaces.delete",
   "REQ DELETE https://datamigration.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&force=true&prettyPrint=false&requestId=s-requestid",
   "  H x-extra=v1",
@@ -349,10 +463,10 @@ test "Go's datamigration.projects.locations.conversionWorkspaces.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_15)
+  gv_compare(gv_log_of(f), GO_18)
 }
 
-const GO_16: List[Str] = [
+const GO_19: List[Str] = [
   "CALL datamigration.projects.locations.conversionWorkspaces.describeConversionWorkspaceRevisions",
   "REQ GET https://datamigration.googleapis.com/v1/id1/%20x:describeConversionWorkspaceRevisions?alt=json&commitId=s-commitid&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -370,10 +484,10 @@ test "Go's datamigration.projects.locations.conversionWorkspaces.describeConvers
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_16)
+  gv_compare(gv_log_of(f), GO_19)
 }
 
-const GO_17: List[Str] = [
+const GO_20: List[Str] = [
   "CALL datamigration.projects.locations.conversionWorkspaces.describeDatabaseEntities",
   "REQ GET https://datamigration.googleapis.com/v1/id1/%20x:describeDatabaseEntities?alt=json&commitId=s-commitid&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&tree=s-tree&uncommitted=true&view=s-view",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -391,10 +505,48 @@ test "Go's datamigration.projects.locations.conversionWorkspaces.describeDatabas
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_17)
+  gv_compare(gv_log_of(f), GO_20)
 }
 
-const GO_18: List[Str] = [
+const GO_21: List[Str] = [
+  "CALL datamigration.projects.locations.conversionWorkspaces.describeDatabaseEntities pages",
+  "REQ GET https://datamigration.googleapis.com/v1/id1/%20x:describeDatabaseEntities?alt=json&commitId=s-commitid&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&tree=s-tree&uncommitted=true&view=s-view",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"databaseEntities\":[{\"database\":{\"customFeatures\":{\"k\":\"v\"}},\"databaseFunction\":{\"customFeatures\":{\"k\":\"v\"},\"sqlCode\":\"s-sqlcode\"},\"databasePackage\":{\"customFeatures\":{\"k\":\"v\"},\"packageBody\":\"s-packagebody\",\"packageSqlCode\":\"s-packagesqlcode\"},\"entityType\":\"s-entitytype\",\"materializedView\":{\"customFeatures\":{\"k\":\"v\"},\"sqlCode\":\"s-sqlcode\"},\"parentEntity\":\"s-parententity\",\"schema\":{\"customFeatures\":{\"k\":\"v\"}},\"sequence\":{\"cache\":\"7\",\"customFeatures\":{\"k\":\"v\"},\"cycle\":true,\"increment\":\"7\",\"maxValue\":\"YWI=\",\"minValue\":\"YWI=\",\"startValue\":\"YWI=\"},\"shortName\":\"s-shortname\",\"storedProcedure\":{\"customFeatures\":{\"k\":\"v\"},\"sqlCode\":\"s-sqlcode\"},\"synonym\":{\"customFeatures\":{\"k\":\"v\"},\"sourceEntity\":\"s-sourceentity\",\"sourceType\":\"s-sourcetype\"},\"table\":{\"comment\":\"s-comment\",\"customFeatures\":{\"k\":\"v\"}},\"tree\":\"s-tree\",\"udt\":{\"customFeatures\":{\"k\":\"v\"},\"udtBody\":\"s-udtbody\",\"udtSqlCode\":\"s-udtsqlcode\"},\"view\":{\"customFeatures\":{\"k\":\"v\"},\"sqlCode\":\"s-sqlcode\"}}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"databaseEntities\":[{\"database\":{\"customFeatures\":{\"k\":\"v\"}},\"databaseFunction\":{\"customFeatures\":{\"k\":\"v\"},\"sqlCode\":\"s-sqlcode\"},\"databasePackage\":{\"customFeatures\":{\"k\":\"v\"},\"packageBody\":\"s-packagebody\",\"packageSqlCode\":\"s-packagesqlcode\"},\"entityType\":\"s-entitytype\",\"materializedView\":{\"customFeatures\":{\"k\":\"v\"},\"sqlCode\":\"s-sqlcode\"},\"parentEntity\":\"s-parententity\",\"schema\":{\"customFeatures\":{\"k\":\"v\"}},\"sequence\":{\"cache\":\"7\",\"customFeatures\":{\"k\":\"v\"},\"cycle\":true,\"increment\":\"7\",\"maxValue\":\"YWI=\",\"minValue\":\"YWI=\",\"startValue\":\"YWI=\"},\"shortName\":\"s-shortname\",\"storedProcedure\":{\"customFeatures\":{\"k\":\"v\"},\"sqlCode\":\"s-sqlcode\"},\"synonym\":{\"customFeatures\":{\"k\":\"v\"},\"sourceEntity\":\"s-sourceentity\",\"sourceType\":\"s-sourcetype\"},\"table\":{\"comment\":\"s-comment\",\"customFeatures\":{\"k\":\"v\"}},\"tree\":\"s-tree\",\"udt\":{\"customFeatures\":{\"k\":\"v\"},\"udtBody\":\"s-udtbody\",\"udtSqlCode\":\"s-udtsqlcode\"},\"view\":{\"customFeatures\":{\"k\":\"v\"},\"sqlCode\":\"s-sqlcode\"}}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://datamigration.googleapis.com/v1/id1/%20x:describeDatabaseEntities?alt=json&commitId=s-commitid&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false&tree=s-tree&uncommitted=true&view=s-view",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"databaseEntities\":[{\"database\":{\"customFeatures\":{\"k\":\"v\"}},\"databaseFunction\":{\"customFeatures\":{\"k\":\"v\"},\"sqlCode\":\"s-sqlcode\"},\"databasePackage\":{\"customFeatures\":{\"k\":\"v\"},\"packageBody\":\"s-packagebody\",\"packageSqlCode\":\"s-packagesqlcode\"},\"entityType\":\"s-entitytype\",\"materializedView\":{\"customFeatures\":{\"k\":\"v\"},\"sqlCode\":\"s-sqlcode\"},\"parentEntity\":\"s-parententity\",\"schema\":{\"customFeatures\":{\"k\":\"v\"}},\"sequence\":{\"cache\":\"7\",\"customFeatures\":{\"k\":\"v\"},\"cycle\":true,\"increment\":\"7\",\"maxValue\":\"YWI=\",\"minValue\":\"YWI=\",\"startValue\":\"YWI=\"},\"shortName\":\"s-shortname\",\"storedProcedure\":{\"customFeatures\":{\"k\":\"v\"},\"sqlCode\":\"s-sqlcode\"},\"synonym\":{\"customFeatures\":{\"k\":\"v\"},\"sourceEntity\":\"s-sourceentity\",\"sourceType\":\"s-sourcetype\"},\"table\":{\"comment\":\"s-comment\",\"customFeatures\":{\"k\":\"v\"}},\"tree\":\"s-tree\",\"udt\":{\"customFeatures\":{\"k\":\"v\"},\"udtBody\":\"s-udtbody\",\"udtSqlCode\":\"s-udtsqlcode\"},\"view\":{\"customFeatures\":{\"k\":\"v\"},\"sqlCode\":\"s-sqlcode\"}}]}",
+  "OUT: {\"databaseEntities\":[{\"database\":{\"customFeatures\":{\"k\":\"v\"}},\"databaseFunction\":{\"customFeatures\":{\"k\":\"v\"},\"sqlCode\":\"s-sqlcode\"},\"databasePackage\":{\"customFeatures\":{\"k\":\"v\"},\"packageBody\":\"s-packagebody\",\"packageSqlCode\":\"s-packagesqlcode\"},\"entityType\":\"s-entitytype\",\"materializedView\":{\"customFeatures\":{\"k\":\"v\"},\"sqlCode\":\"s-sqlcode\"},\"parentEntity\":\"s-parententity\",\"schema\":{\"customFeatures\":{\"k\":\"v\"}},\"sequence\":{\"cache\":\"7\",\"customFeatures\":{\"k\":\"v\"},\"cycle\":true,\"increment\":\"7\",\"maxValue\":\"YWI=\",\"minValue\":\"YWI=\",\"startValue\":\"YWI=\"},\"shortName\":\"s-shortname\",\"storedProcedure\":{\"customFeatures\":{\"k\":\"v\"},\"sqlCode\":\"s-sqlcode\"},\"synonym\":{\"customFeatures\":{\"k\":\"v\"},\"sourceEntity\":\"s-sourceentity\",\"sourceType\":\"s-sourcetype\"},\"table\":{\"comment\":\"s-comment\",\"customFeatures\":{\"k\":\"v\"}},\"tree\":\"s-tree\",\"udt\":{\"customFeatures\":{\"k\":\"v\"},\"udtBody\":\"s-udtbody\",\"udtSqlCode\":\"s-udtsqlcode\"},\"view\":{\"customFeatures\":{\"k\":\"v\"},\"sqlCode\":\"s-sqlcode\"}}]}",
+  "OUT: ok",
+]
+
+test "Go's datamigration.projects.locations.conversionWorkspaces.describeDatabaseEntities pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"databaseEntities\":[{\"database\":{\"customFeatures\":{\"k\":\"v\"}},\"databaseFunction\":{\"customFeatures\":{\"k\":\"v\"},\"sqlCode\":\"s-sqlcode\"},\"databasePackage\":{\"customFeatures\":{\"k\":\"v\"},\"packageBody\":\"s-packagebody\",\"packageSqlCode\":\"s-packagesqlcode\"},\"entityType\":\"s-entitytype\",\"materializedView\":{\"customFeatures\":{\"k\":\"v\"},\"sqlCode\":\"s-sqlcode\"},\"parentEntity\":\"s-parententity\",\"schema\":{\"customFeatures\":{\"k\":\"v\"}},\"sequence\":{\"cache\":\"7\",\"customFeatures\":{\"k\":\"v\"},\"cycle\":true,\"increment\":\"7\",\"maxValue\":\"YWI=\",\"minValue\":\"YWI=\",\"startValue\":\"YWI=\"},\"shortName\":\"s-shortname\",\"storedProcedure\":{\"customFeatures\":{\"k\":\"v\"},\"sqlCode\":\"s-sqlcode\"},\"synonym\":{\"customFeatures\":{\"k\":\"v\"},\"sourceEntity\":\"s-sourceentity\",\"sourceType\":\"s-sourcetype\"},\"table\":{\"comment\":\"s-comment\",\"customFeatures\":{\"k\":\"v\"}},\"tree\":\"s-tree\",\"udt\":{\"customFeatures\":{\"k\":\"v\"},\"udtBody\":\"s-udtbody\",\"udtSqlCode\":\"s-udtsqlcode\"},\"view\":{\"customFeatures\":{\"k\":\"v\"},\"sqlCode\":\"s-sqlcode\"}}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"databaseEntities\":[{\"database\":{\"customFeatures\":{\"k\":\"v\"}},\"databaseFunction\":{\"customFeatures\":{\"k\":\"v\"},\"sqlCode\":\"s-sqlcode\"},\"databasePackage\":{\"customFeatures\":{\"k\":\"v\"},\"packageBody\":\"s-packagebody\",\"packageSqlCode\":\"s-packagesqlcode\"},\"entityType\":\"s-entitytype\",\"materializedView\":{\"customFeatures\":{\"k\":\"v\"},\"sqlCode\":\"s-sqlcode\"},\"parentEntity\":\"s-parententity\",\"schema\":{\"customFeatures\":{\"k\":\"v\"}},\"sequence\":{\"cache\":\"7\",\"customFeatures\":{\"k\":\"v\"},\"cycle\":true,\"increment\":\"7\",\"maxValue\":\"YWI=\",\"minValue\":\"YWI=\",\"startValue\":\"YWI=\"},\"shortName\":\"s-shortname\",\"storedProcedure\":{\"customFeatures\":{\"k\":\"v\"},\"sqlCode\":\"s-sqlcode\"},\"synonym\":{\"customFeatures\":{\"k\":\"v\"},\"sourceEntity\":\"s-sourceentity\",\"sourceType\":\"s-sourcetype\"},\"table\":{\"comment\":\"s-comment\",\"customFeatures\":{\"k\":\"v\"}},\"tree\":\"s-tree\",\"udt\":{\"customFeatures\":{\"k\":\"v\"},\"udtBody\":\"s-udtbody\",\"udtSqlCode\":\"s-udtsqlcode\"},\"view\":{\"customFeatures\":{\"k\":\"v\"},\"sqlCode\":\"s-sqlcode\"}}]}")
+  gv_note(f, "CALL datamigration.projects.locations.conversionWorkspaces.describeDatabaseEntities pages")
+  var p = svc.projects.locations.conversion_workspaces.describe_database_entities_pages("id1/ x", options: ProjectsLocationsConversionWorkspacesDescribeDatabaseEntitiesOptions{commit_id: Some("s-commitid"), filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), tree: Some("s-tree"), uncommitted: Some(true), view: Some("s-view"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_21)
+}
+
+const GO_22: List[Str] = [
   "CALL datamigration.projects.locations.conversionWorkspaces.fetchEntitiesStatusView",
   "REQ GET https://datamigration.googleapis.com/v1/id1/%20x:fetchEntitiesStatusView?alt=json&fetchView=s-fetchview&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&tree=s-tree",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -412,10 +564,48 @@ test "Go's datamigration.projects.locations.conversionWorkspaces.fetchEntitiesSt
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_18)
+  gv_compare(gv_log_of(f), GO_22)
 }
 
-const GO_19: List[Str] = [
+const GO_23: List[Str] = [
+  "CALL datamigration.projects.locations.conversionWorkspaces.fetchEntitiesStatusView pages",
+  "REQ GET https://datamigration.googleapis.com/v1/id1/%20x:fetchEntitiesStatusView?alt=json&fetchView=s-fetchview&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&tree=s-tree",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"entities\":[{\"draftDdlKind\":\"s-draftddlkind\",\"draftEntity\":{\"parentName\":\"s-parentname\",\"parentType\":\"s-parenttype\",\"shortName\":\"s-shortname\",\"type\":\"s-type\"},\"editedDdlKind\":\"s-editedddlkind\",\"issues\":{\"errorCount\":7,\"infoCount\":7,\"warningCount\":7},\"resolvedIssues\":{\"errorCount\":7,\"infoCount\":7,\"warningCount\":7},\"sourceEntity\":{\"parentName\":\"s-parentname\",\"parentType\":\"s-parenttype\",\"shortName\":\"s-shortname\",\"type\":\"s-type\"},\"testedEntity\":true,\"wasApplied\":true}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"entities\":[{\"draftDdlKind\":\"s-draftddlkind\",\"draftEntity\":{\"parentName\":\"s-parentname\",\"parentType\":\"s-parenttype\",\"shortName\":\"s-shortname\",\"type\":\"s-type\"},\"editedDdlKind\":\"s-editedddlkind\",\"issues\":{\"errorCount\":7,\"infoCount\":7,\"warningCount\":7},\"resolvedIssues\":{\"errorCount\":7,\"infoCount\":7,\"warningCount\":7},\"sourceEntity\":{\"parentName\":\"s-parentname\",\"parentType\":\"s-parenttype\",\"shortName\":\"s-shortname\",\"type\":\"s-type\"},\"testedEntity\":true,\"wasApplied\":true}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://datamigration.googleapis.com/v1/id1/%20x:fetchEntitiesStatusView?alt=json&fetchView=s-fetchview&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false&tree=s-tree",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"entities\":[{\"draftDdlKind\":\"s-draftddlkind\",\"draftEntity\":{\"parentName\":\"s-parentname\",\"parentType\":\"s-parenttype\",\"shortName\":\"s-shortname\",\"type\":\"s-type\"},\"editedDdlKind\":\"s-editedddlkind\",\"issues\":{\"errorCount\":7,\"infoCount\":7,\"warningCount\":7},\"resolvedIssues\":{\"errorCount\":7,\"infoCount\":7,\"warningCount\":7},\"sourceEntity\":{\"parentName\":\"s-parentname\",\"parentType\":\"s-parenttype\",\"shortName\":\"s-shortname\",\"type\":\"s-type\"},\"testedEntity\":true,\"wasApplied\":true}]}",
+  "OUT: {\"entities\":[{\"draftDdlKind\":\"s-draftddlkind\",\"draftEntity\":{\"parentName\":\"s-parentname\",\"parentType\":\"s-parenttype\",\"shortName\":\"s-shortname\",\"type\":\"s-type\"},\"editedDdlKind\":\"s-editedddlkind\",\"issues\":{\"errorCount\":7,\"infoCount\":7,\"warningCount\":7},\"resolvedIssues\":{\"errorCount\":7,\"infoCount\":7,\"warningCount\":7},\"sourceEntity\":{\"parentName\":\"s-parentname\",\"parentType\":\"s-parenttype\",\"shortName\":\"s-shortname\",\"type\":\"s-type\"},\"testedEntity\":true,\"wasApplied\":true}]}",
+  "OUT: ok",
+]
+
+test "Go's datamigration.projects.locations.conversionWorkspaces.fetchEntitiesStatusView pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"entities\":[{\"draftDdlKind\":\"s-draftddlkind\",\"draftEntity\":{\"parentName\":\"s-parentname\",\"parentType\":\"s-parenttype\",\"shortName\":\"s-shortname\",\"type\":\"s-type\"},\"editedDdlKind\":\"s-editedddlkind\",\"issues\":{\"errorCount\":7,\"infoCount\":7,\"warningCount\":7},\"resolvedIssues\":{\"errorCount\":7,\"infoCount\":7,\"warningCount\":7},\"sourceEntity\":{\"parentName\":\"s-parentname\",\"parentType\":\"s-parenttype\",\"shortName\":\"s-shortname\",\"type\":\"s-type\"},\"testedEntity\":true,\"wasApplied\":true}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"entities\":[{\"draftDdlKind\":\"s-draftddlkind\",\"draftEntity\":{\"parentName\":\"s-parentname\",\"parentType\":\"s-parenttype\",\"shortName\":\"s-shortname\",\"type\":\"s-type\"},\"editedDdlKind\":\"s-editedddlkind\",\"issues\":{\"errorCount\":7,\"infoCount\":7,\"warningCount\":7},\"resolvedIssues\":{\"errorCount\":7,\"infoCount\":7,\"warningCount\":7},\"sourceEntity\":{\"parentName\":\"s-parentname\",\"parentType\":\"s-parenttype\",\"shortName\":\"s-shortname\",\"type\":\"s-type\"},\"testedEntity\":true,\"wasApplied\":true}]}")
+  gv_note(f, "CALL datamigration.projects.locations.conversionWorkspaces.fetchEntitiesStatusView pages")
+  var p = svc.projects.locations.conversion_workspaces.fetch_entities_status_view_pages("id1/ x", options: ProjectsLocationsConversionWorkspacesFetchEntitiesStatusViewOptions{fetch_view: Some("s-fetchview"), filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), tree: Some("s-tree"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_23)
+}
+
+const GO_24: List[Str] = [
   "CALL datamigration.projects.locations.conversionWorkspaces.fetchIssues",
   "REQ GET https://datamigration.googleapis.com/v1/id1/%20x:fetchIssues?allIssues=true&alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&tree=s-tree",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -433,10 +623,48 @@ test "Go's datamigration.projects.locations.conversionWorkspaces.fetchIssues" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_19)
+  gv_compare(gv_log_of(f), GO_24)
 }
 
-const GO_20: List[Str] = [
+const GO_25: List[Str] = [
+  "CALL datamigration.projects.locations.conversionWorkspaces.fetchIssues pages",
+  "REQ GET https://datamigration.googleapis.com/v1/id1/%20x:fetchIssues?allIssues=true&alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&tree=s-tree",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"issues\":[{\"categoryId\":\"s-categoryid\",\"entityFullName\":\"s-entityfullname\",\"entityType\":\"s-entitytype\",\"groupId\":\"s-groupid\",\"id\":\"s-id\",\"issueOrigin\":\"s-issueorigin\",\"issueState\":\"s-issuestate\",\"message\":\"s-message\",\"position\":{\"column\":7,\"length\":7,\"line\":7,\"offset\":7},\"severity\":\"s-severity\",\"type\":\"s-type\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"issues\":[{\"categoryId\":\"s-categoryid\",\"entityFullName\":\"s-entityfullname\",\"entityType\":\"s-entitytype\",\"groupId\":\"s-groupid\",\"id\":\"s-id\",\"issueOrigin\":\"s-issueorigin\",\"issueState\":\"s-issuestate\",\"message\":\"s-message\",\"position\":{\"column\":7,\"length\":7,\"line\":7,\"offset\":7},\"severity\":\"s-severity\",\"type\":\"s-type\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://datamigration.googleapis.com/v1/id1/%20x:fetchIssues?allIssues=true&alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false&tree=s-tree",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"issues\":[{\"categoryId\":\"s-categoryid\",\"entityFullName\":\"s-entityfullname\",\"entityType\":\"s-entitytype\",\"groupId\":\"s-groupid\",\"id\":\"s-id\",\"issueOrigin\":\"s-issueorigin\",\"issueState\":\"s-issuestate\",\"message\":\"s-message\",\"position\":{\"column\":7,\"length\":7,\"line\":7,\"offset\":7},\"severity\":\"s-severity\",\"type\":\"s-type\"}]}",
+  "OUT: {\"issues\":[{\"categoryId\":\"s-categoryid\",\"entityFullName\":\"s-entityfullname\",\"entityType\":\"s-entitytype\",\"groupId\":\"s-groupid\",\"id\":\"s-id\",\"issueOrigin\":\"s-issueorigin\",\"issueState\":\"s-issuestate\",\"message\":\"s-message\",\"position\":{\"column\":7,\"length\":7,\"line\":7,\"offset\":7},\"severity\":\"s-severity\",\"type\":\"s-type\"}]}",
+  "OUT: ok",
+]
+
+test "Go's datamigration.projects.locations.conversionWorkspaces.fetchIssues pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"issues\":[{\"categoryId\":\"s-categoryid\",\"entityFullName\":\"s-entityfullname\",\"entityType\":\"s-entitytype\",\"groupId\":\"s-groupid\",\"id\":\"s-id\",\"issueOrigin\":\"s-issueorigin\",\"issueState\":\"s-issuestate\",\"message\":\"s-message\",\"position\":{\"column\":7,\"length\":7,\"line\":7,\"offset\":7},\"severity\":\"s-severity\",\"type\":\"s-type\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"issues\":[{\"categoryId\":\"s-categoryid\",\"entityFullName\":\"s-entityfullname\",\"entityType\":\"s-entitytype\",\"groupId\":\"s-groupid\",\"id\":\"s-id\",\"issueOrigin\":\"s-issueorigin\",\"issueState\":\"s-issuestate\",\"message\":\"s-message\",\"position\":{\"column\":7,\"length\":7,\"line\":7,\"offset\":7},\"severity\":\"s-severity\",\"type\":\"s-type\"}]}")
+  gv_note(f, "CALL datamigration.projects.locations.conversionWorkspaces.fetchIssues pages")
+  var p = svc.projects.locations.conversion_workspaces.fetch_issues_pages("id1/ x", options: ProjectsLocationsConversionWorkspacesFetchIssuesOptions{all_issues: Some(true), filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), tree: Some("s-tree"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_25)
+}
+
+const GO_26: List[Str] = [
   "CALL datamigration.projects.locations.conversionWorkspaces.get",
   "REQ GET https://datamigration.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -454,10 +682,10 @@ test "Go's datamigration.projects.locations.conversionWorkspaces.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_20)
+  gv_compare(gv_log_of(f), GO_26)
 }
 
-const GO_21: List[Str] = [
+const GO_27: List[Str] = [
   "CALL datamigration.projects.locations.conversionWorkspaces.getIamPolicy",
   "REQ GET https://datamigration.googleapis.com/v1/id1/%20x:getIamPolicy?alt=json&fields=kind%2Cid&options.requestedPolicyVersion=7&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -475,10 +703,10 @@ test "Go's datamigration.projects.locations.conversionWorkspaces.getIamPolicy" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_21)
+  gv_compare(gv_log_of(f), GO_27)
 }
 
-const GO_22: List[Str] = [
+const GO_28: List[Str] = [
   "CALL datamigration.projects.locations.conversionWorkspaces.list",
   "REQ GET https://datamigration.googleapis.com/v1/id1/%20x/conversionWorkspaces?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -496,10 +724,48 @@ test "Go's datamigration.projects.locations.conversionWorkspaces.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_22)
+  gv_compare(gv_log_of(f), GO_28)
 }
 
-const GO_23: List[Str] = [
+const GO_29: List[Str] = [
+  "CALL datamigration.projects.locations.conversionWorkspaces.list pages",
+  "REQ GET https://datamigration.googleapis.com/v1/id1/%20x/conversionWorkspaces?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"conversionWorkspaces\":[{\"createTime\":\"s-createtime\",\"destination\":{\"engine\":\"s-engine\",\"version\":\"s-version\"},\"destinationProvider\":\"s-destinationprovider\",\"displayName\":\"s-displayname\",\"globalSettings\":{\"k1\":\"s-globalsettings\"},\"hasUncommittedChanges\":true,\"latestApplyTime\":\"s-latestapplytime\",\"latestCommitId\":\"s-latestcommitid\",\"latestCommitTime\":\"s-latestcommittime\",\"latestConvertTime\":\"s-latestconverttime\",\"name\":\"s-name\",\"source\":{\"engine\":\"s-engine\",\"version\":\"s-version\"},\"sourceProvider\":\"s-sourceprovider\",\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"conversionWorkspaces\":[{\"createTime\":\"s-createtime\",\"destination\":{\"engine\":\"s-engine\",\"version\":\"s-version\"},\"destinationProvider\":\"s-destinationprovider\",\"displayName\":\"s-displayname\",\"globalSettings\":{\"k1\":\"s-globalsettings\"},\"hasUncommittedChanges\":true,\"latestApplyTime\":\"s-latestapplytime\",\"latestCommitId\":\"s-latestcommitid\",\"latestCommitTime\":\"s-latestcommittime\",\"latestConvertTime\":\"s-latestconverttime\",\"name\":\"s-name\",\"source\":{\"engine\":\"s-engine\",\"version\":\"s-version\"},\"sourceProvider\":\"s-sourceprovider\",\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}",
+  "REQ GET https://datamigration.googleapis.com/v1/id1/%20x/conversionWorkspaces?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"conversionWorkspaces\":[{\"createTime\":\"s-createtime\",\"destination\":{\"engine\":\"s-engine\",\"version\":\"s-version\"},\"destinationProvider\":\"s-destinationprovider\",\"displayName\":\"s-displayname\",\"globalSettings\":{\"k1\":\"s-globalsettings\"},\"hasUncommittedChanges\":true,\"latestApplyTime\":\"s-latestapplytime\",\"latestCommitId\":\"s-latestcommitid\",\"latestCommitTime\":\"s-latestcommittime\",\"latestConvertTime\":\"s-latestconverttime\",\"name\":\"s-name\",\"source\":{\"engine\":\"s-engine\",\"version\":\"s-version\"},\"sourceProvider\":\"s-sourceprovider\",\"updateTime\":\"s-updatetime\"}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"conversionWorkspaces\":[{\"createTime\":\"s-createtime\",\"destination\":{\"engine\":\"s-engine\",\"version\":\"s-version\"},\"destinationProvider\":\"s-destinationprovider\",\"displayName\":\"s-displayname\",\"globalSettings\":{\"k1\":\"s-globalsettings\"},\"hasUncommittedChanges\":true,\"latestApplyTime\":\"s-latestapplytime\",\"latestCommitId\":\"s-latestcommitid\",\"latestCommitTime\":\"s-latestcommittime\",\"latestConvertTime\":\"s-latestconverttime\",\"name\":\"s-name\",\"source\":{\"engine\":\"s-engine\",\"version\":\"s-version\"},\"sourceProvider\":\"s-sourceprovider\",\"updateTime\":\"s-updatetime\"}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: ok",
+]
+
+test "Go's datamigration.projects.locations.conversionWorkspaces.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"conversionWorkspaces\":[{\"createTime\":\"s-createtime\",\"destination\":{\"engine\":\"s-engine\",\"version\":\"s-version\"},\"destinationProvider\":\"s-destinationprovider\",\"displayName\":\"s-displayname\",\"globalSettings\":{\"k1\":\"s-globalsettings\"},\"hasUncommittedChanges\":true,\"latestApplyTime\":\"s-latestapplytime\",\"latestCommitId\":\"s-latestcommitid\",\"latestCommitTime\":\"s-latestcommittime\",\"latestConvertTime\":\"s-latestconverttime\",\"name\":\"s-name\",\"source\":{\"engine\":\"s-engine\",\"version\":\"s-version\"},\"sourceProvider\":\"s-sourceprovider\",\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}")
+  gv_queue(f, "{\"conversionWorkspaces\":[{\"createTime\":\"s-createtime\",\"destination\":{\"engine\":\"s-engine\",\"version\":\"s-version\"},\"destinationProvider\":\"s-destinationprovider\",\"displayName\":\"s-displayname\",\"globalSettings\":{\"k1\":\"s-globalsettings\"},\"hasUncommittedChanges\":true,\"latestApplyTime\":\"s-latestapplytime\",\"latestCommitId\":\"s-latestcommitid\",\"latestCommitTime\":\"s-latestcommittime\",\"latestConvertTime\":\"s-latestconverttime\",\"name\":\"s-name\",\"source\":{\"engine\":\"s-engine\",\"version\":\"s-version\"},\"sourceProvider\":\"s-sourceprovider\",\"updateTime\":\"s-updatetime\"}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_note(f, "CALL datamigration.projects.locations.conversionWorkspaces.list pages")
+  var p = svc.projects.locations.conversion_workspaces.list_pages("id1/ x", options: ProjectsLocationsConversionWorkspacesListOptions{filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_29)
+}
+
+const GO_30: List[Str] = [
   "CALL datamigration.projects.locations.conversionWorkspaces.patch",
   "REQ PATCH https://datamigration.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&requestId=s-requestid&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
@@ -518,10 +784,10 @@ test "Go's datamigration.projects.locations.conversionWorkspaces.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_23)
+  gv_compare(gv_log_of(f), GO_30)
 }
 
-const GO_24: List[Str] = [
+const GO_31: List[Str] = [
   "CALL datamigration.projects.locations.conversionWorkspaces.rollback",
   "REQ POST https://datamigration.googleapis.com/v1/id1/%20x:rollback?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -540,10 +806,10 @@ test "Go's datamigration.projects.locations.conversionWorkspaces.rollback" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_24)
+  gv_compare(gv_log_of(f), GO_31)
 }
 
-const GO_25: List[Str] = [
+const GO_32: List[Str] = [
   "CALL datamigration.projects.locations.conversionWorkspaces.searchBackgroundJobs",
   "REQ GET https://datamigration.googleapis.com/v1/id1/%20x:searchBackgroundJobs?alt=json&completedUntilTime=s-completeduntiltime&fields=kind%2Cid&maxSize=7&prettyPrint=false&returnMostRecentPerJobType=true",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -561,10 +827,10 @@ test "Go's datamigration.projects.locations.conversionWorkspaces.searchBackgroun
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_25)
+  gv_compare(gv_log_of(f), GO_32)
 }
 
-const GO_26: List[Str] = [
+const GO_33: List[Str] = [
   "CALL datamigration.projects.locations.conversionWorkspaces.seed",
   "REQ POST https://datamigration.googleapis.com/v1/id1/%20x:seed?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -583,10 +849,10 @@ test "Go's datamigration.projects.locations.conversionWorkspaces.seed" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_26)
+  gv_compare(gv_log_of(f), GO_33)
 }
 
-const GO_27: List[Str] = [
+const GO_34: List[Str] = [
   "CALL datamigration.projects.locations.conversionWorkspaces.setDraftEntityDdl",
   "REQ POST https://datamigration.googleapis.com/v1/id1/%20x:setDraftEntityDdl?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -605,10 +871,10 @@ test "Go's datamigration.projects.locations.conversionWorkspaces.setDraftEntityD
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_27)
+  gv_compare(gv_log_of(f), GO_34)
 }
 
-const GO_28: List[Str] = [
+const GO_35: List[Str] = [
   "CALL datamigration.projects.locations.conversionWorkspaces.setIamPolicy",
   "REQ POST https://datamigration.googleapis.com/v1/id1/%20x:setIamPolicy?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -627,10 +893,10 @@ test "Go's datamigration.projects.locations.conversionWorkspaces.setIamPolicy" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_28)
+  gv_compare(gv_log_of(f), GO_35)
 }
 
-const GO_29: List[Str] = [
+const GO_36: List[Str] = [
   "CALL datamigration.projects.locations.conversionWorkspaces.testIamPermissions",
   "REQ POST https://datamigration.googleapis.com/v1/id1/%20x:testIamPermissions?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -649,14 +915,14 @@ test "Go's datamigration.projects.locations.conversionWorkspaces.testIamPermissi
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_29)
+  gv_compare(gv_log_of(f), GO_36)
 }
 
-const GO_30: List[Str] = [
+const GO_37: List[Str] = [
   "CALL datamigration.projects.locations.conversionWorkspaces.mappingRules.create",
   "REQ POST https://datamigration.googleapis.com/v1/id1/%20x/mappingRules?alt=json&fields=kind%2Cid&mappingRuleId=s-mappingruleid&prettyPrint=false&requestId=s-requestid",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"conditionalColumnSetValue\":{\"customFeatures\":{\"k\":\"v\"},\"sourceNumericFilter\":{\"numericFilterOption\":\"s-numericfilteroption\",\"sourceMaxPrecisionFilter\":7,\"sourceMaxScaleFilter\":7,\"sourceMinPrecisionFilter\":7,\"sourceMinScaleFilter\":7},\"sourceTextFilter\":{\"sourceMaxLengthFilter\":\"7\",\"sourceMinLengthFilter\":\"7\"},\"valueTransformation\":{}},\"convertRowidColumn\":{\"onlyIfNoPrimaryKey\":true},\"displayName\":\"s-displayname\",\"entityMove\":{\"newSchema\":\"s-newschema\"},\"filter\":{\"entities\":[\"s-entities\"],\"entityNameContains\":\"s-entitynamecontains\",\"entityNamePrefix\":\"s-entitynameprefix\",\"entityNameSuffix\":\"s-entitynamesuffix\",\"parentEntity\":\"s-parententity\"},\"filterTableColumns\":{\"excludeColumns\":[\"s-excludecolumns\"],\"includeColumns\":[\"s-includecolumns\"]},\"multiColumnDataTypeChange\":{\"customFeatures\":{\"k\":\"v\"},\"newDataType\":\"s-newdatatype\",\"overrideFractionalSecondsPrecision\":7,\"overrideLength\":\"7\",\"overridePrecision\":7,\"overrideScale\":7,\"sourceDataTypeFilter\":\"s-sourcedatatypefilter\",\"sourceNumericFilter\":{\"numericFilterOption\":\"s-numericfilteroption\",\"sourceMaxPrecisionFilter\":7,\"sourceMaxScaleFilter\":7,\"sourceMinPrecisionFilter\":7,\"sourceMinScaleFilter\":7},\"sourceTextFilter\":{\"sourceMaxLengthFilter\":\"7\",\"sourceMinLengthFilter\":\"7\"}},\"multiEntityRename\":{\"newNamePattern\":\"s-newnamepattern\",\"sourceNameTransformation\":\"s-sourcenametransformation\"},\"name\":\"s-name\",\"revisionCreateTime\":\"s-revisioncreatetime\",\"revisionId\":\"s-revisionid\",\"ruleOrder\":\"7\",\"ruleScope\":\"s-rulescope\",\"setTablePrimaryKey\":{\"primaryKey\":\"s-primarykey\",\"primaryKeyColumns\":[\"s-primarykeycolumns\"]},\"singleColumnChange\":{\"array\":true,\"arrayLength\":7,\"autoGenerated\":true,\"charset\":\"s-charset\",\"collation\":\"s-collation\",\"comment\":\"s-comment\",\"customFeatures\":{\"k\":\"v\"},\"dataType\":\"s-datatype\",\"fractionalSecondsPrecision\":7,\"length\":\"7\",\"nullable\":true,\"precision\":7,\"scale\":7,\"setValues\":[\"s-setvalues\"],\"udt\":true},\"singleEntityRename\":{\"newName\":\"s-newname\"},\"singlePackageChange\":{\"packageBody\":\"s-packagebody\",\"packageDescription\":\"s-packagedescription\"},\"sourceSqlChange\":{\"sqlCode\":\"s-sqlcode\"},\"state\":\"s-state\"}",
+  "  B <2100 bytes> {\"conditionalColumnSetValue\":{\"c...\"s-sqlcode\"},\"state\":\"s-state\"}",
   "",
   "  SERVED 200 {\"conditionalColumnSetValue\":{\"customFeatures\":{\"k\":\"v\"},\"sourceNumericFilter\":{\"numericFilterOption\":\"s-numericfilteroption\",\"sourceMaxPrecisionFilter\":7,\"sourceMaxScaleFilter\":7,\"sourceMinPrecisionFilter\":7,\"sourceMinScaleFilter\":7},\"sourceTextFilter\":{\"sourceMaxLengthFilter\":\"7\",\"sourceMinLengthFilter\":\"7\"},\"valueTransformation\":{}},\"convertRowidColumn\":{\"onlyIfNoPrimaryKey\":true},\"displayName\":\"s-displayname\",\"entityMove\":{\"newSchema\":\"s-newschema\"},\"filter\":{\"entities\":[\"s-entities\"],\"entityNameContains\":\"s-entitynamecontains\",\"entityNamePrefix\":\"s-entitynameprefix\",\"entityNameSuffix\":\"s-entitynamesuffix\",\"parentEntity\":\"s-parententity\"},\"filterTableColumns\":{\"excludeColumns\":[\"s-excludecolumns\"],\"includeColumns\":[\"s-includecolumns\"]},\"multiColumnDataTypeChange\":{\"customFeatures\":{\"k\":\"v\"},\"newDataType\":\"s-newdatatype\",\"overrideFractionalSecondsPrecision\":7,\"overrideLength\":\"7\",\"overridePrecision\":7,\"overrideScale\":7,\"sourceDataTypeFilter\":\"s-sourcedatatypefilter\",\"sourceNumericFilter\":{\"numericFilterOption\":\"s-numericfilteroption\",\"sourceMaxPrecisionFilter\":7,\"sourceMaxScaleFilter\":7,\"sourceMinPrecisionFilter\":7,\"sourceMinScaleFilter\":7},\"sourceTextFilter\":{\"sourceMaxLengthFilter\":\"7\",\"sourceMinLengthFilter\":\"7\"}},\"multiEntityRename\":{\"newNamePattern\":\"s-newnamepattern\",\"sourceNameTransformation\":\"s-sourcenametransformation\"},\"name\":\"s-name\",\"revisionCreateTime\":\"s-revisioncreatetime\",\"revisionId\":\"s-revisionid\",\"ruleOrder\":\"7\",\"ruleScope\":\"s-rulescope\",\"setTablePrimaryKey\":{\"primaryKey\":\"s-primarykey\",\"primaryKeyColumns\":[\"s-primarykeycolumns\"]},\"singleColumnChange\":{\"array\":true,\"arrayLength\":7,\"autoGenerated\":true,\"charset\":\"s-charset\",\"collation\":\"s-collation\",\"comment\":\"s-comment\",\"customFeatures\":{\"k\":\"v\"},\"dataType\":\"s-datatype\",\"fractionalSecondsPrecision\":7,\"length\":\"7\",\"nullable\":true,\"precision\":7,\"scale\":7,\"setValues\":[\"s-setvalues\"],\"udt\":true},\"singleEntityRename\":{\"newName\":\"s-newname\"},\"singlePackageChange\":{\"packageBody\":\"s-packagebody\",\"packageDescription\":\"s-packagedescription\"},\"sourceSqlChange\":{\"sqlCode\":\"s-sqlcode\"},\"state\":\"s-state\"}",
   "OUT: {\"conditionalColumnSetValue\":{\"customFeatures\":{\"k\":\"v\"},\"sourceNumericFilter\":{\"numericFilterOption\":\"s-numericfilteroption\",\"sourceMaxPrecisionFilter\":7,\"sourceMaxScaleFilter\":7,\"sourceMinPrecisionFilter\":7,\"sourceMinScaleFilter\":7},\"sourceTextFilter\":{\"sourceMaxLengthFilter\":\"7\",\"sourceMinLengthFilter\":\"7\"},\"valueTransformation\":{}},\"convertRowidColumn\":{\"onlyIfNoPrimaryKey\":true},\"displayName\":\"s-displayname\",\"entityMove\":{\"newSchema\":\"s-newschema\"},\"filter\":{\"entities\":[\"s-entities\"],\"entityNameContains\":\"s-entitynamecontains\",\"entityNamePrefix\":\"s-entitynameprefix\",\"entityNameSuffix\":\"s-entitynamesuffix\",\"parentEntity\":\"s-parententity\"},\"filterTableColumns\":{\"excludeColumns\":[\"s-excludecolumns\"],\"includeColumns\":[\"s-includecolumns\"]},\"multiColumnDataTypeChange\":{\"customFeatures\":{\"k\":\"v\"},\"newDataType\":\"s-newdatatype\",\"overrideFractionalSecondsPrecision\":7,\"overrideLength\":\"7\",\"overridePrecision\":7,\"overrideScale\":7,\"sourceDataTypeFilter\":\"s-sourcedatatypefilter\",\"sourceNumericFilter\":{\"numericFilterOption\":\"s-numericfilteroption\",\"sourceMaxPrecisionFilter\":7,\"sourceMaxScaleFilter\":7,\"sourceMinPrecisionFilter\":7,\"sourceMinScaleFilter\":7},\"sourceTextFilter\":{\"sourceMaxLengthFilter\":\"7\",\"sourceMinLengthFilter\":\"7\"}},\"multiEntityRename\":{\"newNamePattern\":\"s-newnamepattern\",\"sourceNameTransformation\":\"s-sourcenametransformation\"},\"name\":\"s-name\",\"revisionCreateTime\":\"s-revisioncreatetime\",\"revisionId\":\"s-revisionid\",\"ruleOrder\":\"7\",\"ruleScope\":\"s-rulescope\",\"setTablePrimaryKey\":{\"primaryKey\":\"s-primarykey\",\"primaryKeyColumns\":[\"s-primarykeycolumns\"]},\"singleColumnChange\":{\"array\":true,\"arrayLength\":7,\"autoGenerated\":true,\"charset\":\"s-charset\",\"collation\":\"s-collation\",\"comment\":\"s-comment\",\"customFeatures\":{\"k\":\"v\"},\"dataType\":\"s-datatype\",\"fractionalSecondsPrecision\":7,\"length\":\"7\",\"nullable\":true,\"precision\":7,\"scale\":7,\"setValues\":[\"s-setvalues\"],\"udt\":true},\"singleEntityRename\":{\"newName\":\"s-newname\"},\"singlePackageChange\":{\"packageBody\":\"s-packagebody\",\"packageDescription\":\"s-packagedescription\"},\"sourceSqlChange\":{\"sqlCode\":\"s-sqlcode\"},\"state\":\"s-state\"}",
@@ -671,10 +937,10 @@ test "Go's datamigration.projects.locations.conversionWorkspaces.mappingRules.cr
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_30)
+  gv_compare(gv_log_of(f), GO_37)
 }
 
-const GO_31: List[Str] = [
+const GO_38: List[Str] = [
   "CALL datamigration.projects.locations.conversionWorkspaces.mappingRules.delete",
   "REQ DELETE https://datamigration.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&requestId=s-requestid",
   "  H x-extra=v1",
@@ -692,10 +958,10 @@ test "Go's datamigration.projects.locations.conversionWorkspaces.mappingRules.de
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_31)
+  gv_compare(gv_log_of(f), GO_38)
 }
 
-const GO_32: List[Str] = [
+const GO_39: List[Str] = [
   "CALL datamigration.projects.locations.conversionWorkspaces.mappingRules.get",
   "REQ GET https://datamigration.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -713,10 +979,10 @@ test "Go's datamigration.projects.locations.conversionWorkspaces.mappingRules.ge
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_32)
+  gv_compare(gv_log_of(f), GO_39)
 }
 
-const GO_33: List[Str] = [
+const GO_40: List[Str] = [
   "CALL datamigration.projects.locations.conversionWorkspaces.mappingRules.import",
   "REQ POST https://datamigration.googleapis.com/v1/id1/%20x/mappingRules:import?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -735,10 +1001,10 @@ test "Go's datamigration.projects.locations.conversionWorkspaces.mappingRules.im
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_33)
+  gv_compare(gv_log_of(f), GO_40)
 }
 
-const GO_34: List[Str] = [
+const GO_41: List[Str] = [
   "CALL datamigration.projects.locations.conversionWorkspaces.mappingRules.list",
   "REQ GET https://datamigration.googleapis.com/v1/id1/%20x/mappingRules?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -756,14 +1022,52 @@ test "Go's datamigration.projects.locations.conversionWorkspaces.mappingRules.li
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_34)
+  gv_compare(gv_log_of(f), GO_41)
 }
 
-const GO_35: List[Str] = [
+const GO_42: List[Str] = [
+  "CALL datamigration.projects.locations.conversionWorkspaces.mappingRules.list pages",
+  "REQ GET https://datamigration.googleapis.com/v1/id1/%20x/mappingRules?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"mappingRules\":[{\"conditionalColumnSetValue\":{\"customFeatures\":{\"k\":\"v\"}},\"convertRowidColumn\":{\"onlyIfNoPrimaryKey\":true},\"displayName\":\"s-displayname\",\"entityMove\":{\"newSchema\":\"s-newschema\"},\"filter\":{\"entityNameContains\":\"s-entitynamecontains\",\"entityNamePrefix\":\"s-entitynameprefix\",\"entityNameSuffix\":\"s-entitynamesuffix\",\"parentEntity\":\"s-parententity\"},\"filterTableColumns\":{},\"multiColumnDataTypeChange\":{\"customFeatures\":{\"k\":\"v\"},\"newDataType\":\"s-newdatatype\",\"overrideFractionalSecondsPrecision\":7,\"overrideLength\":\"7\",\"overridePrecision\":7,\"overrideScale\":7,\"sourceDataTypeFilter\":\"s-sourcedatatypefilter\"},\"multiEntityRename\":{\"newNamePattern\":\"s-newnamepattern\",\"sourceNameTransformation\":\"s-sourcenametransformation\"},\"name\":\"s-name\",\"revisionCreateTime\":\"s-revisioncreatetime\",\"revisionId\":\"s-revisionid\",\"ruleOrder\":\"7\",\"ruleScope\":\"s-rulescope\",\"setTablePrimaryKey\":{\"primaryKey\":\"s-primarykey\"},\"singleColumnChange\":{\"array\":true,\"arrayLength\":7,\"autoGenerated\":true,\"charset\":\"s-charset\",\"collation\":\"s-collation\",\"comment\":\"s-comment\",\"customFeatures\":{\"k\":\"v\"},\"dataType\":\"s-datatype\",\"fractionalSecondsPrecision\":7,\"length\":\"7\",\"nullable\":true,\"precision\":7,\"scale\":7,\"udt\":true},\"singleEntityRename\":{\"newName\":\"s-newname\"},\"singlePackageChange\":{\"packageBody\":\"s-packagebody\",\"packageDescription\":\"s-packagedescription\"},\"sourceSqlChange\":{\"sqlCode\":\"s-sqlcode\"},\"state\":\"s-state\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"mappingRules\":[{\"conditionalColumnSetValue\":{\"customFeatures\":{\"k\":\"v\"}},\"convertRowidColumn\":{\"onlyIfNoPrimaryKey\":true},\"displayName\":\"s-displayname\",\"entityMove\":{\"newSchema\":\"s-newschema\"},\"filter\":{\"entityNameContains\":\"s-entitynamecontains\",\"entityNamePrefix\":\"s-entitynameprefix\",\"entityNameSuffix\":\"s-entitynamesuffix\",\"parentEntity\":\"s-parententity\"},\"filterTableColumns\":{},\"multiColumnDataTypeChange\":{\"customFeatures\":{\"k\":\"v\"},\"newDataType\":\"s-newdatatype\",\"overrideFractionalSecondsPrecision\":7,\"overrideLength\":\"7\",\"overridePrecision\":7,\"overrideScale\":7,\"sourceDataTypeFilter\":\"s-sourcedatatypefilter\"},\"multiEntityRename\":{\"newNamePattern\":\"s-newnamepattern\",\"sourceNameTransformation\":\"s-sourcenametransformation\"},\"name\":\"s-name\",\"revisionCreateTime\":\"s-revisioncreatetime\",\"revisionId\":\"s-revisionid\",\"ruleOrder\":\"7\",\"ruleScope\":\"s-rulescope\",\"setTablePrimaryKey\":{\"primaryKey\":\"s-primarykey\"},\"singleColumnChange\":{\"array\":true,\"arrayLength\":7,\"autoGenerated\":true,\"charset\":\"s-charset\",\"collation\":\"s-collation\",\"comment\":\"s-comment\",\"customFeatures\":{\"k\":\"v\"},\"dataType\":\"s-datatype\",\"fractionalSecondsPrecision\":7,\"length\":\"7\",\"nullable\":true,\"precision\":7,\"scale\":7,\"udt\":true},\"singleEntityRename\":{\"newName\":\"s-newname\"},\"singlePackageChange\":{\"packageBody\":\"s-packagebody\",\"packageDescription\":\"s-packagedescription\"},\"sourceSqlChange\":{\"sqlCode\":\"s-sqlcode\"},\"state\":\"s-state\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://datamigration.googleapis.com/v1/id1/%20x/mappingRules?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"mappingRules\":[{\"conditionalColumnSetValue\":{\"customFeatures\":{\"k\":\"v\"}},\"convertRowidColumn\":{\"onlyIfNoPrimaryKey\":true},\"displayName\":\"s-displayname\",\"entityMove\":{\"newSchema\":\"s-newschema\"},\"filter\":{\"entityNameContains\":\"s-entitynamecontains\",\"entityNamePrefix\":\"s-entitynameprefix\",\"entityNameSuffix\":\"s-entitynamesuffix\",\"parentEntity\":\"s-parententity\"},\"filterTableColumns\":{},\"multiColumnDataTypeChange\":{\"customFeatures\":{\"k\":\"v\"},\"newDataType\":\"s-newdatatype\",\"overrideFractionalSecondsPrecision\":7,\"overrideLength\":\"7\",\"overridePrecision\":7,\"overrideScale\":7,\"sourceDataTypeFilter\":\"s-sourcedatatypefilter\"},\"multiEntityRename\":{\"newNamePattern\":\"s-newnamepattern\",\"sourceNameTransformation\":\"s-sourcenametransformation\"},\"name\":\"s-name\",\"revisionCreateTime\":\"s-revisioncreatetime\",\"revisionId\":\"s-revisionid\",\"ruleOrder\":\"7\",\"ruleScope\":\"s-rulescope\",\"setTablePrimaryKey\":{\"primaryKey\":\"s-primarykey\"},\"singleColumnChange\":{\"array\":true,\"arrayLength\":7,\"autoGenerated\":true,\"charset\":\"s-charset\",\"collation\":\"s-collation\",\"comment\":\"s-comment\",\"customFeatures\":{\"k\":\"v\"},\"dataType\":\"s-datatype\",\"fractionalSecondsPrecision\":7,\"length\":\"7\",\"nullable\":true,\"precision\":7,\"scale\":7,\"udt\":true},\"singleEntityRename\":{\"newName\":\"s-newname\"},\"singlePackageChange\":{\"packageBody\":\"s-packagebody\",\"packageDescription\":\"s-packagedescription\"},\"sourceSqlChange\":{\"sqlCode\":\"s-sqlcode\"},\"state\":\"s-state\"}]}",
+  "OUT: {\"mappingRules\":[{\"conditionalColumnSetValue\":{\"customFeatures\":{\"k\":\"v\"}},\"convertRowidColumn\":{\"onlyIfNoPrimaryKey\":true},\"displayName\":\"s-displayname\",\"entityMove\":{\"newSchema\":\"s-newschema\"},\"filter\":{\"entityNameContains\":\"s-entitynamecontains\",\"entityNamePrefix\":\"s-entitynameprefix\",\"entityNameSuffix\":\"s-entitynamesuffix\",\"parentEntity\":\"s-parententity\"},\"filterTableColumns\":{},\"multiColumnDataTypeChange\":{\"customFeatures\":{\"k\":\"v\"},\"newDataType\":\"s-newdatatype\",\"overrideFractionalSecondsPrecision\":7,\"overrideLength\":\"7\",\"overridePrecision\":7,\"overrideScale\":7,\"sourceDataTypeFilter\":\"s-sourcedatatypefilter\"},\"multiEntityRename\":{\"newNamePattern\":\"s-newnamepattern\",\"sourceNameTransformation\":\"s-sourcenametransformation\"},\"name\":\"s-name\",\"revisionCreateTime\":\"s-revisioncreatetime\",\"revisionId\":\"s-revisionid\",\"ruleOrder\":\"7\",\"ruleScope\":\"s-rulescope\",\"setTablePrimaryKey\":{\"primaryKey\":\"s-primarykey\"},\"singleColumnChange\":{\"array\":true,\"arrayLength\":7,\"autoGenerated\":true,\"charset\":\"s-charset\",\"collation\":\"s-collation\",\"comment\":\"s-comment\",\"customFeatures\":{\"k\":\"v\"},\"dataType\":\"s-datatype\",\"fractionalSecondsPrecision\":7,\"length\":\"7\",\"nullable\":true,\"precision\":7,\"scale\":7,\"udt\":true},\"singleEntityRename\":{\"newName\":\"s-newname\"},\"singlePackageChange\":{\"packageBody\":\"s-packagebody\",\"packageDescription\":\"s-packagedescription\"},\"sourceSqlChange\":{\"sqlCode\":\"s-sqlcode\"},\"state\":\"s-state\"}]}",
+  "OUT: ok",
+]
+
+test "Go's datamigration.projects.locations.conversionWorkspaces.mappingRules.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"mappingRules\":[{\"conditionalColumnSetValue\":{\"customFeatures\":{\"k\":\"v\"}},\"convertRowidColumn\":{\"onlyIfNoPrimaryKey\":true},\"displayName\":\"s-displayname\",\"entityMove\":{\"newSchema\":\"s-newschema\"},\"filter\":{\"entityNameContains\":\"s-entitynamecontains\",\"entityNamePrefix\":\"s-entitynameprefix\",\"entityNameSuffix\":\"s-entitynamesuffix\",\"parentEntity\":\"s-parententity\"},\"filterTableColumns\":{},\"multiColumnDataTypeChange\":{\"customFeatures\":{\"k\":\"v\"},\"newDataType\":\"s-newdatatype\",\"overrideFractionalSecondsPrecision\":7,\"overrideLength\":\"7\",\"overridePrecision\":7,\"overrideScale\":7,\"sourceDataTypeFilter\":\"s-sourcedatatypefilter\"},\"multiEntityRename\":{\"newNamePattern\":\"s-newnamepattern\",\"sourceNameTransformation\":\"s-sourcenametransformation\"},\"name\":\"s-name\",\"revisionCreateTime\":\"s-revisioncreatetime\",\"revisionId\":\"s-revisionid\",\"ruleOrder\":\"7\",\"ruleScope\":\"s-rulescope\",\"setTablePrimaryKey\":{\"primaryKey\":\"s-primarykey\"},\"singleColumnChange\":{\"array\":true,\"arrayLength\":7,\"autoGenerated\":true,\"charset\":\"s-charset\",\"collation\":\"s-collation\",\"comment\":\"s-comment\",\"customFeatures\":{\"k\":\"v\"},\"dataType\":\"s-datatype\",\"fractionalSecondsPrecision\":7,\"length\":\"7\",\"nullable\":true,\"precision\":7,\"scale\":7,\"udt\":true},\"singleEntityRename\":{\"newName\":\"s-newname\"},\"singlePackageChange\":{\"packageBody\":\"s-packagebody\",\"packageDescription\":\"s-packagedescription\"},\"sourceSqlChange\":{\"sqlCode\":\"s-sqlcode\"},\"state\":\"s-state\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"mappingRules\":[{\"conditionalColumnSetValue\":{\"customFeatures\":{\"k\":\"v\"}},\"convertRowidColumn\":{\"onlyIfNoPrimaryKey\":true},\"displayName\":\"s-displayname\",\"entityMove\":{\"newSchema\":\"s-newschema\"},\"filter\":{\"entityNameContains\":\"s-entitynamecontains\",\"entityNamePrefix\":\"s-entitynameprefix\",\"entityNameSuffix\":\"s-entitynamesuffix\",\"parentEntity\":\"s-parententity\"},\"filterTableColumns\":{},\"multiColumnDataTypeChange\":{\"customFeatures\":{\"k\":\"v\"},\"newDataType\":\"s-newdatatype\",\"overrideFractionalSecondsPrecision\":7,\"overrideLength\":\"7\",\"overridePrecision\":7,\"overrideScale\":7,\"sourceDataTypeFilter\":\"s-sourcedatatypefilter\"},\"multiEntityRename\":{\"newNamePattern\":\"s-newnamepattern\",\"sourceNameTransformation\":\"s-sourcenametransformation\"},\"name\":\"s-name\",\"revisionCreateTime\":\"s-revisioncreatetime\",\"revisionId\":\"s-revisionid\",\"ruleOrder\":\"7\",\"ruleScope\":\"s-rulescope\",\"setTablePrimaryKey\":{\"primaryKey\":\"s-primarykey\"},\"singleColumnChange\":{\"array\":true,\"arrayLength\":7,\"autoGenerated\":true,\"charset\":\"s-charset\",\"collation\":\"s-collation\",\"comment\":\"s-comment\",\"customFeatures\":{\"k\":\"v\"},\"dataType\":\"s-datatype\",\"fractionalSecondsPrecision\":7,\"length\":\"7\",\"nullable\":true,\"precision\":7,\"scale\":7,\"udt\":true},\"singleEntityRename\":{\"newName\":\"s-newname\"},\"singlePackageChange\":{\"packageBody\":\"s-packagebody\",\"packageDescription\":\"s-packagedescription\"},\"sourceSqlChange\":{\"sqlCode\":\"s-sqlcode\"},\"state\":\"s-state\"}]}")
+  gv_note(f, "CALL datamigration.projects.locations.conversionWorkspaces.mappingRules.list pages")
+  var p = svc.projects.locations.conversion_workspaces.mapping_rules.list_pages("id1/ x", options: ProjectsLocationsConversionWorkspacesMappingRulesListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_42)
+}
+
+const GO_43: List[Str] = [
   "CALL datamigration.projects.locations.migrationJobs.create",
   "REQ POST https://datamigration.googleapis.com/v1/id1/%20x/migrationJobs?alt=json&fields=kind%2Cid&migrationJobId=s-migrationjobid&prettyPrint=false&requestId=s-requestid",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"cmekKeyName\":\"s-cmekkeyname\",\"conversionWorkspace\":{\"commitId\":\"s-commitid\",\"name\":\"s-name\"},\"createTime\":\"s-createtime\",\"destination\":\"s-destination\",\"destinationDatabase\":{\"engine\":\"s-engine\",\"provider\":\"s-provider\"},\"displayName\":\"s-displayname\",\"dumpFlags\":{\"dumpFlags\":[{\"name\":\"s-name\",\"value\":\"s-value\"}]},\"dumpPath\":\"s-dumppath\",\"dumpType\":\"s-dumptype\",\"duration\":\"s-duration\",\"endTime\":\"s-endtime\",\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"filter\":\"s-filter\",\"labels\":{\"k1\":\"s-labels\"},\"mysqlHomogeneousConfig\":{\"isPrimaryDestination\":true},\"name\":\"s-name\",\"objectsConfig\":{\"sourceObjectsConfig\":{\"objectsSelectionType\":\"s-objectsselectiontype\"}},\"oracleToPostgresConfig\":{\"oracleSourceConfig\":{\"cdcStartPosition\":\"7\",\"maxConcurrentCdcConnections\":7,\"maxConcurrentFullDumpConnections\":7,\"skipFullDump\":true},\"postgresDestinationConfig\":{\"maxConcurrentConnections\":7,\"transactionTimeout\":\"s-transactiontimeout\"}},\"originalMigrationName\":\"s-originalmigrationname\",\"performanceConfig\":{\"dumpParallelLevel\":\"s-dumpparallellevel\",\"loadParallelLevel\":\"s-loadparallellevel\"},\"phase\":\"s-phase\",\"postgresHomogeneousConfig\":{\"isNativeLogical\":true,\"maxAdditionalSubscriptions\":7},\"postgresToSqlserverConfig\":{\"postgresSourceConfig\":{\"skipFullDump\":true},\"sqlserverDestinationConfig\":{\"maxConcurrentConnections\":7,\"transactionTimeout\":\"s-transactiontimeout\"}},\"purpose\":\"s-purpose\",\"reverseSshConnectivity\":{\"vm\":\"s-vm\",\"vmIp\":\"s-vmip\",\"vmPort\":7,\"vpc\":\"s-vpc\"},\"satisfiesPzi\":true,\"satisfiesPzs\":true,\"source\":\"s-source\",\"sourceDatabase\":{\"engine\":\"s-engine\",\"provider\":\"s-provider\"},\"sqlserverHomogeneousMigrationJobConfig\":{\"backupFilePattern\":\"s-backupfilepattern\",\"dagConfig\":{\"linkedServer\":\"s-linkedserver\",\"sourceAg\":\"s-sourceag\"},\"databaseBackups\":[{\"database\":\"s-database\"}],\"promoteWhenReady\":true,\"useDiffBackup\":true},\"sqlserverToPostgresConfig\":{\"postgresDestinationConfig\":{\"maxConcurrentConnections\":7,\"transactionTimeout\":\"s-transactiontimeout\"},\"sqlserverSourceConfig\":{\"cdcStartPosition\":\"s-cdcstartposition\",\"maxConcurrentCdcConnections\":7,\"maxConcurrentFullDumpConnections\":7,\"skipFullDump\":true}},\"state\":\"s-state\",\"staticIpConnectivity\":{},\"type\":\"s-type\",\"updateTime\":\"s-updatetime\",\"vpcPeeringConnectivity\":{\"vpc\":\"s-vpc\"}}",
+  "  B <2271 bytes> {\"cmekKeyName\":\"s-cmekkeyname\",\"...gConnectivity\":{\"vpc\":\"s-vpc\"}}",
   "",
   "  SERVED 200 {\"done\":true,\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}",
   "OUT: {\"done\":true,\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}",
@@ -778,10 +1082,10 @@ test "Go's datamigration.projects.locations.migrationJobs.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_35)
+  gv_compare(gv_log_of(f), GO_43)
 }
 
-const GO_36: List[Str] = [
+const GO_44: List[Str] = [
   "CALL datamigration.projects.locations.migrationJobs.delete",
   "REQ DELETE https://datamigration.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&force=true&prettyPrint=false&requestId=s-requestid",
   "  H x-extra=v1",
@@ -799,10 +1103,10 @@ test "Go's datamigration.projects.locations.migrationJobs.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_36)
+  gv_compare(gv_log_of(f), GO_44)
 }
 
-const GO_37: List[Str] = [
+const GO_45: List[Str] = [
   "CALL datamigration.projects.locations.migrationJobs.demoteDestination",
   "REQ POST https://datamigration.googleapis.com/v1/id1/%20x:demoteDestination?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -821,10 +1125,10 @@ test "Go's datamigration.projects.locations.migrationJobs.demoteDestination" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_37)
+  gv_compare(gv_log_of(f), GO_45)
 }
 
-const GO_38: List[Str] = [
+const GO_46: List[Str] = [
   "CALL datamigration.projects.locations.migrationJobs.fetchSourceObjects",
   "REQ GET https://datamigration.googleapis.com/v1/id1/%20x:fetchSourceObjects?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -842,10 +1146,10 @@ test "Go's datamigration.projects.locations.migrationJobs.fetchSourceObjects" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_38)
+  gv_compare(gv_log_of(f), GO_46)
 }
 
-const GO_39: List[Str] = [
+const GO_47: List[Str] = [
   "CALL datamigration.projects.locations.migrationJobs.generateSshScript",
   "REQ POST https://datamigration.googleapis.com/v1/id1/%20x:generateSshScript?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -864,10 +1168,10 @@ test "Go's datamigration.projects.locations.migrationJobs.generateSshScript" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_39)
+  gv_compare(gv_log_of(f), GO_47)
 }
 
-const GO_40: List[Str] = [
+const GO_48: List[Str] = [
   "CALL datamigration.projects.locations.migrationJobs.generateTcpProxyScript",
   "REQ POST https://datamigration.googleapis.com/v1/id1/%20x:generateTcpProxyScript?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -886,10 +1190,10 @@ test "Go's datamigration.projects.locations.migrationJobs.generateTcpProxyScript
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_40)
+  gv_compare(gv_log_of(f), GO_48)
 }
 
-const GO_41: List[Str] = [
+const GO_49: List[Str] = [
   "CALL datamigration.projects.locations.migrationJobs.get",
   "REQ GET https://datamigration.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -907,10 +1211,10 @@ test "Go's datamigration.projects.locations.migrationJobs.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_41)
+  gv_compare(gv_log_of(f), GO_49)
 }
 
-const GO_42: List[Str] = [
+const GO_50: List[Str] = [
   "CALL datamigration.projects.locations.migrationJobs.getIamPolicy",
   "REQ GET https://datamigration.googleapis.com/v1/id1/%20x:getIamPolicy?alt=json&fields=kind%2Cid&options.requestedPolicyVersion=7&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -928,10 +1232,10 @@ test "Go's datamigration.projects.locations.migrationJobs.getIamPolicy" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_42)
+  gv_compare(gv_log_of(f), GO_50)
 }
 
-const GO_43: List[Str] = [
+const GO_51: List[Str] = [
   "CALL datamigration.projects.locations.migrationJobs.list",
   "REQ GET https://datamigration.googleapis.com/v1/id1/%20x/migrationJobs?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -949,14 +1253,52 @@ test "Go's datamigration.projects.locations.migrationJobs.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_43)
+  gv_compare(gv_log_of(f), GO_51)
 }
 
-const GO_44: List[Str] = [
+const GO_52: List[Str] = [
+  "CALL datamigration.projects.locations.migrationJobs.list pages",
+  "REQ GET https://datamigration.googleapis.com/v1/id1/%20x/migrationJobs?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"migrationJobs\":[{\"cmekKeyName\":\"s-cmekkeyname\",\"conversionWorkspace\":{\"commitId\":\"s-commitid\",\"name\":\"s-name\"},\"createTime\":\"s-createtime\",\"destination\":\"s-destination\",\"destinationDatabase\":{\"engine\":\"s-engine\",\"provider\":\"s-provider\"},\"displayName\":\"s-displayname\",\"dumpFlags\":{},\"dumpPath\":\"s-dumppath\",\"dumpType\":\"s-dumptype\",\"duration\":\"s-duration\",\"endTime\":\"s-endtime\",\"error\":{\"code\":7,\"message\":\"s-message\"},\"filter\":\"s-filter\",\"labels\":{\"k1\":\"s-labels\"},\"mysqlHomogeneousConfig\":{\"isPrimaryDestination\":true},\"name\":\"s-name\",\"objectsConfig\":{},\"oracleToPostgresConfig\":{},\"originalMigrationName\":\"s-originalmigrationname\",\"performanceConfig\":{\"dumpParallelLevel\":\"s-dumpparallellevel\",\"loadParallelLevel\":\"s-loadparallellevel\"},\"phase\":\"s-phase\",\"postgresHomogeneousConfig\":{\"isNativeLogical\":true,\"maxAdditionalSubscriptions\":7},\"postgresToSqlserverConfig\":{},\"purpose\":\"s-purpose\",\"reverseSshConnectivity\":{\"vm\":\"s-vm\",\"vmIp\":\"s-vmip\",\"vmPort\":7,\"vpc\":\"s-vpc\"},\"satisfiesPzi\":true,\"satisfiesPzs\":true,\"source\":\"s-source\",\"sourceDatabase\":{\"engine\":\"s-engine\",\"provider\":\"s-provider\"},\"sqlserverHomogeneousMigrationJobConfig\":{\"backupFilePattern\":\"s-backupfilepattern\",\"promoteWhenReady\":true,\"useDiffBackup\":true},\"sqlserverToPostgresConfig\":{},\"state\":\"s-state\",\"staticIpConnectivity\":{},\"type\":\"s-type\",\"updateTime\":\"s-updatetime\",\"vpcPeeringConnectivity\":{\"vpc\":\"s-vpc\"}}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"migrationJobs\":[{\"cmekKeyName\":\"s-cmekkeyname\",\"conversionWorkspace\":{\"commitId\":\"s-commitid\",\"name\":\"s-name\"},\"createTime\":\"s-createtime\",\"destination\":\"s-destination\",\"destinationDatabase\":{\"engine\":\"s-engine\",\"provider\":\"s-provider\"},\"displayName\":\"s-displayname\",\"dumpFlags\":{},\"dumpPath\":\"s-dumppath\",\"dumpType\":\"s-dumptype\",\"duration\":\"s-duration\",\"endTime\":\"s-endtime\",\"error\":{\"code\":7,\"message\":\"s-message\"},\"filter\":\"s-filter\",\"labels\":{\"k1\":\"s-labels\"},\"mysqlHomogeneousConfig\":{\"isPrimaryDestination\":true},\"name\":\"s-name\",\"objectsConfig\":{},\"oracleToPostgresConfig\":{},\"originalMigrationName\":\"s-originalmigrationname\",\"performanceConfig\":{\"dumpParallelLevel\":\"s-dumpparallellevel\",\"loadParallelLevel\":\"s-loadparallellevel\"},\"phase\":\"s-phase\",\"postgresHomogeneousConfig\":{\"isNativeLogical\":true,\"maxAdditionalSubscriptions\":7},\"postgresToSqlserverConfig\":{},\"purpose\":\"s-purpose\",\"reverseSshConnectivity\":{\"vm\":\"s-vm\",\"vmIp\":\"s-vmip\",\"vmPort\":7,\"vpc\":\"s-vpc\"},\"satisfiesPzi\":true,\"satisfiesPzs\":true,\"source\":\"s-source\",\"sourceDatabase\":{\"engine\":\"s-engine\",\"provider\":\"s-provider\"},\"sqlserverHomogeneousMigrationJobConfig\":{\"backupFilePattern\":\"s-backupfilepattern\",\"promoteWhenReady\":true,\"useDiffBackup\":true},\"sqlserverToPostgresConfig\":{},\"state\":\"s-state\",\"staticIpConnectivity\":{},\"type\":\"s-type\",\"updateTime\":\"s-updatetime\",\"vpcPeeringConnectivity\":{\"vpc\":\"s-vpc\"}}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}",
+  "REQ GET https://datamigration.googleapis.com/v1/id1/%20x/migrationJobs?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"migrationJobs\":[{\"cmekKeyName\":\"s-cmekkeyname\",\"conversionWorkspace\":{\"commitId\":\"s-commitid\",\"name\":\"s-name\"},\"createTime\":\"s-createtime\",\"destination\":\"s-destination\",\"destinationDatabase\":{\"engine\":\"s-engine\",\"provider\":\"s-provider\"},\"displayName\":\"s-displayname\",\"dumpFlags\":{},\"dumpPath\":\"s-dumppath\",\"dumpType\":\"s-dumptype\",\"duration\":\"s-duration\",\"endTime\":\"s-endtime\",\"error\":{\"code\":7,\"message\":\"s-message\"},\"filter\":\"s-filter\",\"labels\":{\"k1\":\"s-labels\"},\"mysqlHomogeneousConfig\":{\"isPrimaryDestination\":true},\"name\":\"s-name\",\"objectsConfig\":{},\"oracleToPostgresConfig\":{},\"originalMigrationName\":\"s-originalmigrationname\",\"performanceConfig\":{\"dumpParallelLevel\":\"s-dumpparallellevel\",\"loadParallelLevel\":\"s-loadparallellevel\"},\"phase\":\"s-phase\",\"postgresHomogeneousConfig\":{\"isNativeLogical\":true,\"maxAdditionalSubscriptions\":7},\"postgresToSqlserverConfig\":{},\"purpose\":\"s-purpose\",\"reverseSshConnectivity\":{\"vm\":\"s-vm\",\"vmIp\":\"s-vmip\",\"vmPort\":7,\"vpc\":\"s-vpc\"},\"satisfiesPzi\":true,\"satisfiesPzs\":true,\"source\":\"s-source\",\"sourceDatabase\":{\"engine\":\"s-engine\",\"provider\":\"s-provider\"},\"sqlserverHomogeneousMigrationJobConfig\":{\"backupFilePattern\":\"s-backupfilepattern\",\"promoteWhenReady\":true,\"useDiffBackup\":true},\"sqlserverToPostgresConfig\":{},\"state\":\"s-state\",\"staticIpConnectivity\":{},\"type\":\"s-type\",\"updateTime\":\"s-updatetime\",\"vpcPeeringConnectivity\":{\"vpc\":\"s-vpc\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"migrationJobs\":[{\"cmekKeyName\":\"s-cmekkeyname\",\"conversionWorkspace\":{\"commitId\":\"s-commitid\",\"name\":\"s-name\"},\"createTime\":\"s-createtime\",\"destination\":\"s-destination\",\"destinationDatabase\":{\"engine\":\"s-engine\",\"provider\":\"s-provider\"},\"displayName\":\"s-displayname\",\"dumpFlags\":{},\"dumpPath\":\"s-dumppath\",\"dumpType\":\"s-dumptype\",\"duration\":\"s-duration\",\"endTime\":\"s-endtime\",\"error\":{\"code\":7,\"message\":\"s-message\"},\"filter\":\"s-filter\",\"labels\":{\"k1\":\"s-labels\"},\"mysqlHomogeneousConfig\":{\"isPrimaryDestination\":true},\"name\":\"s-name\",\"objectsConfig\":{},\"oracleToPostgresConfig\":{},\"originalMigrationName\":\"s-originalmigrationname\",\"performanceConfig\":{\"dumpParallelLevel\":\"s-dumpparallellevel\",\"loadParallelLevel\":\"s-loadparallellevel\"},\"phase\":\"s-phase\",\"postgresHomogeneousConfig\":{\"isNativeLogical\":true,\"maxAdditionalSubscriptions\":7},\"postgresToSqlserverConfig\":{},\"purpose\":\"s-purpose\",\"reverseSshConnectivity\":{\"vm\":\"s-vm\",\"vmIp\":\"s-vmip\",\"vmPort\":7,\"vpc\":\"s-vpc\"},\"satisfiesPzi\":true,\"satisfiesPzs\":true,\"source\":\"s-source\",\"sourceDatabase\":{\"engine\":\"s-engine\",\"provider\":\"s-provider\"},\"sqlserverHomogeneousMigrationJobConfig\":{\"backupFilePattern\":\"s-backupfilepattern\",\"promoteWhenReady\":true,\"useDiffBackup\":true},\"sqlserverToPostgresConfig\":{},\"state\":\"s-state\",\"staticIpConnectivity\":{},\"type\":\"s-type\",\"updateTime\":\"s-updatetime\",\"vpcPeeringConnectivity\":{\"vpc\":\"s-vpc\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: ok",
+]
+
+test "Go's datamigration.projects.locations.migrationJobs.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"migrationJobs\":[{\"cmekKeyName\":\"s-cmekkeyname\",\"conversionWorkspace\":{\"commitId\":\"s-commitid\",\"name\":\"s-name\"},\"createTime\":\"s-createtime\",\"destination\":\"s-destination\",\"destinationDatabase\":{\"engine\":\"s-engine\",\"provider\":\"s-provider\"},\"displayName\":\"s-displayname\",\"dumpFlags\":{},\"dumpPath\":\"s-dumppath\",\"dumpType\":\"s-dumptype\",\"duration\":\"s-duration\",\"endTime\":\"s-endtime\",\"error\":{\"code\":7,\"message\":\"s-message\"},\"filter\":\"s-filter\",\"labels\":{\"k1\":\"s-labels\"},\"mysqlHomogeneousConfig\":{\"isPrimaryDestination\":true},\"name\":\"s-name\",\"objectsConfig\":{},\"oracleToPostgresConfig\":{},\"originalMigrationName\":\"s-originalmigrationname\",\"performanceConfig\":{\"dumpParallelLevel\":\"s-dumpparallellevel\",\"loadParallelLevel\":\"s-loadparallellevel\"},\"phase\":\"s-phase\",\"postgresHomogeneousConfig\":{\"isNativeLogical\":true,\"maxAdditionalSubscriptions\":7},\"postgresToSqlserverConfig\":{},\"purpose\":\"s-purpose\",\"reverseSshConnectivity\":{\"vm\":\"s-vm\",\"vmIp\":\"s-vmip\",\"vmPort\":7,\"vpc\":\"s-vpc\"},\"satisfiesPzi\":true,\"satisfiesPzs\":true,\"source\":\"s-source\",\"sourceDatabase\":{\"engine\":\"s-engine\",\"provider\":\"s-provider\"},\"sqlserverHomogeneousMigrationJobConfig\":{\"backupFilePattern\":\"s-backupfilepattern\",\"promoteWhenReady\":true,\"useDiffBackup\":true},\"sqlserverToPostgresConfig\":{},\"state\":\"s-state\",\"staticIpConnectivity\":{},\"type\":\"s-type\",\"updateTime\":\"s-updatetime\",\"vpcPeeringConnectivity\":{\"vpc\":\"s-vpc\"}}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}")
+  gv_queue(f, "{\"migrationJobs\":[{\"cmekKeyName\":\"s-cmekkeyname\",\"conversionWorkspace\":{\"commitId\":\"s-commitid\",\"name\":\"s-name\"},\"createTime\":\"s-createtime\",\"destination\":\"s-destination\",\"destinationDatabase\":{\"engine\":\"s-engine\",\"provider\":\"s-provider\"},\"displayName\":\"s-displayname\",\"dumpFlags\":{},\"dumpPath\":\"s-dumppath\",\"dumpType\":\"s-dumptype\",\"duration\":\"s-duration\",\"endTime\":\"s-endtime\",\"error\":{\"code\":7,\"message\":\"s-message\"},\"filter\":\"s-filter\",\"labels\":{\"k1\":\"s-labels\"},\"mysqlHomogeneousConfig\":{\"isPrimaryDestination\":true},\"name\":\"s-name\",\"objectsConfig\":{},\"oracleToPostgresConfig\":{},\"originalMigrationName\":\"s-originalmigrationname\",\"performanceConfig\":{\"dumpParallelLevel\":\"s-dumpparallellevel\",\"loadParallelLevel\":\"s-loadparallellevel\"},\"phase\":\"s-phase\",\"postgresHomogeneousConfig\":{\"isNativeLogical\":true,\"maxAdditionalSubscriptions\":7},\"postgresToSqlserverConfig\":{},\"purpose\":\"s-purpose\",\"reverseSshConnectivity\":{\"vm\":\"s-vm\",\"vmIp\":\"s-vmip\",\"vmPort\":7,\"vpc\":\"s-vpc\"},\"satisfiesPzi\":true,\"satisfiesPzs\":true,\"source\":\"s-source\",\"sourceDatabase\":{\"engine\":\"s-engine\",\"provider\":\"s-provider\"},\"sqlserverHomogeneousMigrationJobConfig\":{\"backupFilePattern\":\"s-backupfilepattern\",\"promoteWhenReady\":true,\"useDiffBackup\":true},\"sqlserverToPostgresConfig\":{},\"state\":\"s-state\",\"staticIpConnectivity\":{},\"type\":\"s-type\",\"updateTime\":\"s-updatetime\",\"vpcPeeringConnectivity\":{\"vpc\":\"s-vpc\"}}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_note(f, "CALL datamigration.projects.locations.migrationJobs.list pages")
+  var p = svc.projects.locations.migration_jobs.list_pages("id1/ x", options: ProjectsLocationsMigrationJobsListOptions{filter: Some("s-filter"), order_by: Some("s-orderby"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_52)
+}
+
+const GO_53: List[Str] = [
   "CALL datamigration.projects.locations.migrationJobs.patch",
   "REQ PATCH https://datamigration.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&requestId=s-requestid&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"cmekKeyName\":\"s-cmekkeyname\",\"conversionWorkspace\":{\"commitId\":\"s-commitid\",\"name\":\"s-name\"},\"createTime\":\"s-createtime\",\"destination\":\"s-destination\",\"destinationDatabase\":{\"engine\":\"s-engine\",\"provider\":\"s-provider\"},\"displayName\":\"s-displayname\",\"dumpFlags\":{\"dumpFlags\":[{\"name\":\"s-name\",\"value\":\"s-value\"}]},\"dumpPath\":\"s-dumppath\",\"dumpType\":\"s-dumptype\",\"duration\":\"s-duration\",\"endTime\":\"s-endtime\",\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"filter\":\"s-filter\",\"labels\":{\"k1\":\"s-labels\"},\"mysqlHomogeneousConfig\":{\"isPrimaryDestination\":true},\"name\":\"s-name\",\"objectsConfig\":{\"sourceObjectsConfig\":{\"objectsSelectionType\":\"s-objectsselectiontype\"}},\"oracleToPostgresConfig\":{\"oracleSourceConfig\":{\"cdcStartPosition\":\"7\",\"maxConcurrentCdcConnections\":7,\"maxConcurrentFullDumpConnections\":7,\"skipFullDump\":true},\"postgresDestinationConfig\":{\"maxConcurrentConnections\":7,\"transactionTimeout\":\"s-transactiontimeout\"}},\"originalMigrationName\":\"s-originalmigrationname\",\"performanceConfig\":{\"dumpParallelLevel\":\"s-dumpparallellevel\",\"loadParallelLevel\":\"s-loadparallellevel\"},\"phase\":\"s-phase\",\"postgresHomogeneousConfig\":{\"isNativeLogical\":true,\"maxAdditionalSubscriptions\":7},\"postgresToSqlserverConfig\":{\"postgresSourceConfig\":{\"skipFullDump\":true},\"sqlserverDestinationConfig\":{\"maxConcurrentConnections\":7,\"transactionTimeout\":\"s-transactiontimeout\"}},\"purpose\":\"s-purpose\",\"reverseSshConnectivity\":{\"vm\":\"s-vm\",\"vmIp\":\"s-vmip\",\"vmPort\":7,\"vpc\":\"s-vpc\"},\"satisfiesPzi\":true,\"satisfiesPzs\":true,\"source\":\"s-source\",\"sourceDatabase\":{\"engine\":\"s-engine\",\"provider\":\"s-provider\"},\"sqlserverHomogeneousMigrationJobConfig\":{\"backupFilePattern\":\"s-backupfilepattern\",\"dagConfig\":{\"linkedServer\":\"s-linkedserver\",\"sourceAg\":\"s-sourceag\"},\"databaseBackups\":[{\"database\":\"s-database\"}],\"promoteWhenReady\":true,\"useDiffBackup\":true},\"sqlserverToPostgresConfig\":{\"postgresDestinationConfig\":{\"maxConcurrentConnections\":7,\"transactionTimeout\":\"s-transactiontimeout\"},\"sqlserverSourceConfig\":{\"cdcStartPosition\":\"s-cdcstartposition\",\"maxConcurrentCdcConnections\":7,\"maxConcurrentFullDumpConnections\":7,\"skipFullDump\":true}},\"state\":\"s-state\",\"staticIpConnectivity\":{},\"type\":\"s-type\",\"updateTime\":\"s-updatetime\",\"vpcPeeringConnectivity\":{\"vpc\":\"s-vpc\"}}",
+  "  B <2271 bytes> {\"cmekKeyName\":\"s-cmekkeyname\",\"...gConnectivity\":{\"vpc\":\"s-vpc\"}}",
   "",
   "  SERVED 200 {\"done\":true,\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}",
   "OUT: {\"done\":true,\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}",
@@ -971,10 +1313,10 @@ test "Go's datamigration.projects.locations.migrationJobs.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_44)
+  gv_compare(gv_log_of(f), GO_53)
 }
 
-const GO_45: List[Str] = [
+const GO_54: List[Str] = [
   "CALL datamigration.projects.locations.migrationJobs.promote",
   "REQ POST https://datamigration.googleapis.com/v1/id1/%20x:promote?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -993,10 +1335,10 @@ test "Go's datamigration.projects.locations.migrationJobs.promote" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_45)
+  gv_compare(gv_log_of(f), GO_54)
 }
 
-const GO_46: List[Str] = [
+const GO_55: List[Str] = [
   "CALL datamigration.projects.locations.migrationJobs.restart",
   "REQ POST https://datamigration.googleapis.com/v1/id1/%20x:restart?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1015,10 +1357,10 @@ test "Go's datamigration.projects.locations.migrationJobs.restart" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_46)
+  gv_compare(gv_log_of(f), GO_55)
 }
 
-const GO_47: List[Str] = [
+const GO_56: List[Str] = [
   "CALL datamigration.projects.locations.migrationJobs.resume",
   "REQ POST https://datamigration.googleapis.com/v1/id1/%20x:resume?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1037,10 +1379,10 @@ test "Go's datamigration.projects.locations.migrationJobs.resume" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_47)
+  gv_compare(gv_log_of(f), GO_56)
 }
 
-const GO_48: List[Str] = [
+const GO_57: List[Str] = [
   "CALL datamigration.projects.locations.migrationJobs.setIamPolicy",
   "REQ POST https://datamigration.googleapis.com/v1/id1/%20x:setIamPolicy?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1059,10 +1401,10 @@ test "Go's datamigration.projects.locations.migrationJobs.setIamPolicy" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_48)
+  gv_compare(gv_log_of(f), GO_57)
 }
 
-const GO_49: List[Str] = [
+const GO_58: List[Str] = [
   "CALL datamigration.projects.locations.migrationJobs.start",
   "REQ POST https://datamigration.googleapis.com/v1/id1/%20x:start?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1081,10 +1423,10 @@ test "Go's datamigration.projects.locations.migrationJobs.start" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_49)
+  gv_compare(gv_log_of(f), GO_58)
 }
 
-const GO_50: List[Str] = [
+const GO_59: List[Str] = [
   "CALL datamigration.projects.locations.migrationJobs.stop",
   "REQ POST https://datamigration.googleapis.com/v1/id1/%20x:stop?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1103,10 +1445,10 @@ test "Go's datamigration.projects.locations.migrationJobs.stop" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_50)
+  gv_compare(gv_log_of(f), GO_59)
 }
 
-const GO_51: List[Str] = [
+const GO_60: List[Str] = [
   "CALL datamigration.projects.locations.migrationJobs.testIamPermissions",
   "REQ POST https://datamigration.googleapis.com/v1/id1/%20x:testIamPermissions?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1125,14 +1467,14 @@ test "Go's datamigration.projects.locations.migrationJobs.testIamPermissions" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_51)
+  gv_compare(gv_log_of(f), GO_60)
 }
 
-const GO_52: List[Str] = [
+const GO_61: List[Str] = [
   "CALL datamigration.projects.locations.migrationJobs.verify",
   "REQ POST https://datamigration.googleapis.com/v1/id1/%20x:verify?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"migrationJob\":{\"cmekKeyName\":\"s-cmekkeyname\",\"conversionWorkspace\":{\"commitId\":\"s-commitid\",\"name\":\"s-name\"},\"createTime\":\"s-createtime\",\"destination\":\"s-destination\",\"destinationDatabase\":{\"engine\":\"s-engine\",\"provider\":\"s-provider\"},\"displayName\":\"s-displayname\",\"dumpFlags\":{},\"dumpPath\":\"s-dumppath\",\"dumpType\":\"s-dumptype\",\"duration\":\"s-duration\",\"endTime\":\"s-endtime\",\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"filter\":\"s-filter\",\"labels\":{\"k1\":\"s-labels\"},\"mysqlHomogeneousConfig\":{\"isPrimaryDestination\":true},\"name\":\"s-name\",\"objectsConfig\":{},\"oracleToPostgresConfig\":{},\"originalMigrationName\":\"s-originalmigrationname\",\"performanceConfig\":{\"dumpParallelLevel\":\"s-dumpparallellevel\",\"loadParallelLevel\":\"s-loadparallellevel\"},\"phase\":\"s-phase\",\"postgresHomogeneousConfig\":{\"isNativeLogical\":true,\"maxAdditionalSubscriptions\":7},\"postgresToSqlserverConfig\":{},\"purpose\":\"s-purpose\",\"reverseSshConnectivity\":{\"vm\":\"s-vm\",\"vmIp\":\"s-vmip\",\"vmPort\":7,\"vpc\":\"s-vpc\"},\"satisfiesPzi\":true,\"satisfiesPzs\":true,\"source\":\"s-source\",\"sourceDatabase\":{\"engine\":\"s-engine\",\"provider\":\"s-provider\"},\"sqlserverHomogeneousMigrationJobConfig\":{\"backupFilePattern\":\"s-backupfilepattern\",\"promoteWhenReady\":true,\"useDiffBackup\":true},\"sqlserverToPostgresConfig\":{},\"state\":\"s-state\",\"staticIpConnectivity\":{},\"type\":\"s-type\",\"updateTime\":\"s-updatetime\",\"vpcPeeringConnectivity\":{\"vpc\":\"s-vpc\"}},\"updateMask\":\"s-updatemask\"}",
+  "  B <1438 bytes> {\"migrationJob\":{\"cmekKeyName\":\"...}},\"updateMask\":\"s-updatemask\"}",
   "",
   "  SERVED 200 {\"done\":true,\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}",
   "OUT: {\"done\":true,\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}",
@@ -1147,10 +1489,10 @@ test "Go's datamigration.projects.locations.migrationJobs.verify" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_52)
+  gv_compare(gv_log_of(f), GO_61)
 }
 
-const GO_53: List[Str] = [
+const GO_62: List[Str] = [
   "CALL datamigration.projects.locations.migrationJobs.objects.get",
   "REQ GET https://datamigration.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1168,10 +1510,10 @@ test "Go's datamigration.projects.locations.migrationJobs.objects.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_53)
+  gv_compare(gv_log_of(f), GO_62)
 }
 
-const GO_54: List[Str] = [
+const GO_63: List[Str] = [
   "CALL datamigration.projects.locations.migrationJobs.objects.getIamPolicy",
   "REQ GET https://datamigration.googleapis.com/v1/id1/%20x:getIamPolicy?alt=json&fields=kind%2Cid&options.requestedPolicyVersion=7&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1189,10 +1531,10 @@ test "Go's datamigration.projects.locations.migrationJobs.objects.getIamPolicy" 
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_54)
+  gv_compare(gv_log_of(f), GO_63)
 }
 
-const GO_55: List[Str] = [
+const GO_64: List[Str] = [
   "CALL datamigration.projects.locations.migrationJobs.objects.list",
   "REQ GET https://datamigration.googleapis.com/v1/id1/%20x/objects?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1210,10 +1552,48 @@ test "Go's datamigration.projects.locations.migrationJobs.objects.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_55)
+  gv_compare(gv_log_of(f), GO_64)
 }
 
-const GO_56: List[Str] = [
+const GO_65: List[Str] = [
+  "CALL datamigration.projects.locations.migrationJobs.objects.list pages",
+  "REQ GET https://datamigration.googleapis.com/v1/id1/%20x/objects?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"migrationJobObjects\":[{\"createTime\":\"s-createtime\",\"error\":{\"code\":7,\"message\":\"s-message\"},\"heterogeneousMetadata\":{\"unsupportedEventsCount\":\"7\"},\"name\":\"s-name\",\"phase\":\"s-phase\",\"sourceObject\":{\"database\":\"s-database\",\"schema\":\"s-schema\",\"table\":\"s-table\",\"type\":\"s-type\"},\"state\":\"s-state\",\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"migrationJobObjects\":[{\"createTime\":\"s-createtime\",\"error\":{\"code\":7,\"message\":\"s-message\"},\"heterogeneousMetadata\":{\"unsupportedEventsCount\":\"7\"},\"name\":\"s-name\",\"phase\":\"s-phase\",\"sourceObject\":{\"database\":\"s-database\",\"schema\":\"s-schema\",\"table\":\"s-table\",\"type\":\"s-type\"},\"state\":\"s-state\",\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://datamigration.googleapis.com/v1/id1/%20x/objects?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"migrationJobObjects\":[{\"createTime\":\"s-createtime\",\"error\":{\"code\":7,\"message\":\"s-message\"},\"heterogeneousMetadata\":{\"unsupportedEventsCount\":\"7\"},\"name\":\"s-name\",\"phase\":\"s-phase\",\"sourceObject\":{\"database\":\"s-database\",\"schema\":\"s-schema\",\"table\":\"s-table\",\"type\":\"s-type\"},\"state\":\"s-state\",\"updateTime\":\"s-updatetime\"}]}",
+  "OUT: {\"migrationJobObjects\":[{\"createTime\":\"s-createtime\",\"error\":{\"code\":7,\"message\":\"s-message\"},\"heterogeneousMetadata\":{\"unsupportedEventsCount\":\"7\"},\"name\":\"s-name\",\"phase\":\"s-phase\",\"sourceObject\":{\"database\":\"s-database\",\"schema\":\"s-schema\",\"table\":\"s-table\",\"type\":\"s-type\"},\"state\":\"s-state\",\"updateTime\":\"s-updatetime\"}]}",
+  "OUT: ok",
+]
+
+test "Go's datamigration.projects.locations.migrationJobs.objects.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"migrationJobObjects\":[{\"createTime\":\"s-createtime\",\"error\":{\"code\":7,\"message\":\"s-message\"},\"heterogeneousMetadata\":{\"unsupportedEventsCount\":\"7\"},\"name\":\"s-name\",\"phase\":\"s-phase\",\"sourceObject\":{\"database\":\"s-database\",\"schema\":\"s-schema\",\"table\":\"s-table\",\"type\":\"s-type\"},\"state\":\"s-state\",\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"migrationJobObjects\":[{\"createTime\":\"s-createtime\",\"error\":{\"code\":7,\"message\":\"s-message\"},\"heterogeneousMetadata\":{\"unsupportedEventsCount\":\"7\"},\"name\":\"s-name\",\"phase\":\"s-phase\",\"sourceObject\":{\"database\":\"s-database\",\"schema\":\"s-schema\",\"table\":\"s-table\",\"type\":\"s-type\"},\"state\":\"s-state\",\"updateTime\":\"s-updatetime\"}]}")
+  gv_note(f, "CALL datamigration.projects.locations.migrationJobs.objects.list pages")
+  var p = svc.projects.locations.migration_jobs.objects.list_pages("id1/ x", options: ProjectsLocationsMigrationJobsObjectsListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_65)
+}
+
+const GO_66: List[Str] = [
   "CALL datamigration.projects.locations.migrationJobs.objects.lookup",
   "REQ POST https://datamigration.googleapis.com/v1/id1/%20x/objects:lookup?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1232,10 +1612,10 @@ test "Go's datamigration.projects.locations.migrationJobs.objects.lookup" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_56)
+  gv_compare(gv_log_of(f), GO_66)
 }
 
-const GO_57: List[Str] = [
+const GO_67: List[Str] = [
   "CALL datamigration.projects.locations.migrationJobs.objects.setIamPolicy",
   "REQ POST https://datamigration.googleapis.com/v1/id1/%20x:setIamPolicy?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1254,10 +1634,10 @@ test "Go's datamigration.projects.locations.migrationJobs.objects.setIamPolicy" 
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_57)
+  gv_compare(gv_log_of(f), GO_67)
 }
 
-const GO_58: List[Str] = [
+const GO_68: List[Str] = [
   "CALL datamigration.projects.locations.migrationJobs.objects.testIamPermissions",
   "REQ POST https://datamigration.googleapis.com/v1/id1/%20x:testIamPermissions?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1276,10 +1656,10 @@ test "Go's datamigration.projects.locations.migrationJobs.objects.testIamPermiss
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_58)
+  gv_compare(gv_log_of(f), GO_68)
 }
 
-const GO_59: List[Str] = [
+const GO_69: List[Str] = [
   "CALL datamigration.projects.locations.operations.cancel",
   "REQ POST https://datamigration.googleapis.com/v1/id1/%20x:cancel?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1298,10 +1678,10 @@ test "Go's datamigration.projects.locations.operations.cancel" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_59)
+  gv_compare(gv_log_of(f), GO_69)
 }
 
-const GO_60: List[Str] = [
+const GO_70: List[Str] = [
   "CALL datamigration.projects.locations.operations.delete",
   "REQ DELETE https://datamigration.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -1319,10 +1699,10 @@ test "Go's datamigration.projects.locations.operations.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_60)
+  gv_compare(gv_log_of(f), GO_70)
 }
 
-const GO_61: List[Str] = [
+const GO_71: List[Str] = [
   "CALL datamigration.projects.locations.operations.get",
   "REQ GET https://datamigration.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1340,10 +1720,10 @@ test "Go's datamigration.projects.locations.operations.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_61)
+  gv_compare(gv_log_of(f), GO_71)
 }
 
-const GO_62: List[Str] = [
+const GO_72: List[Str] = [
   "CALL datamigration.projects.locations.operations.list",
   "REQ GET https://datamigration.googleapis.com/v1/id1/%20x/operations?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&returnPartialSuccess=true",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1361,10 +1741,48 @@ test "Go's datamigration.projects.locations.operations.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_62)
+  gv_compare(gv_log_of(f), GO_72)
 }
 
-const GO_63: List[Str] = [
+const GO_73: List[Str] = [
+  "CALL datamigration.projects.locations.operations.list pages",
+  "REQ GET https://datamigration.googleapis.com/v1/id1/%20x/operations?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&returnPartialSuccess=true",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "REQ GET https://datamigration.googleapis.com/v1/id1/%20x/operations?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false&returnPartialSuccess=true",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: ok",
+]
+
+test "Go's datamigration.projects.locations.operations.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_queue(f, "{\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_note(f, "CALL datamigration.projects.locations.operations.list pages")
+  var p = svc.projects.locations.operations.list_pages("id1/ x", options: ProjectsLocationsOperationsListOptions{filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), return_partial_success: Some(true), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_73)
+}
+
+const GO_74: List[Str] = [
   "CALL datamigration.projects.locations.privateConnections.create",
   "REQ POST https://datamigration.googleapis.com/v1/id1/%20x/privateConnections?alt=json&fields=kind%2Cid&prettyPrint=false&privateConnectionId=s-privateconnectionid&requestId=s-requestid&skipValidation=true&validateOnly=true",
   "  H content-type=application/json | x-extra=v1",
@@ -1383,10 +1801,10 @@ test "Go's datamigration.projects.locations.privateConnections.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_63)
+  gv_compare(gv_log_of(f), GO_74)
 }
 
-const GO_64: List[Str] = [
+const GO_75: List[Str] = [
   "CALL datamigration.projects.locations.privateConnections.delete",
   "REQ DELETE https://datamigration.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&requestId=s-requestid",
   "  H x-extra=v1",
@@ -1404,10 +1822,10 @@ test "Go's datamigration.projects.locations.privateConnections.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_64)
+  gv_compare(gv_log_of(f), GO_75)
 }
 
-const GO_65: List[Str] = [
+const GO_76: List[Str] = [
   "CALL datamigration.projects.locations.privateConnections.get",
   "REQ GET https://datamigration.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1425,10 +1843,10 @@ test "Go's datamigration.projects.locations.privateConnections.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_65)
+  gv_compare(gv_log_of(f), GO_76)
 }
 
-const GO_66: List[Str] = [
+const GO_77: List[Str] = [
   "CALL datamigration.projects.locations.privateConnections.getIamPolicy",
   "REQ GET https://datamigration.googleapis.com/v1/id1/%20x:getIamPolicy?alt=json&fields=kind%2Cid&options.requestedPolicyVersion=7&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1446,10 +1864,10 @@ test "Go's datamigration.projects.locations.privateConnections.getIamPolicy" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_66)
+  gv_compare(gv_log_of(f), GO_77)
 }
 
-const GO_67: List[Str] = [
+const GO_78: List[Str] = [
   "CALL datamigration.projects.locations.privateConnections.list",
   "REQ GET https://datamigration.googleapis.com/v1/id1/%20x/privateConnections?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1467,10 +1885,48 @@ test "Go's datamigration.projects.locations.privateConnections.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_67)
+  gv_compare(gv_log_of(f), GO_78)
 }
 
-const GO_68: List[Str] = [
+const GO_79: List[Str] = [
+  "CALL datamigration.projects.locations.privateConnections.list pages",
+  "REQ GET https://datamigration.googleapis.com/v1/id1/%20x/privateConnections?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"privateConnections\":[{\"createTime\":\"s-createtime\",\"displayName\":\"s-displayname\",\"error\":{\"code\":7,\"message\":\"s-message\"},\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"pscInterfaceConfig\":{\"networkAttachment\":\"s-networkattachment\"},\"reservedPublicIpConfig\":{\"natIpsCount\":7},\"satisfiesPzi\":true,\"satisfiesPzs\":true,\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"vpcPeeringConfig\":{\"subnet\":\"s-subnet\",\"vpcName\":\"s-vpcname\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"privateConnections\":[{\"createTime\":\"s-createtime\",\"displayName\":\"s-displayname\",\"error\":{\"code\":7,\"message\":\"s-message\"},\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"pscInterfaceConfig\":{\"networkAttachment\":\"s-networkattachment\"},\"reservedPublicIpConfig\":{\"natIpsCount\":7},\"satisfiesPzi\":true,\"satisfiesPzs\":true,\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"vpcPeeringConfig\":{\"subnet\":\"s-subnet\",\"vpcName\":\"s-vpcname\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "REQ GET https://datamigration.googleapis.com/v1/id1/%20x/privateConnections?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"privateConnections\":[{\"createTime\":\"s-createtime\",\"displayName\":\"s-displayname\",\"error\":{\"code\":7,\"message\":\"s-message\"},\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"pscInterfaceConfig\":{\"networkAttachment\":\"s-networkattachment\"},\"reservedPublicIpConfig\":{\"natIpsCount\":7},\"satisfiesPzi\":true,\"satisfiesPzs\":true,\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"vpcPeeringConfig\":{\"subnet\":\"s-subnet\",\"vpcName\":\"s-vpcname\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"privateConnections\":[{\"createTime\":\"s-createtime\",\"displayName\":\"s-displayname\",\"error\":{\"code\":7,\"message\":\"s-message\"},\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"pscInterfaceConfig\":{\"networkAttachment\":\"s-networkattachment\"},\"reservedPublicIpConfig\":{\"natIpsCount\":7},\"satisfiesPzi\":true,\"satisfiesPzs\":true,\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"vpcPeeringConfig\":{\"subnet\":\"s-subnet\",\"vpcName\":\"s-vpcname\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: ok",
+]
+
+test "Go's datamigration.projects.locations.privateConnections.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"privateConnections\":[{\"createTime\":\"s-createtime\",\"displayName\":\"s-displayname\",\"error\":{\"code\":7,\"message\":\"s-message\"},\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"pscInterfaceConfig\":{\"networkAttachment\":\"s-networkattachment\"},\"reservedPublicIpConfig\":{\"natIpsCount\":7},\"satisfiesPzi\":true,\"satisfiesPzs\":true,\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"vpcPeeringConfig\":{\"subnet\":\"s-subnet\",\"vpcName\":\"s-vpcname\"}}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_queue(f, "{\"privateConnections\":[{\"createTime\":\"s-createtime\",\"displayName\":\"s-displayname\",\"error\":{\"code\":7,\"message\":\"s-message\"},\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"pscInterfaceConfig\":{\"networkAttachment\":\"s-networkattachment\"},\"reservedPublicIpConfig\":{\"natIpsCount\":7},\"satisfiesPzi\":true,\"satisfiesPzs\":true,\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"vpcPeeringConfig\":{\"subnet\":\"s-subnet\",\"vpcName\":\"s-vpcname\"}}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_note(f, "CALL datamigration.projects.locations.privateConnections.list pages")
+  var p = svc.projects.locations.private_connections.list_pages("id1/ x", options: ProjectsLocationsPrivateConnectionsListOptions{filter: Some("s-filter"), order_by: Some("s-orderby"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_79)
+}
+
+const GO_80: List[Str] = [
   "CALL datamigration.projects.locations.privateConnections.setIamPolicy",
   "REQ POST https://datamigration.googleapis.com/v1/id1/%20x:setIamPolicy?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1489,10 +1945,10 @@ test "Go's datamigration.projects.locations.privateConnections.setIamPolicy" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_68)
+  gv_compare(gv_log_of(f), GO_80)
 }
 
-const GO_69: List[Str] = [
+const GO_81: List[Str] = [
   "CALL datamigration.projects.locations.privateConnections.testIamPermissions",
   "REQ POST https://datamigration.googleapis.com/v1/id1/%20x:testIamPermissions?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1511,5 +1967,5 @@ test "Go's datamigration.projects.locations.privateConnections.testIamPermission
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_69)
+  gv_compare(gv_log_of(f), GO_81)
 }

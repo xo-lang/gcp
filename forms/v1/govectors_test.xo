@@ -138,6 +138,44 @@ test "Go's forms.forms.responses.list" {
 }
 
 const GO_6: List[Str] = [
+  "CALL forms.forms.responses.list pages",
+  "REQ GET https://forms.googleapis.com/v1/forms/id1%2F%20x/responses?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"responses\":[{\"createTime\":\"s-createtime\",\"formId\":\"s-formid\",\"lastSubmittedTime\":\"s-lastsubmittedtime\",\"respondentEmail\":\"s-respondentemail\",\"responseId\":\"s-responseid\",\"totalScore\":1.5}]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"responses\":[{\"createTime\":\"s-createtime\",\"formId\":\"s-formid\",\"lastSubmittedTime\":\"s-lastsubmittedtime\",\"respondentEmail\":\"s-respondentemail\",\"responseId\":\"s-responseid\",\"totalScore\":1.5}]}",
+  "REQ GET https://forms.googleapis.com/v1/forms/id1%2F%20x/responses?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"responses\":[{\"createTime\":\"s-createtime\",\"formId\":\"s-formid\",\"lastSubmittedTime\":\"s-lastsubmittedtime\",\"respondentEmail\":\"s-respondentemail\",\"responseId\":\"s-responseid\",\"totalScore\":1.5}]}",
+  "OUT: {\"responses\":[{\"createTime\":\"s-createtime\",\"formId\":\"s-formid\",\"lastSubmittedTime\":\"s-lastsubmittedtime\",\"respondentEmail\":\"s-respondentemail\",\"responseId\":\"s-responseid\",\"totalScore\":1.5}]}",
+  "OUT: ok",
+]
+
+test "Go's forms.forms.responses.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"responses\":[{\"createTime\":\"s-createtime\",\"formId\":\"s-formid\",\"lastSubmittedTime\":\"s-lastsubmittedtime\",\"respondentEmail\":\"s-respondentemail\",\"responseId\":\"s-responseid\",\"totalScore\":1.5}]}")
+  gv_queue(f, "{\"responses\":[{\"createTime\":\"s-createtime\",\"formId\":\"s-formid\",\"lastSubmittedTime\":\"s-lastsubmittedtime\",\"respondentEmail\":\"s-respondentemail\",\"responseId\":\"s-responseid\",\"totalScore\":1.5}]}")
+  gv_note(f, "CALL forms.forms.responses.list pages")
+  var p = svc.forms.responses.list_pages("id1/ x", options: FormsResponsesListOptions{filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_6)
+}
+
+const GO_7: List[Str] = [
   "CALL forms.forms.watches.create",
   "REQ POST https://forms.googleapis.com/v1/forms/id1%2F%20x/watches?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -156,10 +194,10 @@ test "Go's forms.forms.watches.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_6)
+  gv_compare(gv_log_of(f), GO_7)
 }
 
-const GO_7: List[Str] = [
+const GO_8: List[Str] = [
   "CALL forms.forms.watches.delete",
   "REQ DELETE https://forms.googleapis.com/v1/forms/id1%2F%20x/watches/id2%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -177,10 +215,10 @@ test "Go's forms.forms.watches.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_7)
+  gv_compare(gv_log_of(f), GO_8)
 }
 
-const GO_8: List[Str] = [
+const GO_9: List[Str] = [
   "CALL forms.forms.watches.list",
   "REQ GET https://forms.googleapis.com/v1/forms/id1%2F%20x/watches?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -198,10 +236,10 @@ test "Go's forms.forms.watches.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_8)
+  gv_compare(gv_log_of(f), GO_9)
 }
 
-const GO_9: List[Str] = [
+const GO_10: List[Str] = [
   "CALL forms.forms.watches.renew",
   "REQ POST https://forms.googleapis.com/v1/forms/id1%2F%20x/watches/id2%2F%20x:renew?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -220,5 +258,5 @@ test "Go's forms.forms.watches.renew" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_9)
+  gv_compare(gv_log_of(f), GO_10)
 }

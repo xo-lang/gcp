@@ -10,6 +10,8 @@ use github.com/xo-lang/gcp/option
 struct GvFake {
   log: Mutex[List[Str]]
   body: Mutex[Str]
+  /// The bodies served after it, one per request (a pager's pages).
+  queue: Mutex[List[Str]]
 }
 
 fn gv_note(f: GvFake, s: Str) {
@@ -26,25 +28,76 @@ fn gv_set(f: GvFake, body: Str) {
   f.body.with(fn(var b: Str) { b = body })
 }
 
+fn gv_queue(f: GvFake, body: Str) {
+  f.queue.with(fn(var q: List[Str]) { q.push(body) })
+}
+
+/// The media of a resumable upload vector (two chunks of 256 KiB).
+fn gv_big() -> Bytes {
+  "0123456789abcdef".repeat(16385)[0..262154].bytes()
+}
+
+/// A request body as the vectors print it: a multipart boundary as
+/// BOUNDARY, a long body by its size and ends.
+fn gv_shown(b: Str, boundary: Str) -> Str {
+  let t = if boundary == "" { b } else { b.replace(boundary, "BOUNDARY") }
+  if t.len() > 1024 {
+    return "<${t.len()} bytes> ${t[0..32]}...${t[t.len() - 32..t.len()]}"
+  }
+  t
+}
+
 fn gv_answer(f: GvFake, req: http.Request) -> http.Response {
   let body = f.body.with(fn(var b: Str) -> Str { b })
+  let next = f.queue.with(fn(var q: List[Str]) -> Str? {
+    let x = q.get(0)?
+    q = q[1..q.len()]
+    Some(x)
+  })
+  if let Some(n) = next {
+    gv_set(f, n)
+  }
+  var boundary = ""
+  for (k, v) in req.headers {
+    if k.to_lower() == "content-type" {
+      if let Some(i) = v.find("boundary=") {
+        boundary = v[i + 9..v.len()]
+      }
+    }
+  }
   var hs: List[Str] = []
   for (k, v) in req.headers {
     let lk = k.to_lower()
     if lk != "user-agent" && lk != "x-goog-api-client" && lk != "accept-encoding" && lk != "content-length" {
-      hs.push("${lk}=${v}")
+      var hv = if lk == "x-goog-gcs-idempotency-token" { "UUID" } else { v }
+      if boundary != "" {
+        hv = hv.replace(boundary, "BOUNDARY")
+      }
+      hs.push("${lk}=${hv}")
     }
   }
   let q = req.raw_query()
   gv_note(f, "REQ ${req.method} ${req.url.scheme}://${req.url.host}${req.escaped_path()}${if q == "" { "" } else { "?${q}" }}")
   gv_note(f, "  H ${hs.sort().join(" | ")}")
-  gv_note_lines(f, "  B ${req.body.to_str_lossy()}")
+  gv_note_lines(f, "  B ${gv_shown(req.body.to_str_lossy(), boundary)}")
   gv_note(f, "  SERVED 200 ${body}")
-  http.Response{status: 200, headers: {"Content-Type": "application/json"}, body: body.bytes()}
+  // "@H k=v|k=v @B body" sets headers
+  var rh: Map[Str, Str] = {"Content-Type": "application/json"}
+  var rb = body
+  if body.starts_with("@H ") {
+    let i = body.find(" @B ") ?? body.len()
+    for kv in body[3..i].split("|") {
+      if let Some(j) = kv.find("=") {
+        rh[kv[0..j]] = kv[j + 1..kv.len()]
+      }
+    }
+    rb = if i + 4 <= body.len() { body[i + 4..body.len()] } else { "" }
+  }
+  http.Response{status: 200, headers: rh, body: rb.bytes()}
 }
 
 fn gv_new_fake(net: testing.FakeNet, host: Str) -> GvFake {
-  let f = GvFake{log: Mutex[List[Str]].new([]), body: Mutex[Str].new("")}
+  let f = GvFake{log: Mutex[List[Str]].new([]), body: Mutex[Str].new(""), queue: Mutex[List[Str]].new([])}
   let h = fn(req: http.Request) -> http.Response { gv_answer(f, req) }
   for m in ["GET", "PUT", "POST", "DELETE", "HEAD", "PATCH"] {
     net.handle("${m} ${host}/{rest...}", h)

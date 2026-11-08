@@ -51,6 +51,44 @@ test "Go's realtimebidding.bidders.list" {
 }
 
 const GO_2: List[Str] = [
+  "CALL realtimebidding.bidders.list pages",
+  "REQ GET https://realtimebidding.googleapis.com/v1/bidders?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"bidders\":[{\"bypassNonguaranteedDealsPretargeting\":true,\"cookieMatchingNetworkId\":\"s-cookiematchingnetworkid\",\"cookieMatchingUrl\":\"s-cookiematchingurl\",\"dealsBillingId\":\"s-dealsbillingid\",\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"bidders\":[{\"bypassNonguaranteedDealsPretargeting\":true,\"cookieMatchingNetworkId\":\"s-cookiematchingnetworkid\",\"cookieMatchingUrl\":\"s-cookiematchingurl\",\"dealsBillingId\":\"s-dealsbillingid\",\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://realtimebidding.googleapis.com/v1/bidders?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"bidders\":[{\"bypassNonguaranteedDealsPretargeting\":true,\"cookieMatchingNetworkId\":\"s-cookiematchingnetworkid\",\"cookieMatchingUrl\":\"s-cookiematchingurl\",\"dealsBillingId\":\"s-dealsbillingid\",\"name\":\"s-name\"}]}",
+  "OUT: {\"bidders\":[{\"bypassNonguaranteedDealsPretargeting\":true,\"cookieMatchingNetworkId\":\"s-cookiematchingnetworkid\",\"cookieMatchingUrl\":\"s-cookiematchingurl\",\"dealsBillingId\":\"s-dealsbillingid\",\"name\":\"s-name\"}]}",
+  "OUT: ok",
+]
+
+test "Go's realtimebidding.bidders.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"bidders\":[{\"bypassNonguaranteedDealsPretargeting\":true,\"cookieMatchingNetworkId\":\"s-cookiematchingnetworkid\",\"cookieMatchingUrl\":\"s-cookiematchingurl\",\"dealsBillingId\":\"s-dealsbillingid\",\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"bidders\":[{\"bypassNonguaranteedDealsPretargeting\":true,\"cookieMatchingNetworkId\":\"s-cookiematchingnetworkid\",\"cookieMatchingUrl\":\"s-cookiematchingurl\",\"dealsBillingId\":\"s-dealsbillingid\",\"name\":\"s-name\"}]}")
+  gv_note(f, "CALL realtimebidding.bidders.list pages")
+  var p = svc.bidders.list_pages(options: BiddersListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_2)
+}
+
+const GO_3: List[Str] = [
   "CALL realtimebidding.bidders.creatives.list",
   "REQ GET https://realtimebidding.googleapis.com/v1/id1/%20x/creatives?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&view=s-view",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -68,10 +106,48 @@ test "Go's realtimebidding.bidders.creatives.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_2)
+  gv_compare(gv_log_of(f), GO_3)
 }
 
-const GO_3: List[Str] = [
+const GO_4: List[Str] = [
+  "CALL realtimebidding.bidders.creatives.list pages",
+  "REQ GET https://realtimebidding.googleapis.com/v1/id1/%20x/creatives?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&view=s-view",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"creatives\":[{\"accountId\":\"7\",\"adChoicesDestinationUrl\":\"s-adchoicesdestinationurl\",\"advertiserName\":\"s-advertisername\",\"agencyId\":\"7\",\"apiUpdateTime\":\"s-apiupdatetime\",\"creativeFormat\":\"s-creativeformat\",\"creativeId\":\"s-creativeid\",\"creativeServingDecision\":{\"detectedCategoriesTaxonomy\":\"s-detectedcategoriestaxonomy\",\"lastStatusUpdate\":\"s-laststatusupdate\"},\"dealIds\":[\"s-dealids\"],\"declaredAttributes\":[\"s-declaredattributes\"],\"declaredClickThroughUrls\":[\"s-declaredclickthroughurls\"],\"declaredRestrictedCategories\":[\"s-declaredrestrictedcategories\"],\"declaredVendorIds\":[7],\"html\":{\"height\":7,\"snippet\":\"s-snippet\",\"width\":7},\"impressionTrackingUrls\":[\"s-impressiontrackingurls\"],\"name\":\"s-name\",\"native\":{\"advertiserName\":\"s-advertisername\",\"body\":\"s-body\",\"callToAction\":\"s-calltoaction\",\"clickLinkUrl\":\"s-clicklinkurl\",\"clickTrackingUrl\":\"s-clicktrackingurl\",\"headline\":\"s-headline\",\"priceDisplayText\":\"s-pricedisplaytext\",\"starRating\":1.5,\"videoUrl\":\"s-videourl\",\"videoVastXml\":\"s-videovastxml\"},\"renderUrl\":\"s-renderurl\",\"restrictedCategories\":[\"s-restrictedcategories\"],\"version\":7,\"video\":{\"videoUrl\":\"s-videourl\",\"videoVastXml\":\"s-videovastxml\"}}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"creatives\":[{\"accountId\":\"7\",\"adChoicesDestinationUrl\":\"s-adchoicesdestinationurl\",\"advertiserName\":\"s-advertisername\",\"agencyId\":\"7\",\"apiUpdateTime\":\"s-apiupdatetime\",\"creativeFormat\":\"s-creativeformat\",\"creativeId\":\"s-creativeid\",\"creativeServingDecision\":{\"detectedCategoriesTaxonomy\":\"s-detectedcategoriestaxonomy\",\"lastStatusUpdate\":\"s-laststatusupdate\"},\"dealIds\":[\"s-dealids\"],\"declaredAttributes\":[\"s-declaredattributes\"],\"declaredClickThroughUrls\":[\"s-declaredclickthroughurls\"],\"declaredRestrictedCategories\":[\"s-declaredrestrictedcategories\"],\"declaredVendorIds\":[7],\"html\":{\"height\":7,\"snippet\":\"s-snippet\",\"width\":7},\"impressionTrackingUrls\":[\"s-impressiontrackingurls\"],\"name\":\"s-name\",\"native\":{\"advertiserName\":\"s-advertisername\",\"body\":\"s-body\",\"callToAction\":\"s-calltoaction\",\"clickLinkUrl\":\"s-clicklinkurl\",\"clickTrackingUrl\":\"s-clicktrackingurl\",\"headline\":\"s-headline\",\"priceDisplayText\":\"s-pricedisplaytext\",\"starRating\":1.5,\"videoUrl\":\"s-videourl\",\"videoVastXml\":\"s-videovastxml\"},\"renderUrl\":\"s-renderurl\",\"restrictedCategories\":[\"s-restrictedcategories\"],\"version\":7,\"video\":{\"videoUrl\":\"s-videourl\",\"videoVastXml\":\"s-videovastxml\"}}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://realtimebidding.googleapis.com/v1/id1/%20x/creatives?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false&view=s-view",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"creatives\":[{\"accountId\":\"7\",\"adChoicesDestinationUrl\":\"s-adchoicesdestinationurl\",\"advertiserName\":\"s-advertisername\",\"agencyId\":\"7\",\"apiUpdateTime\":\"s-apiupdatetime\",\"creativeFormat\":\"s-creativeformat\",\"creativeId\":\"s-creativeid\",\"creativeServingDecision\":{\"detectedCategoriesTaxonomy\":\"s-detectedcategoriestaxonomy\",\"lastStatusUpdate\":\"s-laststatusupdate\"},\"dealIds\":[\"s-dealids\"],\"declaredAttributes\":[\"s-declaredattributes\"],\"declaredClickThroughUrls\":[\"s-declaredclickthroughurls\"],\"declaredRestrictedCategories\":[\"s-declaredrestrictedcategories\"],\"declaredVendorIds\":[7],\"html\":{\"height\":7,\"snippet\":\"s-snippet\",\"width\":7},\"impressionTrackingUrls\":[\"s-impressiontrackingurls\"],\"name\":\"s-name\",\"native\":{\"advertiserName\":\"s-advertisername\",\"body\":\"s-body\",\"callToAction\":\"s-calltoaction\",\"clickLinkUrl\":\"s-clicklinkurl\",\"clickTrackingUrl\":\"s-clicktrackingurl\",\"headline\":\"s-headline\",\"priceDisplayText\":\"s-pricedisplaytext\",\"starRating\":1.5,\"videoUrl\":\"s-videourl\",\"videoVastXml\":\"s-videovastxml\"},\"renderUrl\":\"s-renderurl\",\"restrictedCategories\":[\"s-restrictedcategories\"],\"version\":7,\"video\":{\"videoUrl\":\"s-videourl\",\"videoVastXml\":\"s-videovastxml\"}}]}",
+  "OUT: {\"creatives\":[{\"accountId\":\"7\",\"adChoicesDestinationUrl\":\"s-adchoicesdestinationurl\",\"advertiserName\":\"s-advertisername\",\"agencyId\":\"7\",\"apiUpdateTime\":\"s-apiupdatetime\",\"creativeFormat\":\"s-creativeformat\",\"creativeId\":\"s-creativeid\",\"creativeServingDecision\":{\"detectedCategoriesTaxonomy\":\"s-detectedcategoriestaxonomy\",\"lastStatusUpdate\":\"s-laststatusupdate\"},\"dealIds\":[\"s-dealids\"],\"declaredAttributes\":[\"s-declaredattributes\"],\"declaredClickThroughUrls\":[\"s-declaredclickthroughurls\"],\"declaredRestrictedCategories\":[\"s-declaredrestrictedcategories\"],\"declaredVendorIds\":[7],\"html\":{\"height\":7,\"snippet\":\"s-snippet\",\"width\":7},\"impressionTrackingUrls\":[\"s-impressiontrackingurls\"],\"name\":\"s-name\",\"native\":{\"advertiserName\":\"s-advertisername\",\"body\":\"s-body\",\"callToAction\":\"s-calltoaction\",\"clickLinkUrl\":\"s-clicklinkurl\",\"clickTrackingUrl\":\"s-clicktrackingurl\",\"headline\":\"s-headline\",\"priceDisplayText\":\"s-pricedisplaytext\",\"starRating\":1.5,\"videoUrl\":\"s-videourl\",\"videoVastXml\":\"s-videovastxml\"},\"renderUrl\":\"s-renderurl\",\"restrictedCategories\":[\"s-restrictedcategories\"],\"version\":7,\"video\":{\"videoUrl\":\"s-videourl\",\"videoVastXml\":\"s-videovastxml\"}}]}",
+  "OUT: ok",
+]
+
+test "Go's realtimebidding.bidders.creatives.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"creatives\":[{\"accountId\":\"7\",\"adChoicesDestinationUrl\":\"s-adchoicesdestinationurl\",\"advertiserName\":\"s-advertisername\",\"agencyId\":\"7\",\"apiUpdateTime\":\"s-apiupdatetime\",\"creativeFormat\":\"s-creativeformat\",\"creativeId\":\"s-creativeid\",\"creativeServingDecision\":{\"detectedCategoriesTaxonomy\":\"s-detectedcategoriestaxonomy\",\"lastStatusUpdate\":\"s-laststatusupdate\"},\"dealIds\":[\"s-dealids\"],\"declaredAttributes\":[\"s-declaredattributes\"],\"declaredClickThroughUrls\":[\"s-declaredclickthroughurls\"],\"declaredRestrictedCategories\":[\"s-declaredrestrictedcategories\"],\"declaredVendorIds\":[7],\"html\":{\"height\":7,\"snippet\":\"s-snippet\",\"width\":7},\"impressionTrackingUrls\":[\"s-impressiontrackingurls\"],\"name\":\"s-name\",\"native\":{\"advertiserName\":\"s-advertisername\",\"body\":\"s-body\",\"callToAction\":\"s-calltoaction\",\"clickLinkUrl\":\"s-clicklinkurl\",\"clickTrackingUrl\":\"s-clicktrackingurl\",\"headline\":\"s-headline\",\"priceDisplayText\":\"s-pricedisplaytext\",\"starRating\":1.5,\"videoUrl\":\"s-videourl\",\"videoVastXml\":\"s-videovastxml\"},\"renderUrl\":\"s-renderurl\",\"restrictedCategories\":[\"s-restrictedcategories\"],\"version\":7,\"video\":{\"videoUrl\":\"s-videourl\",\"videoVastXml\":\"s-videovastxml\"}}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"creatives\":[{\"accountId\":\"7\",\"adChoicesDestinationUrl\":\"s-adchoicesdestinationurl\",\"advertiserName\":\"s-advertisername\",\"agencyId\":\"7\",\"apiUpdateTime\":\"s-apiupdatetime\",\"creativeFormat\":\"s-creativeformat\",\"creativeId\":\"s-creativeid\",\"creativeServingDecision\":{\"detectedCategoriesTaxonomy\":\"s-detectedcategoriestaxonomy\",\"lastStatusUpdate\":\"s-laststatusupdate\"},\"dealIds\":[\"s-dealids\"],\"declaredAttributes\":[\"s-declaredattributes\"],\"declaredClickThroughUrls\":[\"s-declaredclickthroughurls\"],\"declaredRestrictedCategories\":[\"s-declaredrestrictedcategories\"],\"declaredVendorIds\":[7],\"html\":{\"height\":7,\"snippet\":\"s-snippet\",\"width\":7},\"impressionTrackingUrls\":[\"s-impressiontrackingurls\"],\"name\":\"s-name\",\"native\":{\"advertiserName\":\"s-advertisername\",\"body\":\"s-body\",\"callToAction\":\"s-calltoaction\",\"clickLinkUrl\":\"s-clicklinkurl\",\"clickTrackingUrl\":\"s-clicktrackingurl\",\"headline\":\"s-headline\",\"priceDisplayText\":\"s-pricedisplaytext\",\"starRating\":1.5,\"videoUrl\":\"s-videourl\",\"videoVastXml\":\"s-videovastxml\"},\"renderUrl\":\"s-renderurl\",\"restrictedCategories\":[\"s-restrictedcategories\"],\"version\":7,\"video\":{\"videoUrl\":\"s-videourl\",\"videoVastXml\":\"s-videovastxml\"}}]}")
+  gv_note(f, "CALL realtimebidding.bidders.creatives.list pages")
+  var p = svc.bidders.creatives.list_pages("id1/ x", options: BiddersCreativesListOptions{filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), view: Some("s-view"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_4)
+}
+
+const GO_5: List[Str] = [
   "CALL realtimebidding.bidders.creatives.watch",
   "REQ POST https://realtimebidding.googleapis.com/v1/id1/%20x/creatives:watch?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -90,10 +166,10 @@ test "Go's realtimebidding.bidders.creatives.watch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_3)
+  gv_compare(gv_log_of(f), GO_5)
 }
 
-const GO_4: List[Str] = [
+const GO_6: List[Str] = [
   "CALL realtimebidding.bidders.endpoints.get",
   "REQ GET https://realtimebidding.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -111,10 +187,10 @@ test "Go's realtimebidding.bidders.endpoints.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_4)
+  gv_compare(gv_log_of(f), GO_6)
 }
 
-const GO_5: List[Str] = [
+const GO_7: List[Str] = [
   "CALL realtimebidding.bidders.endpoints.list",
   "REQ GET https://realtimebidding.googleapis.com/v1/id1/%20x/endpoints?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -132,10 +208,48 @@ test "Go's realtimebidding.bidders.endpoints.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_5)
+  gv_compare(gv_log_of(f), GO_7)
 }
 
-const GO_6: List[Str] = [
+const GO_8: List[Str] = [
+  "CALL realtimebidding.bidders.endpoints.list pages",
+  "REQ GET https://realtimebidding.googleapis.com/v1/id1/%20x/endpoints?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"endpoints\":[{\"bidProtocol\":\"s-bidprotocol\",\"maximumQps\":\"7\",\"name\":\"s-name\",\"tradingLocation\":\"s-tradinglocation\",\"url\":\"s-url\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"endpoints\":[{\"bidProtocol\":\"s-bidprotocol\",\"maximumQps\":\"7\",\"name\":\"s-name\",\"tradingLocation\":\"s-tradinglocation\",\"url\":\"s-url\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://realtimebidding.googleapis.com/v1/id1/%20x/endpoints?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"endpoints\":[{\"bidProtocol\":\"s-bidprotocol\",\"maximumQps\":\"7\",\"name\":\"s-name\",\"tradingLocation\":\"s-tradinglocation\",\"url\":\"s-url\"}]}",
+  "OUT: {\"endpoints\":[{\"bidProtocol\":\"s-bidprotocol\",\"maximumQps\":\"7\",\"name\":\"s-name\",\"tradingLocation\":\"s-tradinglocation\",\"url\":\"s-url\"}]}",
+  "OUT: ok",
+]
+
+test "Go's realtimebidding.bidders.endpoints.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"endpoints\":[{\"bidProtocol\":\"s-bidprotocol\",\"maximumQps\":\"7\",\"name\":\"s-name\",\"tradingLocation\":\"s-tradinglocation\",\"url\":\"s-url\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"endpoints\":[{\"bidProtocol\":\"s-bidprotocol\",\"maximumQps\":\"7\",\"name\":\"s-name\",\"tradingLocation\":\"s-tradinglocation\",\"url\":\"s-url\"}]}")
+  gv_note(f, "CALL realtimebidding.bidders.endpoints.list pages")
+  var p = svc.bidders.endpoints.list_pages("id1/ x", options: BiddersEndpointsListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_8)
+}
+
+const GO_9: List[Str] = [
   "CALL realtimebidding.bidders.endpoints.patch",
   "REQ PATCH https://realtimebidding.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
@@ -154,10 +268,10 @@ test "Go's realtimebidding.bidders.endpoints.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_6)
+  gv_compare(gv_log_of(f), GO_9)
 }
 
-const GO_7: List[Str] = [
+const GO_10: List[Str] = [
   "CALL realtimebidding.bidders.pretargetingConfigs.activate",
   "REQ POST https://realtimebidding.googleapis.com/v1/id1/%20x:activate?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -176,10 +290,10 @@ test "Go's realtimebidding.bidders.pretargetingConfigs.activate" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_7)
+  gv_compare(gv_log_of(f), GO_10)
 }
 
-const GO_8: List[Str] = [
+const GO_11: List[Str] = [
   "CALL realtimebidding.bidders.pretargetingConfigs.addTargetedApps",
   "REQ POST https://realtimebidding.googleapis.com/v1/id1/%20x:addTargetedApps?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -198,10 +312,10 @@ test "Go's realtimebidding.bidders.pretargetingConfigs.addTargetedApps" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_8)
+  gv_compare(gv_log_of(f), GO_11)
 }
 
-const GO_9: List[Str] = [
+const GO_12: List[Str] = [
   "CALL realtimebidding.bidders.pretargetingConfigs.addTargetedPublishers",
   "REQ POST https://realtimebidding.googleapis.com/v1/id1/%20x:addTargetedPublishers?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -220,10 +334,10 @@ test "Go's realtimebidding.bidders.pretargetingConfigs.addTargetedPublishers" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_9)
+  gv_compare(gv_log_of(f), GO_12)
 }
 
-const GO_10: List[Str] = [
+const GO_13: List[Str] = [
   "CALL realtimebidding.bidders.pretargetingConfigs.addTargetedSites",
   "REQ POST https://realtimebidding.googleapis.com/v1/id1/%20x:addTargetedSites?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -242,14 +356,14 @@ test "Go's realtimebidding.bidders.pretargetingConfigs.addTargetedSites" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_10)
+  gv_compare(gv_log_of(f), GO_13)
 }
 
-const GO_11: List[Str] = [
+const GO_14: List[Str] = [
   "CALL realtimebidding.bidders.pretargetingConfigs.create",
   "REQ POST https://realtimebidding.googleapis.com/v1/id1/%20x/pretargetingConfigs?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"allowedUserTargetingModes\":[\"s-allowedusertargetingmodes\"],\"appTargeting\":{\"mobileAppCategoryTargeting\":{\"excludedIds\":[\"7\"],\"includedIds\":[\"7\"]},\"mobileAppTargeting\":{\"targetingMode\":\"s-targetingmode\",\"values\":[\"s-values\"]}},\"billingId\":\"7\",\"displayName\":\"s-displayname\",\"excludedContentLabelIds\":[\"7\"],\"geoTargeting\":{\"excludedIds\":[\"7\"],\"includedIds\":[\"7\"]},\"includedCreativeDimensions\":[{\"height\":\"7\",\"width\":\"7\"}],\"includedEnvironments\":[\"s-includedenvironments\"],\"includedFormats\":[\"s-includedformats\"],\"includedLanguages\":[\"s-includedlanguages\"],\"includedMobileOperatingSystemIds\":[\"7\"],\"includedPlatforms\":[\"s-includedplatforms\"],\"includedUserIdTypes\":[\"s-includeduseridtypes\"],\"interstitialTargeting\":\"s-interstitialtargeting\",\"invalidGeoIds\":[\"7\"],\"maximumQps\":\"7\",\"minimumViewabilityDecile\":7,\"name\":\"s-name\",\"publisherTargeting\":{\"targetingMode\":\"s-targetingmode\",\"values\":[\"s-values\"]},\"state\":\"s-state\",\"userListTargeting\":{\"excludedIds\":[\"7\"],\"includedIds\":[\"7\"]},\"verticalTargeting\":{\"excludedIds\":[\"7\"],\"includedIds\":[\"7\"]},\"webTargeting\":{\"targetingMode\":\"s-targetingmode\",\"values\":[\"s-values\"]}}",
+  "  B <1117 bytes> {\"allowedUserTargetingModes\":[\"s...ngmode\",\"values\":[\"s-values\"]}}",
   "",
   "  SERVED 200 {\"allowedUserTargetingModes\":[\"s-allowedusertargetingmodes\"],\"appTargeting\":{\"mobileAppCategoryTargeting\":{\"excludedIds\":[\"7\"],\"includedIds\":[\"7\"]},\"mobileAppTargeting\":{\"targetingMode\":\"s-targetingmode\",\"values\":[\"s-values\"]}},\"billingId\":\"7\",\"displayName\":\"s-displayname\",\"excludedContentLabelIds\":[\"7\"],\"geoTargeting\":{\"excludedIds\":[\"7\"],\"includedIds\":[\"7\"]},\"includedCreativeDimensions\":[{\"height\":\"7\",\"width\":\"7\"}],\"includedEnvironments\":[\"s-includedenvironments\"],\"includedFormats\":[\"s-includedformats\"],\"includedLanguages\":[\"s-includedlanguages\"],\"includedMobileOperatingSystemIds\":[\"7\"],\"includedPlatforms\":[\"s-includedplatforms\"],\"includedUserIdTypes\":[\"s-includeduseridtypes\"],\"interstitialTargeting\":\"s-interstitialtargeting\",\"invalidGeoIds\":[\"7\"],\"maximumQps\":\"7\",\"minimumViewabilityDecile\":7,\"name\":\"s-name\",\"publisherTargeting\":{\"targetingMode\":\"s-targetingmode\",\"values\":[\"s-values\"]},\"state\":\"s-state\",\"userListTargeting\":{\"excludedIds\":[\"7\"],\"includedIds\":[\"7\"]},\"verticalTargeting\":{\"excludedIds\":[\"7\"],\"includedIds\":[\"7\"]},\"webTargeting\":{\"targetingMode\":\"s-targetingmode\",\"values\":[\"s-values\"]}}",
   "OUT: {\"allowedUserTargetingModes\":[\"s-allowedusertargetingmodes\"],\"appTargeting\":{\"mobileAppCategoryTargeting\":{\"excludedIds\":[\"7\"],\"includedIds\":[\"7\"]},\"mobileAppTargeting\":{\"targetingMode\":\"s-targetingmode\",\"values\":[\"s-values\"]}},\"billingId\":\"7\",\"displayName\":\"s-displayname\",\"excludedContentLabelIds\":[\"7\"],\"geoTargeting\":{\"excludedIds\":[\"7\"],\"includedIds\":[\"7\"]},\"includedCreativeDimensions\":[{\"height\":\"7\",\"width\":\"7\"}],\"includedEnvironments\":[\"s-includedenvironments\"],\"includedFormats\":[\"s-includedformats\"],\"includedLanguages\":[\"s-includedlanguages\"],\"includedMobileOperatingSystemIds\":[\"7\"],\"includedPlatforms\":[\"s-includedplatforms\"],\"includedUserIdTypes\":[\"s-includeduseridtypes\"],\"interstitialTargeting\":\"s-interstitialtargeting\",\"invalidGeoIds\":[\"7\"],\"maximumQps\":\"7\",\"minimumViewabilityDecile\":7,\"name\":\"s-name\",\"publisherTargeting\":{\"targetingMode\":\"s-targetingmode\",\"values\":[\"s-values\"]},\"state\":\"s-state\",\"userListTargeting\":{\"excludedIds\":[\"7\"],\"includedIds\":[\"7\"]},\"verticalTargeting\":{\"excludedIds\":[\"7\"],\"includedIds\":[\"7\"]},\"webTargeting\":{\"targetingMode\":\"s-targetingmode\",\"values\":[\"s-values\"]}}",
@@ -264,10 +378,10 @@ test "Go's realtimebidding.bidders.pretargetingConfigs.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_11)
+  gv_compare(gv_log_of(f), GO_14)
 }
 
-const GO_12: List[Str] = [
+const GO_15: List[Str] = [
   "CALL realtimebidding.bidders.pretargetingConfigs.delete",
   "REQ DELETE https://realtimebidding.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -285,10 +399,10 @@ test "Go's realtimebidding.bidders.pretargetingConfigs.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_12)
+  gv_compare(gv_log_of(f), GO_15)
 }
 
-const GO_13: List[Str] = [
+const GO_16: List[Str] = [
   "CALL realtimebidding.bidders.pretargetingConfigs.get",
   "REQ GET https://realtimebidding.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -306,10 +420,10 @@ test "Go's realtimebidding.bidders.pretargetingConfigs.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_13)
+  gv_compare(gv_log_of(f), GO_16)
 }
 
-const GO_14: List[Str] = [
+const GO_17: List[Str] = [
   "CALL realtimebidding.bidders.pretargetingConfigs.list",
   "REQ GET https://realtimebidding.googleapis.com/v1/id1/%20x/pretargetingConfigs?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -327,14 +441,52 @@ test "Go's realtimebidding.bidders.pretargetingConfigs.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_14)
+  gv_compare(gv_log_of(f), GO_17)
 }
 
-const GO_15: List[Str] = [
+const GO_18: List[Str] = [
+  "CALL realtimebidding.bidders.pretargetingConfigs.list pages",
+  "REQ GET https://realtimebidding.googleapis.com/v1/id1/%20x/pretargetingConfigs?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"pretargetingConfigs\":[{\"allowedUserTargetingModes\":[\"s-allowedusertargetingmodes\"],\"appTargeting\":{},\"billingId\":\"7\",\"displayName\":\"s-displayname\",\"excludedContentLabelIds\":[\"7\"],\"geoTargeting\":{},\"includedEnvironments\":[\"s-includedenvironments\"],\"includedFormats\":[\"s-includedformats\"],\"includedLanguages\":[\"s-includedlanguages\"],\"includedMobileOperatingSystemIds\":[\"7\"],\"includedPlatforms\":[\"s-includedplatforms\"],\"includedUserIdTypes\":[\"s-includeduseridtypes\"],\"interstitialTargeting\":\"s-interstitialtargeting\",\"invalidGeoIds\":[\"7\"],\"maximumQps\":\"7\",\"minimumViewabilityDecile\":7,\"name\":\"s-name\",\"publisherTargeting\":{\"targetingMode\":\"s-targetingmode\"},\"state\":\"s-state\",\"userListTargeting\":{},\"verticalTargeting\":{},\"webTargeting\":{\"targetingMode\":\"s-targetingmode\"}}]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"pretargetingConfigs\":[{\"allowedUserTargetingModes\":[\"s-allowedusertargetingmodes\"],\"appTargeting\":{},\"billingId\":\"7\",\"displayName\":\"s-displayname\",\"excludedContentLabelIds\":[\"7\"],\"geoTargeting\":{},\"includedEnvironments\":[\"s-includedenvironments\"],\"includedFormats\":[\"s-includedformats\"],\"includedLanguages\":[\"s-includedlanguages\"],\"includedMobileOperatingSystemIds\":[\"7\"],\"includedPlatforms\":[\"s-includedplatforms\"],\"includedUserIdTypes\":[\"s-includeduseridtypes\"],\"interstitialTargeting\":\"s-interstitialtargeting\",\"invalidGeoIds\":[\"7\"],\"maximumQps\":\"7\",\"minimumViewabilityDecile\":7,\"name\":\"s-name\",\"publisherTargeting\":{\"targetingMode\":\"s-targetingmode\"},\"state\":\"s-state\",\"userListTargeting\":{},\"verticalTargeting\":{},\"webTargeting\":{\"targetingMode\":\"s-targetingmode\"}}]}",
+  "REQ GET https://realtimebidding.googleapis.com/v1/id1/%20x/pretargetingConfigs?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"pretargetingConfigs\":[{\"allowedUserTargetingModes\":[\"s-allowedusertargetingmodes\"],\"appTargeting\":{},\"billingId\":\"7\",\"displayName\":\"s-displayname\",\"excludedContentLabelIds\":[\"7\"],\"geoTargeting\":{},\"includedEnvironments\":[\"s-includedenvironments\"],\"includedFormats\":[\"s-includedformats\"],\"includedLanguages\":[\"s-includedlanguages\"],\"includedMobileOperatingSystemIds\":[\"7\"],\"includedPlatforms\":[\"s-includedplatforms\"],\"includedUserIdTypes\":[\"s-includeduseridtypes\"],\"interstitialTargeting\":\"s-interstitialtargeting\",\"invalidGeoIds\":[\"7\"],\"maximumQps\":\"7\",\"minimumViewabilityDecile\":7,\"name\":\"s-name\",\"publisherTargeting\":{\"targetingMode\":\"s-targetingmode\"},\"state\":\"s-state\",\"userListTargeting\":{},\"verticalTargeting\":{},\"webTargeting\":{\"targetingMode\":\"s-targetingmode\"}}]}",
+  "OUT: {\"pretargetingConfigs\":[{\"allowedUserTargetingModes\":[\"s-allowedusertargetingmodes\"],\"appTargeting\":{},\"billingId\":\"7\",\"displayName\":\"s-displayname\",\"excludedContentLabelIds\":[\"7\"],\"geoTargeting\":{},\"includedEnvironments\":[\"s-includedenvironments\"],\"includedFormats\":[\"s-includedformats\"],\"includedLanguages\":[\"s-includedlanguages\"],\"includedMobileOperatingSystemIds\":[\"7\"],\"includedPlatforms\":[\"s-includedplatforms\"],\"includedUserIdTypes\":[\"s-includeduseridtypes\"],\"interstitialTargeting\":\"s-interstitialtargeting\",\"invalidGeoIds\":[\"7\"],\"maximumQps\":\"7\",\"minimumViewabilityDecile\":7,\"name\":\"s-name\",\"publisherTargeting\":{\"targetingMode\":\"s-targetingmode\"},\"state\":\"s-state\",\"userListTargeting\":{},\"verticalTargeting\":{},\"webTargeting\":{\"targetingMode\":\"s-targetingmode\"}}]}",
+  "OUT: ok",
+]
+
+test "Go's realtimebidding.bidders.pretargetingConfigs.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"pretargetingConfigs\":[{\"allowedUserTargetingModes\":[\"s-allowedusertargetingmodes\"],\"appTargeting\":{},\"billingId\":\"7\",\"displayName\":\"s-displayname\",\"excludedContentLabelIds\":[\"7\"],\"geoTargeting\":{},\"includedEnvironments\":[\"s-includedenvironments\"],\"includedFormats\":[\"s-includedformats\"],\"includedLanguages\":[\"s-includedlanguages\"],\"includedMobileOperatingSystemIds\":[\"7\"],\"includedPlatforms\":[\"s-includedplatforms\"],\"includedUserIdTypes\":[\"s-includeduseridtypes\"],\"interstitialTargeting\":\"s-interstitialtargeting\",\"invalidGeoIds\":[\"7\"],\"maximumQps\":\"7\",\"minimumViewabilityDecile\":7,\"name\":\"s-name\",\"publisherTargeting\":{\"targetingMode\":\"s-targetingmode\"},\"state\":\"s-state\",\"userListTargeting\":{},\"verticalTargeting\":{},\"webTargeting\":{\"targetingMode\":\"s-targetingmode\"}}]}")
+  gv_queue(f, "{\"pretargetingConfigs\":[{\"allowedUserTargetingModes\":[\"s-allowedusertargetingmodes\"],\"appTargeting\":{},\"billingId\":\"7\",\"displayName\":\"s-displayname\",\"excludedContentLabelIds\":[\"7\"],\"geoTargeting\":{},\"includedEnvironments\":[\"s-includedenvironments\"],\"includedFormats\":[\"s-includedformats\"],\"includedLanguages\":[\"s-includedlanguages\"],\"includedMobileOperatingSystemIds\":[\"7\"],\"includedPlatforms\":[\"s-includedplatforms\"],\"includedUserIdTypes\":[\"s-includeduseridtypes\"],\"interstitialTargeting\":\"s-interstitialtargeting\",\"invalidGeoIds\":[\"7\"],\"maximumQps\":\"7\",\"minimumViewabilityDecile\":7,\"name\":\"s-name\",\"publisherTargeting\":{\"targetingMode\":\"s-targetingmode\"},\"state\":\"s-state\",\"userListTargeting\":{},\"verticalTargeting\":{},\"webTargeting\":{\"targetingMode\":\"s-targetingmode\"}}]}")
+  gv_note(f, "CALL realtimebidding.bidders.pretargetingConfigs.list pages")
+  var p = svc.bidders.pretargeting_configs.list_pages("id1/ x", options: BiddersPretargetingConfigsListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_18)
+}
+
+const GO_19: List[Str] = [
   "CALL realtimebidding.bidders.pretargetingConfigs.patch",
   "REQ PATCH https://realtimebidding.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"allowedUserTargetingModes\":[\"s-allowedusertargetingmodes\"],\"appTargeting\":{\"mobileAppCategoryTargeting\":{\"excludedIds\":[\"7\"],\"includedIds\":[\"7\"]},\"mobileAppTargeting\":{\"targetingMode\":\"s-targetingmode\",\"values\":[\"s-values\"]}},\"billingId\":\"7\",\"displayName\":\"s-displayname\",\"excludedContentLabelIds\":[\"7\"],\"geoTargeting\":{\"excludedIds\":[\"7\"],\"includedIds\":[\"7\"]},\"includedCreativeDimensions\":[{\"height\":\"7\",\"width\":\"7\"}],\"includedEnvironments\":[\"s-includedenvironments\"],\"includedFormats\":[\"s-includedformats\"],\"includedLanguages\":[\"s-includedlanguages\"],\"includedMobileOperatingSystemIds\":[\"7\"],\"includedPlatforms\":[\"s-includedplatforms\"],\"includedUserIdTypes\":[\"s-includeduseridtypes\"],\"interstitialTargeting\":\"s-interstitialtargeting\",\"invalidGeoIds\":[\"7\"],\"maximumQps\":\"7\",\"minimumViewabilityDecile\":7,\"name\":\"s-name\",\"publisherTargeting\":{\"targetingMode\":\"s-targetingmode\",\"values\":[\"s-values\"]},\"state\":\"s-state\",\"userListTargeting\":{\"excludedIds\":[\"7\"],\"includedIds\":[\"7\"]},\"verticalTargeting\":{\"excludedIds\":[\"7\"],\"includedIds\":[\"7\"]},\"webTargeting\":{\"targetingMode\":\"s-targetingmode\",\"values\":[\"s-values\"]}}",
+  "  B <1117 bytes> {\"allowedUserTargetingModes\":[\"s...ngmode\",\"values\":[\"s-values\"]}}",
   "",
   "  SERVED 200 {\"allowedUserTargetingModes\":[\"s-allowedusertargetingmodes\"],\"appTargeting\":{\"mobileAppCategoryTargeting\":{\"excludedIds\":[\"7\"],\"includedIds\":[\"7\"]},\"mobileAppTargeting\":{\"targetingMode\":\"s-targetingmode\",\"values\":[\"s-values\"]}},\"billingId\":\"7\",\"displayName\":\"s-displayname\",\"excludedContentLabelIds\":[\"7\"],\"geoTargeting\":{\"excludedIds\":[\"7\"],\"includedIds\":[\"7\"]},\"includedCreativeDimensions\":[{\"height\":\"7\",\"width\":\"7\"}],\"includedEnvironments\":[\"s-includedenvironments\"],\"includedFormats\":[\"s-includedformats\"],\"includedLanguages\":[\"s-includedlanguages\"],\"includedMobileOperatingSystemIds\":[\"7\"],\"includedPlatforms\":[\"s-includedplatforms\"],\"includedUserIdTypes\":[\"s-includeduseridtypes\"],\"interstitialTargeting\":\"s-interstitialtargeting\",\"invalidGeoIds\":[\"7\"],\"maximumQps\":\"7\",\"minimumViewabilityDecile\":7,\"name\":\"s-name\",\"publisherTargeting\":{\"targetingMode\":\"s-targetingmode\",\"values\":[\"s-values\"]},\"state\":\"s-state\",\"userListTargeting\":{\"excludedIds\":[\"7\"],\"includedIds\":[\"7\"]},\"verticalTargeting\":{\"excludedIds\":[\"7\"],\"includedIds\":[\"7\"]},\"webTargeting\":{\"targetingMode\":\"s-targetingmode\",\"values\":[\"s-values\"]}}",
   "OUT: {\"allowedUserTargetingModes\":[\"s-allowedusertargetingmodes\"],\"appTargeting\":{\"mobileAppCategoryTargeting\":{\"excludedIds\":[\"7\"],\"includedIds\":[\"7\"]},\"mobileAppTargeting\":{\"targetingMode\":\"s-targetingmode\",\"values\":[\"s-values\"]}},\"billingId\":\"7\",\"displayName\":\"s-displayname\",\"excludedContentLabelIds\":[\"7\"],\"geoTargeting\":{\"excludedIds\":[\"7\"],\"includedIds\":[\"7\"]},\"includedCreativeDimensions\":[{\"height\":\"7\",\"width\":\"7\"}],\"includedEnvironments\":[\"s-includedenvironments\"],\"includedFormats\":[\"s-includedformats\"],\"includedLanguages\":[\"s-includedlanguages\"],\"includedMobileOperatingSystemIds\":[\"7\"],\"includedPlatforms\":[\"s-includedplatforms\"],\"includedUserIdTypes\":[\"s-includeduseridtypes\"],\"interstitialTargeting\":\"s-interstitialtargeting\",\"invalidGeoIds\":[\"7\"],\"maximumQps\":\"7\",\"minimumViewabilityDecile\":7,\"name\":\"s-name\",\"publisherTargeting\":{\"targetingMode\":\"s-targetingmode\",\"values\":[\"s-values\"]},\"state\":\"s-state\",\"userListTargeting\":{\"excludedIds\":[\"7\"],\"includedIds\":[\"7\"]},\"verticalTargeting\":{\"excludedIds\":[\"7\"],\"includedIds\":[\"7\"]},\"webTargeting\":{\"targetingMode\":\"s-targetingmode\",\"values\":[\"s-values\"]}}",
@@ -349,10 +501,10 @@ test "Go's realtimebidding.bidders.pretargetingConfigs.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_15)
+  gv_compare(gv_log_of(f), GO_19)
 }
 
-const GO_16: List[Str] = [
+const GO_20: List[Str] = [
   "CALL realtimebidding.bidders.pretargetingConfigs.removeTargetedApps",
   "REQ POST https://realtimebidding.googleapis.com/v1/id1/%20x:removeTargetedApps?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -371,10 +523,10 @@ test "Go's realtimebidding.bidders.pretargetingConfigs.removeTargetedApps" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_16)
+  gv_compare(gv_log_of(f), GO_20)
 }
 
-const GO_17: List[Str] = [
+const GO_21: List[Str] = [
   "CALL realtimebidding.bidders.pretargetingConfigs.removeTargetedPublishers",
   "REQ POST https://realtimebidding.googleapis.com/v1/id1/%20x:removeTargetedPublishers?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -393,10 +545,10 @@ test "Go's realtimebidding.bidders.pretargetingConfigs.removeTargetedPublishers"
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_17)
+  gv_compare(gv_log_of(f), GO_21)
 }
 
-const GO_18: List[Str] = [
+const GO_22: List[Str] = [
   "CALL realtimebidding.bidders.pretargetingConfigs.removeTargetedSites",
   "REQ POST https://realtimebidding.googleapis.com/v1/id1/%20x:removeTargetedSites?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -415,10 +567,10 @@ test "Go's realtimebidding.bidders.pretargetingConfigs.removeTargetedSites" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_18)
+  gv_compare(gv_log_of(f), GO_22)
 }
 
-const GO_19: List[Str] = [
+const GO_23: List[Str] = [
   "CALL realtimebidding.bidders.pretargetingConfigs.suspend",
   "REQ POST https://realtimebidding.googleapis.com/v1/id1/%20x:suspend?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -437,10 +589,10 @@ test "Go's realtimebidding.bidders.pretargetingConfigs.suspend" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_19)
+  gv_compare(gv_log_of(f), GO_23)
 }
 
-const GO_20: List[Str] = [
+const GO_24: List[Str] = [
   "CALL realtimebidding.bidders.publisherConnections.batchApprove",
   "REQ POST https://realtimebidding.googleapis.com/v1/id1/%20x/publisherConnections:batchApprove?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -459,10 +611,10 @@ test "Go's realtimebidding.bidders.publisherConnections.batchApprove" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_20)
+  gv_compare(gv_log_of(f), GO_24)
 }
 
-const GO_21: List[Str] = [
+const GO_25: List[Str] = [
   "CALL realtimebidding.bidders.publisherConnections.batchReject",
   "REQ POST https://realtimebidding.googleapis.com/v1/id1/%20x/publisherConnections:batchReject?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -481,10 +633,10 @@ test "Go's realtimebidding.bidders.publisherConnections.batchReject" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_21)
+  gv_compare(gv_log_of(f), GO_25)
 }
 
-const GO_22: List[Str] = [
+const GO_26: List[Str] = [
   "CALL realtimebidding.bidders.publisherConnections.get",
   "REQ GET https://realtimebidding.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -502,10 +654,10 @@ test "Go's realtimebidding.bidders.publisherConnections.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_22)
+  gv_compare(gv_log_of(f), GO_26)
 }
 
-const GO_23: List[Str] = [
+const GO_27: List[Str] = [
   "CALL realtimebidding.bidders.publisherConnections.list",
   "REQ GET https://realtimebidding.googleapis.com/v1/id1/%20x/publisherConnections?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -523,10 +675,48 @@ test "Go's realtimebidding.bidders.publisherConnections.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_23)
+  gv_compare(gv_log_of(f), GO_27)
 }
 
-const GO_24: List[Str] = [
+const GO_28: List[Str] = [
+  "CALL realtimebidding.bidders.publisherConnections.list pages",
+  "REQ GET https://realtimebidding.googleapis.com/v1/id1/%20x/publisherConnections?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"publisherConnections\":[{\"biddingState\":\"s-biddingstate\",\"createTime\":\"s-createtime\",\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"publisherPlatform\":\"s-publisherplatform\"}]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"publisherConnections\":[{\"biddingState\":\"s-biddingstate\",\"createTime\":\"s-createtime\",\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"publisherPlatform\":\"s-publisherplatform\"}]}",
+  "REQ GET https://realtimebidding.googleapis.com/v1/id1/%20x/publisherConnections?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"publisherConnections\":[{\"biddingState\":\"s-biddingstate\",\"createTime\":\"s-createtime\",\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"publisherPlatform\":\"s-publisherplatform\"}]}",
+  "OUT: {\"publisherConnections\":[{\"biddingState\":\"s-biddingstate\",\"createTime\":\"s-createtime\",\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"publisherPlatform\":\"s-publisherplatform\"}]}",
+  "OUT: ok",
+]
+
+test "Go's realtimebidding.bidders.publisherConnections.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"publisherConnections\":[{\"biddingState\":\"s-biddingstate\",\"createTime\":\"s-createtime\",\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"publisherPlatform\":\"s-publisherplatform\"}]}")
+  gv_queue(f, "{\"publisherConnections\":[{\"biddingState\":\"s-biddingstate\",\"createTime\":\"s-createtime\",\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"publisherPlatform\":\"s-publisherplatform\"}]}")
+  gv_note(f, "CALL realtimebidding.bidders.publisherConnections.list pages")
+  var p = svc.bidders.publisher_connections.list_pages("id1/ x", options: BiddersPublisherConnectionsListOptions{filter: Some("s-filter"), order_by: Some("s-orderby"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_28)
+}
+
+const GO_29: List[Str] = [
   "CALL realtimebidding.buyers.get",
   "REQ GET https://realtimebidding.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -544,10 +734,10 @@ test "Go's realtimebidding.buyers.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_24)
+  gv_compare(gv_log_of(f), GO_29)
 }
 
-const GO_25: List[Str] = [
+const GO_30: List[Str] = [
   "CALL realtimebidding.buyers.getRemarketingTag",
   "REQ GET https://realtimebidding.googleapis.com/v1/id1/%20x:getRemarketingTag?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -565,10 +755,10 @@ test "Go's realtimebidding.buyers.getRemarketingTag" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_25)
+  gv_compare(gv_log_of(f), GO_30)
 }
 
-const GO_26: List[Str] = [
+const GO_31: List[Str] = [
   "CALL realtimebidding.buyers.list",
   "REQ GET https://realtimebidding.googleapis.com/v1/buyers?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -586,10 +776,48 @@ test "Go's realtimebidding.buyers.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_26)
+  gv_compare(gv_log_of(f), GO_31)
 }
 
-const GO_27: List[Str] = [
+const GO_32: List[Str] = [
+  "CALL realtimebidding.buyers.list pages",
+  "REQ GET https://realtimebidding.googleapis.com/v1/buyers?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"buyers\":[{\"activeCreativeCount\":\"7\",\"bidder\":\"s-bidder\",\"billingIds\":[\"s-billingids\"],\"displayName\":\"s-displayname\",\"maximumActiveCreativeCount\":\"7\",\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"buyers\":[{\"activeCreativeCount\":\"7\",\"bidder\":\"s-bidder\",\"billingIds\":[\"s-billingids\"],\"displayName\":\"s-displayname\",\"maximumActiveCreativeCount\":\"7\",\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://realtimebidding.googleapis.com/v1/buyers?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"buyers\":[{\"activeCreativeCount\":\"7\",\"bidder\":\"s-bidder\",\"billingIds\":[\"s-billingids\"],\"displayName\":\"s-displayname\",\"maximumActiveCreativeCount\":\"7\",\"name\":\"s-name\"}]}",
+  "OUT: {\"buyers\":[{\"activeCreativeCount\":\"7\",\"bidder\":\"s-bidder\",\"billingIds\":[\"s-billingids\"],\"displayName\":\"s-displayname\",\"maximumActiveCreativeCount\":\"7\",\"name\":\"s-name\"}]}",
+  "OUT: ok",
+]
+
+test "Go's realtimebidding.buyers.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"buyers\":[{\"activeCreativeCount\":\"7\",\"bidder\":\"s-bidder\",\"billingIds\":[\"s-billingids\"],\"displayName\":\"s-displayname\",\"maximumActiveCreativeCount\":\"7\",\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"buyers\":[{\"activeCreativeCount\":\"7\",\"bidder\":\"s-bidder\",\"billingIds\":[\"s-billingids\"],\"displayName\":\"s-displayname\",\"maximumActiveCreativeCount\":\"7\",\"name\":\"s-name\"}]}")
+  gv_note(f, "CALL realtimebidding.buyers.list pages")
+  var p = svc.buyers.list_pages(options: BuyersListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_32)
+}
+
+const GO_33: List[Str] = [
   "CALL realtimebidding.buyers.creatives.addDeals",
   "REQ POST https://realtimebidding.googleapis.com/v1/id1/%20x:addDeals?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -608,14 +836,14 @@ test "Go's realtimebidding.buyers.creatives.addDeals" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_27)
+  gv_compare(gv_log_of(f), GO_33)
 }
 
-const GO_28: List[Str] = [
+const GO_34: List[Str] = [
   "CALL realtimebidding.buyers.creatives.create",
   "REQ POST https://realtimebidding.googleapis.com/v1/id1/%20x/creatives?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"accountId\":\"7\",\"adChoicesDestinationUrl\":\"s-adchoicesdestinationurl\",\"advertiserName\":\"s-advertisername\",\"agencyId\":\"7\",\"apiUpdateTime\":\"s-apiupdatetime\",\"creativeFormat\":\"s-creativeformat\",\"creativeId\":\"s-creativeid\",\"creativeServingDecision\":{\"adTechnologyProviders\":{\"detectedGvlIds\":[\"7\"],\"detectedProviderIds\":[\"7\"],\"unidentifiedProviderDomains\":[\"s-unidentifiedproviderdomains\"]},\"chinaPolicyCompliance\":{\"status\":\"s-status\"},\"dealsPolicyCompliance\":{\"status\":\"s-status\"},\"detectedAdvertisers\":[{\"advertiserId\":\"7\",\"advertiserName\":\"s-advertisername\",\"brandId\":\"7\",\"brandName\":\"s-brandname\"}],\"detectedAttributes\":[\"s-detectedattributes\"],\"detectedCategories\":[\"s-detectedcategories\"],\"detectedCategoriesTaxonomy\":\"s-detectedcategoriestaxonomy\",\"detectedClickThroughUrls\":[\"s-detectedclickthroughurls\"],\"detectedDomains\":[\"s-detecteddomains\"],\"detectedLanguages\":[\"s-detectedlanguages\"],\"detectedProductCategories\":[7],\"detectedSensitiveCategories\":[7],\"detectedVendorIds\":[7],\"lastStatusUpdate\":\"s-laststatusupdate\",\"networkPolicyCompliance\":{\"status\":\"s-status\"},\"platformPolicyCompliance\":{\"status\":\"s-status\"},\"russiaPolicyCompliance\":{\"status\":\"s-status\"}},\"dealIds\":[\"s-dealids\"],\"declaredAttributes\":[\"s-declaredattributes\"],\"declaredClickThroughUrls\":[\"s-declaredclickthroughurls\"],\"declaredRestrictedCategories\":[\"s-declaredrestrictedcategories\"],\"declaredVendorIds\":[7],\"html\":{\"height\":7,\"snippet\":\"s-snippet\",\"width\":7},\"impressionTrackingUrls\":[\"s-impressiontrackingurls\"],\"name\":\"s-name\",\"native\":{\"advertiserName\":\"s-advertisername\",\"appIcon\":{\"height\":7,\"url\":\"s-url\",\"width\":7},\"body\":\"s-body\",\"callToAction\":\"s-calltoaction\",\"clickLinkUrl\":\"s-clicklinkurl\",\"clickTrackingUrl\":\"s-clicktrackingurl\",\"headline\":\"s-headline\",\"image\":{\"height\":7,\"url\":\"s-url\",\"width\":7},\"logo\":{\"height\":7,\"url\":\"s-url\",\"width\":7},\"priceDisplayText\":\"s-pricedisplaytext\",\"starRating\":1.5,\"videoUrl\":\"s-videourl\",\"videoVastXml\":\"s-videovastxml\"},\"renderUrl\":\"s-renderurl\",\"restrictedCategories\":[\"s-restrictedcategories\"],\"version\":7,\"video\":{\"videoMetadata\":{\"duration\":\"s-duration\",\"isValidVast\":true,\"isVpaid\":true,\"skipOffset\":\"s-skipoffset\",\"vastVersion\":\"s-vastversion\"},\"videoUrl\":\"s-videourl\",\"videoVastXml\":\"s-videovastxml\"}}",
+  "  B <2239 bytes> {\"accountId\":\"7\",\"adChoicesDesti...ideoVastXml\":\"s-videovastxml\"}}",
   "",
   "  SERVED 200 {\"accountId\":\"7\",\"adChoicesDestinationUrl\":\"s-adchoicesdestinationurl\",\"advertiserName\":\"s-advertisername\",\"agencyId\":\"7\",\"apiUpdateTime\":\"s-apiupdatetime\",\"creativeFormat\":\"s-creativeformat\",\"creativeId\":\"s-creativeid\",\"creativeServingDecision\":{\"adTechnologyProviders\":{\"detectedGvlIds\":[\"7\"],\"detectedProviderIds\":[\"7\"],\"unidentifiedProviderDomains\":[\"s-unidentifiedproviderdomains\"]},\"chinaPolicyCompliance\":{\"status\":\"s-status\"},\"dealsPolicyCompliance\":{\"status\":\"s-status\"},\"detectedAdvertisers\":[{\"advertiserId\":\"7\",\"advertiserName\":\"s-advertisername\",\"brandId\":\"7\",\"brandName\":\"s-brandname\"}],\"detectedAttributes\":[\"s-detectedattributes\"],\"detectedCategories\":[\"s-detectedcategories\"],\"detectedCategoriesTaxonomy\":\"s-detectedcategoriestaxonomy\",\"detectedClickThroughUrls\":[\"s-detectedclickthroughurls\"],\"detectedDomains\":[\"s-detecteddomains\"],\"detectedLanguages\":[\"s-detectedlanguages\"],\"detectedProductCategories\":[7],\"detectedSensitiveCategories\":[7],\"detectedVendorIds\":[7],\"lastStatusUpdate\":\"s-laststatusupdate\",\"networkPolicyCompliance\":{\"status\":\"s-status\"},\"platformPolicyCompliance\":{\"status\":\"s-status\"},\"russiaPolicyCompliance\":{\"status\":\"s-status\"}},\"dealIds\":[\"s-dealids\"],\"declaredAttributes\":[\"s-declaredattributes\"],\"declaredClickThroughUrls\":[\"s-declaredclickthroughurls\"],\"declaredRestrictedCategories\":[\"s-declaredrestrictedcategories\"],\"declaredVendorIds\":[7],\"html\":{\"height\":7,\"snippet\":\"s-snippet\",\"width\":7},\"impressionTrackingUrls\":[\"s-impressiontrackingurls\"],\"name\":\"s-name\",\"native\":{\"advertiserName\":\"s-advertisername\",\"appIcon\":{\"height\":7,\"url\":\"s-url\",\"width\":7},\"body\":\"s-body\",\"callToAction\":\"s-calltoaction\",\"clickLinkUrl\":\"s-clicklinkurl\",\"clickTrackingUrl\":\"s-clicktrackingurl\",\"headline\":\"s-headline\",\"image\":{\"height\":7,\"url\":\"s-url\",\"width\":7},\"logo\":{\"height\":7,\"url\":\"s-url\",\"width\":7},\"priceDisplayText\":\"s-pricedisplaytext\",\"starRating\":1.5,\"videoUrl\":\"s-videourl\",\"videoVastXml\":\"s-videovastxml\"},\"renderUrl\":\"s-renderurl\",\"restrictedCategories\":[\"s-restrictedcategories\"],\"version\":7,\"video\":{\"videoMetadata\":{\"duration\":\"s-duration\",\"isValidVast\":true,\"isVpaid\":true,\"skipOffset\":\"s-skipoffset\",\"vastVersion\":\"s-vastversion\"},\"videoUrl\":\"s-videourl\",\"videoVastXml\":\"s-videovastxml\"}}",
   "OUT: {\"accountId\":\"7\",\"adChoicesDestinationUrl\":\"s-adchoicesdestinationurl\",\"advertiserName\":\"s-advertisername\",\"agencyId\":\"7\",\"apiUpdateTime\":\"s-apiupdatetime\",\"creativeFormat\":\"s-creativeformat\",\"creativeId\":\"s-creativeid\",\"creativeServingDecision\":{\"adTechnologyProviders\":{\"detectedGvlIds\":[\"7\"],\"detectedProviderIds\":[\"7\"],\"unidentifiedProviderDomains\":[\"s-unidentifiedproviderdomains\"]},\"chinaPolicyCompliance\":{\"status\":\"s-status\"},\"dealsPolicyCompliance\":{\"status\":\"s-status\"},\"detectedAdvertisers\":[{\"advertiserId\":\"7\",\"advertiserName\":\"s-advertisername\",\"brandId\":\"7\",\"brandName\":\"s-brandname\"}],\"detectedAttributes\":[\"s-detectedattributes\"],\"detectedCategories\":[\"s-detectedcategories\"],\"detectedCategoriesTaxonomy\":\"s-detectedcategoriestaxonomy\",\"detectedClickThroughUrls\":[\"s-detectedclickthroughurls\"],\"detectedDomains\":[\"s-detecteddomains\"],\"detectedLanguages\":[\"s-detectedlanguages\"],\"detectedProductCategories\":[7],\"detectedSensitiveCategories\":[7],\"detectedVendorIds\":[7],\"lastStatusUpdate\":\"s-laststatusupdate\",\"networkPolicyCompliance\":{\"status\":\"s-status\"},\"platformPolicyCompliance\":{\"status\":\"s-status\"},\"russiaPolicyCompliance\":{\"status\":\"s-status\"}},\"dealIds\":[\"s-dealids\"],\"declaredAttributes\":[\"s-declaredattributes\"],\"declaredClickThroughUrls\":[\"s-declaredclickthroughurls\"],\"declaredRestrictedCategories\":[\"s-declaredrestrictedcategories\"],\"declaredVendorIds\":[7],\"html\":{\"height\":7,\"snippet\":\"s-snippet\",\"width\":7},\"impressionTrackingUrls\":[\"s-impressiontrackingurls\"],\"name\":\"s-name\",\"native\":{\"advertiserName\":\"s-advertisername\",\"appIcon\":{\"height\":7,\"url\":\"s-url\",\"width\":7},\"body\":\"s-body\",\"callToAction\":\"s-calltoaction\",\"clickLinkUrl\":\"s-clicklinkurl\",\"clickTrackingUrl\":\"s-clicktrackingurl\",\"headline\":\"s-headline\",\"image\":{\"height\":7,\"url\":\"s-url\",\"width\":7},\"logo\":{\"height\":7,\"url\":\"s-url\",\"width\":7},\"priceDisplayText\":\"s-pricedisplaytext\",\"starRating\":1.5,\"videoUrl\":\"s-videourl\",\"videoVastXml\":\"s-videovastxml\"},\"renderUrl\":\"s-renderurl\",\"restrictedCategories\":[\"s-restrictedcategories\"],\"version\":7,\"video\":{\"videoMetadata\":{\"duration\":\"s-duration\",\"isValidVast\":true,\"isVpaid\":true,\"skipOffset\":\"s-skipoffset\",\"vastVersion\":\"s-vastversion\"},\"videoUrl\":\"s-videourl\",\"videoVastXml\":\"s-videovastxml\"}}",
@@ -630,10 +858,10 @@ test "Go's realtimebidding.buyers.creatives.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_28)
+  gv_compare(gv_log_of(f), GO_34)
 }
 
-const GO_29: List[Str] = [
+const GO_35: List[Str] = [
   "CALL realtimebidding.buyers.creatives.get",
   "REQ GET https://realtimebidding.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&view=s-view",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -651,10 +879,10 @@ test "Go's realtimebidding.buyers.creatives.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_29)
+  gv_compare(gv_log_of(f), GO_35)
 }
 
-const GO_30: List[Str] = [
+const GO_36: List[Str] = [
   "CALL realtimebidding.buyers.creatives.list",
   "REQ GET https://realtimebidding.googleapis.com/v1/id1/%20x/creatives?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&view=s-view",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -672,14 +900,52 @@ test "Go's realtimebidding.buyers.creatives.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_30)
+  gv_compare(gv_log_of(f), GO_36)
 }
 
-const GO_31: List[Str] = [
+const GO_37: List[Str] = [
+  "CALL realtimebidding.buyers.creatives.list pages",
+  "REQ GET https://realtimebidding.googleapis.com/v1/id1/%20x/creatives?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&view=s-view",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"creatives\":[{\"accountId\":\"7\",\"adChoicesDestinationUrl\":\"s-adchoicesdestinationurl\",\"advertiserName\":\"s-advertisername\",\"agencyId\":\"7\",\"apiUpdateTime\":\"s-apiupdatetime\",\"creativeFormat\":\"s-creativeformat\",\"creativeId\":\"s-creativeid\",\"creativeServingDecision\":{\"detectedCategoriesTaxonomy\":\"s-detectedcategoriestaxonomy\",\"lastStatusUpdate\":\"s-laststatusupdate\"},\"dealIds\":[\"s-dealids\"],\"declaredAttributes\":[\"s-declaredattributes\"],\"declaredClickThroughUrls\":[\"s-declaredclickthroughurls\"],\"declaredRestrictedCategories\":[\"s-declaredrestrictedcategories\"],\"declaredVendorIds\":[7],\"html\":{\"height\":7,\"snippet\":\"s-snippet\",\"width\":7},\"impressionTrackingUrls\":[\"s-impressiontrackingurls\"],\"name\":\"s-name\",\"native\":{\"advertiserName\":\"s-advertisername\",\"body\":\"s-body\",\"callToAction\":\"s-calltoaction\",\"clickLinkUrl\":\"s-clicklinkurl\",\"clickTrackingUrl\":\"s-clicktrackingurl\",\"headline\":\"s-headline\",\"priceDisplayText\":\"s-pricedisplaytext\",\"starRating\":1.5,\"videoUrl\":\"s-videourl\",\"videoVastXml\":\"s-videovastxml\"},\"renderUrl\":\"s-renderurl\",\"restrictedCategories\":[\"s-restrictedcategories\"],\"version\":7,\"video\":{\"videoUrl\":\"s-videourl\",\"videoVastXml\":\"s-videovastxml\"}}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"creatives\":[{\"accountId\":\"7\",\"adChoicesDestinationUrl\":\"s-adchoicesdestinationurl\",\"advertiserName\":\"s-advertisername\",\"agencyId\":\"7\",\"apiUpdateTime\":\"s-apiupdatetime\",\"creativeFormat\":\"s-creativeformat\",\"creativeId\":\"s-creativeid\",\"creativeServingDecision\":{\"detectedCategoriesTaxonomy\":\"s-detectedcategoriestaxonomy\",\"lastStatusUpdate\":\"s-laststatusupdate\"},\"dealIds\":[\"s-dealids\"],\"declaredAttributes\":[\"s-declaredattributes\"],\"declaredClickThroughUrls\":[\"s-declaredclickthroughurls\"],\"declaredRestrictedCategories\":[\"s-declaredrestrictedcategories\"],\"declaredVendorIds\":[7],\"html\":{\"height\":7,\"snippet\":\"s-snippet\",\"width\":7},\"impressionTrackingUrls\":[\"s-impressiontrackingurls\"],\"name\":\"s-name\",\"native\":{\"advertiserName\":\"s-advertisername\",\"body\":\"s-body\",\"callToAction\":\"s-calltoaction\",\"clickLinkUrl\":\"s-clicklinkurl\",\"clickTrackingUrl\":\"s-clicktrackingurl\",\"headline\":\"s-headline\",\"priceDisplayText\":\"s-pricedisplaytext\",\"starRating\":1.5,\"videoUrl\":\"s-videourl\",\"videoVastXml\":\"s-videovastxml\"},\"renderUrl\":\"s-renderurl\",\"restrictedCategories\":[\"s-restrictedcategories\"],\"version\":7,\"video\":{\"videoUrl\":\"s-videourl\",\"videoVastXml\":\"s-videovastxml\"}}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://realtimebidding.googleapis.com/v1/id1/%20x/creatives?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false&view=s-view",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"creatives\":[{\"accountId\":\"7\",\"adChoicesDestinationUrl\":\"s-adchoicesdestinationurl\",\"advertiserName\":\"s-advertisername\",\"agencyId\":\"7\",\"apiUpdateTime\":\"s-apiupdatetime\",\"creativeFormat\":\"s-creativeformat\",\"creativeId\":\"s-creativeid\",\"creativeServingDecision\":{\"detectedCategoriesTaxonomy\":\"s-detectedcategoriestaxonomy\",\"lastStatusUpdate\":\"s-laststatusupdate\"},\"dealIds\":[\"s-dealids\"],\"declaredAttributes\":[\"s-declaredattributes\"],\"declaredClickThroughUrls\":[\"s-declaredclickthroughurls\"],\"declaredRestrictedCategories\":[\"s-declaredrestrictedcategories\"],\"declaredVendorIds\":[7],\"html\":{\"height\":7,\"snippet\":\"s-snippet\",\"width\":7},\"impressionTrackingUrls\":[\"s-impressiontrackingurls\"],\"name\":\"s-name\",\"native\":{\"advertiserName\":\"s-advertisername\",\"body\":\"s-body\",\"callToAction\":\"s-calltoaction\",\"clickLinkUrl\":\"s-clicklinkurl\",\"clickTrackingUrl\":\"s-clicktrackingurl\",\"headline\":\"s-headline\",\"priceDisplayText\":\"s-pricedisplaytext\",\"starRating\":1.5,\"videoUrl\":\"s-videourl\",\"videoVastXml\":\"s-videovastxml\"},\"renderUrl\":\"s-renderurl\",\"restrictedCategories\":[\"s-restrictedcategories\"],\"version\":7,\"video\":{\"videoUrl\":\"s-videourl\",\"videoVastXml\":\"s-videovastxml\"}}]}",
+  "OUT: {\"creatives\":[{\"accountId\":\"7\",\"adChoicesDestinationUrl\":\"s-adchoicesdestinationurl\",\"advertiserName\":\"s-advertisername\",\"agencyId\":\"7\",\"apiUpdateTime\":\"s-apiupdatetime\",\"creativeFormat\":\"s-creativeformat\",\"creativeId\":\"s-creativeid\",\"creativeServingDecision\":{\"detectedCategoriesTaxonomy\":\"s-detectedcategoriestaxonomy\",\"lastStatusUpdate\":\"s-laststatusupdate\"},\"dealIds\":[\"s-dealids\"],\"declaredAttributes\":[\"s-declaredattributes\"],\"declaredClickThroughUrls\":[\"s-declaredclickthroughurls\"],\"declaredRestrictedCategories\":[\"s-declaredrestrictedcategories\"],\"declaredVendorIds\":[7],\"html\":{\"height\":7,\"snippet\":\"s-snippet\",\"width\":7},\"impressionTrackingUrls\":[\"s-impressiontrackingurls\"],\"name\":\"s-name\",\"native\":{\"advertiserName\":\"s-advertisername\",\"body\":\"s-body\",\"callToAction\":\"s-calltoaction\",\"clickLinkUrl\":\"s-clicklinkurl\",\"clickTrackingUrl\":\"s-clicktrackingurl\",\"headline\":\"s-headline\",\"priceDisplayText\":\"s-pricedisplaytext\",\"starRating\":1.5,\"videoUrl\":\"s-videourl\",\"videoVastXml\":\"s-videovastxml\"},\"renderUrl\":\"s-renderurl\",\"restrictedCategories\":[\"s-restrictedcategories\"],\"version\":7,\"video\":{\"videoUrl\":\"s-videourl\",\"videoVastXml\":\"s-videovastxml\"}}]}",
+  "OUT: ok",
+]
+
+test "Go's realtimebidding.buyers.creatives.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"creatives\":[{\"accountId\":\"7\",\"adChoicesDestinationUrl\":\"s-adchoicesdestinationurl\",\"advertiserName\":\"s-advertisername\",\"agencyId\":\"7\",\"apiUpdateTime\":\"s-apiupdatetime\",\"creativeFormat\":\"s-creativeformat\",\"creativeId\":\"s-creativeid\",\"creativeServingDecision\":{\"detectedCategoriesTaxonomy\":\"s-detectedcategoriestaxonomy\",\"lastStatusUpdate\":\"s-laststatusupdate\"},\"dealIds\":[\"s-dealids\"],\"declaredAttributes\":[\"s-declaredattributes\"],\"declaredClickThroughUrls\":[\"s-declaredclickthroughurls\"],\"declaredRestrictedCategories\":[\"s-declaredrestrictedcategories\"],\"declaredVendorIds\":[7],\"html\":{\"height\":7,\"snippet\":\"s-snippet\",\"width\":7},\"impressionTrackingUrls\":[\"s-impressiontrackingurls\"],\"name\":\"s-name\",\"native\":{\"advertiserName\":\"s-advertisername\",\"body\":\"s-body\",\"callToAction\":\"s-calltoaction\",\"clickLinkUrl\":\"s-clicklinkurl\",\"clickTrackingUrl\":\"s-clicktrackingurl\",\"headline\":\"s-headline\",\"priceDisplayText\":\"s-pricedisplaytext\",\"starRating\":1.5,\"videoUrl\":\"s-videourl\",\"videoVastXml\":\"s-videovastxml\"},\"renderUrl\":\"s-renderurl\",\"restrictedCategories\":[\"s-restrictedcategories\"],\"version\":7,\"video\":{\"videoUrl\":\"s-videourl\",\"videoVastXml\":\"s-videovastxml\"}}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"creatives\":[{\"accountId\":\"7\",\"adChoicesDestinationUrl\":\"s-adchoicesdestinationurl\",\"advertiserName\":\"s-advertisername\",\"agencyId\":\"7\",\"apiUpdateTime\":\"s-apiupdatetime\",\"creativeFormat\":\"s-creativeformat\",\"creativeId\":\"s-creativeid\",\"creativeServingDecision\":{\"detectedCategoriesTaxonomy\":\"s-detectedcategoriestaxonomy\",\"lastStatusUpdate\":\"s-laststatusupdate\"},\"dealIds\":[\"s-dealids\"],\"declaredAttributes\":[\"s-declaredattributes\"],\"declaredClickThroughUrls\":[\"s-declaredclickthroughurls\"],\"declaredRestrictedCategories\":[\"s-declaredrestrictedcategories\"],\"declaredVendorIds\":[7],\"html\":{\"height\":7,\"snippet\":\"s-snippet\",\"width\":7},\"impressionTrackingUrls\":[\"s-impressiontrackingurls\"],\"name\":\"s-name\",\"native\":{\"advertiserName\":\"s-advertisername\",\"body\":\"s-body\",\"callToAction\":\"s-calltoaction\",\"clickLinkUrl\":\"s-clicklinkurl\",\"clickTrackingUrl\":\"s-clicktrackingurl\",\"headline\":\"s-headline\",\"priceDisplayText\":\"s-pricedisplaytext\",\"starRating\":1.5,\"videoUrl\":\"s-videourl\",\"videoVastXml\":\"s-videovastxml\"},\"renderUrl\":\"s-renderurl\",\"restrictedCategories\":[\"s-restrictedcategories\"],\"version\":7,\"video\":{\"videoUrl\":\"s-videourl\",\"videoVastXml\":\"s-videovastxml\"}}]}")
+  gv_note(f, "CALL realtimebidding.buyers.creatives.list pages")
+  var p = svc.buyers.creatives.list_pages("id1/ x", options: BuyersCreativesListOptions{filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), view: Some("s-view"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_37)
+}
+
+const GO_38: List[Str] = [
   "CALL realtimebidding.buyers.creatives.patch",
   "REQ PATCH https://realtimebidding.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"accountId\":\"7\",\"adChoicesDestinationUrl\":\"s-adchoicesdestinationurl\",\"advertiserName\":\"s-advertisername\",\"agencyId\":\"7\",\"apiUpdateTime\":\"s-apiupdatetime\",\"creativeFormat\":\"s-creativeformat\",\"creativeId\":\"s-creativeid\",\"creativeServingDecision\":{\"adTechnologyProviders\":{\"detectedGvlIds\":[\"7\"],\"detectedProviderIds\":[\"7\"],\"unidentifiedProviderDomains\":[\"s-unidentifiedproviderdomains\"]},\"chinaPolicyCompliance\":{\"status\":\"s-status\"},\"dealsPolicyCompliance\":{\"status\":\"s-status\"},\"detectedAdvertisers\":[{\"advertiserId\":\"7\",\"advertiserName\":\"s-advertisername\",\"brandId\":\"7\",\"brandName\":\"s-brandname\"}],\"detectedAttributes\":[\"s-detectedattributes\"],\"detectedCategories\":[\"s-detectedcategories\"],\"detectedCategoriesTaxonomy\":\"s-detectedcategoriestaxonomy\",\"detectedClickThroughUrls\":[\"s-detectedclickthroughurls\"],\"detectedDomains\":[\"s-detecteddomains\"],\"detectedLanguages\":[\"s-detectedlanguages\"],\"detectedProductCategories\":[7],\"detectedSensitiveCategories\":[7],\"detectedVendorIds\":[7],\"lastStatusUpdate\":\"s-laststatusupdate\",\"networkPolicyCompliance\":{\"status\":\"s-status\"},\"platformPolicyCompliance\":{\"status\":\"s-status\"},\"russiaPolicyCompliance\":{\"status\":\"s-status\"}},\"dealIds\":[\"s-dealids\"],\"declaredAttributes\":[\"s-declaredattributes\"],\"declaredClickThroughUrls\":[\"s-declaredclickthroughurls\"],\"declaredRestrictedCategories\":[\"s-declaredrestrictedcategories\"],\"declaredVendorIds\":[7],\"html\":{\"height\":7,\"snippet\":\"s-snippet\",\"width\":7},\"impressionTrackingUrls\":[\"s-impressiontrackingurls\"],\"name\":\"s-name\",\"native\":{\"advertiserName\":\"s-advertisername\",\"appIcon\":{\"height\":7,\"url\":\"s-url\",\"width\":7},\"body\":\"s-body\",\"callToAction\":\"s-calltoaction\",\"clickLinkUrl\":\"s-clicklinkurl\",\"clickTrackingUrl\":\"s-clicktrackingurl\",\"headline\":\"s-headline\",\"image\":{\"height\":7,\"url\":\"s-url\",\"width\":7},\"logo\":{\"height\":7,\"url\":\"s-url\",\"width\":7},\"priceDisplayText\":\"s-pricedisplaytext\",\"starRating\":1.5,\"videoUrl\":\"s-videourl\",\"videoVastXml\":\"s-videovastxml\"},\"renderUrl\":\"s-renderurl\",\"restrictedCategories\":[\"s-restrictedcategories\"],\"version\":7,\"video\":{\"videoMetadata\":{\"duration\":\"s-duration\",\"isValidVast\":true,\"isVpaid\":true,\"skipOffset\":\"s-skipoffset\",\"vastVersion\":\"s-vastversion\"},\"videoUrl\":\"s-videourl\",\"videoVastXml\":\"s-videovastxml\"}}",
+  "  B <2239 bytes> {\"accountId\":\"7\",\"adChoicesDesti...ideoVastXml\":\"s-videovastxml\"}}",
   "",
   "  SERVED 200 {\"accountId\":\"7\",\"adChoicesDestinationUrl\":\"s-adchoicesdestinationurl\",\"advertiserName\":\"s-advertisername\",\"agencyId\":\"7\",\"apiUpdateTime\":\"s-apiupdatetime\",\"creativeFormat\":\"s-creativeformat\",\"creativeId\":\"s-creativeid\",\"creativeServingDecision\":{\"adTechnologyProviders\":{\"detectedGvlIds\":[\"7\"],\"detectedProviderIds\":[\"7\"],\"unidentifiedProviderDomains\":[\"s-unidentifiedproviderdomains\"]},\"chinaPolicyCompliance\":{\"status\":\"s-status\"},\"dealsPolicyCompliance\":{\"status\":\"s-status\"},\"detectedAdvertisers\":[{\"advertiserId\":\"7\",\"advertiserName\":\"s-advertisername\",\"brandId\":\"7\",\"brandName\":\"s-brandname\"}],\"detectedAttributes\":[\"s-detectedattributes\"],\"detectedCategories\":[\"s-detectedcategories\"],\"detectedCategoriesTaxonomy\":\"s-detectedcategoriestaxonomy\",\"detectedClickThroughUrls\":[\"s-detectedclickthroughurls\"],\"detectedDomains\":[\"s-detecteddomains\"],\"detectedLanguages\":[\"s-detectedlanguages\"],\"detectedProductCategories\":[7],\"detectedSensitiveCategories\":[7],\"detectedVendorIds\":[7],\"lastStatusUpdate\":\"s-laststatusupdate\",\"networkPolicyCompliance\":{\"status\":\"s-status\"},\"platformPolicyCompliance\":{\"status\":\"s-status\"},\"russiaPolicyCompliance\":{\"status\":\"s-status\"}},\"dealIds\":[\"s-dealids\"],\"declaredAttributes\":[\"s-declaredattributes\"],\"declaredClickThroughUrls\":[\"s-declaredclickthroughurls\"],\"declaredRestrictedCategories\":[\"s-declaredrestrictedcategories\"],\"declaredVendorIds\":[7],\"html\":{\"height\":7,\"snippet\":\"s-snippet\",\"width\":7},\"impressionTrackingUrls\":[\"s-impressiontrackingurls\"],\"name\":\"s-name\",\"native\":{\"advertiserName\":\"s-advertisername\",\"appIcon\":{\"height\":7,\"url\":\"s-url\",\"width\":7},\"body\":\"s-body\",\"callToAction\":\"s-calltoaction\",\"clickLinkUrl\":\"s-clicklinkurl\",\"clickTrackingUrl\":\"s-clicktrackingurl\",\"headline\":\"s-headline\",\"image\":{\"height\":7,\"url\":\"s-url\",\"width\":7},\"logo\":{\"height\":7,\"url\":\"s-url\",\"width\":7},\"priceDisplayText\":\"s-pricedisplaytext\",\"starRating\":1.5,\"videoUrl\":\"s-videourl\",\"videoVastXml\":\"s-videovastxml\"},\"renderUrl\":\"s-renderurl\",\"restrictedCategories\":[\"s-restrictedcategories\"],\"version\":7,\"video\":{\"videoMetadata\":{\"duration\":\"s-duration\",\"isValidVast\":true,\"isVpaid\":true,\"skipOffset\":\"s-skipoffset\",\"vastVersion\":\"s-vastversion\"},\"videoUrl\":\"s-videourl\",\"videoVastXml\":\"s-videovastxml\"}}",
   "OUT: {\"accountId\":\"7\",\"adChoicesDestinationUrl\":\"s-adchoicesdestinationurl\",\"advertiserName\":\"s-advertisername\",\"agencyId\":\"7\",\"apiUpdateTime\":\"s-apiupdatetime\",\"creativeFormat\":\"s-creativeformat\",\"creativeId\":\"s-creativeid\",\"creativeServingDecision\":{\"adTechnologyProviders\":{\"detectedGvlIds\":[\"7\"],\"detectedProviderIds\":[\"7\"],\"unidentifiedProviderDomains\":[\"s-unidentifiedproviderdomains\"]},\"chinaPolicyCompliance\":{\"status\":\"s-status\"},\"dealsPolicyCompliance\":{\"status\":\"s-status\"},\"detectedAdvertisers\":[{\"advertiserId\":\"7\",\"advertiserName\":\"s-advertisername\",\"brandId\":\"7\",\"brandName\":\"s-brandname\"}],\"detectedAttributes\":[\"s-detectedattributes\"],\"detectedCategories\":[\"s-detectedcategories\"],\"detectedCategoriesTaxonomy\":\"s-detectedcategoriestaxonomy\",\"detectedClickThroughUrls\":[\"s-detectedclickthroughurls\"],\"detectedDomains\":[\"s-detecteddomains\"],\"detectedLanguages\":[\"s-detectedlanguages\"],\"detectedProductCategories\":[7],\"detectedSensitiveCategories\":[7],\"detectedVendorIds\":[7],\"lastStatusUpdate\":\"s-laststatusupdate\",\"networkPolicyCompliance\":{\"status\":\"s-status\"},\"platformPolicyCompliance\":{\"status\":\"s-status\"},\"russiaPolicyCompliance\":{\"status\":\"s-status\"}},\"dealIds\":[\"s-dealids\"],\"declaredAttributes\":[\"s-declaredattributes\"],\"declaredClickThroughUrls\":[\"s-declaredclickthroughurls\"],\"declaredRestrictedCategories\":[\"s-declaredrestrictedcategories\"],\"declaredVendorIds\":[7],\"html\":{\"height\":7,\"snippet\":\"s-snippet\",\"width\":7},\"impressionTrackingUrls\":[\"s-impressiontrackingurls\"],\"name\":\"s-name\",\"native\":{\"advertiserName\":\"s-advertisername\",\"appIcon\":{\"height\":7,\"url\":\"s-url\",\"width\":7},\"body\":\"s-body\",\"callToAction\":\"s-calltoaction\",\"clickLinkUrl\":\"s-clicklinkurl\",\"clickTrackingUrl\":\"s-clicktrackingurl\",\"headline\":\"s-headline\",\"image\":{\"height\":7,\"url\":\"s-url\",\"width\":7},\"logo\":{\"height\":7,\"url\":\"s-url\",\"width\":7},\"priceDisplayText\":\"s-pricedisplaytext\",\"starRating\":1.5,\"videoUrl\":\"s-videourl\",\"videoVastXml\":\"s-videovastxml\"},\"renderUrl\":\"s-renderurl\",\"restrictedCategories\":[\"s-restrictedcategories\"],\"version\":7,\"video\":{\"videoMetadata\":{\"duration\":\"s-duration\",\"isValidVast\":true,\"isVpaid\":true,\"skipOffset\":\"s-skipoffset\",\"vastVersion\":\"s-vastversion\"},\"videoUrl\":\"s-videourl\",\"videoVastXml\":\"s-videovastxml\"}}",
@@ -694,10 +960,10 @@ test "Go's realtimebidding.buyers.creatives.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_31)
+  gv_compare(gv_log_of(f), GO_38)
 }
 
-const GO_32: List[Str] = [
+const GO_39: List[Str] = [
   "CALL realtimebidding.buyers.userLists.close",
   "REQ POST https://realtimebidding.googleapis.com/v1/id1/%20x:close?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -716,10 +982,10 @@ test "Go's realtimebidding.buyers.userLists.close" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_32)
+  gv_compare(gv_log_of(f), GO_39)
 }
 
-const GO_33: List[Str] = [
+const GO_40: List[Str] = [
   "CALL realtimebidding.buyers.userLists.create",
   "REQ POST https://realtimebidding.googleapis.com/v1/id1/%20x/userLists?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -738,10 +1004,10 @@ test "Go's realtimebidding.buyers.userLists.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_33)
+  gv_compare(gv_log_of(f), GO_40)
 }
 
-const GO_34: List[Str] = [
+const GO_41: List[Str] = [
   "CALL realtimebidding.buyers.userLists.get",
   "REQ GET https://realtimebidding.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -759,10 +1025,10 @@ test "Go's realtimebidding.buyers.userLists.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_34)
+  gv_compare(gv_log_of(f), GO_41)
 }
 
-const GO_35: List[Str] = [
+const GO_42: List[Str] = [
   "CALL realtimebidding.buyers.userLists.getRemarketingTag",
   "REQ GET https://realtimebidding.googleapis.com/v1/id1/%20x:getRemarketingTag?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -780,10 +1046,10 @@ test "Go's realtimebidding.buyers.userLists.getRemarketingTag" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_35)
+  gv_compare(gv_log_of(f), GO_42)
 }
 
-const GO_36: List[Str] = [
+const GO_43: List[Str] = [
   "CALL realtimebidding.buyers.userLists.list",
   "REQ GET https://realtimebidding.googleapis.com/v1/id1/%20x/userLists?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -801,10 +1067,48 @@ test "Go's realtimebidding.buyers.userLists.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_36)
+  gv_compare(gv_log_of(f), GO_43)
 }
 
-const GO_37: List[Str] = [
+const GO_44: List[Str] = [
+  "CALL realtimebidding.buyers.userLists.list pages",
+  "REQ GET https://realtimebidding.googleapis.com/v1/id1/%20x/userLists?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"userLists\":[{\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"membershipDurationDays\":\"7\",\"name\":\"s-name\",\"status\":\"s-status\",\"urlRestriction\":{\"restrictionType\":\"s-restrictiontype\",\"url\":\"s-url\"}}]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"userLists\":[{\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"membershipDurationDays\":\"7\",\"name\":\"s-name\",\"status\":\"s-status\",\"urlRestriction\":{\"restrictionType\":\"s-restrictiontype\",\"url\":\"s-url\"}}]}",
+  "REQ GET https://realtimebidding.googleapis.com/v1/id1/%20x/userLists?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"userLists\":[{\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"membershipDurationDays\":\"7\",\"name\":\"s-name\",\"status\":\"s-status\",\"urlRestriction\":{\"restrictionType\":\"s-restrictiontype\",\"url\":\"s-url\"}}]}",
+  "OUT: {\"userLists\":[{\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"membershipDurationDays\":\"7\",\"name\":\"s-name\",\"status\":\"s-status\",\"urlRestriction\":{\"restrictionType\":\"s-restrictiontype\",\"url\":\"s-url\"}}]}",
+  "OUT: ok",
+]
+
+test "Go's realtimebidding.buyers.userLists.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"userLists\":[{\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"membershipDurationDays\":\"7\",\"name\":\"s-name\",\"status\":\"s-status\",\"urlRestriction\":{\"restrictionType\":\"s-restrictiontype\",\"url\":\"s-url\"}}]}")
+  gv_queue(f, "{\"userLists\":[{\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"membershipDurationDays\":\"7\",\"name\":\"s-name\",\"status\":\"s-status\",\"urlRestriction\":{\"restrictionType\":\"s-restrictiontype\",\"url\":\"s-url\"}}]}")
+  gv_note(f, "CALL realtimebidding.buyers.userLists.list pages")
+  var p = svc.buyers.user_lists.list_pages("id1/ x", options: BuyersUserListsListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_44)
+}
+
+const GO_45: List[Str] = [
   "CALL realtimebidding.buyers.userLists.open",
   "REQ POST https://realtimebidding.googleapis.com/v1/id1/%20x:open?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -823,10 +1127,10 @@ test "Go's realtimebidding.buyers.userLists.open" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_37)
+  gv_compare(gv_log_of(f), GO_45)
 }
 
-const GO_38: List[Str] = [
+const GO_46: List[Str] = [
   "CALL realtimebidding.buyers.userLists.update",
   "REQ PUT https://realtimebidding.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -845,5 +1149,5 @@ test "Go's realtimebidding.buyers.userLists.update" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_38)
+  gv_compare(gv_log_of(f), GO_46)
 }

@@ -157,6 +157,44 @@ test "Go's apikeys.projects.locations.keys.list" {
 }
 
 const GO_7: List[Str] = [
+  "CALL apikeys.projects.locations.keys.list pages",
+  "REQ GET https://apikeys.googleapis.com/v2/id1/%20x/keys?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&showDeleted=true",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"keys\":[{\"annotations\":{\"k1\":\"s-annotations\"},\"createTime\":\"s-createtime\",\"deleteTime\":\"s-deletetime\",\"displayName\":\"s-displayname\",\"etag\":\"s-etag\",\"keyString\":\"s-keystring\",\"name\":\"s-name\",\"restrictions\":{},\"serviceAccountEmail\":\"s-serviceaccountemail\",\"uid\":\"s-uid\",\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"keys\":[{\"annotations\":{\"k1\":\"s-annotations\"},\"createTime\":\"s-createtime\",\"deleteTime\":\"s-deletetime\",\"displayName\":\"s-displayname\",\"etag\":\"s-etag\",\"keyString\":\"s-keystring\",\"name\":\"s-name\",\"restrictions\":{},\"serviceAccountEmail\":\"s-serviceaccountemail\",\"uid\":\"s-uid\",\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://apikeys.googleapis.com/v2/id1/%20x/keys?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false&showDeleted=true",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"keys\":[{\"annotations\":{\"k1\":\"s-annotations\"},\"createTime\":\"s-createtime\",\"deleteTime\":\"s-deletetime\",\"displayName\":\"s-displayname\",\"etag\":\"s-etag\",\"keyString\":\"s-keystring\",\"name\":\"s-name\",\"restrictions\":{},\"serviceAccountEmail\":\"s-serviceaccountemail\",\"uid\":\"s-uid\",\"updateTime\":\"s-updatetime\"}]}",
+  "OUT: {\"keys\":[{\"annotations\":{\"k1\":\"s-annotations\"},\"createTime\":\"s-createtime\",\"deleteTime\":\"s-deletetime\",\"displayName\":\"s-displayname\",\"etag\":\"s-etag\",\"keyString\":\"s-keystring\",\"name\":\"s-name\",\"restrictions\":{},\"serviceAccountEmail\":\"s-serviceaccountemail\",\"uid\":\"s-uid\",\"updateTime\":\"s-updatetime\"}]}",
+  "OUT: ok",
+]
+
+test "Go's apikeys.projects.locations.keys.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"keys\":[{\"annotations\":{\"k1\":\"s-annotations\"},\"createTime\":\"s-createtime\",\"deleteTime\":\"s-deletetime\",\"displayName\":\"s-displayname\",\"etag\":\"s-etag\",\"keyString\":\"s-keystring\",\"name\":\"s-name\",\"restrictions\":{},\"serviceAccountEmail\":\"s-serviceaccountemail\",\"uid\":\"s-uid\",\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"keys\":[{\"annotations\":{\"k1\":\"s-annotations\"},\"createTime\":\"s-createtime\",\"deleteTime\":\"s-deletetime\",\"displayName\":\"s-displayname\",\"etag\":\"s-etag\",\"keyString\":\"s-keystring\",\"name\":\"s-name\",\"restrictions\":{},\"serviceAccountEmail\":\"s-serviceaccountemail\",\"uid\":\"s-uid\",\"updateTime\":\"s-updatetime\"}]}")
+  gv_note(f, "CALL apikeys.projects.locations.keys.list pages")
+  var p = svc.projects.locations.keys.list_pages("id1/ x", options: ProjectsLocationsKeysListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), show_deleted: Some(true), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_7)
+}
+
+const GO_8: List[Str] = [
   "CALL apikeys.projects.locations.keys.patch",
   "REQ PATCH https://apikeys.googleapis.com/v2/id1/%20x?alt=json&checkExistingUsage=s-checkexistingusage&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
@@ -175,10 +213,10 @@ test "Go's apikeys.projects.locations.keys.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_7)
+  gv_compare(gv_log_of(f), GO_8)
 }
 
-const GO_8: List[Str] = [
+const GO_9: List[Str] = [
   "CALL apikeys.projects.locations.keys.undelete",
   "REQ POST https://apikeys.googleapis.com/v2/id1/%20x:undelete?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -197,5 +235,5 @@ test "Go's apikeys.projects.locations.keys.undelete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_8)
+  gv_compare(gv_log_of(f), GO_9)
 }

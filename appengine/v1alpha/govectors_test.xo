@@ -94,6 +94,44 @@ test "Go's appengine.apps.authorizedCertificates.list" {
 }
 
 const GO_4: List[Str] = [
+  "CALL appengine.apps.authorizedCertificates.list pages",
+  "REQ GET https://appengine.googleapis.com/v1alpha/apps/id1%2F%20x/authorizedCertificates?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&view=s-view",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"certificates\":[{\"certificateRawData\":{\"privateKey\":\"s-privatekey\",\"publicCertificate\":\"s-publiccertificate\"},\"displayName\":\"s-displayname\",\"domainMappingsCount\":7,\"domainNames\":[\"s-domainnames\"],\"expireTime\":\"s-expiretime\",\"id\":\"s-id\",\"managedCertificate\":{\"lastRenewalTime\":\"s-lastrenewaltime\",\"status\":\"s-status\"},\"name\":\"s-name\",\"visibleDomainMappings\":[\"s-visibledomainmappings\"]}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"certificates\":[{\"certificateRawData\":{\"privateKey\":\"s-privatekey\",\"publicCertificate\":\"s-publiccertificate\"},\"displayName\":\"s-displayname\",\"domainMappingsCount\":7,\"domainNames\":[\"s-domainnames\"],\"expireTime\":\"s-expiretime\",\"id\":\"s-id\",\"managedCertificate\":{\"lastRenewalTime\":\"s-lastrenewaltime\",\"status\":\"s-status\"},\"name\":\"s-name\",\"visibleDomainMappings\":[\"s-visibledomainmappings\"]}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://appengine.googleapis.com/v1alpha/apps/id1%2F%20x/authorizedCertificates?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false&view=s-view",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"certificates\":[{\"certificateRawData\":{\"privateKey\":\"s-privatekey\",\"publicCertificate\":\"s-publiccertificate\"},\"displayName\":\"s-displayname\",\"domainMappingsCount\":7,\"domainNames\":[\"s-domainnames\"],\"expireTime\":\"s-expiretime\",\"id\":\"s-id\",\"managedCertificate\":{\"lastRenewalTime\":\"s-lastrenewaltime\",\"status\":\"s-status\"},\"name\":\"s-name\",\"visibleDomainMappings\":[\"s-visibledomainmappings\"]}]}",
+  "OUT: {\"certificates\":[{\"certificateRawData\":{\"privateKey\":\"s-privatekey\",\"publicCertificate\":\"s-publiccertificate\"},\"displayName\":\"s-displayname\",\"domainMappingsCount\":7,\"domainNames\":[\"s-domainnames\"],\"expireTime\":\"s-expiretime\",\"id\":\"s-id\",\"managedCertificate\":{\"lastRenewalTime\":\"s-lastrenewaltime\",\"status\":\"s-status\"},\"name\":\"s-name\",\"visibleDomainMappings\":[\"s-visibledomainmappings\"]}]}",
+  "OUT: ok",
+]
+
+test "Go's appengine.apps.authorizedCertificates.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"certificates\":[{\"certificateRawData\":{\"privateKey\":\"s-privatekey\",\"publicCertificate\":\"s-publiccertificate\"},\"displayName\":\"s-displayname\",\"domainMappingsCount\":7,\"domainNames\":[\"s-domainnames\"],\"expireTime\":\"s-expiretime\",\"id\":\"s-id\",\"managedCertificate\":{\"lastRenewalTime\":\"s-lastrenewaltime\",\"status\":\"s-status\"},\"name\":\"s-name\",\"visibleDomainMappings\":[\"s-visibledomainmappings\"]}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"certificates\":[{\"certificateRawData\":{\"privateKey\":\"s-privatekey\",\"publicCertificate\":\"s-publiccertificate\"},\"displayName\":\"s-displayname\",\"domainMappingsCount\":7,\"domainNames\":[\"s-domainnames\"],\"expireTime\":\"s-expiretime\",\"id\":\"s-id\",\"managedCertificate\":{\"lastRenewalTime\":\"s-lastrenewaltime\",\"status\":\"s-status\"},\"name\":\"s-name\",\"visibleDomainMappings\":[\"s-visibledomainmappings\"]}]}")
+  gv_note(f, "CALL appengine.apps.authorizedCertificates.list pages")
+  var p = svc.apps.authorized_certificates.list_pages("id1/ x", options: AppsAuthorizedCertificatesListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), view: Some("s-view"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_4)
+}
+
+const GO_5: List[Str] = [
   "CALL appengine.apps.authorizedCertificates.patch",
   "REQ PATCH https://appengine.googleapis.com/v1alpha/apps/id1%2F%20x/authorizedCertificates/id2%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
@@ -112,10 +150,10 @@ test "Go's appengine.apps.authorizedCertificates.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_4)
+  gv_compare(gv_log_of(f), GO_5)
 }
 
-const GO_5: List[Str] = [
+const GO_6: List[Str] = [
   "CALL appengine.apps.authorizedDomains.list",
   "REQ GET https://appengine.googleapis.com/v1alpha/apps/id1%2F%20x/authorizedDomains?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -133,10 +171,48 @@ test "Go's appengine.apps.authorizedDomains.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_5)
+  gv_compare(gv_log_of(f), GO_6)
 }
 
-const GO_6: List[Str] = [
+const GO_7: List[Str] = [
+  "CALL appengine.apps.authorizedDomains.list pages",
+  "REQ GET https://appengine.googleapis.com/v1alpha/apps/id1%2F%20x/authorizedDomains?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"domains\":[{\"id\":\"s-id\",\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"domains\":[{\"id\":\"s-id\",\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://appengine.googleapis.com/v1alpha/apps/id1%2F%20x/authorizedDomains?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"domains\":[{\"id\":\"s-id\",\"name\":\"s-name\"}]}",
+  "OUT: {\"domains\":[{\"id\":\"s-id\",\"name\":\"s-name\"}]}",
+  "OUT: ok",
+]
+
+test "Go's appengine.apps.authorizedDomains.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"domains\":[{\"id\":\"s-id\",\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"domains\":[{\"id\":\"s-id\",\"name\":\"s-name\"}]}")
+  gv_note(f, "CALL appengine.apps.authorizedDomains.list pages")
+  var p = svc.apps.authorized_domains.list_pages("id1/ x", options: AppsAuthorizedDomainsListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_7)
+}
+
+const GO_8: List[Str] = [
   "CALL appengine.apps.domainMappings.create",
   "REQ POST https://appengine.googleapis.com/v1alpha/apps/id1%2F%20x/domainMappings?alt=json&fields=kind%2Cid&noManagedCertificate=true&overrideStrategy=s-overridestrategy&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -155,10 +231,10 @@ test "Go's appengine.apps.domainMappings.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_6)
+  gv_compare(gv_log_of(f), GO_8)
 }
 
-const GO_7: List[Str] = [
+const GO_9: List[Str] = [
   "CALL appengine.apps.domainMappings.delete",
   "REQ DELETE https://appengine.googleapis.com/v1alpha/apps/id1%2F%20x/domainMappings/id2%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -176,10 +252,10 @@ test "Go's appengine.apps.domainMappings.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_7)
+  gv_compare(gv_log_of(f), GO_9)
 }
 
-const GO_8: List[Str] = [
+const GO_10: List[Str] = [
   "CALL appengine.apps.domainMappings.get",
   "REQ GET https://appengine.googleapis.com/v1alpha/apps/id1%2F%20x/domainMappings/id2%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -197,10 +273,10 @@ test "Go's appengine.apps.domainMappings.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_8)
+  gv_compare(gv_log_of(f), GO_10)
 }
 
-const GO_9: List[Str] = [
+const GO_11: List[Str] = [
   "CALL appengine.apps.domainMappings.list",
   "REQ GET https://appengine.googleapis.com/v1alpha/apps/id1%2F%20x/domainMappings?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -218,10 +294,48 @@ test "Go's appengine.apps.domainMappings.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_9)
+  gv_compare(gv_log_of(f), GO_11)
 }
 
-const GO_10: List[Str] = [
+const GO_12: List[Str] = [
+  "CALL appengine.apps.domainMappings.list pages",
+  "REQ GET https://appengine.googleapis.com/v1alpha/apps/id1%2F%20x/domainMappings?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"domainMappings\":[{\"id\":\"s-id\",\"name\":\"s-name\",\"sslSettings\":{\"certificateId\":\"s-certificateid\",\"isManagedCertificate\":true}}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"domainMappings\":[{\"id\":\"s-id\",\"name\":\"s-name\",\"sslSettings\":{\"certificateId\":\"s-certificateid\",\"isManagedCertificate\":true}}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://appengine.googleapis.com/v1alpha/apps/id1%2F%20x/domainMappings?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"domainMappings\":[{\"id\":\"s-id\",\"name\":\"s-name\",\"sslSettings\":{\"certificateId\":\"s-certificateid\",\"isManagedCertificate\":true}}]}",
+  "OUT: {\"domainMappings\":[{\"id\":\"s-id\",\"name\":\"s-name\",\"sslSettings\":{\"certificateId\":\"s-certificateid\",\"isManagedCertificate\":true}}]}",
+  "OUT: ok",
+]
+
+test "Go's appengine.apps.domainMappings.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"domainMappings\":[{\"id\":\"s-id\",\"name\":\"s-name\",\"sslSettings\":{\"certificateId\":\"s-certificateid\",\"isManagedCertificate\":true}}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"domainMappings\":[{\"id\":\"s-id\",\"name\":\"s-name\",\"sslSettings\":{\"certificateId\":\"s-certificateid\",\"isManagedCertificate\":true}}]}")
+  gv_note(f, "CALL appengine.apps.domainMappings.list pages")
+  var p = svc.apps.domain_mappings.list_pages("id1/ x", options: AppsDomainMappingsListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_12)
+}
+
+const GO_13: List[Str] = [
   "CALL appengine.apps.domainMappings.patch",
   "REQ PATCH https://appengine.googleapis.com/v1alpha/apps/id1%2F%20x/domainMappings/id2%2F%20x?alt=json&fields=kind%2Cid&noManagedCertificate=true&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
@@ -240,10 +354,10 @@ test "Go's appengine.apps.domainMappings.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_10)
+  gv_compare(gv_log_of(f), GO_13)
 }
 
-const GO_11: List[Str] = [
+const GO_14: List[Str] = [
   "CALL appengine.apps.locations.get",
   "REQ GET https://appengine.googleapis.com/v1alpha/apps/id1%2F%20x/locations/id2%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -261,10 +375,10 @@ test "Go's appengine.apps.locations.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_11)
+  gv_compare(gv_log_of(f), GO_14)
 }
 
-const GO_12: List[Str] = [
+const GO_15: List[Str] = [
   "CALL appengine.apps.locations.list",
   "REQ GET https://appengine.googleapis.com/v1alpha/apps/id1%2F%20x/locations?alt=json&extraLocationTypes=s-extralocationtypes&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -282,10 +396,48 @@ test "Go's appengine.apps.locations.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_12)
+  gv_compare(gv_log_of(f), GO_15)
 }
 
-const GO_13: List[Str] = [
+const GO_16: List[Str] = [
+  "CALL appengine.apps.locations.list pages",
+  "REQ GET https://appengine.googleapis.com/v1alpha/apps/id1%2F%20x/locations?alt=json&extraLocationTypes=s-extralocationtypes&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://appengine.googleapis.com/v1alpha/apps/id1%2F%20x/locations?alt=json&extraLocationTypes=s-extralocationtypes&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}]}",
+  "OUT: {\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}]}",
+  "OUT: ok",
+]
+
+test "Go's appengine.apps.locations.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}]}")
+  gv_note(f, "CALL appengine.apps.locations.list pages")
+  var p = svc.apps.locations.list_pages("id1/ x", options: AppsLocationsListOptions{extra_location_types: ["s-extralocationtypes"], filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_16)
+}
+
+const GO_17: List[Str] = [
   "CALL appengine.apps.operations.get",
   "REQ GET https://appengine.googleapis.com/v1alpha/apps/id1%2F%20x/operations/id2%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -303,10 +455,10 @@ test "Go's appengine.apps.operations.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_13)
+  gv_compare(gv_log_of(f), GO_17)
 }
 
-const GO_14: List[Str] = [
+const GO_18: List[Str] = [
   "CALL appengine.apps.operations.list",
   "REQ GET https://appengine.googleapis.com/v1alpha/apps/id1%2F%20x/operations?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&returnPartialSuccess=true",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -324,10 +476,48 @@ test "Go's appengine.apps.operations.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_14)
+  gv_compare(gv_log_of(f), GO_18)
 }
 
-const GO_15: List[Str] = [
+const GO_19: List[Str] = [
+  "CALL appengine.apps.operations.list pages",
+  "REQ GET https://appengine.googleapis.com/v1alpha/apps/id1%2F%20x/operations?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&returnPartialSuccess=true",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "REQ GET https://appengine.googleapis.com/v1alpha/apps/id1%2F%20x/operations?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false&returnPartialSuccess=true",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: ok",
+]
+
+test "Go's appengine.apps.operations.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_queue(f, "{\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_note(f, "CALL appengine.apps.operations.list pages")
+  var p = svc.apps.operations.list_pages("id1/ x", options: AppsOperationsListOptions{filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), return_partial_success: Some(true), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_19)
+}
+
+const GO_20: List[Str] = [
   "CALL appengine.projects.locations.get",
   "REQ GET https://appengine.googleapis.com/v1alpha/projects/id1%2F%20x/locations/id2%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -345,10 +535,10 @@ test "Go's appengine.projects.locations.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_15)
+  gv_compare(gv_log_of(f), GO_20)
 }
 
-const GO_16: List[Str] = [
+const GO_21: List[Str] = [
   "CALL appengine.projects.locations.list",
   "REQ GET https://appengine.googleapis.com/v1alpha/projects/id1%2F%20x/locations?alt=json&extraLocationTypes=s-extralocationtypes&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -366,10 +556,48 @@ test "Go's appengine.projects.locations.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_16)
+  gv_compare(gv_log_of(f), GO_21)
 }
 
-const GO_17: List[Str] = [
+const GO_22: List[Str] = [
+  "CALL appengine.projects.locations.list pages",
+  "REQ GET https://appengine.googleapis.com/v1alpha/projects/id1%2F%20x/locations?alt=json&extraLocationTypes=s-extralocationtypes&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://appengine.googleapis.com/v1alpha/projects/id1%2F%20x/locations?alt=json&extraLocationTypes=s-extralocationtypes&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}]}",
+  "OUT: {\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}]}",
+  "OUT: ok",
+]
+
+test "Go's appengine.projects.locations.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}]}")
+  gv_note(f, "CALL appengine.projects.locations.list pages")
+  var p = svc.projects.locations.list_pages("id1/ x", options: ProjectsLocationsListOptions{extra_location_types: ["s-extralocationtypes"], filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_22)
+}
+
+const GO_23: List[Str] = [
   "CALL appengine.projects.locations.applications.authorizedCertificates.create",
   "REQ POST https://appengine.googleapis.com/v1alpha/projects/id1%2F%20x/locations/id2%2F%20x/applications/id3%2F%20x/authorizedCertificates?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -388,10 +616,10 @@ test "Go's appengine.projects.locations.applications.authorizedCertificates.crea
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_17)
+  gv_compare(gv_log_of(f), GO_23)
 }
 
-const GO_18: List[Str] = [
+const GO_24: List[Str] = [
   "CALL appengine.projects.locations.applications.authorizedCertificates.delete",
   "REQ DELETE https://appengine.googleapis.com/v1alpha/projects/id1%2F%20x/locations/id2%2F%20x/applications/id3%2F%20x/authorizedCertificates/id4%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -409,10 +637,10 @@ test "Go's appengine.projects.locations.applications.authorizedCertificates.dele
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_18)
+  gv_compare(gv_log_of(f), GO_24)
 }
 
-const GO_19: List[Str] = [
+const GO_25: List[Str] = [
   "CALL appengine.projects.locations.applications.authorizedCertificates.get",
   "REQ GET https://appengine.googleapis.com/v1alpha/projects/id1%2F%20x/locations/id2%2F%20x/applications/id3%2F%20x/authorizedCertificates/id4%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false&view=s-view",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -430,10 +658,10 @@ test "Go's appengine.projects.locations.applications.authorizedCertificates.get"
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_19)
+  gv_compare(gv_log_of(f), GO_25)
 }
 
-const GO_20: List[Str] = [
+const GO_26: List[Str] = [
   "CALL appengine.projects.locations.applications.authorizedCertificates.list",
   "REQ GET https://appengine.googleapis.com/v1alpha/projects/id1%2F%20x/locations/id2%2F%20x/applications/id3%2F%20x/authorizedCertificates?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&view=s-view",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -451,10 +679,48 @@ test "Go's appengine.projects.locations.applications.authorizedCertificates.list
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_20)
+  gv_compare(gv_log_of(f), GO_26)
 }
 
-const GO_21: List[Str] = [
+const GO_27: List[Str] = [
+  "CALL appengine.projects.locations.applications.authorizedCertificates.list pages",
+  "REQ GET https://appengine.googleapis.com/v1alpha/projects/id1%2F%20x/locations/id2%2F%20x/applications/id3%2F%20x/authorizedCertificates?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&view=s-view",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"certificates\":[{\"certificateRawData\":{\"privateKey\":\"s-privatekey\",\"publicCertificate\":\"s-publiccertificate\"},\"displayName\":\"s-displayname\",\"domainMappingsCount\":7,\"domainNames\":[\"s-domainnames\"],\"expireTime\":\"s-expiretime\",\"id\":\"s-id\",\"managedCertificate\":{\"lastRenewalTime\":\"s-lastrenewaltime\",\"status\":\"s-status\"},\"name\":\"s-name\",\"visibleDomainMappings\":[\"s-visibledomainmappings\"]}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"certificates\":[{\"certificateRawData\":{\"privateKey\":\"s-privatekey\",\"publicCertificate\":\"s-publiccertificate\"},\"displayName\":\"s-displayname\",\"domainMappingsCount\":7,\"domainNames\":[\"s-domainnames\"],\"expireTime\":\"s-expiretime\",\"id\":\"s-id\",\"managedCertificate\":{\"lastRenewalTime\":\"s-lastrenewaltime\",\"status\":\"s-status\"},\"name\":\"s-name\",\"visibleDomainMappings\":[\"s-visibledomainmappings\"]}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://appengine.googleapis.com/v1alpha/projects/id1%2F%20x/locations/id2%2F%20x/applications/id3%2F%20x/authorizedCertificates?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false&view=s-view",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"certificates\":[{\"certificateRawData\":{\"privateKey\":\"s-privatekey\",\"publicCertificate\":\"s-publiccertificate\"},\"displayName\":\"s-displayname\",\"domainMappingsCount\":7,\"domainNames\":[\"s-domainnames\"],\"expireTime\":\"s-expiretime\",\"id\":\"s-id\",\"managedCertificate\":{\"lastRenewalTime\":\"s-lastrenewaltime\",\"status\":\"s-status\"},\"name\":\"s-name\",\"visibleDomainMappings\":[\"s-visibledomainmappings\"]}]}",
+  "OUT: {\"certificates\":[{\"certificateRawData\":{\"privateKey\":\"s-privatekey\",\"publicCertificate\":\"s-publiccertificate\"},\"displayName\":\"s-displayname\",\"domainMappingsCount\":7,\"domainNames\":[\"s-domainnames\"],\"expireTime\":\"s-expiretime\",\"id\":\"s-id\",\"managedCertificate\":{\"lastRenewalTime\":\"s-lastrenewaltime\",\"status\":\"s-status\"},\"name\":\"s-name\",\"visibleDomainMappings\":[\"s-visibledomainmappings\"]}]}",
+  "OUT: ok",
+]
+
+test "Go's appengine.projects.locations.applications.authorizedCertificates.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"certificates\":[{\"certificateRawData\":{\"privateKey\":\"s-privatekey\",\"publicCertificate\":\"s-publiccertificate\"},\"displayName\":\"s-displayname\",\"domainMappingsCount\":7,\"domainNames\":[\"s-domainnames\"],\"expireTime\":\"s-expiretime\",\"id\":\"s-id\",\"managedCertificate\":{\"lastRenewalTime\":\"s-lastrenewaltime\",\"status\":\"s-status\"},\"name\":\"s-name\",\"visibleDomainMappings\":[\"s-visibledomainmappings\"]}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"certificates\":[{\"certificateRawData\":{\"privateKey\":\"s-privatekey\",\"publicCertificate\":\"s-publiccertificate\"},\"displayName\":\"s-displayname\",\"domainMappingsCount\":7,\"domainNames\":[\"s-domainnames\"],\"expireTime\":\"s-expiretime\",\"id\":\"s-id\",\"managedCertificate\":{\"lastRenewalTime\":\"s-lastrenewaltime\",\"status\":\"s-status\"},\"name\":\"s-name\",\"visibleDomainMappings\":[\"s-visibledomainmappings\"]}]}")
+  gv_note(f, "CALL appengine.projects.locations.applications.authorizedCertificates.list pages")
+  var p = svc.projects.locations.applications.authorized_certificates.list_pages("id1/ x", "id2/ x", "id3/ x", options: ProjectsLocationsApplicationsAuthorizedCertificatesListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), view: Some("s-view"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_27)
+}
+
+const GO_28: List[Str] = [
   "CALL appengine.projects.locations.applications.authorizedCertificates.patch",
   "REQ PATCH https://appengine.googleapis.com/v1alpha/projects/id1%2F%20x/locations/id2%2F%20x/applications/id3%2F%20x/authorizedCertificates/id4%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
@@ -473,10 +739,10 @@ test "Go's appengine.projects.locations.applications.authorizedCertificates.patc
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_21)
+  gv_compare(gv_log_of(f), GO_28)
 }
 
-const GO_22: List[Str] = [
+const GO_29: List[Str] = [
   "CALL appengine.projects.locations.applications.authorizedDomains.list",
   "REQ GET https://appengine.googleapis.com/v1alpha/projects/id1%2F%20x/locations/id2%2F%20x/applications/id3%2F%20x/authorizedDomains?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -494,10 +760,48 @@ test "Go's appengine.projects.locations.applications.authorizedDomains.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_22)
+  gv_compare(gv_log_of(f), GO_29)
 }
 
-const GO_23: List[Str] = [
+const GO_30: List[Str] = [
+  "CALL appengine.projects.locations.applications.authorizedDomains.list pages",
+  "REQ GET https://appengine.googleapis.com/v1alpha/projects/id1%2F%20x/locations/id2%2F%20x/applications/id3%2F%20x/authorizedDomains?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"domains\":[{\"id\":\"s-id\",\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"domains\":[{\"id\":\"s-id\",\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://appengine.googleapis.com/v1alpha/projects/id1%2F%20x/locations/id2%2F%20x/applications/id3%2F%20x/authorizedDomains?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"domains\":[{\"id\":\"s-id\",\"name\":\"s-name\"}]}",
+  "OUT: {\"domains\":[{\"id\":\"s-id\",\"name\":\"s-name\"}]}",
+  "OUT: ok",
+]
+
+test "Go's appengine.projects.locations.applications.authorizedDomains.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"domains\":[{\"id\":\"s-id\",\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"domains\":[{\"id\":\"s-id\",\"name\":\"s-name\"}]}")
+  gv_note(f, "CALL appengine.projects.locations.applications.authorizedDomains.list pages")
+  var p = svc.projects.locations.applications.authorized_domains.list_pages("id1/ x", "id2/ x", "id3/ x", options: ProjectsLocationsApplicationsAuthorizedDomainsListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_30)
+}
+
+const GO_31: List[Str] = [
   "CALL appengine.projects.locations.applications.domainMappings.create",
   "REQ POST https://appengine.googleapis.com/v1alpha/projects/id1%2F%20x/locations/id2%2F%20x/applications/id3%2F%20x/domainMappings?alt=json&fields=kind%2Cid&noManagedCertificate=true&overrideStrategy=s-overridestrategy&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -516,10 +820,10 @@ test "Go's appengine.projects.locations.applications.domainMappings.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_23)
+  gv_compare(gv_log_of(f), GO_31)
 }
 
-const GO_24: List[Str] = [
+const GO_32: List[Str] = [
   "CALL appengine.projects.locations.applications.domainMappings.delete",
   "REQ DELETE https://appengine.googleapis.com/v1alpha/projects/id1%2F%20x/locations/id2%2F%20x/applications/id3%2F%20x/domainMappings/id4%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -537,10 +841,10 @@ test "Go's appengine.projects.locations.applications.domainMappings.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_24)
+  gv_compare(gv_log_of(f), GO_32)
 }
 
-const GO_25: List[Str] = [
+const GO_33: List[Str] = [
   "CALL appengine.projects.locations.applications.domainMappings.get",
   "REQ GET https://appengine.googleapis.com/v1alpha/projects/id1%2F%20x/locations/id2%2F%20x/applications/id3%2F%20x/domainMappings/id4%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -558,10 +862,10 @@ test "Go's appengine.projects.locations.applications.domainMappings.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_25)
+  gv_compare(gv_log_of(f), GO_33)
 }
 
-const GO_26: List[Str] = [
+const GO_34: List[Str] = [
   "CALL appengine.projects.locations.applications.domainMappings.list",
   "REQ GET https://appengine.googleapis.com/v1alpha/projects/id1%2F%20x/locations/id2%2F%20x/applications/id3%2F%20x/domainMappings?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -579,10 +883,48 @@ test "Go's appengine.projects.locations.applications.domainMappings.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_26)
+  gv_compare(gv_log_of(f), GO_34)
 }
 
-const GO_27: List[Str] = [
+const GO_35: List[Str] = [
+  "CALL appengine.projects.locations.applications.domainMappings.list pages",
+  "REQ GET https://appengine.googleapis.com/v1alpha/projects/id1%2F%20x/locations/id2%2F%20x/applications/id3%2F%20x/domainMappings?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"domainMappings\":[{\"id\":\"s-id\",\"name\":\"s-name\",\"sslSettings\":{\"certificateId\":\"s-certificateid\",\"isManagedCertificate\":true}}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"domainMappings\":[{\"id\":\"s-id\",\"name\":\"s-name\",\"sslSettings\":{\"certificateId\":\"s-certificateid\",\"isManagedCertificate\":true}}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://appengine.googleapis.com/v1alpha/projects/id1%2F%20x/locations/id2%2F%20x/applications/id3%2F%20x/domainMappings?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"domainMappings\":[{\"id\":\"s-id\",\"name\":\"s-name\",\"sslSettings\":{\"certificateId\":\"s-certificateid\",\"isManagedCertificate\":true}}]}",
+  "OUT: {\"domainMappings\":[{\"id\":\"s-id\",\"name\":\"s-name\",\"sslSettings\":{\"certificateId\":\"s-certificateid\",\"isManagedCertificate\":true}}]}",
+  "OUT: ok",
+]
+
+test "Go's appengine.projects.locations.applications.domainMappings.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"domainMappings\":[{\"id\":\"s-id\",\"name\":\"s-name\",\"sslSettings\":{\"certificateId\":\"s-certificateid\",\"isManagedCertificate\":true}}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"domainMappings\":[{\"id\":\"s-id\",\"name\":\"s-name\",\"sslSettings\":{\"certificateId\":\"s-certificateid\",\"isManagedCertificate\":true}}]}")
+  gv_note(f, "CALL appengine.projects.locations.applications.domainMappings.list pages")
+  var p = svc.projects.locations.applications.domain_mappings.list_pages("id1/ x", "id2/ x", "id3/ x", options: ProjectsLocationsApplicationsDomainMappingsListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_35)
+}
+
+const GO_36: List[Str] = [
   "CALL appengine.projects.locations.applications.domainMappings.patch",
   "REQ PATCH https://appengine.googleapis.com/v1alpha/projects/id1%2F%20x/locations/id2%2F%20x/applications/id3%2F%20x/domainMappings/id4%2F%20x?alt=json&fields=kind%2Cid&noManagedCertificate=true&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
@@ -601,10 +943,10 @@ test "Go's appengine.projects.locations.applications.domainMappings.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_27)
+  gv_compare(gv_log_of(f), GO_36)
 }
 
-const GO_28: List[Str] = [
+const GO_37: List[Str] = [
   "CALL appengine.projects.locations.operations.get",
   "REQ GET https://appengine.googleapis.com/v1alpha/projects/id1%2F%20x/locations/id2%2F%20x/operations/id3%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -622,10 +964,10 @@ test "Go's appengine.projects.locations.operations.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_28)
+  gv_compare(gv_log_of(f), GO_37)
 }
 
-const GO_29: List[Str] = [
+const GO_38: List[Str] = [
   "CALL appengine.projects.locations.operations.list",
   "REQ GET https://appengine.googleapis.com/v1alpha/projects/id1%2F%20x/locations/id2%2F%20x/operations?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&returnPartialSuccess=true",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -643,5 +985,43 @@ test "Go's appengine.projects.locations.operations.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_29)
+  gv_compare(gv_log_of(f), GO_38)
+}
+
+const GO_39: List[Str] = [
+  "CALL appengine.projects.locations.operations.list pages",
+  "REQ GET https://appengine.googleapis.com/v1alpha/projects/id1%2F%20x/locations/id2%2F%20x/operations?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&returnPartialSuccess=true",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "REQ GET https://appengine.googleapis.com/v1alpha/projects/id1%2F%20x/locations/id2%2F%20x/operations?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false&returnPartialSuccess=true",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: ok",
+]
+
+test "Go's appengine.projects.locations.operations.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_queue(f, "{\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_note(f, "CALL appengine.projects.locations.operations.list pages")
+  var p = svc.projects.locations.operations.list_pages("id1/ x", "id2/ x", options: ProjectsLocationsOperationsListOptions{filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), return_partial_success: Some(true), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_39)
 }

@@ -51,6 +51,44 @@ test "Go's datafusion.projects.locations.list" {
 }
 
 const GO_2: List[Str] = [
+  "CALL datafusion.projects.locations.list pages",
+  "REQ GET https://datafusion.googleapis.com/v1beta1/id1/%20x/locations?alt=json&extraLocationTypes=s-extralocationtypes&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://datafusion.googleapis.com/v1beta1/id1/%20x/locations?alt=json&extraLocationTypes=s-extralocationtypes&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}]}",
+  "OUT: {\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}]}",
+  "OUT: ok",
+]
+
+test "Go's datafusion.projects.locations.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}]}")
+  gv_note(f, "CALL datafusion.projects.locations.list pages")
+  var p = svc.projects.locations.list_pages("id1/ x", options: ProjectsLocationsListOptions{extra_location_types: ["s-extralocationtypes"], filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_2)
+}
+
+const GO_3: List[Str] = [
   "CALL datafusion.projects.locations.removeIamPolicy",
   "REQ POST https://datafusion.googleapis.com/v1beta1/id1/%20x:removeIamPolicy?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -69,14 +107,14 @@ test "Go's datafusion.projects.locations.removeIamPolicy" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_2)
+  gv_compare(gv_log_of(f), GO_3)
 }
 
-const GO_3: List[Str] = [
+const GO_4: List[Str] = [
   "CALL datafusion.projects.locations.instances.create",
   "REQ POST https://datafusion.googleapis.com/v1beta1/id1/%20x/instances?alt=json&fields=kind%2Cid&instanceId=s-instanceid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"accelerators\":[{\"acceleratorType\":\"s-acceleratortype\",\"state\":\"s-state\"}],\"apiEndpoint\":\"s-apiendpoint\",\"availableVersion\":[{\"availableFeatures\":[\"s-availablefeatures\"],\"defaultVersion\":true,\"type\":\"s-type\",\"versionNumber\":\"s-versionnumber\"}],\"createTime\":\"s-createtime\",\"cryptoKeyConfig\":{\"keyReference\":\"s-keyreference\"},\"dataplexDataLineageIntegrationEnabled\":true,\"dataprocServiceAccount\":\"s-dataprocserviceaccount\",\"description\":\"s-description\",\"disabledReason\":[\"s-disabledreason\"],\"displayName\":\"s-displayname\",\"enableRbac\":true,\"enableStackdriverLogging\":true,\"enableStackdriverMonitoring\":true,\"enableZoneSeparation\":true,\"eventPublishConfig\":{\"enabled\":true,\"topic\":\"s-topic\"},\"gcsBucket\":\"s-gcsbucket\",\"labels\":{\"k1\":\"s-labels\"},\"loggingConfig\":{\"enableInstanceV2Logs\":true,\"instanceCloudLoggingDisabled\":true},\"maintenanceEvents\":[{\"endTime\":\"s-endtime\",\"startTime\":\"s-starttime\",\"state\":\"s-state\"}],\"maintenancePolicy\":{\"maintenanceExclusionWindow\":{\"endTime\":\"s-endtime\",\"startTime\":\"s-starttime\"},\"maintenanceWindow\":{}},\"monitoringConfig\":{\"enableInstanceV2Metrics\":true},\"name\":\"s-name\",\"networkConfig\":{\"connectionType\":\"s-connectiontype\",\"ipAllocation\":\"s-ipallocation\",\"network\":\"s-network\",\"privateServiceConnectConfig\":{\"effectiveUnreachableCidrBlock\":\"s-effectiveunreachablecidrblock\",\"networkAttachment\":\"s-networkattachment\",\"unreachableCidrBlock\":\"s-unreachablecidrblock\"}},\"options\":{\"k1\":\"s-options\"},\"p4ServiceAccount\":\"s-p4serviceaccount\",\"patchRevision\":\"s-patchrevision\",\"privateInstance\":true,\"satisfiesPzi\":true,\"satisfiesPzs\":true,\"serviceAccount\":\"s-serviceaccount\",\"serviceEndpoint\":\"s-serviceendpoint\",\"state\":\"s-state\",\"stateMessage\":\"s-statemessage\",\"tags\":{\"k1\":\"s-tags\"},\"tenantProjectId\":\"s-tenantprojectid\",\"type\":\"s-type\",\"updateTime\":\"s-updatetime\",\"version\":\"s-version\",\"workforceIdentityServiceEndpoint\":\"s-workforceidentityserviceendpoint\",\"zone\":\"s-zone\"}",
+  "  B <1908 bytes> {\"accelerators\":[{\"acceleratorTy...rviceendpoint\",\"zone\":\"s-zone\"}",
   "",
   "  SERVED 200 {\"done\":true,\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}",
   "OUT: {\"done\":true,\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}",
@@ -91,10 +129,10 @@ test "Go's datafusion.projects.locations.instances.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_3)
+  gv_compare(gv_log_of(f), GO_4)
 }
 
-const GO_4: List[Str] = [
+const GO_5: List[Str] = [
   "CALL datafusion.projects.locations.instances.delete",
   "REQ DELETE https://datafusion.googleapis.com/v1beta1/id1/%20x?alt=json&fields=kind%2Cid&force=true&prettyPrint=false",
   "  H x-extra=v1",
@@ -112,10 +150,10 @@ test "Go's datafusion.projects.locations.instances.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_4)
+  gv_compare(gv_log_of(f), GO_5)
 }
 
-const GO_5: List[Str] = [
+const GO_6: List[Str] = [
   "CALL datafusion.projects.locations.instances.get",
   "REQ GET https://datafusion.googleapis.com/v1beta1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -133,10 +171,10 @@ test "Go's datafusion.projects.locations.instances.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_5)
+  gv_compare(gv_log_of(f), GO_6)
 }
 
-const GO_6: List[Str] = [
+const GO_7: List[Str] = [
   "CALL datafusion.projects.locations.instances.getIamPolicy",
   "REQ GET https://datafusion.googleapis.com/v1beta1/id1/%20x:getIamPolicy?alt=json&fields=kind%2Cid&options.requestedPolicyVersion=7&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -154,10 +192,10 @@ test "Go's datafusion.projects.locations.instances.getIamPolicy" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_6)
+  gv_compare(gv_log_of(f), GO_7)
 }
 
-const GO_7: List[Str] = [
+const GO_8: List[Str] = [
   "CALL datafusion.projects.locations.instances.list",
   "REQ GET https://datafusion.googleapis.com/v1beta1/id1/%20x/instances?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -175,14 +213,52 @@ test "Go's datafusion.projects.locations.instances.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_7)
+  gv_compare(gv_log_of(f), GO_8)
 }
 
-const GO_8: List[Str] = [
+const GO_9: List[Str] = [
+  "CALL datafusion.projects.locations.instances.list pages",
+  "REQ GET https://datafusion.googleapis.com/v1beta1/id1/%20x/instances?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"instances\":[{\"apiEndpoint\":\"s-apiendpoint\",\"createTime\":\"s-createtime\",\"cryptoKeyConfig\":{\"keyReference\":\"s-keyreference\"},\"dataplexDataLineageIntegrationEnabled\":true,\"dataprocServiceAccount\":\"s-dataprocserviceaccount\",\"description\":\"s-description\",\"disabledReason\":[\"s-disabledreason\"],\"displayName\":\"s-displayname\",\"enableRbac\":true,\"enableStackdriverLogging\":true,\"enableStackdriverMonitoring\":true,\"enableZoneSeparation\":true,\"eventPublishConfig\":{\"enabled\":true,\"topic\":\"s-topic\"},\"gcsBucket\":\"s-gcsbucket\",\"labels\":{\"k1\":\"s-labels\"},\"loggingConfig\":{\"enableInstanceV2Logs\":true,\"instanceCloudLoggingDisabled\":true},\"maintenancePolicy\":{},\"monitoringConfig\":{\"enableInstanceV2Metrics\":true},\"name\":\"s-name\",\"networkConfig\":{\"connectionType\":\"s-connectiontype\",\"ipAllocation\":\"s-ipallocation\",\"network\":\"s-network\"},\"options\":{\"k1\":\"s-options\"},\"p4ServiceAccount\":\"s-p4serviceaccount\",\"patchRevision\":\"s-patchrevision\",\"privateInstance\":true,\"satisfiesPzi\":true,\"satisfiesPzs\":true,\"serviceAccount\":\"s-serviceaccount\",\"serviceEndpoint\":\"s-serviceendpoint\",\"state\":\"s-state\",\"stateMessage\":\"s-statemessage\",\"tags\":{\"k1\":\"s-tags\"},\"tenantProjectId\":\"s-tenantprojectid\",\"type\":\"s-type\",\"updateTime\":\"s-updatetime\",\"version\":\"s-version\",\"workforceIdentityServiceEndpoint\":\"s-workforceidentityserviceendpoint\",\"zone\":\"s-zone\"}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"instances\":[{\"apiEndpoint\":\"s-apiendpoint\",\"createTime\":\"s-createtime\",\"cryptoKeyConfig\":{\"keyReference\":\"s-keyreference\"},\"dataplexDataLineageIntegrationEnabled\":true,\"dataprocServiceAccount\":\"s-dataprocserviceaccount\",\"description\":\"s-description\",\"disabledReason\":[\"s-disabledreason\"],\"displayName\":\"s-displayname\",\"enableRbac\":true,\"enableStackdriverLogging\":true,\"enableStackdriverMonitoring\":true,\"enableZoneSeparation\":true,\"eventPublishConfig\":{\"enabled\":true,\"topic\":\"s-topic\"},\"gcsBucket\":\"s-gcsbucket\",\"labels\":{\"k1\":\"s-labels\"},\"loggingConfig\":{\"enableInstanceV2Logs\":true,\"instanceCloudLoggingDisabled\":true},\"maintenancePolicy\":{},\"monitoringConfig\":{\"enableInstanceV2Metrics\":true},\"name\":\"s-name\",\"networkConfig\":{\"connectionType\":\"s-connectiontype\",\"ipAllocation\":\"s-ipallocation\",\"network\":\"s-network\"},\"options\":{\"k1\":\"s-options\"},\"p4ServiceAccount\":\"s-p4serviceaccount\",\"patchRevision\":\"s-patchrevision\",\"privateInstance\":true,\"satisfiesPzi\":true,\"satisfiesPzs\":true,\"serviceAccount\":\"s-serviceaccount\",\"serviceEndpoint\":\"s-serviceendpoint\",\"state\":\"s-state\",\"stateMessage\":\"s-statemessage\",\"tags\":{\"k1\":\"s-tags\"},\"tenantProjectId\":\"s-tenantprojectid\",\"type\":\"s-type\",\"updateTime\":\"s-updatetime\",\"version\":\"s-version\",\"workforceIdentityServiceEndpoint\":\"s-workforceidentityserviceendpoint\",\"zone\":\"s-zone\"}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}",
+  "REQ GET https://datafusion.googleapis.com/v1beta1/id1/%20x/instances?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"instances\":[{\"apiEndpoint\":\"s-apiendpoint\",\"createTime\":\"s-createtime\",\"cryptoKeyConfig\":{\"keyReference\":\"s-keyreference\"},\"dataplexDataLineageIntegrationEnabled\":true,\"dataprocServiceAccount\":\"s-dataprocserviceaccount\",\"description\":\"s-description\",\"disabledReason\":[\"s-disabledreason\"],\"displayName\":\"s-displayname\",\"enableRbac\":true,\"enableStackdriverLogging\":true,\"enableStackdriverMonitoring\":true,\"enableZoneSeparation\":true,\"eventPublishConfig\":{\"enabled\":true,\"topic\":\"s-topic\"},\"gcsBucket\":\"s-gcsbucket\",\"labels\":{\"k1\":\"s-labels\"},\"loggingConfig\":{\"enableInstanceV2Logs\":true,\"instanceCloudLoggingDisabled\":true},\"maintenancePolicy\":{},\"monitoringConfig\":{\"enableInstanceV2Metrics\":true},\"name\":\"s-name\",\"networkConfig\":{\"connectionType\":\"s-connectiontype\",\"ipAllocation\":\"s-ipallocation\",\"network\":\"s-network\"},\"options\":{\"k1\":\"s-options\"},\"p4ServiceAccount\":\"s-p4serviceaccount\",\"patchRevision\":\"s-patchrevision\",\"privateInstance\":true,\"satisfiesPzi\":true,\"satisfiesPzs\":true,\"serviceAccount\":\"s-serviceaccount\",\"serviceEndpoint\":\"s-serviceendpoint\",\"state\":\"s-state\",\"stateMessage\":\"s-statemessage\",\"tags\":{\"k1\":\"s-tags\"},\"tenantProjectId\":\"s-tenantprojectid\",\"type\":\"s-type\",\"updateTime\":\"s-updatetime\",\"version\":\"s-version\",\"workforceIdentityServiceEndpoint\":\"s-workforceidentityserviceendpoint\",\"zone\":\"s-zone\"}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"instances\":[{\"apiEndpoint\":\"s-apiendpoint\",\"createTime\":\"s-createtime\",\"cryptoKeyConfig\":{\"keyReference\":\"s-keyreference\"},\"dataplexDataLineageIntegrationEnabled\":true,\"dataprocServiceAccount\":\"s-dataprocserviceaccount\",\"description\":\"s-description\",\"disabledReason\":[\"s-disabledreason\"],\"displayName\":\"s-displayname\",\"enableRbac\":true,\"enableStackdriverLogging\":true,\"enableStackdriverMonitoring\":true,\"enableZoneSeparation\":true,\"eventPublishConfig\":{\"enabled\":true,\"topic\":\"s-topic\"},\"gcsBucket\":\"s-gcsbucket\",\"labels\":{\"k1\":\"s-labels\"},\"loggingConfig\":{\"enableInstanceV2Logs\":true,\"instanceCloudLoggingDisabled\":true},\"maintenancePolicy\":{},\"monitoringConfig\":{\"enableInstanceV2Metrics\":true},\"name\":\"s-name\",\"networkConfig\":{\"connectionType\":\"s-connectiontype\",\"ipAllocation\":\"s-ipallocation\",\"network\":\"s-network\"},\"options\":{\"k1\":\"s-options\"},\"p4ServiceAccount\":\"s-p4serviceaccount\",\"patchRevision\":\"s-patchrevision\",\"privateInstance\":true,\"satisfiesPzi\":true,\"satisfiesPzs\":true,\"serviceAccount\":\"s-serviceaccount\",\"serviceEndpoint\":\"s-serviceendpoint\",\"state\":\"s-state\",\"stateMessage\":\"s-statemessage\",\"tags\":{\"k1\":\"s-tags\"},\"tenantProjectId\":\"s-tenantprojectid\",\"type\":\"s-type\",\"updateTime\":\"s-updatetime\",\"version\":\"s-version\",\"workforceIdentityServiceEndpoint\":\"s-workforceidentityserviceendpoint\",\"zone\":\"s-zone\"}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: ok",
+]
+
+test "Go's datafusion.projects.locations.instances.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"instances\":[{\"apiEndpoint\":\"s-apiendpoint\",\"createTime\":\"s-createtime\",\"cryptoKeyConfig\":{\"keyReference\":\"s-keyreference\"},\"dataplexDataLineageIntegrationEnabled\":true,\"dataprocServiceAccount\":\"s-dataprocserviceaccount\",\"description\":\"s-description\",\"disabledReason\":[\"s-disabledreason\"],\"displayName\":\"s-displayname\",\"enableRbac\":true,\"enableStackdriverLogging\":true,\"enableStackdriverMonitoring\":true,\"enableZoneSeparation\":true,\"eventPublishConfig\":{\"enabled\":true,\"topic\":\"s-topic\"},\"gcsBucket\":\"s-gcsbucket\",\"labels\":{\"k1\":\"s-labels\"},\"loggingConfig\":{\"enableInstanceV2Logs\":true,\"instanceCloudLoggingDisabled\":true},\"maintenancePolicy\":{},\"monitoringConfig\":{\"enableInstanceV2Metrics\":true},\"name\":\"s-name\",\"networkConfig\":{\"connectionType\":\"s-connectiontype\",\"ipAllocation\":\"s-ipallocation\",\"network\":\"s-network\"},\"options\":{\"k1\":\"s-options\"},\"p4ServiceAccount\":\"s-p4serviceaccount\",\"patchRevision\":\"s-patchrevision\",\"privateInstance\":true,\"satisfiesPzi\":true,\"satisfiesPzs\":true,\"serviceAccount\":\"s-serviceaccount\",\"serviceEndpoint\":\"s-serviceendpoint\",\"state\":\"s-state\",\"stateMessage\":\"s-statemessage\",\"tags\":{\"k1\":\"s-tags\"},\"tenantProjectId\":\"s-tenantprojectid\",\"type\":\"s-type\",\"updateTime\":\"s-updatetime\",\"version\":\"s-version\",\"workforceIdentityServiceEndpoint\":\"s-workforceidentityserviceendpoint\",\"zone\":\"s-zone\"}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}")
+  gv_queue(f, "{\"instances\":[{\"apiEndpoint\":\"s-apiendpoint\",\"createTime\":\"s-createtime\",\"cryptoKeyConfig\":{\"keyReference\":\"s-keyreference\"},\"dataplexDataLineageIntegrationEnabled\":true,\"dataprocServiceAccount\":\"s-dataprocserviceaccount\",\"description\":\"s-description\",\"disabledReason\":[\"s-disabledreason\"],\"displayName\":\"s-displayname\",\"enableRbac\":true,\"enableStackdriverLogging\":true,\"enableStackdriverMonitoring\":true,\"enableZoneSeparation\":true,\"eventPublishConfig\":{\"enabled\":true,\"topic\":\"s-topic\"},\"gcsBucket\":\"s-gcsbucket\",\"labels\":{\"k1\":\"s-labels\"},\"loggingConfig\":{\"enableInstanceV2Logs\":true,\"instanceCloudLoggingDisabled\":true},\"maintenancePolicy\":{},\"monitoringConfig\":{\"enableInstanceV2Metrics\":true},\"name\":\"s-name\",\"networkConfig\":{\"connectionType\":\"s-connectiontype\",\"ipAllocation\":\"s-ipallocation\",\"network\":\"s-network\"},\"options\":{\"k1\":\"s-options\"},\"p4ServiceAccount\":\"s-p4serviceaccount\",\"patchRevision\":\"s-patchrevision\",\"privateInstance\":true,\"satisfiesPzi\":true,\"satisfiesPzs\":true,\"serviceAccount\":\"s-serviceaccount\",\"serviceEndpoint\":\"s-serviceendpoint\",\"state\":\"s-state\",\"stateMessage\":\"s-statemessage\",\"tags\":{\"k1\":\"s-tags\"},\"tenantProjectId\":\"s-tenantprojectid\",\"type\":\"s-type\",\"updateTime\":\"s-updatetime\",\"version\":\"s-version\",\"workforceIdentityServiceEndpoint\":\"s-workforceidentityserviceendpoint\",\"zone\":\"s-zone\"}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_note(f, "CALL datafusion.projects.locations.instances.list pages")
+  var p = svc.projects.locations.instances.list_pages("id1/ x", options: ProjectsLocationsInstancesListOptions{filter: Some("s-filter"), order_by: Some("s-orderby"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_9)
+}
+
+const GO_10: List[Str] = [
   "CALL datafusion.projects.locations.instances.patch",
   "REQ PATCH https://datafusion.googleapis.com/v1beta1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"accelerators\":[{\"acceleratorType\":\"s-acceleratortype\",\"state\":\"s-state\"}],\"apiEndpoint\":\"s-apiendpoint\",\"availableVersion\":[{\"availableFeatures\":[\"s-availablefeatures\"],\"defaultVersion\":true,\"type\":\"s-type\",\"versionNumber\":\"s-versionnumber\"}],\"createTime\":\"s-createtime\",\"cryptoKeyConfig\":{\"keyReference\":\"s-keyreference\"},\"dataplexDataLineageIntegrationEnabled\":true,\"dataprocServiceAccount\":\"s-dataprocserviceaccount\",\"description\":\"s-description\",\"disabledReason\":[\"s-disabledreason\"],\"displayName\":\"s-displayname\",\"enableRbac\":true,\"enableStackdriverLogging\":true,\"enableStackdriverMonitoring\":true,\"enableZoneSeparation\":true,\"eventPublishConfig\":{\"enabled\":true,\"topic\":\"s-topic\"},\"gcsBucket\":\"s-gcsbucket\",\"labels\":{\"k1\":\"s-labels\"},\"loggingConfig\":{\"enableInstanceV2Logs\":true,\"instanceCloudLoggingDisabled\":true},\"maintenanceEvents\":[{\"endTime\":\"s-endtime\",\"startTime\":\"s-starttime\",\"state\":\"s-state\"}],\"maintenancePolicy\":{\"maintenanceExclusionWindow\":{\"endTime\":\"s-endtime\",\"startTime\":\"s-starttime\"},\"maintenanceWindow\":{}},\"monitoringConfig\":{\"enableInstanceV2Metrics\":true},\"name\":\"s-name\",\"networkConfig\":{\"connectionType\":\"s-connectiontype\",\"ipAllocation\":\"s-ipallocation\",\"network\":\"s-network\",\"privateServiceConnectConfig\":{\"effectiveUnreachableCidrBlock\":\"s-effectiveunreachablecidrblock\",\"networkAttachment\":\"s-networkattachment\",\"unreachableCidrBlock\":\"s-unreachablecidrblock\"}},\"options\":{\"k1\":\"s-options\"},\"p4ServiceAccount\":\"s-p4serviceaccount\",\"patchRevision\":\"s-patchrevision\",\"privateInstance\":true,\"satisfiesPzi\":true,\"satisfiesPzs\":true,\"serviceAccount\":\"s-serviceaccount\",\"serviceEndpoint\":\"s-serviceendpoint\",\"state\":\"s-state\",\"stateMessage\":\"s-statemessage\",\"tags\":{\"k1\":\"s-tags\"},\"tenantProjectId\":\"s-tenantprojectid\",\"type\":\"s-type\",\"updateTime\":\"s-updatetime\",\"version\":\"s-version\",\"workforceIdentityServiceEndpoint\":\"s-workforceidentityserviceendpoint\",\"zone\":\"s-zone\"}",
+  "  B <1908 bytes> {\"accelerators\":[{\"acceleratorTy...rviceendpoint\",\"zone\":\"s-zone\"}",
   "",
   "  SERVED 200 {\"done\":true,\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}",
   "OUT: {\"done\":true,\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}",
@@ -197,10 +273,10 @@ test "Go's datafusion.projects.locations.instances.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_8)
+  gv_compare(gv_log_of(f), GO_10)
 }
 
-const GO_9: List[Str] = [
+const GO_11: List[Str] = [
   "CALL datafusion.projects.locations.instances.restart",
   "REQ POST https://datafusion.googleapis.com/v1beta1/id1/%20x:restart?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -219,10 +295,10 @@ test "Go's datafusion.projects.locations.instances.restart" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_9)
+  gv_compare(gv_log_of(f), GO_11)
 }
 
-const GO_10: List[Str] = [
+const GO_12: List[Str] = [
   "CALL datafusion.projects.locations.instances.setIamPolicy",
   "REQ POST https://datafusion.googleapis.com/v1beta1/id1/%20x:setIamPolicy?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -241,10 +317,10 @@ test "Go's datafusion.projects.locations.instances.setIamPolicy" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_10)
+  gv_compare(gv_log_of(f), GO_12)
 }
 
-const GO_11: List[Str] = [
+const GO_13: List[Str] = [
   "CALL datafusion.projects.locations.instances.testIamPermissions",
   "REQ POST https://datafusion.googleapis.com/v1beta1/id1/%20x:testIamPermissions?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -263,10 +339,10 @@ test "Go's datafusion.projects.locations.instances.testIamPermissions" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_11)
+  gv_compare(gv_log_of(f), GO_13)
 }
 
-const GO_12: List[Str] = [
+const GO_14: List[Str] = [
   "CALL datafusion.projects.locations.instances.upgrade",
   "REQ POST https://datafusion.googleapis.com/v1beta1/id1/%20x:upgrade?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -285,10 +361,10 @@ test "Go's datafusion.projects.locations.instances.upgrade" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_12)
+  gv_compare(gv_log_of(f), GO_14)
 }
 
-const GO_13: List[Str] = [
+const GO_15: List[Str] = [
   "CALL datafusion.projects.locations.instances.dnsPeerings.create",
   "REQ POST https://datafusion.googleapis.com/v1beta1/id1/%20x/dnsPeerings?alt=json&dnsPeeringId=s-dnspeeringid&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -307,10 +383,10 @@ test "Go's datafusion.projects.locations.instances.dnsPeerings.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_13)
+  gv_compare(gv_log_of(f), GO_15)
 }
 
-const GO_14: List[Str] = [
+const GO_16: List[Str] = [
   "CALL datafusion.projects.locations.instances.dnsPeerings.delete",
   "REQ DELETE https://datafusion.googleapis.com/v1beta1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -328,10 +404,10 @@ test "Go's datafusion.projects.locations.instances.dnsPeerings.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_14)
+  gv_compare(gv_log_of(f), GO_16)
 }
 
-const GO_15: List[Str] = [
+const GO_17: List[Str] = [
   "CALL datafusion.projects.locations.instances.dnsPeerings.list",
   "REQ GET https://datafusion.googleapis.com/v1beta1/id1/%20x/dnsPeerings?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -349,10 +425,48 @@ test "Go's datafusion.projects.locations.instances.dnsPeerings.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_15)
+  gv_compare(gv_log_of(f), GO_17)
 }
 
-const GO_16: List[Str] = [
+const GO_18: List[Str] = [
+  "CALL datafusion.projects.locations.instances.dnsPeerings.list pages",
+  "REQ GET https://datafusion.googleapis.com/v1beta1/id1/%20x/dnsPeerings?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"dnsPeerings\":[{\"description\":\"s-description\",\"domain\":\"s-domain\",\"name\":\"s-name\",\"targetNetwork\":\"s-targetnetwork\",\"targetProject\":\"s-targetproject\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"dnsPeerings\":[{\"description\":\"s-description\",\"domain\":\"s-domain\",\"name\":\"s-name\",\"targetNetwork\":\"s-targetnetwork\",\"targetProject\":\"s-targetproject\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://datafusion.googleapis.com/v1beta1/id1/%20x/dnsPeerings?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"dnsPeerings\":[{\"description\":\"s-description\",\"domain\":\"s-domain\",\"name\":\"s-name\",\"targetNetwork\":\"s-targetnetwork\",\"targetProject\":\"s-targetproject\"}]}",
+  "OUT: {\"dnsPeerings\":[{\"description\":\"s-description\",\"domain\":\"s-domain\",\"name\":\"s-name\",\"targetNetwork\":\"s-targetnetwork\",\"targetProject\":\"s-targetproject\"}]}",
+  "OUT: ok",
+]
+
+test "Go's datafusion.projects.locations.instances.dnsPeerings.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"dnsPeerings\":[{\"description\":\"s-description\",\"domain\":\"s-domain\",\"name\":\"s-name\",\"targetNetwork\":\"s-targetnetwork\",\"targetProject\":\"s-targetproject\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"dnsPeerings\":[{\"description\":\"s-description\",\"domain\":\"s-domain\",\"name\":\"s-name\",\"targetNetwork\":\"s-targetnetwork\",\"targetProject\":\"s-targetproject\"}]}")
+  gv_note(f, "CALL datafusion.projects.locations.instances.dnsPeerings.list pages")
+  var p = svc.projects.locations.instances.dns_peerings.list_pages("id1/ x", options: ProjectsLocationsInstancesDnsPeeringsListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_18)
+}
+
+const GO_19: List[Str] = [
   "CALL datafusion.projects.locations.instances.namespaces.getIamPolicy",
   "REQ GET https://datafusion.googleapis.com/v1beta1/id1/%20x:getIamPolicy?alt=json&fields=kind%2Cid&options.requestedPolicyVersion=7&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -370,10 +484,10 @@ test "Go's datafusion.projects.locations.instances.namespaces.getIamPolicy" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_16)
+  gv_compare(gv_log_of(f), GO_19)
 }
 
-const GO_17: List[Str] = [
+const GO_20: List[Str] = [
   "CALL datafusion.projects.locations.instances.namespaces.list",
   "REQ GET https://datafusion.googleapis.com/v1beta1/id1/%20x/namespaces?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&view=s-view",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -391,10 +505,48 @@ test "Go's datafusion.projects.locations.instances.namespaces.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_17)
+  gv_compare(gv_log_of(f), GO_20)
 }
 
-const GO_18: List[Str] = [
+const GO_21: List[Str] = [
+  "CALL datafusion.projects.locations.instances.namespaces.list pages",
+  "REQ GET https://datafusion.googleapis.com/v1beta1/id1/%20x/namespaces?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&view=s-view",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"namespaces\":[{\"iamPolicy\":{},\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"namespaces\":[{\"iamPolicy\":{},\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://datafusion.googleapis.com/v1beta1/id1/%20x/namespaces?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false&view=s-view",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"namespaces\":[{\"iamPolicy\":{},\"name\":\"s-name\"}]}",
+  "OUT: {\"namespaces\":[{\"iamPolicy\":{},\"name\":\"s-name\"}]}",
+  "OUT: ok",
+]
+
+test "Go's datafusion.projects.locations.instances.namespaces.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"namespaces\":[{\"iamPolicy\":{},\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"namespaces\":[{\"iamPolicy\":{},\"name\":\"s-name\"}]}")
+  gv_note(f, "CALL datafusion.projects.locations.instances.namespaces.list pages")
+  var p = svc.projects.locations.instances.namespaces.list_pages("id1/ x", options: ProjectsLocationsInstancesNamespacesListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), view: Some("s-view"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_21)
+}
+
+const GO_22: List[Str] = [
   "CALL datafusion.projects.locations.instances.namespaces.setIamPolicy",
   "REQ POST https://datafusion.googleapis.com/v1beta1/id1/%20x:setIamPolicy?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -413,10 +565,10 @@ test "Go's datafusion.projects.locations.instances.namespaces.setIamPolicy" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_18)
+  gv_compare(gv_log_of(f), GO_22)
 }
 
-const GO_19: List[Str] = [
+const GO_23: List[Str] = [
   "CALL datafusion.projects.locations.instances.namespaces.testIamPermissions",
   "REQ POST https://datafusion.googleapis.com/v1beta1/id1/%20x:testIamPermissions?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -435,10 +587,10 @@ test "Go's datafusion.projects.locations.instances.namespaces.testIamPermissions
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_19)
+  gv_compare(gv_log_of(f), GO_23)
 }
 
-const GO_20: List[Str] = [
+const GO_24: List[Str] = [
   "CALL datafusion.projects.locations.operations.cancel",
   "REQ POST https://datafusion.googleapis.com/v1beta1/id1/%20x:cancel?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -457,10 +609,10 @@ test "Go's datafusion.projects.locations.operations.cancel" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_20)
+  gv_compare(gv_log_of(f), GO_24)
 }
 
-const GO_21: List[Str] = [
+const GO_25: List[Str] = [
   "CALL datafusion.projects.locations.operations.delete",
   "REQ DELETE https://datafusion.googleapis.com/v1beta1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -478,10 +630,10 @@ test "Go's datafusion.projects.locations.operations.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_21)
+  gv_compare(gv_log_of(f), GO_25)
 }
 
-const GO_22: List[Str] = [
+const GO_26: List[Str] = [
   "CALL datafusion.projects.locations.operations.get",
   "REQ GET https://datafusion.googleapis.com/v1beta1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -499,10 +651,10 @@ test "Go's datafusion.projects.locations.operations.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_22)
+  gv_compare(gv_log_of(f), GO_26)
 }
 
-const GO_23: List[Str] = [
+const GO_27: List[Str] = [
   "CALL datafusion.projects.locations.operations.list",
   "REQ GET https://datafusion.googleapis.com/v1beta1/id1/%20x/operations?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&returnPartialSuccess=true",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -520,10 +672,48 @@ test "Go's datafusion.projects.locations.operations.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_23)
+  gv_compare(gv_log_of(f), GO_27)
 }
 
-const GO_24: List[Str] = [
+const GO_28: List[Str] = [
+  "CALL datafusion.projects.locations.operations.list pages",
+  "REQ GET https://datafusion.googleapis.com/v1beta1/id1/%20x/operations?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&returnPartialSuccess=true",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "REQ GET https://datafusion.googleapis.com/v1beta1/id1/%20x/operations?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false&returnPartialSuccess=true",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: ok",
+]
+
+test "Go's datafusion.projects.locations.operations.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_queue(f, "{\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_note(f, "CALL datafusion.projects.locations.operations.list pages")
+  var p = svc.projects.locations.operations.list_pages("id1/ x", options: ProjectsLocationsOperationsListOptions{filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), return_partial_success: Some(true), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_28)
+}
+
+const GO_29: List[Str] = [
   "CALL datafusion.projects.locations.versions.list",
   "REQ GET https://datafusion.googleapis.com/v1beta1/id1/%20x/versions?alt=json&fields=kind%2Cid&latestPatchOnly=true&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -541,5 +731,43 @@ test "Go's datafusion.projects.locations.versions.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_24)
+  gv_compare(gv_log_of(f), GO_29)
+}
+
+const GO_30: List[Str] = [
+  "CALL datafusion.projects.locations.versions.list pages",
+  "REQ GET https://datafusion.googleapis.com/v1beta1/id1/%20x/versions?alt=json&fields=kind%2Cid&latestPatchOnly=true&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"availableVersions\":[{\"availableFeatures\":[\"s-availablefeatures\"],\"defaultVersion\":true,\"type\":\"s-type\",\"versionNumber\":\"s-versionnumber\"}],\"nextPageToken\":\"s-nextpagetoken\",\"versions\":[{\"availableFeatures\":[\"s-availablefeatures\"],\"defaultVersion\":true,\"type\":\"s-type\",\"versionNumber\":\"s-versionnumber\"}]}",
+  "OUT: {\"availableVersions\":[{\"availableFeatures\":[\"s-availablefeatures\"],\"defaultVersion\":true,\"type\":\"s-type\",\"versionNumber\":\"s-versionnumber\"}],\"nextPageToken\":\"s-nextpagetoken\",\"versions\":[{\"availableFeatures\":[\"s-availablefeatures\"],\"defaultVersion\":true,\"type\":\"s-type\",\"versionNumber\":\"s-versionnumber\"}]}",
+  "REQ GET https://datafusion.googleapis.com/v1beta1/id1/%20x/versions?alt=json&fields=kind%2Cid&latestPatchOnly=true&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"availableVersions\":[{\"availableFeatures\":[\"s-availablefeatures\"],\"defaultVersion\":true,\"type\":\"s-type\",\"versionNumber\":\"s-versionnumber\"}],\"versions\":[{\"availableFeatures\":[\"s-availablefeatures\"],\"defaultVersion\":true,\"type\":\"s-type\",\"versionNumber\":\"s-versionnumber\"}]}",
+  "OUT: {\"availableVersions\":[{\"availableFeatures\":[\"s-availablefeatures\"],\"defaultVersion\":true,\"type\":\"s-type\",\"versionNumber\":\"s-versionnumber\"}],\"versions\":[{\"availableFeatures\":[\"s-availablefeatures\"],\"defaultVersion\":true,\"type\":\"s-type\",\"versionNumber\":\"s-versionnumber\"}]}",
+  "OUT: ok",
+]
+
+test "Go's datafusion.projects.locations.versions.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"availableVersions\":[{\"availableFeatures\":[\"s-availablefeatures\"],\"defaultVersion\":true,\"type\":\"s-type\",\"versionNumber\":\"s-versionnumber\"}],\"nextPageToken\":\"s-nextpagetoken\",\"versions\":[{\"availableFeatures\":[\"s-availablefeatures\"],\"defaultVersion\":true,\"type\":\"s-type\",\"versionNumber\":\"s-versionnumber\"}]}")
+  gv_queue(f, "{\"availableVersions\":[{\"availableFeatures\":[\"s-availablefeatures\"],\"defaultVersion\":true,\"type\":\"s-type\",\"versionNumber\":\"s-versionnumber\"}],\"versions\":[{\"availableFeatures\":[\"s-availablefeatures\"],\"defaultVersion\":true,\"type\":\"s-type\",\"versionNumber\":\"s-versionnumber\"}]}")
+  gv_note(f, "CALL datafusion.projects.locations.versions.list pages")
+  var p = svc.projects.locations.versions.list_pages("id1/ x", options: ProjectsLocationsVersionsListOptions{latest_patch_only: Some(true), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_30)
 }

@@ -51,6 +51,44 @@ test "Go's cloudfunctions.operations.list" {
 }
 
 const GO_2: List[Str] = [
+  "CALL cloudfunctions.operations.list pages",
+  "REQ GET https://cloudfunctions.googleapis.com/v1beta2/operations?alt=json&fields=kind%2Cid&filter=s-filter&name=s-name&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}]}",
+  "REQ GET https://cloudfunctions.googleapis.com/v1beta2/operations?alt=json&fields=kind%2Cid&filter=s-filter&name=s-name&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}]}",
+  "OUT: {\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}]}",
+  "OUT: ok",
+]
+
+test "Go's cloudfunctions.operations.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}]}")
+  gv_queue(f, "{\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}]}")
+  gv_note(f, "CALL cloudfunctions.operations.list pages")
+  var p = svc.operations.list_pages(options: OperationsListOptions{filter: Some("s-filter"), name: Some("s-name"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_2)
+}
+
+const GO_3: List[Str] = [
   "CALL cloudfunctions.projects.locations.list",
   "REQ GET https://cloudfunctions.googleapis.com/v1beta2/id1/%20x/locations?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -68,10 +106,48 @@ test "Go's cloudfunctions.projects.locations.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_2)
+  gv_compare(gv_log_of(f), GO_3)
 }
 
-const GO_3: List[Str] = [
+const GO_4: List[Str] = [
+  "CALL cloudfunctions.projects.locations.list pages",
+  "REQ GET https://cloudfunctions.googleapis.com/v1beta2/id1/%20x/locations?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://cloudfunctions.googleapis.com/v1beta2/id1/%20x/locations?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}]}",
+  "OUT: {\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}]}",
+  "OUT: ok",
+]
+
+test "Go's cloudfunctions.projects.locations.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}]}")
+  gv_note(f, "CALL cloudfunctions.projects.locations.list pages")
+  var p = svc.projects.locations.list_pages("id1/ x", options: ProjectsLocationsListOptions{filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_4)
+}
+
+const GO_5: List[Str] = [
   "CALL cloudfunctions.projects.locations.functions.call",
   "REQ POST https://cloudfunctions.googleapis.com/v1beta2/id1/%20x:call?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -90,10 +166,10 @@ test "Go's cloudfunctions.projects.locations.functions.call" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_3)
+  gv_compare(gv_log_of(f), GO_5)
 }
 
-const GO_4: List[Str] = [
+const GO_6: List[Str] = [
   "CALL cloudfunctions.projects.locations.functions.create",
   "REQ POST https://cloudfunctions.googleapis.com/v1beta2/id1/%20x/functions?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -112,10 +188,10 @@ test "Go's cloudfunctions.projects.locations.functions.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_4)
+  gv_compare(gv_log_of(f), GO_6)
 }
 
-const GO_5: List[Str] = [
+const GO_7: List[Str] = [
   "CALL cloudfunctions.projects.locations.functions.delete",
   "REQ DELETE https://cloudfunctions.googleapis.com/v1beta2/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -133,10 +209,10 @@ test "Go's cloudfunctions.projects.locations.functions.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_5)
+  gv_compare(gv_log_of(f), GO_7)
 }
 
-const GO_6: List[Str] = [
+const GO_8: List[Str] = [
   "CALL cloudfunctions.projects.locations.functions.generateDownloadUrl",
   "REQ POST https://cloudfunctions.googleapis.com/v1beta2/id1/%20x:generateDownloadUrl?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -155,10 +231,10 @@ test "Go's cloudfunctions.projects.locations.functions.generateDownloadUrl" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_6)
+  gv_compare(gv_log_of(f), GO_8)
 }
 
-const GO_7: List[Str] = [
+const GO_9: List[Str] = [
   "CALL cloudfunctions.projects.locations.functions.generateUploadUrl",
   "REQ POST https://cloudfunctions.googleapis.com/v1beta2/id1/%20x/functions:generateUploadUrl?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -177,10 +253,10 @@ test "Go's cloudfunctions.projects.locations.functions.generateUploadUrl" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_7)
+  gv_compare(gv_log_of(f), GO_9)
 }
 
-const GO_8: List[Str] = [
+const GO_10: List[Str] = [
   "CALL cloudfunctions.projects.locations.functions.get",
   "REQ GET https://cloudfunctions.googleapis.com/v1beta2/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -198,10 +274,10 @@ test "Go's cloudfunctions.projects.locations.functions.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_8)
+  gv_compare(gv_log_of(f), GO_10)
 }
 
-const GO_9: List[Str] = [
+const GO_11: List[Str] = [
   "CALL cloudfunctions.projects.locations.functions.list",
   "REQ GET https://cloudfunctions.googleapis.com/v1beta2/id1/%20x/functions?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -219,10 +295,48 @@ test "Go's cloudfunctions.projects.locations.functions.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_9)
+  gv_compare(gv_log_of(f), GO_11)
 }
 
-const GO_10: List[Str] = [
+const GO_12: List[Str] = [
+  "CALL cloudfunctions.projects.locations.functions.list pages",
+  "REQ GET https://cloudfunctions.googleapis.com/v1beta2/id1/%20x/functions?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"functions\":[{\"availableMemoryMb\":7,\"entryPoint\":\"s-entrypoint\",\"environmentVariables\":{\"k1\":\"s-environmentvariables\"},\"eventTrigger\":{\"eventType\":\"s-eventtype\",\"resource\":\"s-resource\",\"service\":\"s-service\"},\"httpsTrigger\":{\"url\":\"s-url\"},\"labels\":{\"k1\":\"s-labels\"},\"latestOperation\":\"s-latestoperation\",\"maxInstances\":7,\"name\":\"s-name\",\"network\":\"s-network\",\"runtime\":\"s-runtime\",\"serviceAccount\":\"s-serviceaccount\",\"sourceArchiveUrl\":\"s-sourcearchiveurl\",\"sourceRepository\":{\"branch\":\"s-branch\",\"deployedRevision\":\"s-deployedrevision\",\"repositoryUrl\":\"s-repositoryurl\",\"revision\":\"s-revision\",\"sourcePath\":\"s-sourcepath\",\"tag\":\"s-tag\"},\"sourceRepositoryUrl\":\"s-sourcerepositoryurl\",\"sourceUploadUrl\":\"s-sourceuploadurl\",\"status\":\"s-status\",\"timeout\":\"s-timeout\",\"updateTime\":\"s-updatetime\",\"versionId\":\"7\",\"vpcConnector\":\"s-vpcconnector\"}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"functions\":[{\"availableMemoryMb\":7,\"entryPoint\":\"s-entrypoint\",\"environmentVariables\":{\"k1\":\"s-environmentvariables\"},\"eventTrigger\":{\"eventType\":\"s-eventtype\",\"resource\":\"s-resource\",\"service\":\"s-service\"},\"httpsTrigger\":{\"url\":\"s-url\"},\"labels\":{\"k1\":\"s-labels\"},\"latestOperation\":\"s-latestoperation\",\"maxInstances\":7,\"name\":\"s-name\",\"network\":\"s-network\",\"runtime\":\"s-runtime\",\"serviceAccount\":\"s-serviceaccount\",\"sourceArchiveUrl\":\"s-sourcearchiveurl\",\"sourceRepository\":{\"branch\":\"s-branch\",\"deployedRevision\":\"s-deployedrevision\",\"repositoryUrl\":\"s-repositoryurl\",\"revision\":\"s-revision\",\"sourcePath\":\"s-sourcepath\",\"tag\":\"s-tag\"},\"sourceRepositoryUrl\":\"s-sourcerepositoryurl\",\"sourceUploadUrl\":\"s-sourceuploadurl\",\"status\":\"s-status\",\"timeout\":\"s-timeout\",\"updateTime\":\"s-updatetime\",\"versionId\":\"7\",\"vpcConnector\":\"s-vpcconnector\"}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}",
+  "REQ GET https://cloudfunctions.googleapis.com/v1beta2/id1/%20x/functions?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"functions\":[{\"availableMemoryMb\":7,\"entryPoint\":\"s-entrypoint\",\"environmentVariables\":{\"k1\":\"s-environmentvariables\"},\"eventTrigger\":{\"eventType\":\"s-eventtype\",\"resource\":\"s-resource\",\"service\":\"s-service\"},\"httpsTrigger\":{\"url\":\"s-url\"},\"labels\":{\"k1\":\"s-labels\"},\"latestOperation\":\"s-latestoperation\",\"maxInstances\":7,\"name\":\"s-name\",\"network\":\"s-network\",\"runtime\":\"s-runtime\",\"serviceAccount\":\"s-serviceaccount\",\"sourceArchiveUrl\":\"s-sourcearchiveurl\",\"sourceRepository\":{\"branch\":\"s-branch\",\"deployedRevision\":\"s-deployedrevision\",\"repositoryUrl\":\"s-repositoryurl\",\"revision\":\"s-revision\",\"sourcePath\":\"s-sourcepath\",\"tag\":\"s-tag\"},\"sourceRepositoryUrl\":\"s-sourcerepositoryurl\",\"sourceUploadUrl\":\"s-sourceuploadurl\",\"status\":\"s-status\",\"timeout\":\"s-timeout\",\"updateTime\":\"s-updatetime\",\"versionId\":\"7\",\"vpcConnector\":\"s-vpcconnector\"}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"functions\":[{\"availableMemoryMb\":7,\"entryPoint\":\"s-entrypoint\",\"environmentVariables\":{\"k1\":\"s-environmentvariables\"},\"eventTrigger\":{\"eventType\":\"s-eventtype\",\"resource\":\"s-resource\",\"service\":\"s-service\"},\"httpsTrigger\":{\"url\":\"s-url\"},\"labels\":{\"k1\":\"s-labels\"},\"latestOperation\":\"s-latestoperation\",\"maxInstances\":7,\"name\":\"s-name\",\"network\":\"s-network\",\"runtime\":\"s-runtime\",\"serviceAccount\":\"s-serviceaccount\",\"sourceArchiveUrl\":\"s-sourcearchiveurl\",\"sourceRepository\":{\"branch\":\"s-branch\",\"deployedRevision\":\"s-deployedrevision\",\"repositoryUrl\":\"s-repositoryurl\",\"revision\":\"s-revision\",\"sourcePath\":\"s-sourcepath\",\"tag\":\"s-tag\"},\"sourceRepositoryUrl\":\"s-sourcerepositoryurl\",\"sourceUploadUrl\":\"s-sourceuploadurl\",\"status\":\"s-status\",\"timeout\":\"s-timeout\",\"updateTime\":\"s-updatetime\",\"versionId\":\"7\",\"vpcConnector\":\"s-vpcconnector\"}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: ok",
+]
+
+test "Go's cloudfunctions.projects.locations.functions.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"functions\":[{\"availableMemoryMb\":7,\"entryPoint\":\"s-entrypoint\",\"environmentVariables\":{\"k1\":\"s-environmentvariables\"},\"eventTrigger\":{\"eventType\":\"s-eventtype\",\"resource\":\"s-resource\",\"service\":\"s-service\"},\"httpsTrigger\":{\"url\":\"s-url\"},\"labels\":{\"k1\":\"s-labels\"},\"latestOperation\":\"s-latestoperation\",\"maxInstances\":7,\"name\":\"s-name\",\"network\":\"s-network\",\"runtime\":\"s-runtime\",\"serviceAccount\":\"s-serviceaccount\",\"sourceArchiveUrl\":\"s-sourcearchiveurl\",\"sourceRepository\":{\"branch\":\"s-branch\",\"deployedRevision\":\"s-deployedrevision\",\"repositoryUrl\":\"s-repositoryurl\",\"revision\":\"s-revision\",\"sourcePath\":\"s-sourcepath\",\"tag\":\"s-tag\"},\"sourceRepositoryUrl\":\"s-sourcerepositoryurl\",\"sourceUploadUrl\":\"s-sourceuploadurl\",\"status\":\"s-status\",\"timeout\":\"s-timeout\",\"updateTime\":\"s-updatetime\",\"versionId\":\"7\",\"vpcConnector\":\"s-vpcconnector\"}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}")
+  gv_queue(f, "{\"functions\":[{\"availableMemoryMb\":7,\"entryPoint\":\"s-entrypoint\",\"environmentVariables\":{\"k1\":\"s-environmentvariables\"},\"eventTrigger\":{\"eventType\":\"s-eventtype\",\"resource\":\"s-resource\",\"service\":\"s-service\"},\"httpsTrigger\":{\"url\":\"s-url\"},\"labels\":{\"k1\":\"s-labels\"},\"latestOperation\":\"s-latestoperation\",\"maxInstances\":7,\"name\":\"s-name\",\"network\":\"s-network\",\"runtime\":\"s-runtime\",\"serviceAccount\":\"s-serviceaccount\",\"sourceArchiveUrl\":\"s-sourcearchiveurl\",\"sourceRepository\":{\"branch\":\"s-branch\",\"deployedRevision\":\"s-deployedrevision\",\"repositoryUrl\":\"s-repositoryurl\",\"revision\":\"s-revision\",\"sourcePath\":\"s-sourcepath\",\"tag\":\"s-tag\"},\"sourceRepositoryUrl\":\"s-sourcerepositoryurl\",\"sourceUploadUrl\":\"s-sourceuploadurl\",\"status\":\"s-status\",\"timeout\":\"s-timeout\",\"updateTime\":\"s-updatetime\",\"versionId\":\"7\",\"vpcConnector\":\"s-vpcconnector\"}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_note(f, "CALL cloudfunctions.projects.locations.functions.list pages")
+  var p = svc.projects.locations.functions.list_pages("id1/ x", options: ProjectsLocationsFunctionsListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_12)
+}
+
+const GO_13: List[Str] = [
   "CALL cloudfunctions.projects.locations.functions.update",
   "REQ PUT https://cloudfunctions.googleapis.com/v1beta2/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -241,5 +355,5 @@ test "Go's cloudfunctions.projects.locations.functions.update" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_10)
+  gv_compare(gv_log_of(f), GO_13)
 }

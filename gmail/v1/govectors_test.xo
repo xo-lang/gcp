@@ -5,6 +5,7 @@
 // compares the request, the response served and the result.
 
 use std/json
+use github.com/xo-lang/gcp/gensupport
 
 const GV_HOST: Str = "https://gmail.googleapis.com"
 
@@ -95,6 +96,69 @@ test "Go's gmail.users.drafts.create" {
 }
 
 const GO_4: List[Str] = [
+  "CALL gmail.users.drafts.create media",
+  "REQ POST https://gmail.googleapis.com/upload/gmail/v1/users/id1%2F%20x/drafts?alt=json&fields=kind%2Cid&prettyPrint=false&uploadType=multipart",
+  "  H content-type=multipart/related; boundary=BOUNDARY | x-extra=v1",
+  "  B --BOUNDARY\u{000d}",
+  "Content-Type: application/json\u{000d}",
+  "\u{000d}",
+  "{\"id\":\"s-id\",\"message\":{\"classificationLabelValues\":[{\"labelId\":\"s-labelid\"}],\"historyId\":\"7\",\"id\":\"s-id\",\"internalDate\":\"7\",\"labelIds\":[\"s-labelids\"],\"payload\":{\"filename\":\"s-filename\",\"mimeType\":\"s-mimetype\",\"partId\":\"s-partid\"},\"raw\":\"YWI=\",\"sizeEstimate\":7,\"snippet\":\"s-snippet\",\"threadId\":\"s-threadid\"}}",
+  "\u{000d}",
+  "--BOUNDARY\u{000d}",
+  "Content-Type: text/plain\u{000d}",
+  "\u{000d}",
+  "hello media\u{000d}",
+  "--BOUNDARY--\u{000d}",
+  "",
+  "  SERVED 200 {\"id\":\"s-id\",\"message\":{\"classificationLabelValues\":[{\"labelId\":\"s-labelid\"}],\"historyId\":\"7\",\"id\":\"s-id\",\"internalDate\":\"7\",\"labelIds\":[\"s-labelids\"],\"payload\":{\"filename\":\"s-filename\",\"mimeType\":\"s-mimetype\",\"partId\":\"s-partid\"},\"raw\":\"YWI=\",\"sizeEstimate\":7,\"snippet\":\"s-snippet\",\"threadId\":\"s-threadid\"}}",
+  "OUT: {\"id\":\"s-id\",\"message\":{\"classificationLabelValues\":[{\"labelId\":\"s-labelid\"}],\"historyId\":\"7\",\"id\":\"s-id\",\"internalDate\":\"7\",\"labelIds\":[\"s-labelids\"],\"payload\":{\"filename\":\"s-filename\",\"mimeType\":\"s-mimetype\",\"partId\":\"s-partid\"},\"raw\":\"YWI=\",\"sizeEstimate\":7,\"snippet\":\"s-snippet\",\"threadId\":\"s-threadid\"}}",
+]
+
+test "Go's gmail.users.drafts.create media" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"id\":\"s-id\",\"message\":{\"classificationLabelValues\":[{\"labelId\":\"s-labelid\"}],\"historyId\":\"7\",\"id\":\"s-id\",\"internalDate\":\"7\",\"labelIds\":[\"s-labelids\"],\"payload\":{\"filename\":\"s-filename\",\"mimeType\":\"s-mimetype\",\"partId\":\"s-partid\"},\"raw\":\"YWI=\",\"sizeEstimate\":7,\"snippet\":\"s-snippet\",\"threadId\":\"s-threadid\"}}")
+  gv_note(f, "CALL gmail.users.drafts.create media")
+  match svc.users.drafts.create_media(os.clock, os.rand, "id1/ x", json.decode_str[Draft]("{\"id\":\"s-id\",\"message\":{\"classificationLabelValues\":[{\"labelId\":\"s-labelid\"}],\"historyId\":\"7\",\"id\":\"s-id\",\"internalDate\":\"7\",\"labelIds\":[\"s-labelids\"],\"payload\":{\"filename\":\"s-filename\",\"mimeType\":\"s-mimetype\",\"partId\":\"s-partid\"},\"raw\":\"YWI=\",\"sizeEstimate\":7,\"snippet\":\"s-snippet\",\"threadId\":\"s-threadid\"}}") ?? e => fault(e.display()), media: gensupport.Media{data: "hello media".bytes(), content_type: "text/plain"}, options: UsersDraftsCreateOptions{fields: ["kind", "id"], headers: [("X-Extra", "v1")]}) {
+    Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+    Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+  }
+  gv_compare(gv_log_of(f), GO_4)
+}
+
+const GO_5: List[Str] = [
+  "CALL gmail.users.drafts.create resumable",
+  "REQ POST https://gmail.googleapis.com/upload/gmail/v1/users/id1%2F%20x/drafts?alt=json&fields=kind%2Cid&prettyPrint=false&uploadType=resumable",
+  "  H content-type=application/json | x-extra=v1 | x-upload-content-type=text/plain",
+  "  B {\"id\":\"s-id\",\"message\":{\"classificationLabelValues\":[{\"labelId\":\"s-labelid\"}],\"historyId\":\"7\",\"id\":\"s-id\",\"internalDate\":\"7\",\"labelIds\":[\"s-labelids\"],\"payload\":{\"filename\":\"s-filename\",\"mimeType\":\"s-mimetype\",\"partId\":\"s-partid\"},\"raw\":\"YWI=\",\"sizeEstimate\":7,\"snippet\":\"s-snippet\",\"threadId\":\"s-threadid\"}}",
+  "",
+  "  SERVED 200 @H Location=https://gmail.googleapis.com/upload/session-1 @B ",
+  "REQ POST https://gmail.googleapis.com/upload/session-1",
+  "  H content-range=bytes 0-262143/* | content-type=text/plain | x-goog-gcs-idempotency-token=UUID | x-guploader-no-308=yes",
+  "  B <262144 bytes> 0123456789abcdef0123456789abcdef...0123456789abcdef0123456789abcdef",
+  "  SERVED 200 @H X-Http-Status-Code-Override=308 @B ",
+  "REQ POST https://gmail.googleapis.com/upload/session-1",
+  "  H content-range=bytes 262144-262153/262154 | content-type=text/plain | x-goog-gcs-idempotency-token=UUID | x-guploader-no-308=yes",
+  "  B 0123456789",
+  "  SERVED 200 {\"id\":\"s-id\",\"message\":{\"classificationLabelValues\":[{\"labelId\":\"s-labelid\"}],\"historyId\":\"7\",\"id\":\"s-id\",\"internalDate\":\"7\",\"labelIds\":[\"s-labelids\"],\"payload\":{\"filename\":\"s-filename\",\"mimeType\":\"s-mimetype\",\"partId\":\"s-partid\"},\"raw\":\"YWI=\",\"sizeEstimate\":7,\"snippet\":\"s-snippet\",\"threadId\":\"s-threadid\"}}",
+  "OUT: {\"id\":\"s-id\",\"message\":{\"classificationLabelValues\":[{\"labelId\":\"s-labelid\"}],\"historyId\":\"7\",\"id\":\"s-id\",\"internalDate\":\"7\",\"labelIds\":[\"s-labelids\"],\"payload\":{\"filename\":\"s-filename\",\"mimeType\":\"s-mimetype\",\"partId\":\"s-partid\"},\"raw\":\"YWI=\",\"sizeEstimate\":7,\"snippet\":\"s-snippet\",\"threadId\":\"s-threadid\"}}",
+]
+
+test "Go's gmail.users.drafts.create resumable" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "@H Location=https://gmail.googleapis.com/upload/session-1 @B ")
+  gv_queue(f, "@H X-Http-Status-Code-Override=308 @B ")
+  gv_queue(f, "{\"id\":\"s-id\",\"message\":{\"classificationLabelValues\":[{\"labelId\":\"s-labelid\"}],\"historyId\":\"7\",\"id\":\"s-id\",\"internalDate\":\"7\",\"labelIds\":[\"s-labelids\"],\"payload\":{\"filename\":\"s-filename\",\"mimeType\":\"s-mimetype\",\"partId\":\"s-partid\"},\"raw\":\"YWI=\",\"sizeEstimate\":7,\"snippet\":\"s-snippet\",\"threadId\":\"s-threadid\"}}")
+  gv_note(f, "CALL gmail.users.drafts.create resumable")
+  match svc.users.drafts.create_media(os.clock, os.rand, "id1/ x", json.decode_str[Draft]("{\"id\":\"s-id\",\"message\":{\"classificationLabelValues\":[{\"labelId\":\"s-labelid\"}],\"historyId\":\"7\",\"id\":\"s-id\",\"internalDate\":\"7\",\"labelIds\":[\"s-labelids\"],\"payload\":{\"filename\":\"s-filename\",\"mimeType\":\"s-mimetype\",\"partId\":\"s-partid\"},\"raw\":\"YWI=\",\"sizeEstimate\":7,\"snippet\":\"s-snippet\",\"threadId\":\"s-threadid\"}}") ?? e => fault(e.display()), media: gensupport.Media{data: gv_big(), content_type: "text/plain", chunk_size: 262144}, options: UsersDraftsCreateOptions{fields: ["kind", "id"], headers: [("X-Extra", "v1")]}) {
+    Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+    Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+  }
+  gv_compare(gv_log_of(f), GO_5)
+}
+
+const GO_6: List[Str] = [
   "CALL gmail.users.drafts.delete",
   "REQ DELETE https://gmail.googleapis.com/gmail/v1/users/id1%2F%20x/drafts/id2%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -112,10 +176,10 @@ test "Go's gmail.users.drafts.delete" {
     Ok(_) => gv_note(f, "OUT: ok")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_4)
+  gv_compare(gv_log_of(f), GO_6)
 }
 
-const GO_5: List[Str] = [
+const GO_7: List[Str] = [
   "CALL gmail.users.drafts.get",
   "REQ GET https://gmail.googleapis.com/gmail/v1/users/id1%2F%20x/drafts/id2%2F%20x?alt=json&fields=kind%2Cid&format=s-format&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -133,10 +197,10 @@ test "Go's gmail.users.drafts.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_5)
+  gv_compare(gv_log_of(f), GO_7)
 }
 
-const GO_6: List[Str] = [
+const GO_8: List[Str] = [
   "CALL gmail.users.drafts.list",
   "REQ GET https://gmail.googleapis.com/gmail/v1/users/id1%2F%20x/drafts?alt=json&fields=kind%2Cid&includeSpamTrash=true&maxResults=7&pageToken=s-pagetoken&prettyPrint=false&q=s-q",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -154,10 +218,48 @@ test "Go's gmail.users.drafts.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_6)
+  gv_compare(gv_log_of(f), GO_8)
 }
 
-const GO_7: List[Str] = [
+const GO_9: List[Str] = [
+  "CALL gmail.users.drafts.list pages",
+  "REQ GET https://gmail.googleapis.com/gmail/v1/users/id1%2F%20x/drafts?alt=json&fields=kind%2Cid&includeSpamTrash=true&maxResults=7&pageToken=s-pagetoken&prettyPrint=false&q=s-q",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"drafts\":[{\"id\":\"s-id\",\"message\":{\"historyId\":\"7\",\"id\":\"s-id\",\"internalDate\":\"7\",\"raw\":\"YWI=\",\"sizeEstimate\":7,\"snippet\":\"s-snippet\",\"threadId\":\"s-threadid\"}}],\"nextPageToken\":\"s-nextpagetoken\",\"resultSizeEstimate\":7}",
+  "OUT: {\"drafts\":[{\"id\":\"s-id\",\"message\":{\"historyId\":\"7\",\"id\":\"s-id\",\"internalDate\":\"7\",\"raw\":\"YWI=\",\"sizeEstimate\":7,\"snippet\":\"s-snippet\",\"threadId\":\"s-threadid\"}}],\"nextPageToken\":\"s-nextpagetoken\",\"resultSizeEstimate\":7}",
+  "REQ GET https://gmail.googleapis.com/gmail/v1/users/id1%2F%20x/drafts?alt=json&fields=kind%2Cid&includeSpamTrash=true&maxResults=7&pageToken=s-nextpagetoken&prettyPrint=false&q=s-q",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"drafts\":[{\"id\":\"s-id\",\"message\":{\"historyId\":\"7\",\"id\":\"s-id\",\"internalDate\":\"7\",\"raw\":\"YWI=\",\"sizeEstimate\":7,\"snippet\":\"s-snippet\",\"threadId\":\"s-threadid\"}}],\"resultSizeEstimate\":7}",
+  "OUT: {\"drafts\":[{\"id\":\"s-id\",\"message\":{\"historyId\":\"7\",\"id\":\"s-id\",\"internalDate\":\"7\",\"raw\":\"YWI=\",\"sizeEstimate\":7,\"snippet\":\"s-snippet\",\"threadId\":\"s-threadid\"}}],\"resultSizeEstimate\":7}",
+  "OUT: ok",
+]
+
+test "Go's gmail.users.drafts.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"drafts\":[{\"id\":\"s-id\",\"message\":{\"historyId\":\"7\",\"id\":\"s-id\",\"internalDate\":\"7\",\"raw\":\"YWI=\",\"sizeEstimate\":7,\"snippet\":\"s-snippet\",\"threadId\":\"s-threadid\"}}],\"nextPageToken\":\"s-nextpagetoken\",\"resultSizeEstimate\":7}")
+  gv_queue(f, "{\"drafts\":[{\"id\":\"s-id\",\"message\":{\"historyId\":\"7\",\"id\":\"s-id\",\"internalDate\":\"7\",\"raw\":\"YWI=\",\"sizeEstimate\":7,\"snippet\":\"s-snippet\",\"threadId\":\"s-threadid\"}}],\"resultSizeEstimate\":7}")
+  gv_note(f, "CALL gmail.users.drafts.list pages")
+  var p = svc.users.drafts.list_pages("id1/ x", options: UsersDraftsListOptions{include_spam_trash: Some(true), max_results: Some(7), page_token: Some("s-pagetoken"), q: Some("s-q"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_9)
+}
+
+const GO_10: List[Str] = [
   "CALL gmail.users.drafts.send",
   "REQ POST https://gmail.googleapis.com/gmail/v1/users/id1%2F%20x/drafts/send?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -176,10 +278,73 @@ test "Go's gmail.users.drafts.send" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_7)
+  gv_compare(gv_log_of(f), GO_10)
 }
 
-const GO_8: List[Str] = [
+const GO_11: List[Str] = [
+  "CALL gmail.users.drafts.send media",
+  "REQ POST https://gmail.googleapis.com/upload/gmail/v1/users/id1%2F%20x/drafts/send?alt=json&fields=kind%2Cid&prettyPrint=false&uploadType=multipart",
+  "  H content-type=multipart/related; boundary=BOUNDARY | x-extra=v1",
+  "  B --BOUNDARY\u{000d}",
+  "Content-Type: application/json\u{000d}",
+  "\u{000d}",
+  "{\"id\":\"s-id\",\"message\":{\"classificationLabelValues\":[{\"labelId\":\"s-labelid\"}],\"historyId\":\"7\",\"id\":\"s-id\",\"internalDate\":\"7\",\"labelIds\":[\"s-labelids\"],\"payload\":{\"filename\":\"s-filename\",\"mimeType\":\"s-mimetype\",\"partId\":\"s-partid\"},\"raw\":\"YWI=\",\"sizeEstimate\":7,\"snippet\":\"s-snippet\",\"threadId\":\"s-threadid\"}}",
+  "\u{000d}",
+  "--BOUNDARY\u{000d}",
+  "Content-Type: text/plain\u{000d}",
+  "\u{000d}",
+  "hello media\u{000d}",
+  "--BOUNDARY--\u{000d}",
+  "",
+  "  SERVED 200 {\"classificationLabelValues\":[{\"labelId\":\"s-labelid\"}],\"historyId\":\"7\",\"id\":\"s-id\",\"internalDate\":\"7\",\"labelIds\":[\"s-labelids\"],\"payload\":{\"body\":{\"attachmentId\":\"s-attachmentid\",\"data\":\"YWI=\",\"size\":7},\"filename\":\"s-filename\",\"headers\":[{\"name\":\"s-name\",\"value\":\"s-value\"}],\"mimeType\":\"s-mimetype\",\"partId\":\"s-partid\",\"parts\":[{\"filename\":\"s-filename\",\"mimeType\":\"s-mimetype\",\"partId\":\"s-partid\"}]},\"raw\":\"YWI=\",\"sizeEstimate\":7,\"snippet\":\"s-snippet\",\"threadId\":\"s-threadid\"}",
+  "OUT: {\"classificationLabelValues\":[{\"labelId\":\"s-labelid\"}],\"historyId\":\"7\",\"id\":\"s-id\",\"internalDate\":\"7\",\"labelIds\":[\"s-labelids\"],\"payload\":{\"body\":{\"attachmentId\":\"s-attachmentid\",\"data\":\"YWI=\",\"size\":7},\"filename\":\"s-filename\",\"headers\":[{\"name\":\"s-name\",\"value\":\"s-value\"}],\"mimeType\":\"s-mimetype\",\"partId\":\"s-partid\",\"parts\":[{\"filename\":\"s-filename\",\"mimeType\":\"s-mimetype\",\"partId\":\"s-partid\"}]},\"raw\":\"YWI=\",\"sizeEstimate\":7,\"snippet\":\"s-snippet\",\"threadId\":\"s-threadid\"}",
+]
+
+test "Go's gmail.users.drafts.send media" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"classificationLabelValues\":[{\"labelId\":\"s-labelid\"}],\"historyId\":\"7\",\"id\":\"s-id\",\"internalDate\":\"7\",\"labelIds\":[\"s-labelids\"],\"payload\":{\"body\":{\"attachmentId\":\"s-attachmentid\",\"data\":\"YWI=\",\"size\":7},\"filename\":\"s-filename\",\"headers\":[{\"name\":\"s-name\",\"value\":\"s-value\"}],\"mimeType\":\"s-mimetype\",\"partId\":\"s-partid\",\"parts\":[{\"filename\":\"s-filename\",\"mimeType\":\"s-mimetype\",\"partId\":\"s-partid\"}]},\"raw\":\"YWI=\",\"sizeEstimate\":7,\"snippet\":\"s-snippet\",\"threadId\":\"s-threadid\"}")
+  gv_note(f, "CALL gmail.users.drafts.send media")
+  match svc.users.drafts.send_media(os.clock, os.rand, "id1/ x", json.decode_str[Draft]("{\"id\":\"s-id\",\"message\":{\"classificationLabelValues\":[{\"labelId\":\"s-labelid\"}],\"historyId\":\"7\",\"id\":\"s-id\",\"internalDate\":\"7\",\"labelIds\":[\"s-labelids\"],\"payload\":{\"filename\":\"s-filename\",\"mimeType\":\"s-mimetype\",\"partId\":\"s-partid\"},\"raw\":\"YWI=\",\"sizeEstimate\":7,\"snippet\":\"s-snippet\",\"threadId\":\"s-threadid\"}}") ?? e => fault(e.display()), media: gensupport.Media{data: "hello media".bytes(), content_type: "text/plain"}, options: UsersDraftsSendOptions{fields: ["kind", "id"], headers: [("X-Extra", "v1")]}) {
+    Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+    Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+  }
+  gv_compare(gv_log_of(f), GO_11)
+}
+
+const GO_12: List[Str] = [
+  "CALL gmail.users.drafts.send resumable",
+  "REQ POST https://gmail.googleapis.com/upload/gmail/v1/users/id1%2F%20x/drafts/send?alt=json&fields=kind%2Cid&prettyPrint=false&uploadType=resumable",
+  "  H content-type=application/json | x-extra=v1 | x-upload-content-type=text/plain",
+  "  B {\"id\":\"s-id\",\"message\":{\"classificationLabelValues\":[{\"labelId\":\"s-labelid\"}],\"historyId\":\"7\",\"id\":\"s-id\",\"internalDate\":\"7\",\"labelIds\":[\"s-labelids\"],\"payload\":{\"filename\":\"s-filename\",\"mimeType\":\"s-mimetype\",\"partId\":\"s-partid\"},\"raw\":\"YWI=\",\"sizeEstimate\":7,\"snippet\":\"s-snippet\",\"threadId\":\"s-threadid\"}}",
+  "",
+  "  SERVED 200 @H Location=https://gmail.googleapis.com/upload/session-1 @B ",
+  "REQ POST https://gmail.googleapis.com/upload/session-1",
+  "  H content-range=bytes 0-262143/* | content-type=text/plain | x-goog-gcs-idempotency-token=UUID | x-guploader-no-308=yes",
+  "  B <262144 bytes> 0123456789abcdef0123456789abcdef...0123456789abcdef0123456789abcdef",
+  "  SERVED 200 @H X-Http-Status-Code-Override=308 @B ",
+  "REQ POST https://gmail.googleapis.com/upload/session-1",
+  "  H content-range=bytes 262144-262153/262154 | content-type=text/plain | x-goog-gcs-idempotency-token=UUID | x-guploader-no-308=yes",
+  "  B 0123456789",
+  "  SERVED 200 {\"classificationLabelValues\":[{\"labelId\":\"s-labelid\"}],\"historyId\":\"7\",\"id\":\"s-id\",\"internalDate\":\"7\",\"labelIds\":[\"s-labelids\"],\"payload\":{\"body\":{\"attachmentId\":\"s-attachmentid\",\"data\":\"YWI=\",\"size\":7},\"filename\":\"s-filename\",\"headers\":[{\"name\":\"s-name\",\"value\":\"s-value\"}],\"mimeType\":\"s-mimetype\",\"partId\":\"s-partid\",\"parts\":[{\"filename\":\"s-filename\",\"mimeType\":\"s-mimetype\",\"partId\":\"s-partid\"}]},\"raw\":\"YWI=\",\"sizeEstimate\":7,\"snippet\":\"s-snippet\",\"threadId\":\"s-threadid\"}",
+  "OUT: {\"classificationLabelValues\":[{\"labelId\":\"s-labelid\"}],\"historyId\":\"7\",\"id\":\"s-id\",\"internalDate\":\"7\",\"labelIds\":[\"s-labelids\"],\"payload\":{\"body\":{\"attachmentId\":\"s-attachmentid\",\"data\":\"YWI=\",\"size\":7},\"filename\":\"s-filename\",\"headers\":[{\"name\":\"s-name\",\"value\":\"s-value\"}],\"mimeType\":\"s-mimetype\",\"partId\":\"s-partid\",\"parts\":[{\"filename\":\"s-filename\",\"mimeType\":\"s-mimetype\",\"partId\":\"s-partid\"}]},\"raw\":\"YWI=\",\"sizeEstimate\":7,\"snippet\":\"s-snippet\",\"threadId\":\"s-threadid\"}",
+]
+
+test "Go's gmail.users.drafts.send resumable" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "@H Location=https://gmail.googleapis.com/upload/session-1 @B ")
+  gv_queue(f, "@H X-Http-Status-Code-Override=308 @B ")
+  gv_queue(f, "{\"classificationLabelValues\":[{\"labelId\":\"s-labelid\"}],\"historyId\":\"7\",\"id\":\"s-id\",\"internalDate\":\"7\",\"labelIds\":[\"s-labelids\"],\"payload\":{\"body\":{\"attachmentId\":\"s-attachmentid\",\"data\":\"YWI=\",\"size\":7},\"filename\":\"s-filename\",\"headers\":[{\"name\":\"s-name\",\"value\":\"s-value\"}],\"mimeType\":\"s-mimetype\",\"partId\":\"s-partid\",\"parts\":[{\"filename\":\"s-filename\",\"mimeType\":\"s-mimetype\",\"partId\":\"s-partid\"}]},\"raw\":\"YWI=\",\"sizeEstimate\":7,\"snippet\":\"s-snippet\",\"threadId\":\"s-threadid\"}")
+  gv_note(f, "CALL gmail.users.drafts.send resumable")
+  match svc.users.drafts.send_media(os.clock, os.rand, "id1/ x", json.decode_str[Draft]("{\"id\":\"s-id\",\"message\":{\"classificationLabelValues\":[{\"labelId\":\"s-labelid\"}],\"historyId\":\"7\",\"id\":\"s-id\",\"internalDate\":\"7\",\"labelIds\":[\"s-labelids\"],\"payload\":{\"filename\":\"s-filename\",\"mimeType\":\"s-mimetype\",\"partId\":\"s-partid\"},\"raw\":\"YWI=\",\"sizeEstimate\":7,\"snippet\":\"s-snippet\",\"threadId\":\"s-threadid\"}}") ?? e => fault(e.display()), media: gensupport.Media{data: gv_big(), content_type: "text/plain", chunk_size: 262144}, options: UsersDraftsSendOptions{fields: ["kind", "id"], headers: [("X-Extra", "v1")]}) {
+    Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+    Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+  }
+  gv_compare(gv_log_of(f), GO_12)
+}
+
+const GO_13: List[Str] = [
   "CALL gmail.users.drafts.update",
   "REQ PUT https://gmail.googleapis.com/gmail/v1/users/id1%2F%20x/drafts/id2%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -198,10 +363,73 @@ test "Go's gmail.users.drafts.update" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_8)
+  gv_compare(gv_log_of(f), GO_13)
 }
 
-const GO_9: List[Str] = [
+const GO_14: List[Str] = [
+  "CALL gmail.users.drafts.update media",
+  "REQ PUT https://gmail.googleapis.com/upload/gmail/v1/users/id1%2F%20x/drafts/id2%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false&uploadType=multipart",
+  "  H content-type=multipart/related; boundary=BOUNDARY | x-extra=v1",
+  "  B --BOUNDARY\u{000d}",
+  "Content-Type: application/json\u{000d}",
+  "\u{000d}",
+  "{\"id\":\"s-id\",\"message\":{\"classificationLabelValues\":[{\"labelId\":\"s-labelid\"}],\"historyId\":\"7\",\"id\":\"s-id\",\"internalDate\":\"7\",\"labelIds\":[\"s-labelids\"],\"payload\":{\"filename\":\"s-filename\",\"mimeType\":\"s-mimetype\",\"partId\":\"s-partid\"},\"raw\":\"YWI=\",\"sizeEstimate\":7,\"snippet\":\"s-snippet\",\"threadId\":\"s-threadid\"}}",
+  "\u{000d}",
+  "--BOUNDARY\u{000d}",
+  "Content-Type: text/plain\u{000d}",
+  "\u{000d}",
+  "hello media\u{000d}",
+  "--BOUNDARY--\u{000d}",
+  "",
+  "  SERVED 200 {\"id\":\"s-id\",\"message\":{\"classificationLabelValues\":[{\"labelId\":\"s-labelid\"}],\"historyId\":\"7\",\"id\":\"s-id\",\"internalDate\":\"7\",\"labelIds\":[\"s-labelids\"],\"payload\":{\"filename\":\"s-filename\",\"mimeType\":\"s-mimetype\",\"partId\":\"s-partid\"},\"raw\":\"YWI=\",\"sizeEstimate\":7,\"snippet\":\"s-snippet\",\"threadId\":\"s-threadid\"}}",
+  "OUT: {\"id\":\"s-id\",\"message\":{\"classificationLabelValues\":[{\"labelId\":\"s-labelid\"}],\"historyId\":\"7\",\"id\":\"s-id\",\"internalDate\":\"7\",\"labelIds\":[\"s-labelids\"],\"payload\":{\"filename\":\"s-filename\",\"mimeType\":\"s-mimetype\",\"partId\":\"s-partid\"},\"raw\":\"YWI=\",\"sizeEstimate\":7,\"snippet\":\"s-snippet\",\"threadId\":\"s-threadid\"}}",
+]
+
+test "Go's gmail.users.drafts.update media" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"id\":\"s-id\",\"message\":{\"classificationLabelValues\":[{\"labelId\":\"s-labelid\"}],\"historyId\":\"7\",\"id\":\"s-id\",\"internalDate\":\"7\",\"labelIds\":[\"s-labelids\"],\"payload\":{\"filename\":\"s-filename\",\"mimeType\":\"s-mimetype\",\"partId\":\"s-partid\"},\"raw\":\"YWI=\",\"sizeEstimate\":7,\"snippet\":\"s-snippet\",\"threadId\":\"s-threadid\"}}")
+  gv_note(f, "CALL gmail.users.drafts.update media")
+  match svc.users.drafts.update_media(os.clock, os.rand, "id1/ x", "id2/ x", json.decode_str[Draft]("{\"id\":\"s-id\",\"message\":{\"classificationLabelValues\":[{\"labelId\":\"s-labelid\"}],\"historyId\":\"7\",\"id\":\"s-id\",\"internalDate\":\"7\",\"labelIds\":[\"s-labelids\"],\"payload\":{\"filename\":\"s-filename\",\"mimeType\":\"s-mimetype\",\"partId\":\"s-partid\"},\"raw\":\"YWI=\",\"sizeEstimate\":7,\"snippet\":\"s-snippet\",\"threadId\":\"s-threadid\"}}") ?? e => fault(e.display()), media: gensupport.Media{data: "hello media".bytes(), content_type: "text/plain"}, options: UsersDraftsUpdateOptions{fields: ["kind", "id"], headers: [("X-Extra", "v1")]}) {
+    Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+    Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+  }
+  gv_compare(gv_log_of(f), GO_14)
+}
+
+const GO_15: List[Str] = [
+  "CALL gmail.users.drafts.update resumable",
+  "REQ PUT https://gmail.googleapis.com/upload/gmail/v1/users/id1%2F%20x/drafts/id2%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false&uploadType=resumable",
+  "  H content-type=application/json | x-extra=v1 | x-upload-content-type=text/plain",
+  "  B {\"id\":\"s-id\",\"message\":{\"classificationLabelValues\":[{\"labelId\":\"s-labelid\"}],\"historyId\":\"7\",\"id\":\"s-id\",\"internalDate\":\"7\",\"labelIds\":[\"s-labelids\"],\"payload\":{\"filename\":\"s-filename\",\"mimeType\":\"s-mimetype\",\"partId\":\"s-partid\"},\"raw\":\"YWI=\",\"sizeEstimate\":7,\"snippet\":\"s-snippet\",\"threadId\":\"s-threadid\"}}",
+  "",
+  "  SERVED 200 @H Location=https://gmail.googleapis.com/upload/session-1 @B ",
+  "REQ POST https://gmail.googleapis.com/upload/session-1",
+  "  H content-range=bytes 0-262143/* | content-type=text/plain | x-goog-gcs-idempotency-token=UUID | x-guploader-no-308=yes",
+  "  B <262144 bytes> 0123456789abcdef0123456789abcdef...0123456789abcdef0123456789abcdef",
+  "  SERVED 200 @H X-Http-Status-Code-Override=308 @B ",
+  "REQ POST https://gmail.googleapis.com/upload/session-1",
+  "  H content-range=bytes 262144-262153/262154 | content-type=text/plain | x-goog-gcs-idempotency-token=UUID | x-guploader-no-308=yes",
+  "  B 0123456789",
+  "  SERVED 200 {\"id\":\"s-id\",\"message\":{\"classificationLabelValues\":[{\"labelId\":\"s-labelid\"}],\"historyId\":\"7\",\"id\":\"s-id\",\"internalDate\":\"7\",\"labelIds\":[\"s-labelids\"],\"payload\":{\"filename\":\"s-filename\",\"mimeType\":\"s-mimetype\",\"partId\":\"s-partid\"},\"raw\":\"YWI=\",\"sizeEstimate\":7,\"snippet\":\"s-snippet\",\"threadId\":\"s-threadid\"}}",
+  "OUT: {\"id\":\"s-id\",\"message\":{\"classificationLabelValues\":[{\"labelId\":\"s-labelid\"}],\"historyId\":\"7\",\"id\":\"s-id\",\"internalDate\":\"7\",\"labelIds\":[\"s-labelids\"],\"payload\":{\"filename\":\"s-filename\",\"mimeType\":\"s-mimetype\",\"partId\":\"s-partid\"},\"raw\":\"YWI=\",\"sizeEstimate\":7,\"snippet\":\"s-snippet\",\"threadId\":\"s-threadid\"}}",
+]
+
+test "Go's gmail.users.drafts.update resumable" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "@H Location=https://gmail.googleapis.com/upload/session-1 @B ")
+  gv_queue(f, "@H X-Http-Status-Code-Override=308 @B ")
+  gv_queue(f, "{\"id\":\"s-id\",\"message\":{\"classificationLabelValues\":[{\"labelId\":\"s-labelid\"}],\"historyId\":\"7\",\"id\":\"s-id\",\"internalDate\":\"7\",\"labelIds\":[\"s-labelids\"],\"payload\":{\"filename\":\"s-filename\",\"mimeType\":\"s-mimetype\",\"partId\":\"s-partid\"},\"raw\":\"YWI=\",\"sizeEstimate\":7,\"snippet\":\"s-snippet\",\"threadId\":\"s-threadid\"}}")
+  gv_note(f, "CALL gmail.users.drafts.update resumable")
+  match svc.users.drafts.update_media(os.clock, os.rand, "id1/ x", "id2/ x", json.decode_str[Draft]("{\"id\":\"s-id\",\"message\":{\"classificationLabelValues\":[{\"labelId\":\"s-labelid\"}],\"historyId\":\"7\",\"id\":\"s-id\",\"internalDate\":\"7\",\"labelIds\":[\"s-labelids\"],\"payload\":{\"filename\":\"s-filename\",\"mimeType\":\"s-mimetype\",\"partId\":\"s-partid\"},\"raw\":\"YWI=\",\"sizeEstimate\":7,\"snippet\":\"s-snippet\",\"threadId\":\"s-threadid\"}}") ?? e => fault(e.display()), media: gensupport.Media{data: gv_big(), content_type: "text/plain", chunk_size: 262144}, options: UsersDraftsUpdateOptions{fields: ["kind", "id"], headers: [("X-Extra", "v1")]}) {
+    Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+    Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+  }
+  gv_compare(gv_log_of(f), GO_15)
+}
+
+const GO_16: List[Str] = [
   "CALL gmail.users.history.list",
   "REQ GET https://gmail.googleapis.com/gmail/v1/users/id1%2F%20x/history?alt=json&fields=kind%2Cid&historyTypes=s-historytypes&labelId=s-labelid&maxResults=7&pageToken=s-pagetoken&prettyPrint=false&startHistoryId=7",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -215,14 +443,52 @@ test "Go's gmail.users.history.list" {
   let svc = new_service(os.net, gv_opts())
   gv_set(f, "{\"history\":[{\"id\":\"7\"}],\"historyId\":\"7\",\"nextPageToken\":\"s-nextpagetoken\"}")
   gv_note(f, "CALL gmail.users.history.list")
-  match svc.users.history.list("id1/ x", options: UsersHistoryListOptions{history_types: ["s-historytypes"], label_id: Some("s-labelid"), max_results: Some(7), page_token: Some("s-pagetoken"), start_history_id: Some("7"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]}) {
+  match svc.users.history.list("id1/ x", options: UsersHistoryListOptions{history_types: ["s-historytypes"], label_id: Some("s-labelid"), max_results: Some(7), page_token: Some("s-pagetoken"), start_history_id: Some(7), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]}) {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_9)
+  gv_compare(gv_log_of(f), GO_16)
 }
 
-const GO_10: List[Str] = [
+const GO_17: List[Str] = [
+  "CALL gmail.users.history.list pages",
+  "REQ GET https://gmail.googleapis.com/gmail/v1/users/id1%2F%20x/history?alt=json&fields=kind%2Cid&historyTypes=s-historytypes&labelId=s-labelid&maxResults=7&pageToken=s-pagetoken&prettyPrint=false&startHistoryId=7",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"history\":[{\"id\":\"7\"}],\"historyId\":\"7\",\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"history\":[{\"id\":\"7\"}],\"historyId\":\"7\",\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://gmail.googleapis.com/gmail/v1/users/id1%2F%20x/history?alt=json&fields=kind%2Cid&historyTypes=s-historytypes&labelId=s-labelid&maxResults=7&pageToken=s-nextpagetoken&prettyPrint=false&startHistoryId=7",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"history\":[{\"id\":\"7\"}],\"historyId\":\"7\"}",
+  "OUT: {\"history\":[{\"id\":\"7\"}],\"historyId\":\"7\"}",
+  "OUT: ok",
+]
+
+test "Go's gmail.users.history.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"history\":[{\"id\":\"7\"}],\"historyId\":\"7\",\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"history\":[{\"id\":\"7\"}],\"historyId\":\"7\"}")
+  gv_note(f, "CALL gmail.users.history.list pages")
+  var p = svc.users.history.list_pages("id1/ x", options: UsersHistoryListOptions{history_types: ["s-historytypes"], label_id: Some("s-labelid"), max_results: Some(7), page_token: Some("s-pagetoken"), start_history_id: Some(7), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_17)
+}
+
+const GO_18: List[Str] = [
   "CALL gmail.users.labels.create",
   "REQ POST https://gmail.googleapis.com/gmail/v1/users/id1%2F%20x/labels?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -241,10 +507,10 @@ test "Go's gmail.users.labels.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_10)
+  gv_compare(gv_log_of(f), GO_18)
 }
 
-const GO_11: List[Str] = [
+const GO_19: List[Str] = [
   "CALL gmail.users.labels.delete",
   "REQ DELETE https://gmail.googleapis.com/gmail/v1/users/id1%2F%20x/labels/id2%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -262,10 +528,10 @@ test "Go's gmail.users.labels.delete" {
     Ok(_) => gv_note(f, "OUT: ok")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_11)
+  gv_compare(gv_log_of(f), GO_19)
 }
 
-const GO_12: List[Str] = [
+const GO_20: List[Str] = [
   "CALL gmail.users.labels.get",
   "REQ GET https://gmail.googleapis.com/gmail/v1/users/id1%2F%20x/labels/id2%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -283,10 +549,10 @@ test "Go's gmail.users.labels.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_12)
+  gv_compare(gv_log_of(f), GO_20)
 }
 
-const GO_13: List[Str] = [
+const GO_21: List[Str] = [
   "CALL gmail.users.labels.list",
   "REQ GET https://gmail.googleapis.com/gmail/v1/users/id1%2F%20x/labels?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -304,10 +570,10 @@ test "Go's gmail.users.labels.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_13)
+  gv_compare(gv_log_of(f), GO_21)
 }
 
-const GO_14: List[Str] = [
+const GO_22: List[Str] = [
   "CALL gmail.users.labels.patch",
   "REQ PATCH https://gmail.googleapis.com/gmail/v1/users/id1%2F%20x/labels/id2%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -326,10 +592,10 @@ test "Go's gmail.users.labels.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_14)
+  gv_compare(gv_log_of(f), GO_22)
 }
 
-const GO_15: List[Str] = [
+const GO_23: List[Str] = [
   "CALL gmail.users.labels.update",
   "REQ PUT https://gmail.googleapis.com/gmail/v1/users/id1%2F%20x/labels/id2%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -348,10 +614,10 @@ test "Go's gmail.users.labels.update" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_15)
+  gv_compare(gv_log_of(f), GO_23)
 }
 
-const GO_16: List[Str] = [
+const GO_24: List[Str] = [
   "CALL gmail.users.messages.batchDelete",
   "REQ POST https://gmail.googleapis.com/gmail/v1/users/id1%2F%20x/messages/batchDelete?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -370,10 +636,10 @@ test "Go's gmail.users.messages.batchDelete" {
     Ok(_) => gv_note(f, "OUT: ok")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_16)
+  gv_compare(gv_log_of(f), GO_24)
 }
 
-const GO_17: List[Str] = [
+const GO_25: List[Str] = [
   "CALL gmail.users.messages.batchModify",
   "REQ POST https://gmail.googleapis.com/gmail/v1/users/id1%2F%20x/messages/batchModify?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -392,10 +658,10 @@ test "Go's gmail.users.messages.batchModify" {
     Ok(_) => gv_note(f, "OUT: ok")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_17)
+  gv_compare(gv_log_of(f), GO_25)
 }
 
-const GO_18: List[Str] = [
+const GO_26: List[Str] = [
   "CALL gmail.users.messages.delete",
   "REQ DELETE https://gmail.googleapis.com/gmail/v1/users/id1%2F%20x/messages/id2%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -413,10 +679,10 @@ test "Go's gmail.users.messages.delete" {
     Ok(_) => gv_note(f, "OUT: ok")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_18)
+  gv_compare(gv_log_of(f), GO_26)
 }
 
-const GO_19: List[Str] = [
+const GO_27: List[Str] = [
   "CALL gmail.users.messages.get",
   "REQ GET https://gmail.googleapis.com/gmail/v1/users/id1%2F%20x/messages/id2%2F%20x?alt=json&fields=kind%2Cid&format=s-format&metadataHeaders=s-metadataheaders&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -434,10 +700,10 @@ test "Go's gmail.users.messages.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_19)
+  gv_compare(gv_log_of(f), GO_27)
 }
 
-const GO_20: List[Str] = [
+const GO_28: List[Str] = [
   "CALL gmail.users.messages.import",
   "REQ POST https://gmail.googleapis.com/gmail/v1/users/id1%2F%20x/messages/import?alt=json&deleted=true&fields=kind%2Cid&internalDateSource=s-internaldatesource&neverMarkSpam=true&prettyPrint=false&processForCalendar=true",
   "  H content-type=application/json | x-extra=v1",
@@ -456,10 +722,73 @@ test "Go's gmail.users.messages.import" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_20)
+  gv_compare(gv_log_of(f), GO_28)
 }
 
-const GO_21: List[Str] = [
+const GO_29: List[Str] = [
+  "CALL gmail.users.messages.import media",
+  "REQ POST https://gmail.googleapis.com/upload/gmail/v1/users/id1%2F%20x/messages/import?alt=json&deleted=true&fields=kind%2Cid&internalDateSource=s-internaldatesource&neverMarkSpam=true&prettyPrint=false&processForCalendar=true&uploadType=multipart",
+  "  H content-type=multipart/related; boundary=BOUNDARY | x-extra=v1",
+  "  B --BOUNDARY\u{000d}",
+  "Content-Type: application/json\u{000d}",
+  "\u{000d}",
+  "{\"classificationLabelValues\":[{\"labelId\":\"s-labelid\"}],\"historyId\":\"7\",\"id\":\"s-id\",\"internalDate\":\"7\",\"labelIds\":[\"s-labelids\"],\"payload\":{\"body\":{\"attachmentId\":\"s-attachmentid\",\"data\":\"YWI=\",\"size\":7},\"filename\":\"s-filename\",\"headers\":[{\"name\":\"s-name\",\"value\":\"s-value\"}],\"mimeType\":\"s-mimetype\",\"partId\":\"s-partid\",\"parts\":[{\"filename\":\"s-filename\",\"mimeType\":\"s-mimetype\",\"partId\":\"s-partid\"}]},\"raw\":\"YWI=\",\"sizeEstimate\":7,\"snippet\":\"s-snippet\",\"threadId\":\"s-threadid\"}",
+  "\u{000d}",
+  "--BOUNDARY\u{000d}",
+  "Content-Type: text/plain\u{000d}",
+  "\u{000d}",
+  "hello media\u{000d}",
+  "--BOUNDARY--\u{000d}",
+  "",
+  "  SERVED 200 {\"classificationLabelValues\":[{\"labelId\":\"s-labelid\"}],\"historyId\":\"7\",\"id\":\"s-id\",\"internalDate\":\"7\",\"labelIds\":[\"s-labelids\"],\"payload\":{\"body\":{\"attachmentId\":\"s-attachmentid\",\"data\":\"YWI=\",\"size\":7},\"filename\":\"s-filename\",\"headers\":[{\"name\":\"s-name\",\"value\":\"s-value\"}],\"mimeType\":\"s-mimetype\",\"partId\":\"s-partid\",\"parts\":[{\"filename\":\"s-filename\",\"mimeType\":\"s-mimetype\",\"partId\":\"s-partid\"}]},\"raw\":\"YWI=\",\"sizeEstimate\":7,\"snippet\":\"s-snippet\",\"threadId\":\"s-threadid\"}",
+  "OUT: {\"classificationLabelValues\":[{\"labelId\":\"s-labelid\"}],\"historyId\":\"7\",\"id\":\"s-id\",\"internalDate\":\"7\",\"labelIds\":[\"s-labelids\"],\"payload\":{\"body\":{\"attachmentId\":\"s-attachmentid\",\"data\":\"YWI=\",\"size\":7},\"filename\":\"s-filename\",\"headers\":[{\"name\":\"s-name\",\"value\":\"s-value\"}],\"mimeType\":\"s-mimetype\",\"partId\":\"s-partid\",\"parts\":[{\"filename\":\"s-filename\",\"mimeType\":\"s-mimetype\",\"partId\":\"s-partid\"}]},\"raw\":\"YWI=\",\"sizeEstimate\":7,\"snippet\":\"s-snippet\",\"threadId\":\"s-threadid\"}",
+]
+
+test "Go's gmail.users.messages.import media" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"classificationLabelValues\":[{\"labelId\":\"s-labelid\"}],\"historyId\":\"7\",\"id\":\"s-id\",\"internalDate\":\"7\",\"labelIds\":[\"s-labelids\"],\"payload\":{\"body\":{\"attachmentId\":\"s-attachmentid\",\"data\":\"YWI=\",\"size\":7},\"filename\":\"s-filename\",\"headers\":[{\"name\":\"s-name\",\"value\":\"s-value\"}],\"mimeType\":\"s-mimetype\",\"partId\":\"s-partid\",\"parts\":[{\"filename\":\"s-filename\",\"mimeType\":\"s-mimetype\",\"partId\":\"s-partid\"}]},\"raw\":\"YWI=\",\"sizeEstimate\":7,\"snippet\":\"s-snippet\",\"threadId\":\"s-threadid\"}")
+  gv_note(f, "CALL gmail.users.messages.import media")
+  match svc.users.messages.import_media(os.clock, os.rand, "id1/ x", json.decode_str[Message]("{\"classificationLabelValues\":[{\"labelId\":\"s-labelid\"}],\"historyId\":\"7\",\"id\":\"s-id\",\"internalDate\":\"7\",\"labelIds\":[\"s-labelids\"],\"payload\":{\"body\":{\"attachmentId\":\"s-attachmentid\",\"data\":\"YWI=\",\"size\":7},\"filename\":\"s-filename\",\"headers\":[{\"name\":\"s-name\",\"value\":\"s-value\"}],\"mimeType\":\"s-mimetype\",\"partId\":\"s-partid\",\"parts\":[{\"filename\":\"s-filename\",\"mimeType\":\"s-mimetype\",\"partId\":\"s-partid\"}]},\"raw\":\"YWI=\",\"sizeEstimate\":7,\"snippet\":\"s-snippet\",\"threadId\":\"s-threadid\"}") ?? e => fault(e.display()), media: gensupport.Media{data: "hello media".bytes(), content_type: "text/plain"}, options: UsersMessagesImportOptions{deleted: Some(true), internal_date_source: Some("s-internaldatesource"), never_mark_spam: Some(true), process_for_calendar: Some(true), fields: ["kind", "id"], headers: [("X-Extra", "v1")]}) {
+    Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+    Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+  }
+  gv_compare(gv_log_of(f), GO_29)
+}
+
+const GO_30: List[Str] = [
+  "CALL gmail.users.messages.import resumable",
+  "REQ POST https://gmail.googleapis.com/upload/gmail/v1/users/id1%2F%20x/messages/import?alt=json&deleted=true&fields=kind%2Cid&internalDateSource=s-internaldatesource&neverMarkSpam=true&prettyPrint=false&processForCalendar=true&uploadType=resumable",
+  "  H content-type=application/json | x-extra=v1 | x-upload-content-type=text/plain",
+  "  B {\"classificationLabelValues\":[{\"labelId\":\"s-labelid\"}],\"historyId\":\"7\",\"id\":\"s-id\",\"internalDate\":\"7\",\"labelIds\":[\"s-labelids\"],\"payload\":{\"body\":{\"attachmentId\":\"s-attachmentid\",\"data\":\"YWI=\",\"size\":7},\"filename\":\"s-filename\",\"headers\":[{\"name\":\"s-name\",\"value\":\"s-value\"}],\"mimeType\":\"s-mimetype\",\"partId\":\"s-partid\",\"parts\":[{\"filename\":\"s-filename\",\"mimeType\":\"s-mimetype\",\"partId\":\"s-partid\"}]},\"raw\":\"YWI=\",\"sizeEstimate\":7,\"snippet\":\"s-snippet\",\"threadId\":\"s-threadid\"}",
+  "",
+  "  SERVED 200 @H Location=https://gmail.googleapis.com/upload/session-1 @B ",
+  "REQ POST https://gmail.googleapis.com/upload/session-1",
+  "  H content-range=bytes 0-262143/* | content-type=text/plain | x-goog-gcs-idempotency-token=UUID | x-guploader-no-308=yes",
+  "  B <262144 bytes> 0123456789abcdef0123456789abcdef...0123456789abcdef0123456789abcdef",
+  "  SERVED 200 @H X-Http-Status-Code-Override=308 @B ",
+  "REQ POST https://gmail.googleapis.com/upload/session-1",
+  "  H content-range=bytes 262144-262153/262154 | content-type=text/plain | x-goog-gcs-idempotency-token=UUID | x-guploader-no-308=yes",
+  "  B 0123456789",
+  "  SERVED 200 {\"classificationLabelValues\":[{\"labelId\":\"s-labelid\"}],\"historyId\":\"7\",\"id\":\"s-id\",\"internalDate\":\"7\",\"labelIds\":[\"s-labelids\"],\"payload\":{\"body\":{\"attachmentId\":\"s-attachmentid\",\"data\":\"YWI=\",\"size\":7},\"filename\":\"s-filename\",\"headers\":[{\"name\":\"s-name\",\"value\":\"s-value\"}],\"mimeType\":\"s-mimetype\",\"partId\":\"s-partid\",\"parts\":[{\"filename\":\"s-filename\",\"mimeType\":\"s-mimetype\",\"partId\":\"s-partid\"}]},\"raw\":\"YWI=\",\"sizeEstimate\":7,\"snippet\":\"s-snippet\",\"threadId\":\"s-threadid\"}",
+  "OUT: {\"classificationLabelValues\":[{\"labelId\":\"s-labelid\"}],\"historyId\":\"7\",\"id\":\"s-id\",\"internalDate\":\"7\",\"labelIds\":[\"s-labelids\"],\"payload\":{\"body\":{\"attachmentId\":\"s-attachmentid\",\"data\":\"YWI=\",\"size\":7},\"filename\":\"s-filename\",\"headers\":[{\"name\":\"s-name\",\"value\":\"s-value\"}],\"mimeType\":\"s-mimetype\",\"partId\":\"s-partid\",\"parts\":[{\"filename\":\"s-filename\",\"mimeType\":\"s-mimetype\",\"partId\":\"s-partid\"}]},\"raw\":\"YWI=\",\"sizeEstimate\":7,\"snippet\":\"s-snippet\",\"threadId\":\"s-threadid\"}",
+]
+
+test "Go's gmail.users.messages.import resumable" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "@H Location=https://gmail.googleapis.com/upload/session-1 @B ")
+  gv_queue(f, "@H X-Http-Status-Code-Override=308 @B ")
+  gv_queue(f, "{\"classificationLabelValues\":[{\"labelId\":\"s-labelid\"}],\"historyId\":\"7\",\"id\":\"s-id\",\"internalDate\":\"7\",\"labelIds\":[\"s-labelids\"],\"payload\":{\"body\":{\"attachmentId\":\"s-attachmentid\",\"data\":\"YWI=\",\"size\":7},\"filename\":\"s-filename\",\"headers\":[{\"name\":\"s-name\",\"value\":\"s-value\"}],\"mimeType\":\"s-mimetype\",\"partId\":\"s-partid\",\"parts\":[{\"filename\":\"s-filename\",\"mimeType\":\"s-mimetype\",\"partId\":\"s-partid\"}]},\"raw\":\"YWI=\",\"sizeEstimate\":7,\"snippet\":\"s-snippet\",\"threadId\":\"s-threadid\"}")
+  gv_note(f, "CALL gmail.users.messages.import resumable")
+  match svc.users.messages.import_media(os.clock, os.rand, "id1/ x", json.decode_str[Message]("{\"classificationLabelValues\":[{\"labelId\":\"s-labelid\"}],\"historyId\":\"7\",\"id\":\"s-id\",\"internalDate\":\"7\",\"labelIds\":[\"s-labelids\"],\"payload\":{\"body\":{\"attachmentId\":\"s-attachmentid\",\"data\":\"YWI=\",\"size\":7},\"filename\":\"s-filename\",\"headers\":[{\"name\":\"s-name\",\"value\":\"s-value\"}],\"mimeType\":\"s-mimetype\",\"partId\":\"s-partid\",\"parts\":[{\"filename\":\"s-filename\",\"mimeType\":\"s-mimetype\",\"partId\":\"s-partid\"}]},\"raw\":\"YWI=\",\"sizeEstimate\":7,\"snippet\":\"s-snippet\",\"threadId\":\"s-threadid\"}") ?? e => fault(e.display()), media: gensupport.Media{data: gv_big(), content_type: "text/plain", chunk_size: 262144}, options: UsersMessagesImportOptions{deleted: Some(true), internal_date_source: Some("s-internaldatesource"), never_mark_spam: Some(true), process_for_calendar: Some(true), fields: ["kind", "id"], headers: [("X-Extra", "v1")]}) {
+    Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+    Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+  }
+  gv_compare(gv_log_of(f), GO_30)
+}
+
+const GO_31: List[Str] = [
   "CALL gmail.users.messages.insert",
   "REQ POST https://gmail.googleapis.com/gmail/v1/users/id1%2F%20x/messages?alt=json&deleted=true&fields=kind%2Cid&internalDateSource=s-internaldatesource&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -478,10 +807,73 @@ test "Go's gmail.users.messages.insert" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_21)
+  gv_compare(gv_log_of(f), GO_31)
 }
 
-const GO_22: List[Str] = [
+const GO_32: List[Str] = [
+  "CALL gmail.users.messages.insert media",
+  "REQ POST https://gmail.googleapis.com/upload/gmail/v1/users/id1%2F%20x/messages?alt=json&deleted=true&fields=kind%2Cid&internalDateSource=s-internaldatesource&prettyPrint=false&uploadType=multipart",
+  "  H content-type=multipart/related; boundary=BOUNDARY | x-extra=v1",
+  "  B --BOUNDARY\u{000d}",
+  "Content-Type: application/json\u{000d}",
+  "\u{000d}",
+  "{\"classificationLabelValues\":[{\"labelId\":\"s-labelid\"}],\"historyId\":\"7\",\"id\":\"s-id\",\"internalDate\":\"7\",\"labelIds\":[\"s-labelids\"],\"payload\":{\"body\":{\"attachmentId\":\"s-attachmentid\",\"data\":\"YWI=\",\"size\":7},\"filename\":\"s-filename\",\"headers\":[{\"name\":\"s-name\",\"value\":\"s-value\"}],\"mimeType\":\"s-mimetype\",\"partId\":\"s-partid\",\"parts\":[{\"filename\":\"s-filename\",\"mimeType\":\"s-mimetype\",\"partId\":\"s-partid\"}]},\"raw\":\"YWI=\",\"sizeEstimate\":7,\"snippet\":\"s-snippet\",\"threadId\":\"s-threadid\"}",
+  "\u{000d}",
+  "--BOUNDARY\u{000d}",
+  "Content-Type: text/plain\u{000d}",
+  "\u{000d}",
+  "hello media\u{000d}",
+  "--BOUNDARY--\u{000d}",
+  "",
+  "  SERVED 200 {\"classificationLabelValues\":[{\"labelId\":\"s-labelid\"}],\"historyId\":\"7\",\"id\":\"s-id\",\"internalDate\":\"7\",\"labelIds\":[\"s-labelids\"],\"payload\":{\"body\":{\"attachmentId\":\"s-attachmentid\",\"data\":\"YWI=\",\"size\":7},\"filename\":\"s-filename\",\"headers\":[{\"name\":\"s-name\",\"value\":\"s-value\"}],\"mimeType\":\"s-mimetype\",\"partId\":\"s-partid\",\"parts\":[{\"filename\":\"s-filename\",\"mimeType\":\"s-mimetype\",\"partId\":\"s-partid\"}]},\"raw\":\"YWI=\",\"sizeEstimate\":7,\"snippet\":\"s-snippet\",\"threadId\":\"s-threadid\"}",
+  "OUT: {\"classificationLabelValues\":[{\"labelId\":\"s-labelid\"}],\"historyId\":\"7\",\"id\":\"s-id\",\"internalDate\":\"7\",\"labelIds\":[\"s-labelids\"],\"payload\":{\"body\":{\"attachmentId\":\"s-attachmentid\",\"data\":\"YWI=\",\"size\":7},\"filename\":\"s-filename\",\"headers\":[{\"name\":\"s-name\",\"value\":\"s-value\"}],\"mimeType\":\"s-mimetype\",\"partId\":\"s-partid\",\"parts\":[{\"filename\":\"s-filename\",\"mimeType\":\"s-mimetype\",\"partId\":\"s-partid\"}]},\"raw\":\"YWI=\",\"sizeEstimate\":7,\"snippet\":\"s-snippet\",\"threadId\":\"s-threadid\"}",
+]
+
+test "Go's gmail.users.messages.insert media" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"classificationLabelValues\":[{\"labelId\":\"s-labelid\"}],\"historyId\":\"7\",\"id\":\"s-id\",\"internalDate\":\"7\",\"labelIds\":[\"s-labelids\"],\"payload\":{\"body\":{\"attachmentId\":\"s-attachmentid\",\"data\":\"YWI=\",\"size\":7},\"filename\":\"s-filename\",\"headers\":[{\"name\":\"s-name\",\"value\":\"s-value\"}],\"mimeType\":\"s-mimetype\",\"partId\":\"s-partid\",\"parts\":[{\"filename\":\"s-filename\",\"mimeType\":\"s-mimetype\",\"partId\":\"s-partid\"}]},\"raw\":\"YWI=\",\"sizeEstimate\":7,\"snippet\":\"s-snippet\",\"threadId\":\"s-threadid\"}")
+  gv_note(f, "CALL gmail.users.messages.insert media")
+  match svc.users.messages.insert_media(os.clock, os.rand, "id1/ x", json.decode_str[Message]("{\"classificationLabelValues\":[{\"labelId\":\"s-labelid\"}],\"historyId\":\"7\",\"id\":\"s-id\",\"internalDate\":\"7\",\"labelIds\":[\"s-labelids\"],\"payload\":{\"body\":{\"attachmentId\":\"s-attachmentid\",\"data\":\"YWI=\",\"size\":7},\"filename\":\"s-filename\",\"headers\":[{\"name\":\"s-name\",\"value\":\"s-value\"}],\"mimeType\":\"s-mimetype\",\"partId\":\"s-partid\",\"parts\":[{\"filename\":\"s-filename\",\"mimeType\":\"s-mimetype\",\"partId\":\"s-partid\"}]},\"raw\":\"YWI=\",\"sizeEstimate\":7,\"snippet\":\"s-snippet\",\"threadId\":\"s-threadid\"}") ?? e => fault(e.display()), media: gensupport.Media{data: "hello media".bytes(), content_type: "text/plain"}, options: UsersMessagesInsertOptions{deleted: Some(true), internal_date_source: Some("s-internaldatesource"), fields: ["kind", "id"], headers: [("X-Extra", "v1")]}) {
+    Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+    Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+  }
+  gv_compare(gv_log_of(f), GO_32)
+}
+
+const GO_33: List[Str] = [
+  "CALL gmail.users.messages.insert resumable",
+  "REQ POST https://gmail.googleapis.com/upload/gmail/v1/users/id1%2F%20x/messages?alt=json&deleted=true&fields=kind%2Cid&internalDateSource=s-internaldatesource&prettyPrint=false&uploadType=resumable",
+  "  H content-type=application/json | x-extra=v1 | x-upload-content-type=text/plain",
+  "  B {\"classificationLabelValues\":[{\"labelId\":\"s-labelid\"}],\"historyId\":\"7\",\"id\":\"s-id\",\"internalDate\":\"7\",\"labelIds\":[\"s-labelids\"],\"payload\":{\"body\":{\"attachmentId\":\"s-attachmentid\",\"data\":\"YWI=\",\"size\":7},\"filename\":\"s-filename\",\"headers\":[{\"name\":\"s-name\",\"value\":\"s-value\"}],\"mimeType\":\"s-mimetype\",\"partId\":\"s-partid\",\"parts\":[{\"filename\":\"s-filename\",\"mimeType\":\"s-mimetype\",\"partId\":\"s-partid\"}]},\"raw\":\"YWI=\",\"sizeEstimate\":7,\"snippet\":\"s-snippet\",\"threadId\":\"s-threadid\"}",
+  "",
+  "  SERVED 200 @H Location=https://gmail.googleapis.com/upload/session-1 @B ",
+  "REQ POST https://gmail.googleapis.com/upload/session-1",
+  "  H content-range=bytes 0-262143/* | content-type=text/plain | x-goog-gcs-idempotency-token=UUID | x-guploader-no-308=yes",
+  "  B <262144 bytes> 0123456789abcdef0123456789abcdef...0123456789abcdef0123456789abcdef",
+  "  SERVED 200 @H X-Http-Status-Code-Override=308 @B ",
+  "REQ POST https://gmail.googleapis.com/upload/session-1",
+  "  H content-range=bytes 262144-262153/262154 | content-type=text/plain | x-goog-gcs-idempotency-token=UUID | x-guploader-no-308=yes",
+  "  B 0123456789",
+  "  SERVED 200 {\"classificationLabelValues\":[{\"labelId\":\"s-labelid\"}],\"historyId\":\"7\",\"id\":\"s-id\",\"internalDate\":\"7\",\"labelIds\":[\"s-labelids\"],\"payload\":{\"body\":{\"attachmentId\":\"s-attachmentid\",\"data\":\"YWI=\",\"size\":7},\"filename\":\"s-filename\",\"headers\":[{\"name\":\"s-name\",\"value\":\"s-value\"}],\"mimeType\":\"s-mimetype\",\"partId\":\"s-partid\",\"parts\":[{\"filename\":\"s-filename\",\"mimeType\":\"s-mimetype\",\"partId\":\"s-partid\"}]},\"raw\":\"YWI=\",\"sizeEstimate\":7,\"snippet\":\"s-snippet\",\"threadId\":\"s-threadid\"}",
+  "OUT: {\"classificationLabelValues\":[{\"labelId\":\"s-labelid\"}],\"historyId\":\"7\",\"id\":\"s-id\",\"internalDate\":\"7\",\"labelIds\":[\"s-labelids\"],\"payload\":{\"body\":{\"attachmentId\":\"s-attachmentid\",\"data\":\"YWI=\",\"size\":7},\"filename\":\"s-filename\",\"headers\":[{\"name\":\"s-name\",\"value\":\"s-value\"}],\"mimeType\":\"s-mimetype\",\"partId\":\"s-partid\",\"parts\":[{\"filename\":\"s-filename\",\"mimeType\":\"s-mimetype\",\"partId\":\"s-partid\"}]},\"raw\":\"YWI=\",\"sizeEstimate\":7,\"snippet\":\"s-snippet\",\"threadId\":\"s-threadid\"}",
+]
+
+test "Go's gmail.users.messages.insert resumable" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "@H Location=https://gmail.googleapis.com/upload/session-1 @B ")
+  gv_queue(f, "@H X-Http-Status-Code-Override=308 @B ")
+  gv_queue(f, "{\"classificationLabelValues\":[{\"labelId\":\"s-labelid\"}],\"historyId\":\"7\",\"id\":\"s-id\",\"internalDate\":\"7\",\"labelIds\":[\"s-labelids\"],\"payload\":{\"body\":{\"attachmentId\":\"s-attachmentid\",\"data\":\"YWI=\",\"size\":7},\"filename\":\"s-filename\",\"headers\":[{\"name\":\"s-name\",\"value\":\"s-value\"}],\"mimeType\":\"s-mimetype\",\"partId\":\"s-partid\",\"parts\":[{\"filename\":\"s-filename\",\"mimeType\":\"s-mimetype\",\"partId\":\"s-partid\"}]},\"raw\":\"YWI=\",\"sizeEstimate\":7,\"snippet\":\"s-snippet\",\"threadId\":\"s-threadid\"}")
+  gv_note(f, "CALL gmail.users.messages.insert resumable")
+  match svc.users.messages.insert_media(os.clock, os.rand, "id1/ x", json.decode_str[Message]("{\"classificationLabelValues\":[{\"labelId\":\"s-labelid\"}],\"historyId\":\"7\",\"id\":\"s-id\",\"internalDate\":\"7\",\"labelIds\":[\"s-labelids\"],\"payload\":{\"body\":{\"attachmentId\":\"s-attachmentid\",\"data\":\"YWI=\",\"size\":7},\"filename\":\"s-filename\",\"headers\":[{\"name\":\"s-name\",\"value\":\"s-value\"}],\"mimeType\":\"s-mimetype\",\"partId\":\"s-partid\",\"parts\":[{\"filename\":\"s-filename\",\"mimeType\":\"s-mimetype\",\"partId\":\"s-partid\"}]},\"raw\":\"YWI=\",\"sizeEstimate\":7,\"snippet\":\"s-snippet\",\"threadId\":\"s-threadid\"}") ?? e => fault(e.display()), media: gensupport.Media{data: gv_big(), content_type: "text/plain", chunk_size: 262144}, options: UsersMessagesInsertOptions{deleted: Some(true), internal_date_source: Some("s-internaldatesource"), fields: ["kind", "id"], headers: [("X-Extra", "v1")]}) {
+    Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+    Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+  }
+  gv_compare(gv_log_of(f), GO_33)
+}
+
+const GO_34: List[Str] = [
   "CALL gmail.users.messages.list",
   "REQ GET https://gmail.googleapis.com/gmail/v1/users/id1%2F%20x/messages?alt=json&fields=kind%2Cid&includeSpamTrash=true&labelIds=s-labelids&maxResults=7&pageToken=s-pagetoken&prettyPrint=false&q=s-q",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -499,10 +891,48 @@ test "Go's gmail.users.messages.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_22)
+  gv_compare(gv_log_of(f), GO_34)
 }
 
-const GO_23: List[Str] = [
+const GO_35: List[Str] = [
+  "CALL gmail.users.messages.list pages",
+  "REQ GET https://gmail.googleapis.com/gmail/v1/users/id1%2F%20x/messages?alt=json&fields=kind%2Cid&includeSpamTrash=true&labelIds=s-labelids&maxResults=7&pageToken=s-pagetoken&prettyPrint=false&q=s-q",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"messages\":[{\"historyId\":\"7\",\"id\":\"s-id\",\"internalDate\":\"7\",\"labelIds\":[\"s-labelids\"],\"payload\":{\"filename\":\"s-filename\",\"mimeType\":\"s-mimetype\",\"partId\":\"s-partid\"},\"raw\":\"YWI=\",\"sizeEstimate\":7,\"snippet\":\"s-snippet\",\"threadId\":\"s-threadid\"}],\"nextPageToken\":\"s-nextpagetoken\",\"resultSizeEstimate\":7}",
+  "OUT: {\"messages\":[{\"historyId\":\"7\",\"id\":\"s-id\",\"internalDate\":\"7\",\"labelIds\":[\"s-labelids\"],\"payload\":{\"filename\":\"s-filename\",\"mimeType\":\"s-mimetype\",\"partId\":\"s-partid\"},\"raw\":\"YWI=\",\"sizeEstimate\":7,\"snippet\":\"s-snippet\",\"threadId\":\"s-threadid\"}],\"nextPageToken\":\"s-nextpagetoken\",\"resultSizeEstimate\":7}",
+  "REQ GET https://gmail.googleapis.com/gmail/v1/users/id1%2F%20x/messages?alt=json&fields=kind%2Cid&includeSpamTrash=true&labelIds=s-labelids&maxResults=7&pageToken=s-nextpagetoken&prettyPrint=false&q=s-q",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"messages\":[{\"historyId\":\"7\",\"id\":\"s-id\",\"internalDate\":\"7\",\"labelIds\":[\"s-labelids\"],\"payload\":{\"filename\":\"s-filename\",\"mimeType\":\"s-mimetype\",\"partId\":\"s-partid\"},\"raw\":\"YWI=\",\"sizeEstimate\":7,\"snippet\":\"s-snippet\",\"threadId\":\"s-threadid\"}],\"resultSizeEstimate\":7}",
+  "OUT: {\"messages\":[{\"historyId\":\"7\",\"id\":\"s-id\",\"internalDate\":\"7\",\"labelIds\":[\"s-labelids\"],\"payload\":{\"filename\":\"s-filename\",\"mimeType\":\"s-mimetype\",\"partId\":\"s-partid\"},\"raw\":\"YWI=\",\"sizeEstimate\":7,\"snippet\":\"s-snippet\",\"threadId\":\"s-threadid\"}],\"resultSizeEstimate\":7}",
+  "OUT: ok",
+]
+
+test "Go's gmail.users.messages.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"messages\":[{\"historyId\":\"7\",\"id\":\"s-id\",\"internalDate\":\"7\",\"labelIds\":[\"s-labelids\"],\"payload\":{\"filename\":\"s-filename\",\"mimeType\":\"s-mimetype\",\"partId\":\"s-partid\"},\"raw\":\"YWI=\",\"sizeEstimate\":7,\"snippet\":\"s-snippet\",\"threadId\":\"s-threadid\"}],\"nextPageToken\":\"s-nextpagetoken\",\"resultSizeEstimate\":7}")
+  gv_queue(f, "{\"messages\":[{\"historyId\":\"7\",\"id\":\"s-id\",\"internalDate\":\"7\",\"labelIds\":[\"s-labelids\"],\"payload\":{\"filename\":\"s-filename\",\"mimeType\":\"s-mimetype\",\"partId\":\"s-partid\"},\"raw\":\"YWI=\",\"sizeEstimate\":7,\"snippet\":\"s-snippet\",\"threadId\":\"s-threadid\"}],\"resultSizeEstimate\":7}")
+  gv_note(f, "CALL gmail.users.messages.list pages")
+  var p = svc.users.messages.list_pages("id1/ x", options: UsersMessagesListOptions{include_spam_trash: Some(true), label_ids: ["s-labelids"], max_results: Some(7), page_token: Some("s-pagetoken"), q: Some("s-q"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_35)
+}
+
+const GO_36: List[Str] = [
   "CALL gmail.users.messages.modify",
   "REQ POST https://gmail.googleapis.com/gmail/v1/users/id1%2F%20x/messages/id2%2F%20x/modify?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -521,10 +951,10 @@ test "Go's gmail.users.messages.modify" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_23)
+  gv_compare(gv_log_of(f), GO_36)
 }
 
-const GO_24: List[Str] = [
+const GO_37: List[Str] = [
   "CALL gmail.users.messages.send",
   "REQ POST https://gmail.googleapis.com/gmail/v1/users/id1%2F%20x/messages/send?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -543,10 +973,73 @@ test "Go's gmail.users.messages.send" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_24)
+  gv_compare(gv_log_of(f), GO_37)
 }
 
-const GO_25: List[Str] = [
+const GO_38: List[Str] = [
+  "CALL gmail.users.messages.send media",
+  "REQ POST https://gmail.googleapis.com/upload/gmail/v1/users/id1%2F%20x/messages/send?alt=json&fields=kind%2Cid&prettyPrint=false&uploadType=multipart",
+  "  H content-type=multipart/related; boundary=BOUNDARY | x-extra=v1",
+  "  B --BOUNDARY\u{000d}",
+  "Content-Type: application/json\u{000d}",
+  "\u{000d}",
+  "{\"classificationLabelValues\":[{\"labelId\":\"s-labelid\"}],\"historyId\":\"7\",\"id\":\"s-id\",\"internalDate\":\"7\",\"labelIds\":[\"s-labelids\"],\"payload\":{\"body\":{\"attachmentId\":\"s-attachmentid\",\"data\":\"YWI=\",\"size\":7},\"filename\":\"s-filename\",\"headers\":[{\"name\":\"s-name\",\"value\":\"s-value\"}],\"mimeType\":\"s-mimetype\",\"partId\":\"s-partid\",\"parts\":[{\"filename\":\"s-filename\",\"mimeType\":\"s-mimetype\",\"partId\":\"s-partid\"}]},\"raw\":\"YWI=\",\"sizeEstimate\":7,\"snippet\":\"s-snippet\",\"threadId\":\"s-threadid\"}",
+  "\u{000d}",
+  "--BOUNDARY\u{000d}",
+  "Content-Type: text/plain\u{000d}",
+  "\u{000d}",
+  "hello media\u{000d}",
+  "--BOUNDARY--\u{000d}",
+  "",
+  "  SERVED 200 {\"classificationLabelValues\":[{\"labelId\":\"s-labelid\"}],\"historyId\":\"7\",\"id\":\"s-id\",\"internalDate\":\"7\",\"labelIds\":[\"s-labelids\"],\"payload\":{\"body\":{\"attachmentId\":\"s-attachmentid\",\"data\":\"YWI=\",\"size\":7},\"filename\":\"s-filename\",\"headers\":[{\"name\":\"s-name\",\"value\":\"s-value\"}],\"mimeType\":\"s-mimetype\",\"partId\":\"s-partid\",\"parts\":[{\"filename\":\"s-filename\",\"mimeType\":\"s-mimetype\",\"partId\":\"s-partid\"}]},\"raw\":\"YWI=\",\"sizeEstimate\":7,\"snippet\":\"s-snippet\",\"threadId\":\"s-threadid\"}",
+  "OUT: {\"classificationLabelValues\":[{\"labelId\":\"s-labelid\"}],\"historyId\":\"7\",\"id\":\"s-id\",\"internalDate\":\"7\",\"labelIds\":[\"s-labelids\"],\"payload\":{\"body\":{\"attachmentId\":\"s-attachmentid\",\"data\":\"YWI=\",\"size\":7},\"filename\":\"s-filename\",\"headers\":[{\"name\":\"s-name\",\"value\":\"s-value\"}],\"mimeType\":\"s-mimetype\",\"partId\":\"s-partid\",\"parts\":[{\"filename\":\"s-filename\",\"mimeType\":\"s-mimetype\",\"partId\":\"s-partid\"}]},\"raw\":\"YWI=\",\"sizeEstimate\":7,\"snippet\":\"s-snippet\",\"threadId\":\"s-threadid\"}",
+]
+
+test "Go's gmail.users.messages.send media" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"classificationLabelValues\":[{\"labelId\":\"s-labelid\"}],\"historyId\":\"7\",\"id\":\"s-id\",\"internalDate\":\"7\",\"labelIds\":[\"s-labelids\"],\"payload\":{\"body\":{\"attachmentId\":\"s-attachmentid\",\"data\":\"YWI=\",\"size\":7},\"filename\":\"s-filename\",\"headers\":[{\"name\":\"s-name\",\"value\":\"s-value\"}],\"mimeType\":\"s-mimetype\",\"partId\":\"s-partid\",\"parts\":[{\"filename\":\"s-filename\",\"mimeType\":\"s-mimetype\",\"partId\":\"s-partid\"}]},\"raw\":\"YWI=\",\"sizeEstimate\":7,\"snippet\":\"s-snippet\",\"threadId\":\"s-threadid\"}")
+  gv_note(f, "CALL gmail.users.messages.send media")
+  match svc.users.messages.send_media(os.clock, os.rand, "id1/ x", json.decode_str[Message]("{\"classificationLabelValues\":[{\"labelId\":\"s-labelid\"}],\"historyId\":\"7\",\"id\":\"s-id\",\"internalDate\":\"7\",\"labelIds\":[\"s-labelids\"],\"payload\":{\"body\":{\"attachmentId\":\"s-attachmentid\",\"data\":\"YWI=\",\"size\":7},\"filename\":\"s-filename\",\"headers\":[{\"name\":\"s-name\",\"value\":\"s-value\"}],\"mimeType\":\"s-mimetype\",\"partId\":\"s-partid\",\"parts\":[{\"filename\":\"s-filename\",\"mimeType\":\"s-mimetype\",\"partId\":\"s-partid\"}]},\"raw\":\"YWI=\",\"sizeEstimate\":7,\"snippet\":\"s-snippet\",\"threadId\":\"s-threadid\"}") ?? e => fault(e.display()), media: gensupport.Media{data: "hello media".bytes(), content_type: "text/plain"}, options: UsersMessagesSendOptions{fields: ["kind", "id"], headers: [("X-Extra", "v1")]}) {
+    Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+    Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+  }
+  gv_compare(gv_log_of(f), GO_38)
+}
+
+const GO_39: List[Str] = [
+  "CALL gmail.users.messages.send resumable",
+  "REQ POST https://gmail.googleapis.com/upload/gmail/v1/users/id1%2F%20x/messages/send?alt=json&fields=kind%2Cid&prettyPrint=false&uploadType=resumable",
+  "  H content-type=application/json | x-extra=v1 | x-upload-content-type=text/plain",
+  "  B {\"classificationLabelValues\":[{\"labelId\":\"s-labelid\"}],\"historyId\":\"7\",\"id\":\"s-id\",\"internalDate\":\"7\",\"labelIds\":[\"s-labelids\"],\"payload\":{\"body\":{\"attachmentId\":\"s-attachmentid\",\"data\":\"YWI=\",\"size\":7},\"filename\":\"s-filename\",\"headers\":[{\"name\":\"s-name\",\"value\":\"s-value\"}],\"mimeType\":\"s-mimetype\",\"partId\":\"s-partid\",\"parts\":[{\"filename\":\"s-filename\",\"mimeType\":\"s-mimetype\",\"partId\":\"s-partid\"}]},\"raw\":\"YWI=\",\"sizeEstimate\":7,\"snippet\":\"s-snippet\",\"threadId\":\"s-threadid\"}",
+  "",
+  "  SERVED 200 @H Location=https://gmail.googleapis.com/upload/session-1 @B ",
+  "REQ POST https://gmail.googleapis.com/upload/session-1",
+  "  H content-range=bytes 0-262143/* | content-type=text/plain | x-goog-gcs-idempotency-token=UUID | x-guploader-no-308=yes",
+  "  B <262144 bytes> 0123456789abcdef0123456789abcdef...0123456789abcdef0123456789abcdef",
+  "  SERVED 200 @H X-Http-Status-Code-Override=308 @B ",
+  "REQ POST https://gmail.googleapis.com/upload/session-1",
+  "  H content-range=bytes 262144-262153/262154 | content-type=text/plain | x-goog-gcs-idempotency-token=UUID | x-guploader-no-308=yes",
+  "  B 0123456789",
+  "  SERVED 200 {\"classificationLabelValues\":[{\"labelId\":\"s-labelid\"}],\"historyId\":\"7\",\"id\":\"s-id\",\"internalDate\":\"7\",\"labelIds\":[\"s-labelids\"],\"payload\":{\"body\":{\"attachmentId\":\"s-attachmentid\",\"data\":\"YWI=\",\"size\":7},\"filename\":\"s-filename\",\"headers\":[{\"name\":\"s-name\",\"value\":\"s-value\"}],\"mimeType\":\"s-mimetype\",\"partId\":\"s-partid\",\"parts\":[{\"filename\":\"s-filename\",\"mimeType\":\"s-mimetype\",\"partId\":\"s-partid\"}]},\"raw\":\"YWI=\",\"sizeEstimate\":7,\"snippet\":\"s-snippet\",\"threadId\":\"s-threadid\"}",
+  "OUT: {\"classificationLabelValues\":[{\"labelId\":\"s-labelid\"}],\"historyId\":\"7\",\"id\":\"s-id\",\"internalDate\":\"7\",\"labelIds\":[\"s-labelids\"],\"payload\":{\"body\":{\"attachmentId\":\"s-attachmentid\",\"data\":\"YWI=\",\"size\":7},\"filename\":\"s-filename\",\"headers\":[{\"name\":\"s-name\",\"value\":\"s-value\"}],\"mimeType\":\"s-mimetype\",\"partId\":\"s-partid\",\"parts\":[{\"filename\":\"s-filename\",\"mimeType\":\"s-mimetype\",\"partId\":\"s-partid\"}]},\"raw\":\"YWI=\",\"sizeEstimate\":7,\"snippet\":\"s-snippet\",\"threadId\":\"s-threadid\"}",
+]
+
+test "Go's gmail.users.messages.send resumable" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "@H Location=https://gmail.googleapis.com/upload/session-1 @B ")
+  gv_queue(f, "@H X-Http-Status-Code-Override=308 @B ")
+  gv_queue(f, "{\"classificationLabelValues\":[{\"labelId\":\"s-labelid\"}],\"historyId\":\"7\",\"id\":\"s-id\",\"internalDate\":\"7\",\"labelIds\":[\"s-labelids\"],\"payload\":{\"body\":{\"attachmentId\":\"s-attachmentid\",\"data\":\"YWI=\",\"size\":7},\"filename\":\"s-filename\",\"headers\":[{\"name\":\"s-name\",\"value\":\"s-value\"}],\"mimeType\":\"s-mimetype\",\"partId\":\"s-partid\",\"parts\":[{\"filename\":\"s-filename\",\"mimeType\":\"s-mimetype\",\"partId\":\"s-partid\"}]},\"raw\":\"YWI=\",\"sizeEstimate\":7,\"snippet\":\"s-snippet\",\"threadId\":\"s-threadid\"}")
+  gv_note(f, "CALL gmail.users.messages.send resumable")
+  match svc.users.messages.send_media(os.clock, os.rand, "id1/ x", json.decode_str[Message]("{\"classificationLabelValues\":[{\"labelId\":\"s-labelid\"}],\"historyId\":\"7\",\"id\":\"s-id\",\"internalDate\":\"7\",\"labelIds\":[\"s-labelids\"],\"payload\":{\"body\":{\"attachmentId\":\"s-attachmentid\",\"data\":\"YWI=\",\"size\":7},\"filename\":\"s-filename\",\"headers\":[{\"name\":\"s-name\",\"value\":\"s-value\"}],\"mimeType\":\"s-mimetype\",\"partId\":\"s-partid\",\"parts\":[{\"filename\":\"s-filename\",\"mimeType\":\"s-mimetype\",\"partId\":\"s-partid\"}]},\"raw\":\"YWI=\",\"sizeEstimate\":7,\"snippet\":\"s-snippet\",\"threadId\":\"s-threadid\"}") ?? e => fault(e.display()), media: gensupport.Media{data: gv_big(), content_type: "text/plain", chunk_size: 262144}, options: UsersMessagesSendOptions{fields: ["kind", "id"], headers: [("X-Extra", "v1")]}) {
+    Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+    Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+  }
+  gv_compare(gv_log_of(f), GO_39)
+}
+
+const GO_40: List[Str] = [
   "CALL gmail.users.messages.trash",
   "REQ POST https://gmail.googleapis.com/gmail/v1/users/id1%2F%20x/messages/id2%2F%20x/trash?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -564,10 +1057,10 @@ test "Go's gmail.users.messages.trash" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_25)
+  gv_compare(gv_log_of(f), GO_40)
 }
 
-const GO_26: List[Str] = [
+const GO_41: List[Str] = [
   "CALL gmail.users.messages.untrash",
   "REQ POST https://gmail.googleapis.com/gmail/v1/users/id1%2F%20x/messages/id2%2F%20x/untrash?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -585,10 +1078,10 @@ test "Go's gmail.users.messages.untrash" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_26)
+  gv_compare(gv_log_of(f), GO_41)
 }
 
-const GO_27: List[Str] = [
+const GO_42: List[Str] = [
   "CALL gmail.users.messages.attachments.get",
   "REQ GET https://gmail.googleapis.com/gmail/v1/users/id1%2F%20x/messages/id2%2F%20x/attachments/id3%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -606,10 +1099,10 @@ test "Go's gmail.users.messages.attachments.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_27)
+  gv_compare(gv_log_of(f), GO_42)
 }
 
-const GO_28: List[Str] = [
+const GO_43: List[Str] = [
   "CALL gmail.users.settings.getAutoForwarding",
   "REQ GET https://gmail.googleapis.com/gmail/v1/users/id1%2F%20x/settings/autoForwarding?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -627,10 +1120,10 @@ test "Go's gmail.users.settings.getAutoForwarding" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_28)
+  gv_compare(gv_log_of(f), GO_43)
 }
 
-const GO_29: List[Str] = [
+const GO_44: List[Str] = [
   "CALL gmail.users.settings.getImap",
   "REQ GET https://gmail.googleapis.com/gmail/v1/users/id1%2F%20x/settings/imap?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -648,10 +1141,10 @@ test "Go's gmail.users.settings.getImap" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_29)
+  gv_compare(gv_log_of(f), GO_44)
 }
 
-const GO_30: List[Str] = [
+const GO_45: List[Str] = [
   "CALL gmail.users.settings.getLanguage",
   "REQ GET https://gmail.googleapis.com/gmail/v1/users/id1%2F%20x/settings/language?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -669,10 +1162,10 @@ test "Go's gmail.users.settings.getLanguage" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_30)
+  gv_compare(gv_log_of(f), GO_45)
 }
 
-const GO_31: List[Str] = [
+const GO_46: List[Str] = [
   "CALL gmail.users.settings.getPop",
   "REQ GET https://gmail.googleapis.com/gmail/v1/users/id1%2F%20x/settings/pop?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -690,10 +1183,10 @@ test "Go's gmail.users.settings.getPop" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_31)
+  gv_compare(gv_log_of(f), GO_46)
 }
 
-const GO_32: List[Str] = [
+const GO_47: List[Str] = [
   "CALL gmail.users.settings.getVacation",
   "REQ GET https://gmail.googleapis.com/gmail/v1/users/id1%2F%20x/settings/vacation?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -711,10 +1204,10 @@ test "Go's gmail.users.settings.getVacation" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_32)
+  gv_compare(gv_log_of(f), GO_47)
 }
 
-const GO_33: List[Str] = [
+const GO_48: List[Str] = [
   "CALL gmail.users.settings.updateAutoForwarding",
   "REQ PUT https://gmail.googleapis.com/gmail/v1/users/id1%2F%20x/settings/autoForwarding?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -733,10 +1226,10 @@ test "Go's gmail.users.settings.updateAutoForwarding" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_33)
+  gv_compare(gv_log_of(f), GO_48)
 }
 
-const GO_34: List[Str] = [
+const GO_49: List[Str] = [
   "CALL gmail.users.settings.updateImap",
   "REQ PUT https://gmail.googleapis.com/gmail/v1/users/id1%2F%20x/settings/imap?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -755,10 +1248,10 @@ test "Go's gmail.users.settings.updateImap" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_34)
+  gv_compare(gv_log_of(f), GO_49)
 }
 
-const GO_35: List[Str] = [
+const GO_50: List[Str] = [
   "CALL gmail.users.settings.updateLanguage",
   "REQ PUT https://gmail.googleapis.com/gmail/v1/users/id1%2F%20x/settings/language?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -777,10 +1270,10 @@ test "Go's gmail.users.settings.updateLanguage" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_35)
+  gv_compare(gv_log_of(f), GO_50)
 }
 
-const GO_36: List[Str] = [
+const GO_51: List[Str] = [
   "CALL gmail.users.settings.updatePop",
   "REQ PUT https://gmail.googleapis.com/gmail/v1/users/id1%2F%20x/settings/pop?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -799,10 +1292,10 @@ test "Go's gmail.users.settings.updatePop" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_36)
+  gv_compare(gv_log_of(f), GO_51)
 }
 
-const GO_37: List[Str] = [
+const GO_52: List[Str] = [
   "CALL gmail.users.settings.updateVacation",
   "REQ PUT https://gmail.googleapis.com/gmail/v1/users/id1%2F%20x/settings/vacation?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -821,10 +1314,10 @@ test "Go's gmail.users.settings.updateVacation" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_37)
+  gv_compare(gv_log_of(f), GO_52)
 }
 
-const GO_38: List[Str] = [
+const GO_53: List[Str] = [
   "CALL gmail.users.settings.cse.identities.create",
   "REQ POST https://gmail.googleapis.com/gmail/v1/users/id1%2F%20x/settings/cse/identities?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -843,10 +1336,10 @@ test "Go's gmail.users.settings.cse.identities.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_38)
+  gv_compare(gv_log_of(f), GO_53)
 }
 
-const GO_39: List[Str] = [
+const GO_54: List[Str] = [
   "CALL gmail.users.settings.cse.identities.delete",
   "REQ DELETE https://gmail.googleapis.com/gmail/v1/users/id1%2F%20x/settings/cse/identities/id2%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -864,10 +1357,10 @@ test "Go's gmail.users.settings.cse.identities.delete" {
     Ok(_) => gv_note(f, "OUT: ok")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_39)
+  gv_compare(gv_log_of(f), GO_54)
 }
 
-const GO_40: List[Str] = [
+const GO_55: List[Str] = [
   "CALL gmail.users.settings.cse.identities.get",
   "REQ GET https://gmail.googleapis.com/gmail/v1/users/id1%2F%20x/settings/cse/identities/id2%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -885,10 +1378,10 @@ test "Go's gmail.users.settings.cse.identities.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_40)
+  gv_compare(gv_log_of(f), GO_55)
 }
 
-const GO_41: List[Str] = [
+const GO_56: List[Str] = [
   "CALL gmail.users.settings.cse.identities.list",
   "REQ GET https://gmail.googleapis.com/gmail/v1/users/id1%2F%20x/settings/cse/identities?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -906,10 +1399,48 @@ test "Go's gmail.users.settings.cse.identities.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_41)
+  gv_compare(gv_log_of(f), GO_56)
 }
 
-const GO_42: List[Str] = [
+const GO_57: List[Str] = [
+  "CALL gmail.users.settings.cse.identities.list pages",
+  "REQ GET https://gmail.googleapis.com/gmail/v1/users/id1%2F%20x/settings/cse/identities?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"cseIdentities\":[{\"emailAddress\":\"s-emailaddress\",\"primaryKeyPairId\":\"s-primarykeypairid\",\"signAndEncryptKeyPairs\":{\"encryptionKeyPairId\":\"s-encryptionkeypairid\",\"signingKeyPairId\":\"s-signingkeypairid\"}}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"cseIdentities\":[{\"emailAddress\":\"s-emailaddress\",\"primaryKeyPairId\":\"s-primarykeypairid\",\"signAndEncryptKeyPairs\":{\"encryptionKeyPairId\":\"s-encryptionkeypairid\",\"signingKeyPairId\":\"s-signingkeypairid\"}}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://gmail.googleapis.com/gmail/v1/users/id1%2F%20x/settings/cse/identities?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"cseIdentities\":[{\"emailAddress\":\"s-emailaddress\",\"primaryKeyPairId\":\"s-primarykeypairid\",\"signAndEncryptKeyPairs\":{\"encryptionKeyPairId\":\"s-encryptionkeypairid\",\"signingKeyPairId\":\"s-signingkeypairid\"}}]}",
+  "OUT: {\"cseIdentities\":[{\"emailAddress\":\"s-emailaddress\",\"primaryKeyPairId\":\"s-primarykeypairid\",\"signAndEncryptKeyPairs\":{\"encryptionKeyPairId\":\"s-encryptionkeypairid\",\"signingKeyPairId\":\"s-signingkeypairid\"}}]}",
+  "OUT: ok",
+]
+
+test "Go's gmail.users.settings.cse.identities.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"cseIdentities\":[{\"emailAddress\":\"s-emailaddress\",\"primaryKeyPairId\":\"s-primarykeypairid\",\"signAndEncryptKeyPairs\":{\"encryptionKeyPairId\":\"s-encryptionkeypairid\",\"signingKeyPairId\":\"s-signingkeypairid\"}}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"cseIdentities\":[{\"emailAddress\":\"s-emailaddress\",\"primaryKeyPairId\":\"s-primarykeypairid\",\"signAndEncryptKeyPairs\":{\"encryptionKeyPairId\":\"s-encryptionkeypairid\",\"signingKeyPairId\":\"s-signingkeypairid\"}}]}")
+  gv_note(f, "CALL gmail.users.settings.cse.identities.list pages")
+  var p = svc.users.settings.cse.identities.list_pages("id1/ x", options: UsersSettingsCseIdentitiesListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_57)
+}
+
+const GO_58: List[Str] = [
   "CALL gmail.users.settings.cse.identities.patch",
   "REQ PATCH https://gmail.googleapis.com/gmail/v1/users/id1%2F%20x/settings/cse/identities/id2%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -928,10 +1459,10 @@ test "Go's gmail.users.settings.cse.identities.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_42)
+  gv_compare(gv_log_of(f), GO_58)
 }
 
-const GO_43: List[Str] = [
+const GO_59: List[Str] = [
   "CALL gmail.users.settings.cse.keypairs.create",
   "REQ POST https://gmail.googleapis.com/gmail/v1/users/id1%2F%20x/settings/cse/keypairs?alt=json&chainValidation=s-chainvalidation&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -950,10 +1481,10 @@ test "Go's gmail.users.settings.cse.keypairs.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_43)
+  gv_compare(gv_log_of(f), GO_59)
 }
 
-const GO_44: List[Str] = [
+const GO_60: List[Str] = [
   "CALL gmail.users.settings.cse.keypairs.disable",
   "REQ POST https://gmail.googleapis.com/gmail/v1/users/id1%2F%20x/settings/cse/keypairs/id2%2F%20x:disable?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -972,10 +1503,10 @@ test "Go's gmail.users.settings.cse.keypairs.disable" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_44)
+  gv_compare(gv_log_of(f), GO_60)
 }
 
-const GO_45: List[Str] = [
+const GO_61: List[Str] = [
   "CALL gmail.users.settings.cse.keypairs.enable",
   "REQ POST https://gmail.googleapis.com/gmail/v1/users/id1%2F%20x/settings/cse/keypairs/id2%2F%20x:enable?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -994,10 +1525,10 @@ test "Go's gmail.users.settings.cse.keypairs.enable" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_45)
+  gv_compare(gv_log_of(f), GO_61)
 }
 
-const GO_46: List[Str] = [
+const GO_62: List[Str] = [
   "CALL gmail.users.settings.cse.keypairs.get",
   "REQ GET https://gmail.googleapis.com/gmail/v1/users/id1%2F%20x/settings/cse/keypairs/id2%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1015,10 +1546,10 @@ test "Go's gmail.users.settings.cse.keypairs.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_46)
+  gv_compare(gv_log_of(f), GO_62)
 }
 
-const GO_47: List[Str] = [
+const GO_63: List[Str] = [
   "CALL gmail.users.settings.cse.keypairs.list",
   "REQ GET https://gmail.googleapis.com/gmail/v1/users/id1%2F%20x/settings/cse/keypairs?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1036,10 +1567,48 @@ test "Go's gmail.users.settings.cse.keypairs.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_47)
+  gv_compare(gv_log_of(f), GO_63)
 }
 
-const GO_48: List[Str] = [
+const GO_64: List[Str] = [
+  "CALL gmail.users.settings.cse.keypairs.list pages",
+  "REQ GET https://gmail.googleapis.com/gmail/v1/users/id1%2F%20x/settings/cse/keypairs?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"cseKeyPairs\":[{\"disableTime\":\"s-disabletime\",\"enablementState\":\"s-enablementstate\",\"keyPairId\":\"s-keypairid\",\"pem\":\"s-pem\",\"pkcs7\":\"s-pkcs7\",\"subjectEmailAddresses\":[\"s-subjectemailaddresses\"]}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"cseKeyPairs\":[{\"disableTime\":\"s-disabletime\",\"enablementState\":\"s-enablementstate\",\"keyPairId\":\"s-keypairid\",\"pem\":\"s-pem\",\"pkcs7\":\"s-pkcs7\",\"subjectEmailAddresses\":[\"s-subjectemailaddresses\"]}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://gmail.googleapis.com/gmail/v1/users/id1%2F%20x/settings/cse/keypairs?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"cseKeyPairs\":[{\"disableTime\":\"s-disabletime\",\"enablementState\":\"s-enablementstate\",\"keyPairId\":\"s-keypairid\",\"pem\":\"s-pem\",\"pkcs7\":\"s-pkcs7\",\"subjectEmailAddresses\":[\"s-subjectemailaddresses\"]}]}",
+  "OUT: {\"cseKeyPairs\":[{\"disableTime\":\"s-disabletime\",\"enablementState\":\"s-enablementstate\",\"keyPairId\":\"s-keypairid\",\"pem\":\"s-pem\",\"pkcs7\":\"s-pkcs7\",\"subjectEmailAddresses\":[\"s-subjectemailaddresses\"]}]}",
+  "OUT: ok",
+]
+
+test "Go's gmail.users.settings.cse.keypairs.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"cseKeyPairs\":[{\"disableTime\":\"s-disabletime\",\"enablementState\":\"s-enablementstate\",\"keyPairId\":\"s-keypairid\",\"pem\":\"s-pem\",\"pkcs7\":\"s-pkcs7\",\"subjectEmailAddresses\":[\"s-subjectemailaddresses\"]}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"cseKeyPairs\":[{\"disableTime\":\"s-disabletime\",\"enablementState\":\"s-enablementstate\",\"keyPairId\":\"s-keypairid\",\"pem\":\"s-pem\",\"pkcs7\":\"s-pkcs7\",\"subjectEmailAddresses\":[\"s-subjectemailaddresses\"]}]}")
+  gv_note(f, "CALL gmail.users.settings.cse.keypairs.list pages")
+  var p = svc.users.settings.cse.keypairs.list_pages("id1/ x", options: UsersSettingsCseKeypairsListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_64)
+}
+
+const GO_65: List[Str] = [
   "CALL gmail.users.settings.cse.keypairs.obliterate",
   "REQ POST https://gmail.googleapis.com/gmail/v1/users/id1%2F%20x/settings/cse/keypairs/id2%2F%20x:obliterate?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1058,10 +1627,10 @@ test "Go's gmail.users.settings.cse.keypairs.obliterate" {
     Ok(_) => gv_note(f, "OUT: ok")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_48)
+  gv_compare(gv_log_of(f), GO_65)
 }
 
-const GO_49: List[Str] = [
+const GO_66: List[Str] = [
   "CALL gmail.users.settings.delegates.create",
   "REQ POST https://gmail.googleapis.com/gmail/v1/users/id1%2F%20x/settings/delegates?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1080,10 +1649,10 @@ test "Go's gmail.users.settings.delegates.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_49)
+  gv_compare(gv_log_of(f), GO_66)
 }
 
-const GO_50: List[Str] = [
+const GO_67: List[Str] = [
   "CALL gmail.users.settings.delegates.delete",
   "REQ DELETE https://gmail.googleapis.com/gmail/v1/users/id1%2F%20x/settings/delegates/id2%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -1101,10 +1670,10 @@ test "Go's gmail.users.settings.delegates.delete" {
     Ok(_) => gv_note(f, "OUT: ok")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_50)
+  gv_compare(gv_log_of(f), GO_67)
 }
 
-const GO_51: List[Str] = [
+const GO_68: List[Str] = [
   "CALL gmail.users.settings.delegates.get",
   "REQ GET https://gmail.googleapis.com/gmail/v1/users/id1%2F%20x/settings/delegates/id2%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1122,10 +1691,10 @@ test "Go's gmail.users.settings.delegates.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_51)
+  gv_compare(gv_log_of(f), GO_68)
 }
 
-const GO_52: List[Str] = [
+const GO_69: List[Str] = [
   "CALL gmail.users.settings.delegates.list",
   "REQ GET https://gmail.googleapis.com/gmail/v1/users/id1%2F%20x/settings/delegates?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1143,10 +1712,10 @@ test "Go's gmail.users.settings.delegates.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_52)
+  gv_compare(gv_log_of(f), GO_69)
 }
 
-const GO_53: List[Str] = [
+const GO_70: List[Str] = [
   "CALL gmail.users.settings.filters.create",
   "REQ POST https://gmail.googleapis.com/gmail/v1/users/id1%2F%20x/settings/filters?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1165,10 +1734,10 @@ test "Go's gmail.users.settings.filters.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_53)
+  gv_compare(gv_log_of(f), GO_70)
 }
 
-const GO_54: List[Str] = [
+const GO_71: List[Str] = [
   "CALL gmail.users.settings.filters.delete",
   "REQ DELETE https://gmail.googleapis.com/gmail/v1/users/id1%2F%20x/settings/filters/id2%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -1186,10 +1755,10 @@ test "Go's gmail.users.settings.filters.delete" {
     Ok(_) => gv_note(f, "OUT: ok")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_54)
+  gv_compare(gv_log_of(f), GO_71)
 }
 
-const GO_55: List[Str] = [
+const GO_72: List[Str] = [
   "CALL gmail.users.settings.filters.get",
   "REQ GET https://gmail.googleapis.com/gmail/v1/users/id1%2F%20x/settings/filters/id2%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1207,10 +1776,10 @@ test "Go's gmail.users.settings.filters.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_55)
+  gv_compare(gv_log_of(f), GO_72)
 }
 
-const GO_56: List[Str] = [
+const GO_73: List[Str] = [
   "CALL gmail.users.settings.filters.list",
   "REQ GET https://gmail.googleapis.com/gmail/v1/users/id1%2F%20x/settings/filters?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1228,10 +1797,10 @@ test "Go's gmail.users.settings.filters.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_56)
+  gv_compare(gv_log_of(f), GO_73)
 }
 
-const GO_57: List[Str] = [
+const GO_74: List[Str] = [
   "CALL gmail.users.settings.forwardingAddresses.create",
   "REQ POST https://gmail.googleapis.com/gmail/v1/users/id1%2F%20x/settings/forwardingAddresses?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1250,10 +1819,10 @@ test "Go's gmail.users.settings.forwardingAddresses.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_57)
+  gv_compare(gv_log_of(f), GO_74)
 }
 
-const GO_58: List[Str] = [
+const GO_75: List[Str] = [
   "CALL gmail.users.settings.forwardingAddresses.delete",
   "REQ DELETE https://gmail.googleapis.com/gmail/v1/users/id1%2F%20x/settings/forwardingAddresses/id2%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -1271,10 +1840,10 @@ test "Go's gmail.users.settings.forwardingAddresses.delete" {
     Ok(_) => gv_note(f, "OUT: ok")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_58)
+  gv_compare(gv_log_of(f), GO_75)
 }
 
-const GO_59: List[Str] = [
+const GO_76: List[Str] = [
   "CALL gmail.users.settings.forwardingAddresses.get",
   "REQ GET https://gmail.googleapis.com/gmail/v1/users/id1%2F%20x/settings/forwardingAddresses/id2%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1292,10 +1861,10 @@ test "Go's gmail.users.settings.forwardingAddresses.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_59)
+  gv_compare(gv_log_of(f), GO_76)
 }
 
-const GO_60: List[Str] = [
+const GO_77: List[Str] = [
   "CALL gmail.users.settings.forwardingAddresses.list",
   "REQ GET https://gmail.googleapis.com/gmail/v1/users/id1%2F%20x/settings/forwardingAddresses?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1313,10 +1882,10 @@ test "Go's gmail.users.settings.forwardingAddresses.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_60)
+  gv_compare(gv_log_of(f), GO_77)
 }
 
-const GO_61: List[Str] = [
+const GO_78: List[Str] = [
   "CALL gmail.users.settings.sendAs.create",
   "REQ POST https://gmail.googleapis.com/gmail/v1/users/id1%2F%20x/settings/sendAs?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1335,10 +1904,10 @@ test "Go's gmail.users.settings.sendAs.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_61)
+  gv_compare(gv_log_of(f), GO_78)
 }
 
-const GO_62: List[Str] = [
+const GO_79: List[Str] = [
   "CALL gmail.users.settings.sendAs.delete",
   "REQ DELETE https://gmail.googleapis.com/gmail/v1/users/id1%2F%20x/settings/sendAs/id2%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -1356,10 +1925,10 @@ test "Go's gmail.users.settings.sendAs.delete" {
     Ok(_) => gv_note(f, "OUT: ok")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_62)
+  gv_compare(gv_log_of(f), GO_79)
 }
 
-const GO_63: List[Str] = [
+const GO_80: List[Str] = [
   "CALL gmail.users.settings.sendAs.get",
   "REQ GET https://gmail.googleapis.com/gmail/v1/users/id1%2F%20x/settings/sendAs/id2%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1377,10 +1946,10 @@ test "Go's gmail.users.settings.sendAs.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_63)
+  gv_compare(gv_log_of(f), GO_80)
 }
 
-const GO_64: List[Str] = [
+const GO_81: List[Str] = [
   "CALL gmail.users.settings.sendAs.list",
   "REQ GET https://gmail.googleapis.com/gmail/v1/users/id1%2F%20x/settings/sendAs?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1398,10 +1967,10 @@ test "Go's gmail.users.settings.sendAs.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_64)
+  gv_compare(gv_log_of(f), GO_81)
 }
 
-const GO_65: List[Str] = [
+const GO_82: List[Str] = [
   "CALL gmail.users.settings.sendAs.patch",
   "REQ PATCH https://gmail.googleapis.com/gmail/v1/users/id1%2F%20x/settings/sendAs/id2%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1420,10 +1989,10 @@ test "Go's gmail.users.settings.sendAs.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_65)
+  gv_compare(gv_log_of(f), GO_82)
 }
 
-const GO_66: List[Str] = [
+const GO_83: List[Str] = [
   "CALL gmail.users.settings.sendAs.update",
   "REQ PUT https://gmail.googleapis.com/gmail/v1/users/id1%2F%20x/settings/sendAs/id2%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1442,10 +2011,10 @@ test "Go's gmail.users.settings.sendAs.update" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_66)
+  gv_compare(gv_log_of(f), GO_83)
 }
 
-const GO_67: List[Str] = [
+const GO_84: List[Str] = [
   "CALL gmail.users.settings.sendAs.verify",
   "REQ POST https://gmail.googleapis.com/gmail/v1/users/id1%2F%20x/settings/sendAs/id2%2F%20x/verify?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -1463,10 +2032,10 @@ test "Go's gmail.users.settings.sendAs.verify" {
     Ok(_) => gv_note(f, "OUT: ok")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_67)
+  gv_compare(gv_log_of(f), GO_84)
 }
 
-const GO_68: List[Str] = [
+const GO_85: List[Str] = [
   "CALL gmail.users.settings.sendAs.smimeInfo.delete",
   "REQ DELETE https://gmail.googleapis.com/gmail/v1/users/id1%2F%20x/settings/sendAs/id2%2F%20x/smimeInfo/id3%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -1484,10 +2053,10 @@ test "Go's gmail.users.settings.sendAs.smimeInfo.delete" {
     Ok(_) => gv_note(f, "OUT: ok")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_68)
+  gv_compare(gv_log_of(f), GO_85)
 }
 
-const GO_69: List[Str] = [
+const GO_86: List[Str] = [
   "CALL gmail.users.settings.sendAs.smimeInfo.get",
   "REQ GET https://gmail.googleapis.com/gmail/v1/users/id1%2F%20x/settings/sendAs/id2%2F%20x/smimeInfo/id3%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1505,10 +2074,10 @@ test "Go's gmail.users.settings.sendAs.smimeInfo.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_69)
+  gv_compare(gv_log_of(f), GO_86)
 }
 
-const GO_70: List[Str] = [
+const GO_87: List[Str] = [
   "CALL gmail.users.settings.sendAs.smimeInfo.insert",
   "REQ POST https://gmail.googleapis.com/gmail/v1/users/id1%2F%20x/settings/sendAs/id2%2F%20x/smimeInfo?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1527,10 +2096,10 @@ test "Go's gmail.users.settings.sendAs.smimeInfo.insert" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_70)
+  gv_compare(gv_log_of(f), GO_87)
 }
 
-const GO_71: List[Str] = [
+const GO_88: List[Str] = [
   "CALL gmail.users.settings.sendAs.smimeInfo.list",
   "REQ GET https://gmail.googleapis.com/gmail/v1/users/id1%2F%20x/settings/sendAs/id2%2F%20x/smimeInfo?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1548,10 +2117,10 @@ test "Go's gmail.users.settings.sendAs.smimeInfo.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_71)
+  gv_compare(gv_log_of(f), GO_88)
 }
 
-const GO_72: List[Str] = [
+const GO_89: List[Str] = [
   "CALL gmail.users.settings.sendAs.smimeInfo.setDefault",
   "REQ POST https://gmail.googleapis.com/gmail/v1/users/id1%2F%20x/settings/sendAs/id2%2F%20x/smimeInfo/id3%2F%20x/setDefault?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -1569,10 +2138,10 @@ test "Go's gmail.users.settings.sendAs.smimeInfo.setDefault" {
     Ok(_) => gv_note(f, "OUT: ok")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_72)
+  gv_compare(gv_log_of(f), GO_89)
 }
 
-const GO_73: List[Str] = [
+const GO_90: List[Str] = [
   "CALL gmail.users.threads.delete",
   "REQ DELETE https://gmail.googleapis.com/gmail/v1/users/id1%2F%20x/threads/id2%2F%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -1590,10 +2159,10 @@ test "Go's gmail.users.threads.delete" {
     Ok(_) => gv_note(f, "OUT: ok")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_73)
+  gv_compare(gv_log_of(f), GO_90)
 }
 
-const GO_74: List[Str] = [
+const GO_91: List[Str] = [
   "CALL gmail.users.threads.get",
   "REQ GET https://gmail.googleapis.com/gmail/v1/users/id1%2F%20x/threads/id2%2F%20x?alt=json&fields=kind%2Cid&format=s-format&metadataHeaders=s-metadataheaders&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1611,10 +2180,10 @@ test "Go's gmail.users.threads.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_74)
+  gv_compare(gv_log_of(f), GO_91)
 }
 
-const GO_75: List[Str] = [
+const GO_92: List[Str] = [
   "CALL gmail.users.threads.list",
   "REQ GET https://gmail.googleapis.com/gmail/v1/users/id1%2F%20x/threads?alt=json&fields=kind%2Cid&includeSpamTrash=true&labelIds=s-labelids&maxResults=7&pageToken=s-pagetoken&prettyPrint=false&q=s-q",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1632,10 +2201,48 @@ test "Go's gmail.users.threads.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_75)
+  gv_compare(gv_log_of(f), GO_92)
 }
 
-const GO_76: List[Str] = [
+const GO_93: List[Str] = [
+  "CALL gmail.users.threads.list pages",
+  "REQ GET https://gmail.googleapis.com/gmail/v1/users/id1%2F%20x/threads?alt=json&fields=kind%2Cid&includeSpamTrash=true&labelIds=s-labelids&maxResults=7&pageToken=s-pagetoken&prettyPrint=false&q=s-q",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"resultSizeEstimate\":7,\"threads\":[{\"historyId\":\"7\",\"id\":\"s-id\",\"snippet\":\"s-snippet\"}]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"resultSizeEstimate\":7,\"threads\":[{\"historyId\":\"7\",\"id\":\"s-id\",\"snippet\":\"s-snippet\"}]}",
+  "REQ GET https://gmail.googleapis.com/gmail/v1/users/id1%2F%20x/threads?alt=json&fields=kind%2Cid&includeSpamTrash=true&labelIds=s-labelids&maxResults=7&pageToken=s-nextpagetoken&prettyPrint=false&q=s-q",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"resultSizeEstimate\":7,\"threads\":[{\"historyId\":\"7\",\"id\":\"s-id\",\"snippet\":\"s-snippet\"}]}",
+  "OUT: {\"resultSizeEstimate\":7,\"threads\":[{\"historyId\":\"7\",\"id\":\"s-id\",\"snippet\":\"s-snippet\"}]}",
+  "OUT: ok",
+]
+
+test "Go's gmail.users.threads.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"resultSizeEstimate\":7,\"threads\":[{\"historyId\":\"7\",\"id\":\"s-id\",\"snippet\":\"s-snippet\"}]}")
+  gv_queue(f, "{\"resultSizeEstimate\":7,\"threads\":[{\"historyId\":\"7\",\"id\":\"s-id\",\"snippet\":\"s-snippet\"}]}")
+  gv_note(f, "CALL gmail.users.threads.list pages")
+  var p = svc.users.threads.list_pages("id1/ x", options: UsersThreadsListOptions{include_spam_trash: Some(true), label_ids: ["s-labelids"], max_results: Some(7), page_token: Some("s-pagetoken"), q: Some("s-q"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_93)
+}
+
+const GO_94: List[Str] = [
   "CALL gmail.users.threads.modify",
   "REQ POST https://gmail.googleapis.com/gmail/v1/users/id1%2F%20x/threads/id2%2F%20x/modify?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1654,10 +2261,10 @@ test "Go's gmail.users.threads.modify" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_76)
+  gv_compare(gv_log_of(f), GO_94)
 }
 
-const GO_77: List[Str] = [
+const GO_95: List[Str] = [
   "CALL gmail.users.threads.trash",
   "REQ POST https://gmail.googleapis.com/gmail/v1/users/id1%2F%20x/threads/id2%2F%20x/trash?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -1675,10 +2282,10 @@ test "Go's gmail.users.threads.trash" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_77)
+  gv_compare(gv_log_of(f), GO_95)
 }
 
-const GO_78: List[Str] = [
+const GO_96: List[Str] = [
   "CALL gmail.users.threads.untrash",
   "REQ POST https://gmail.googleapis.com/gmail/v1/users/id1%2F%20x/threads/id2%2F%20x/untrash?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -1696,5 +2303,5 @@ test "Go's gmail.users.threads.untrash" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_78)
+  gv_compare(gv_log_of(f), GO_96)
 }

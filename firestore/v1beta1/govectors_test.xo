@@ -248,6 +248,44 @@ test "Go's firestore.projects.databases.documents.list" {
 }
 
 const GO_11: List[Str] = [
+  "CALL firestore.projects.databases.documents.list pages",
+  "REQ GET https://firestore.googleapis.com/v1beta1/id1/%20x/id2%2F%20x?alt=json&fields=kind%2Cid&mask.fieldPaths=s-mask.fieldpaths&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&readTime=s-readtime&recursive=true&requestOptions.requestTags=s-requestoptions.requesttags&showMissing=true&transaction=s-transaction",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"documents\":[{\"createTime\":\"s-createtime\",\"name\":\"s-name\",\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"documents\":[{\"createTime\":\"s-createtime\",\"name\":\"s-name\",\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://firestore.googleapis.com/v1beta1/id1/%20x/id2%2F%20x?alt=json&fields=kind%2Cid&mask.fieldPaths=s-mask.fieldpaths&orderBy=s-orderby&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false&readTime=s-readtime&recursive=true&requestOptions.requestTags=s-requestoptions.requesttags&showMissing=true&transaction=s-transaction",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"documents\":[{\"createTime\":\"s-createtime\",\"name\":\"s-name\",\"updateTime\":\"s-updatetime\"}]}",
+  "OUT: {\"documents\":[{\"createTime\":\"s-createtime\",\"name\":\"s-name\",\"updateTime\":\"s-updatetime\"}]}",
+  "OUT: ok",
+]
+
+test "Go's firestore.projects.databases.documents.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"documents\":[{\"createTime\":\"s-createtime\",\"name\":\"s-name\",\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"documents\":[{\"createTime\":\"s-createtime\",\"name\":\"s-name\",\"updateTime\":\"s-updatetime\"}]}")
+  gv_note(f, "CALL firestore.projects.databases.documents.list pages")
+  var p = svc.projects.databases.documents.list_pages("id1/ x", "id2/ x", options: ProjectsDatabasesDocumentsListOptions{mask_field_paths: ["s-mask.fieldpaths"], order_by: Some("s-orderby"), page_size: Some(7), page_token: Some("s-pagetoken"), read_time: Some("s-readtime"), recursive: Some(true), request_options_request_tags: ["s-requestoptions.requesttags"], show_missing: Some(true), transaction: Some("s-transaction"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_11)
+}
+
+const GO_12: List[Str] = [
   "CALL firestore.projects.databases.documents.listCollectionIds",
   "REQ POST https://firestore.googleapis.com/v1beta1/id1/%20x:listCollectionIds?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -266,10 +304,50 @@ test "Go's firestore.projects.databases.documents.listCollectionIds" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_11)
+  gv_compare(gv_log_of(f), GO_12)
 }
 
-const GO_12: List[Str] = [
+const GO_13: List[Str] = [
+  "CALL firestore.projects.databases.documents.listCollectionIds pages",
+  "REQ POST https://firestore.googleapis.com/v1beta1/id1/%20x:listCollectionIds?alt=json&fields=kind%2Cid&prettyPrint=false",
+  "  H content-type=application/json | x-extra=v1",
+  "  B {\"pageSize\":7,\"pageToken\":\"s-pagetoken\",\"readTime\":\"s-readtime\",\"requestOptions\":{\"requestTags\":[\"s-requesttags\"]}}",
+  "",
+  "  SERVED 200 {\"collectionIds\":[\"s-collectionids\"],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"collectionIds\":[\"s-collectionids\"],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ POST https://firestore.googleapis.com/v1beta1/id1/%20x:listCollectionIds?alt=json&fields=kind%2Cid&prettyPrint=false",
+  "  H content-type=application/json | x-extra=v1",
+  "  B {\"pageSize\":7,\"pageToken\":\"s-nextpagetoken\",\"readTime\":\"s-readtime\",\"requestOptions\":{\"requestTags\":[\"s-requesttags\"]}}",
+  "",
+  "  SERVED 200 {\"collectionIds\":[\"s-collectionids\"]}",
+  "OUT: {\"collectionIds\":[\"s-collectionids\"]}",
+  "OUT: ok",
+]
+
+test "Go's firestore.projects.databases.documents.listCollectionIds pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"collectionIds\":[\"s-collectionids\"],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"collectionIds\":[\"s-collectionids\"]}")
+  gv_note(f, "CALL firestore.projects.databases.documents.listCollectionIds pages")
+  var p = svc.projects.databases.documents.list_collection_ids_pages("id1/ x", json.decode_str[ListCollectionIdsRequest]("{\"pageSize\":7,\"pageToken\":\"s-pagetoken\",\"readTime\":\"s-readtime\",\"requestOptions\":{\"requestTags\":[\"s-requesttags\"]}}") ?? e => fault(e.display()), options: ProjectsDatabasesDocumentsListCollectionIdsOptions{fields: ["kind", "id"], headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_13)
+}
+
+const GO_14: List[Str] = [
   "CALL firestore.projects.databases.documents.listDocuments",
   "REQ GET https://firestore.googleapis.com/v1beta1/id1/%20x/id2%2F%20x?alt=json&fields=kind%2Cid&mask.fieldPaths=s-mask.fieldpaths&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&readTime=s-readtime&recursive=true&requestOptions.requestTags=s-requestoptions.requesttags&showMissing=true&transaction=s-transaction",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -287,10 +365,48 @@ test "Go's firestore.projects.databases.documents.listDocuments" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_12)
+  gv_compare(gv_log_of(f), GO_14)
 }
 
-const GO_13: List[Str] = [
+const GO_15: List[Str] = [
+  "CALL firestore.projects.databases.documents.listDocuments pages",
+  "REQ GET https://firestore.googleapis.com/v1beta1/id1/%20x/id2%2F%20x?alt=json&fields=kind%2Cid&mask.fieldPaths=s-mask.fieldpaths&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&readTime=s-readtime&recursive=true&requestOptions.requestTags=s-requestoptions.requesttags&showMissing=true&transaction=s-transaction",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"documents\":[{\"createTime\":\"s-createtime\",\"name\":\"s-name\",\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"documents\":[{\"createTime\":\"s-createtime\",\"name\":\"s-name\",\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://firestore.googleapis.com/v1beta1/id1/%20x/id2%2F%20x?alt=json&fields=kind%2Cid&mask.fieldPaths=s-mask.fieldpaths&orderBy=s-orderby&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false&readTime=s-readtime&recursive=true&requestOptions.requestTags=s-requestoptions.requesttags&showMissing=true&transaction=s-transaction",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"documents\":[{\"createTime\":\"s-createtime\",\"name\":\"s-name\",\"updateTime\":\"s-updatetime\"}]}",
+  "OUT: {\"documents\":[{\"createTime\":\"s-createtime\",\"name\":\"s-name\",\"updateTime\":\"s-updatetime\"}]}",
+  "OUT: ok",
+]
+
+test "Go's firestore.projects.databases.documents.listDocuments pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"documents\":[{\"createTime\":\"s-createtime\",\"name\":\"s-name\",\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"documents\":[{\"createTime\":\"s-createtime\",\"name\":\"s-name\",\"updateTime\":\"s-updatetime\"}]}")
+  gv_note(f, "CALL firestore.projects.databases.documents.listDocuments pages")
+  var p = svc.projects.databases.documents.list_documents_pages("id1/ x", "id2/ x", options: ProjectsDatabasesDocumentsListDocumentsOptions{mask_field_paths: ["s-mask.fieldpaths"], order_by: Some("s-orderby"), page_size: Some(7), page_token: Some("s-pagetoken"), read_time: Some("s-readtime"), recursive: Some(true), request_options_request_tags: ["s-requestoptions.requesttags"], show_missing: Some(true), transaction: Some("s-transaction"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_15)
+}
+
+const GO_16: List[Str] = [
   "CALL firestore.projects.databases.documents.listen",
   "REQ POST https://firestore.googleapis.com/v1beta1/id1/%20x/documents:listen?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -309,10 +425,10 @@ test "Go's firestore.projects.databases.documents.listen" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_13)
+  gv_compare(gv_log_of(f), GO_16)
 }
 
-const GO_14: List[Str] = [
+const GO_17: List[Str] = [
   "CALL firestore.projects.databases.documents.partitionQuery",
   "REQ POST https://firestore.googleapis.com/v1beta1/id1/%20x:partitionQuery?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -331,10 +447,50 @@ test "Go's firestore.projects.databases.documents.partitionQuery" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_14)
+  gv_compare(gv_log_of(f), GO_17)
 }
 
-const GO_15: List[Str] = [
+const GO_18: List[Str] = [
+  "CALL firestore.projects.databases.documents.partitionQuery pages",
+  "REQ POST https://firestore.googleapis.com/v1beta1/id1/%20x:partitionQuery?alt=json&fields=kind%2Cid&prettyPrint=false",
+  "  H content-type=application/json | x-extra=v1",
+  "  B {\"pageSize\":7,\"pageToken\":\"s-pagetoken\",\"partitionCount\":\"7\",\"readTime\":\"s-readtime\",\"requestOptions\":{\"requestTags\":[\"s-requesttags\"]},\"structuredQuery\":{\"endAt\":{\"before\":true},\"findNearest\":{\"distanceMeasure\":\"s-distancemeasure\",\"distanceResultField\":\"s-distanceresultfield\",\"distanceThreshold\":1.5,\"limit\":7},\"from\":[{\"allDescendants\":true,\"collectionId\":\"s-collectionid\"}],\"limit\":7,\"offset\":7,\"orderBy\":[{\"direction\":\"s-direction\"}],\"select\":{},\"startAt\":{\"before\":true},\"where\":{}}}",
+  "",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"partitions\":[{\"before\":true}]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"partitions\":[{\"before\":true}]}",
+  "REQ POST https://firestore.googleapis.com/v1beta1/id1/%20x:partitionQuery?alt=json&fields=kind%2Cid&prettyPrint=false",
+  "  H content-type=application/json | x-extra=v1",
+  "  B {\"pageSize\":7,\"pageToken\":\"s-nextpagetoken\",\"partitionCount\":\"7\",\"readTime\":\"s-readtime\",\"requestOptions\":{\"requestTags\":[\"s-requesttags\"]},\"structuredQuery\":{\"endAt\":{\"before\":true},\"findNearest\":{\"distanceMeasure\":\"s-distancemeasure\",\"distanceResultField\":\"s-distanceresultfield\",\"distanceThreshold\":1.5,\"limit\":7},\"from\":[{\"allDescendants\":true,\"collectionId\":\"s-collectionid\"}],\"limit\":7,\"offset\":7,\"orderBy\":[{\"direction\":\"s-direction\"}],\"select\":{},\"startAt\":{\"before\":true},\"where\":{}}}",
+  "",
+  "  SERVED 200 {\"partitions\":[{\"before\":true}]}",
+  "OUT: {\"partitions\":[{\"before\":true}]}",
+  "OUT: ok",
+]
+
+test "Go's firestore.projects.databases.documents.partitionQuery pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"partitions\":[{\"before\":true}]}")
+  gv_queue(f, "{\"partitions\":[{\"before\":true}]}")
+  gv_note(f, "CALL firestore.projects.databases.documents.partitionQuery pages")
+  var p = svc.projects.databases.documents.partition_query_pages("id1/ x", json.decode_str[PartitionQueryRequest]("{\"pageSize\":7,\"pageToken\":\"s-pagetoken\",\"partitionCount\":\"7\",\"readTime\":\"s-readtime\",\"requestOptions\":{\"requestTags\":[\"s-requesttags\"]},\"structuredQuery\":{\"endAt\":{\"before\":true},\"findNearest\":{\"distanceMeasure\":\"s-distancemeasure\",\"distanceResultField\":\"s-distanceresultfield\",\"distanceThreshold\":1.5,\"limit\":7},\"from\":[{\"allDescendants\":true,\"collectionId\":\"s-collectionid\"}],\"limit\":7,\"offset\":7,\"orderBy\":[{\"direction\":\"s-direction\"}],\"select\":{},\"startAt\":{\"before\":true},\"where\":{}}}") ?? e => fault(e.display()), options: ProjectsDatabasesDocumentsPartitionQueryOptions{fields: ["kind", "id"], headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_18)
+}
+
+const GO_19: List[Str] = [
   "CALL firestore.projects.databases.documents.patch",
   "REQ PATCH https://firestore.googleapis.com/v1beta1/id1/%20x?alt=json&currentDocument.exists=true&currentDocument.updateTime=s-currentdocument.updatetime&fields=kind%2Cid&mask.fieldPaths=s-mask.fieldpaths&prettyPrint=false&requestOptions.requestTags=s-requestoptions.requesttags&updateMask.fieldPaths=s-updatemask.fieldpaths",
   "  H content-type=application/json | x-extra=v1",
@@ -353,10 +509,10 @@ test "Go's firestore.projects.databases.documents.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_15)
+  gv_compare(gv_log_of(f), GO_19)
 }
 
-const GO_16: List[Str] = [
+const GO_20: List[Str] = [
   "CALL firestore.projects.databases.documents.rollback",
   "REQ POST https://firestore.googleapis.com/v1beta1/id1/%20x/documents:rollback?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -375,10 +531,10 @@ test "Go's firestore.projects.databases.documents.rollback" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_16)
+  gv_compare(gv_log_of(f), GO_20)
 }
 
-const GO_17: List[Str] = [
+const GO_21: List[Str] = [
   "CALL firestore.projects.databases.documents.runAggregationQuery",
   "REQ POST https://firestore.googleapis.com/v1beta1/id1/%20x:runAggregationQuery?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -397,10 +553,10 @@ test "Go's firestore.projects.databases.documents.runAggregationQuery" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_17)
+  gv_compare(gv_log_of(f), GO_21)
 }
 
-const GO_18: List[Str] = [
+const GO_22: List[Str] = [
   "CALL firestore.projects.databases.documents.runQuery",
   "REQ POST https://firestore.googleapis.com/v1beta1/id1/%20x:runQuery?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -419,10 +575,10 @@ test "Go's firestore.projects.databases.documents.runQuery" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_18)
+  gv_compare(gv_log_of(f), GO_22)
 }
 
-const GO_19: List[Str] = [
+const GO_23: List[Str] = [
   "CALL firestore.projects.databases.documents.write",
   "REQ POST https://firestore.googleapis.com/v1beta1/id1/%20x/documents:write?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -441,10 +597,10 @@ test "Go's firestore.projects.databases.documents.write" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_19)
+  gv_compare(gv_log_of(f), GO_23)
 }
 
-const GO_20: List[Str] = [
+const GO_24: List[Str] = [
   "CALL firestore.projects.databases.indexes.create",
   "REQ POST https://firestore.googleapis.com/v1beta1/id1/%20x/indexes?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -463,10 +619,10 @@ test "Go's firestore.projects.databases.indexes.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_20)
+  gv_compare(gv_log_of(f), GO_24)
 }
 
-const GO_21: List[Str] = [
+const GO_25: List[Str] = [
   "CALL firestore.projects.databases.indexes.delete",
   "REQ DELETE https://firestore.googleapis.com/v1beta1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -484,10 +640,10 @@ test "Go's firestore.projects.databases.indexes.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_21)
+  gv_compare(gv_log_of(f), GO_25)
 }
 
-const GO_22: List[Str] = [
+const GO_26: List[Str] = [
   "CALL firestore.projects.databases.indexes.get",
   "REQ GET https://firestore.googleapis.com/v1beta1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -505,10 +661,10 @@ test "Go's firestore.projects.databases.indexes.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_22)
+  gv_compare(gv_log_of(f), GO_26)
 }
 
-const GO_23: List[Str] = [
+const GO_27: List[Str] = [
   "CALL firestore.projects.databases.indexes.list",
   "REQ GET https://firestore.googleapis.com/v1beta1/id1/%20x/indexes?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -526,5 +682,43 @@ test "Go's firestore.projects.databases.indexes.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_23)
+  gv_compare(gv_log_of(f), GO_27)
+}
+
+const GO_28: List[Str] = [
+  "CALL firestore.projects.databases.indexes.list pages",
+  "REQ GET https://firestore.googleapis.com/v1beta1/id1/%20x/indexes?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"indexes\":[{\"collectionId\":\"s-collectionid\",\"name\":\"s-name\",\"state\":\"s-state\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"indexes\":[{\"collectionId\":\"s-collectionid\",\"name\":\"s-name\",\"state\":\"s-state\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://firestore.googleapis.com/v1beta1/id1/%20x/indexes?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"indexes\":[{\"collectionId\":\"s-collectionid\",\"name\":\"s-name\",\"state\":\"s-state\"}]}",
+  "OUT: {\"indexes\":[{\"collectionId\":\"s-collectionid\",\"name\":\"s-name\",\"state\":\"s-state\"}]}",
+  "OUT: ok",
+]
+
+test "Go's firestore.projects.databases.indexes.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"indexes\":[{\"collectionId\":\"s-collectionid\",\"name\":\"s-name\",\"state\":\"s-state\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"indexes\":[{\"collectionId\":\"s-collectionid\",\"name\":\"s-name\",\"state\":\"s-state\"}]}")
+  gv_note(f, "CALL firestore.projects.databases.indexes.list pages")
+  var p = svc.projects.databases.indexes.list_pages("id1/ x", options: ProjectsDatabasesIndexesListOptions{filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_28)
 }

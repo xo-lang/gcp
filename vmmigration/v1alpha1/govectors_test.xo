@@ -51,6 +51,44 @@ test "Go's vmmigration.projects.locations.list" {
 }
 
 const GO_2: List[Str] = [
+  "CALL vmmigration.projects.locations.list pages",
+  "REQ GET https://vmmigration.googleapis.com/v1alpha1/id1/%20x/locations?alt=json&extraLocationTypes=s-extralocationtypes&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://vmmigration.googleapis.com/v1alpha1/id1/%20x/locations?alt=json&extraLocationTypes=s-extralocationtypes&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}]}",
+  "OUT: {\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}]}",
+  "OUT: ok",
+]
+
+test "Go's vmmigration.projects.locations.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}]}")
+  gv_note(f, "CALL vmmigration.projects.locations.list pages")
+  var p = svc.projects.locations.list_pages("id1/ x", options: ProjectsLocationsListOptions{extra_location_types: ["s-extralocationtypes"], filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_2)
+}
+
+const GO_3: List[Str] = [
   "CALL vmmigration.projects.locations.groups.addGroupMigration",
   "REQ POST https://vmmigration.googleapis.com/v1alpha1/id1/%20x:addGroupMigration?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -69,10 +107,10 @@ test "Go's vmmigration.projects.locations.groups.addGroupMigration" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_2)
+  gv_compare(gv_log_of(f), GO_3)
 }
 
-const GO_3: List[Str] = [
+const GO_4: List[Str] = [
   "CALL vmmigration.projects.locations.groups.create",
   "REQ POST https://vmmigration.googleapis.com/v1alpha1/id1/%20x/groups?alt=json&fields=kind%2Cid&groupId=s-groupid&prettyPrint=false&requestId=s-requestid",
   "  H content-type=application/json | x-extra=v1",
@@ -91,10 +129,10 @@ test "Go's vmmigration.projects.locations.groups.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_3)
+  gv_compare(gv_log_of(f), GO_4)
 }
 
-const GO_4: List[Str] = [
+const GO_5: List[Str] = [
   "CALL vmmigration.projects.locations.groups.delete",
   "REQ DELETE https://vmmigration.googleapis.com/v1alpha1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&requestId=s-requestid",
   "  H x-extra=v1",
@@ -112,10 +150,10 @@ test "Go's vmmigration.projects.locations.groups.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_4)
+  gv_compare(gv_log_of(f), GO_5)
 }
 
-const GO_5: List[Str] = [
+const GO_6: List[Str] = [
   "CALL vmmigration.projects.locations.groups.get",
   "REQ GET https://vmmigration.googleapis.com/v1alpha1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -133,10 +171,10 @@ test "Go's vmmigration.projects.locations.groups.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_5)
+  gv_compare(gv_log_of(f), GO_6)
 }
 
-const GO_6: List[Str] = [
+const GO_7: List[Str] = [
   "CALL vmmigration.projects.locations.groups.list",
   "REQ GET https://vmmigration.googleapis.com/v1alpha1/id1/%20x/groups?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -154,10 +192,48 @@ test "Go's vmmigration.projects.locations.groups.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_6)
+  gv_compare(gv_log_of(f), GO_7)
 }
 
-const GO_7: List[Str] = [
+const GO_8: List[Str] = [
+  "CALL vmmigration.projects.locations.groups.list pages",
+  "REQ GET https://vmmigration.googleapis.com/v1alpha1/id1/%20x/groups?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"groups\":[{\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"migrationTargetType\":\"s-migrationtargettype\",\"name\":\"s-name\",\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"groups\":[{\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"migrationTargetType\":\"s-migrationtargettype\",\"name\":\"s-name\",\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}",
+  "REQ GET https://vmmigration.googleapis.com/v1alpha1/id1/%20x/groups?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"groups\":[{\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"migrationTargetType\":\"s-migrationtargettype\",\"name\":\"s-name\",\"updateTime\":\"s-updatetime\"}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"groups\":[{\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"migrationTargetType\":\"s-migrationtargettype\",\"name\":\"s-name\",\"updateTime\":\"s-updatetime\"}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: ok",
+]
+
+test "Go's vmmigration.projects.locations.groups.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"groups\":[{\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"migrationTargetType\":\"s-migrationtargettype\",\"name\":\"s-name\",\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}")
+  gv_queue(f, "{\"groups\":[{\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"migrationTargetType\":\"s-migrationtargettype\",\"name\":\"s-name\",\"updateTime\":\"s-updatetime\"}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_note(f, "CALL vmmigration.projects.locations.groups.list pages")
+  var p = svc.projects.locations.groups.list_pages("id1/ x", options: ProjectsLocationsGroupsListOptions{filter: Some("s-filter"), order_by: Some("s-orderby"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_8)
+}
+
+const GO_9: List[Str] = [
   "CALL vmmigration.projects.locations.groups.patch",
   "REQ PATCH https://vmmigration.googleapis.com/v1alpha1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&requestId=s-requestid&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
@@ -176,10 +252,10 @@ test "Go's vmmigration.projects.locations.groups.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_7)
+  gv_compare(gv_log_of(f), GO_9)
 }
 
-const GO_8: List[Str] = [
+const GO_10: List[Str] = [
   "CALL vmmigration.projects.locations.groups.removeGroupMigration",
   "REQ POST https://vmmigration.googleapis.com/v1alpha1/id1/%20x:removeGroupMigration?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -198,14 +274,14 @@ test "Go's vmmigration.projects.locations.groups.removeGroupMigration" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_8)
+  gv_compare(gv_log_of(f), GO_10)
 }
 
-const GO_9: List[Str] = [
+const GO_11: List[Str] = [
   "CALL vmmigration.projects.locations.imageImports.create",
   "REQ POST https://vmmigration.googleapis.com/v1alpha1/id1/%20x/imageImports?alt=json&fields=kind%2Cid&imageImportId=s-imageimportid&prettyPrint=false&requestId=s-requestid",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"cloudStorageUri\":\"s-cloudstorageuri\",\"createTime\":\"s-createtime\",\"diskImageTargetDefaults\":{\"additionalLicenses\":[\"s-additionallicenses\"],\"dataDiskImageImport\":{\"guestOsFeatures\":[\"s-guestosfeatures\"]},\"description\":\"s-description\",\"encryption\":{\"kmsKey\":\"s-kmskey\"},\"familyName\":\"s-familyname\",\"imageName\":\"s-imagename\",\"labels\":{\"k1\":\"s-labels\"},\"osAdaptationParameters\":{\"bootConversion\":\"s-bootconversion\",\"generalize\":true,\"licenseType\":\"s-licensetype\"},\"singleRegionStorage\":true,\"targetProject\":\"s-targetproject\"},\"encryption\":{\"kmsKey\":\"s-kmskey\"},\"machineImageTargetDefaults\":{\"additionalLicenses\":[\"s-additionallicenses\"],\"description\":\"s-description\",\"encryption\":{\"kmsKey\":\"s-kmskey\"},\"labels\":{\"k1\":\"s-labels\"},\"machineImageName\":\"s-machineimagename\",\"machineImageParametersOverrides\":{\"machineType\":\"s-machinetype\"},\"networkInterfaces\":[{\"externalIp\":\"s-externalip\",\"internalIp\":\"s-internalip\",\"network\":\"s-network\",\"networkTier\":\"s-networktier\",\"subnetwork\":\"s-subnetwork\"}],\"osAdaptationParameters\":{\"bootConversion\":\"s-bootconversion\",\"generalize\":true,\"licenseType\":\"s-licensetype\"},\"serviceAccount\":{\"email\":\"s-email\",\"scopes\":[\"s-scopes\"]},\"shieldedInstanceConfig\":{\"enableIntegrityMonitoring\":true,\"enableVtpm\":true,\"secureBoot\":\"s-secureboot\"},\"singleRegionStorage\":true,\"skipOsAdaptation\":{},\"tags\":[\"s-tags\"],\"targetProject\":\"s-targetproject\"},\"name\":\"s-name\",\"recentImageImportJobs\":[{\"cloudStorageUri\":\"s-cloudstorageuri\",\"createTime\":\"s-createtime\",\"createdResources\":[\"s-createdresources\"],\"diskImageTargetDetails\":{\"description\":\"s-description\",\"familyName\":\"s-familyname\",\"imageName\":\"s-imagename\",\"singleRegionStorage\":true,\"targetProject\":\"s-targetproject\"},\"endTime\":\"s-endtime\",\"machineImageTargetDetails\":{\"description\":\"s-description\",\"machineImageName\":\"s-machineimagename\",\"singleRegionStorage\":true,\"targetProject\":\"s-targetproject\"},\"name\":\"s-name\",\"state\":\"s-state\"}]}",
+  "  B <1912 bytes> {\"cloudStorageUri\":\"s-cloudstora...\":\"s-name\",\"state\":\"s-state\"}]}",
   "",
   "  SERVED 200 {\"done\":true,\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}",
   "OUT: {\"done\":true,\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}",
@@ -220,10 +296,10 @@ test "Go's vmmigration.projects.locations.imageImports.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_9)
+  gv_compare(gv_log_of(f), GO_11)
 }
 
-const GO_10: List[Str] = [
+const GO_12: List[Str] = [
   "CALL vmmigration.projects.locations.imageImports.delete",
   "REQ DELETE https://vmmigration.googleapis.com/v1alpha1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&requestId=s-requestid",
   "  H x-extra=v1",
@@ -241,10 +317,10 @@ test "Go's vmmigration.projects.locations.imageImports.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_10)
+  gv_compare(gv_log_of(f), GO_12)
 }
 
-const GO_11: List[Str] = [
+const GO_13: List[Str] = [
   "CALL vmmigration.projects.locations.imageImports.get",
   "REQ GET https://vmmigration.googleapis.com/v1alpha1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -262,10 +338,10 @@ test "Go's vmmigration.projects.locations.imageImports.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_11)
+  gv_compare(gv_log_of(f), GO_13)
 }
 
-const GO_12: List[Str] = [
+const GO_14: List[Str] = [
   "CALL vmmigration.projects.locations.imageImports.list",
   "REQ GET https://vmmigration.googleapis.com/v1alpha1/id1/%20x/imageImports?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -283,10 +359,48 @@ test "Go's vmmigration.projects.locations.imageImports.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_12)
+  gv_compare(gv_log_of(f), GO_14)
 }
 
-const GO_13: List[Str] = [
+const GO_15: List[Str] = [
+  "CALL vmmigration.projects.locations.imageImports.list pages",
+  "REQ GET https://vmmigration.googleapis.com/v1alpha1/id1/%20x/imageImports?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"imageImports\":[{\"cloudStorageUri\":\"s-cloudstorageuri\",\"createTime\":\"s-createtime\",\"diskImageTargetDefaults\":{\"description\":\"s-description\",\"familyName\":\"s-familyname\",\"imageName\":\"s-imagename\",\"singleRegionStorage\":true,\"targetProject\":\"s-targetproject\"},\"encryption\":{\"kmsKey\":\"s-kmskey\"},\"machineImageTargetDefaults\":{\"description\":\"s-description\",\"machineImageName\":\"s-machineimagename\",\"singleRegionStorage\":true,\"targetProject\":\"s-targetproject\"},\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"imageImports\":[{\"cloudStorageUri\":\"s-cloudstorageuri\",\"createTime\":\"s-createtime\",\"diskImageTargetDefaults\":{\"description\":\"s-description\",\"familyName\":\"s-familyname\",\"imageName\":\"s-imagename\",\"singleRegionStorage\":true,\"targetProject\":\"s-targetproject\"},\"encryption\":{\"kmsKey\":\"s-kmskey\"},\"machineImageTargetDefaults\":{\"description\":\"s-description\",\"machineImageName\":\"s-machineimagename\",\"singleRegionStorage\":true,\"targetProject\":\"s-targetproject\"},\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}",
+  "REQ GET https://vmmigration.googleapis.com/v1alpha1/id1/%20x/imageImports?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"imageImports\":[{\"cloudStorageUri\":\"s-cloudstorageuri\",\"createTime\":\"s-createtime\",\"diskImageTargetDefaults\":{\"description\":\"s-description\",\"familyName\":\"s-familyname\",\"imageName\":\"s-imagename\",\"singleRegionStorage\":true,\"targetProject\":\"s-targetproject\"},\"encryption\":{\"kmsKey\":\"s-kmskey\"},\"machineImageTargetDefaults\":{\"description\":\"s-description\",\"machineImageName\":\"s-machineimagename\",\"singleRegionStorage\":true,\"targetProject\":\"s-targetproject\"},\"name\":\"s-name\"}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"imageImports\":[{\"cloudStorageUri\":\"s-cloudstorageuri\",\"createTime\":\"s-createtime\",\"diskImageTargetDefaults\":{\"description\":\"s-description\",\"familyName\":\"s-familyname\",\"imageName\":\"s-imagename\",\"singleRegionStorage\":true,\"targetProject\":\"s-targetproject\"},\"encryption\":{\"kmsKey\":\"s-kmskey\"},\"machineImageTargetDefaults\":{\"description\":\"s-description\",\"machineImageName\":\"s-machineimagename\",\"singleRegionStorage\":true,\"targetProject\":\"s-targetproject\"},\"name\":\"s-name\"}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: ok",
+]
+
+test "Go's vmmigration.projects.locations.imageImports.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"imageImports\":[{\"cloudStorageUri\":\"s-cloudstorageuri\",\"createTime\":\"s-createtime\",\"diskImageTargetDefaults\":{\"description\":\"s-description\",\"familyName\":\"s-familyname\",\"imageName\":\"s-imagename\",\"singleRegionStorage\":true,\"targetProject\":\"s-targetproject\"},\"encryption\":{\"kmsKey\":\"s-kmskey\"},\"machineImageTargetDefaults\":{\"description\":\"s-description\",\"machineImageName\":\"s-machineimagename\",\"singleRegionStorage\":true,\"targetProject\":\"s-targetproject\"},\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}")
+  gv_queue(f, "{\"imageImports\":[{\"cloudStorageUri\":\"s-cloudstorageuri\",\"createTime\":\"s-createtime\",\"diskImageTargetDefaults\":{\"description\":\"s-description\",\"familyName\":\"s-familyname\",\"imageName\":\"s-imagename\",\"singleRegionStorage\":true,\"targetProject\":\"s-targetproject\"},\"encryption\":{\"kmsKey\":\"s-kmskey\"},\"machineImageTargetDefaults\":{\"description\":\"s-description\",\"machineImageName\":\"s-machineimagename\",\"singleRegionStorage\":true,\"targetProject\":\"s-targetproject\"},\"name\":\"s-name\"}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_note(f, "CALL vmmigration.projects.locations.imageImports.list pages")
+  var p = svc.projects.locations.image_imports.list_pages("id1/ x", options: ProjectsLocationsImageImportsListOptions{filter: Some("s-filter"), order_by: Some("s-orderby"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_15)
+}
+
+const GO_16: List[Str] = [
   "CALL vmmigration.projects.locations.imageImports.imageImportJobs.cancel",
   "REQ POST https://vmmigration.googleapis.com/v1alpha1/id1/%20x:cancel?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -305,10 +419,10 @@ test "Go's vmmigration.projects.locations.imageImports.imageImportJobs.cancel" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_13)
+  gv_compare(gv_log_of(f), GO_16)
 }
 
-const GO_14: List[Str] = [
+const GO_17: List[Str] = [
   "CALL vmmigration.projects.locations.imageImports.imageImportJobs.get",
   "REQ GET https://vmmigration.googleapis.com/v1alpha1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -326,10 +440,10 @@ test "Go's vmmigration.projects.locations.imageImports.imageImportJobs.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_14)
+  gv_compare(gv_log_of(f), GO_17)
 }
 
-const GO_15: List[Str] = [
+const GO_18: List[Str] = [
   "CALL vmmigration.projects.locations.imageImports.imageImportJobs.list",
   "REQ GET https://vmmigration.googleapis.com/v1alpha1/id1/%20x/imageImportJobs?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -347,10 +461,48 @@ test "Go's vmmigration.projects.locations.imageImports.imageImportJobs.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_15)
+  gv_compare(gv_log_of(f), GO_18)
 }
 
-const GO_16: List[Str] = [
+const GO_19: List[Str] = [
+  "CALL vmmigration.projects.locations.imageImports.imageImportJobs.list pages",
+  "REQ GET https://vmmigration.googleapis.com/v1alpha1/id1/%20x/imageImportJobs?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"imageImportJobs\":[{\"cloudStorageUri\":\"s-cloudstorageuri\",\"createTime\":\"s-createtime\",\"createdResources\":[\"s-createdresources\"],\"diskImageTargetDetails\":{\"description\":\"s-description\",\"familyName\":\"s-familyname\",\"imageName\":\"s-imagename\",\"singleRegionStorage\":true,\"targetProject\":\"s-targetproject\"},\"endTime\":\"s-endtime\",\"machineImageTargetDetails\":{\"description\":\"s-description\",\"machineImageName\":\"s-machineimagename\",\"singleRegionStorage\":true,\"targetProject\":\"s-targetproject\"},\"name\":\"s-name\",\"state\":\"s-state\"}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"imageImportJobs\":[{\"cloudStorageUri\":\"s-cloudstorageuri\",\"createTime\":\"s-createtime\",\"createdResources\":[\"s-createdresources\"],\"diskImageTargetDetails\":{\"description\":\"s-description\",\"familyName\":\"s-familyname\",\"imageName\":\"s-imagename\",\"singleRegionStorage\":true,\"targetProject\":\"s-targetproject\"},\"endTime\":\"s-endtime\",\"machineImageTargetDetails\":{\"description\":\"s-description\",\"machineImageName\":\"s-machineimagename\",\"singleRegionStorage\":true,\"targetProject\":\"s-targetproject\"},\"name\":\"s-name\",\"state\":\"s-state\"}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}",
+  "REQ GET https://vmmigration.googleapis.com/v1alpha1/id1/%20x/imageImportJobs?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"imageImportJobs\":[{\"cloudStorageUri\":\"s-cloudstorageuri\",\"createTime\":\"s-createtime\",\"createdResources\":[\"s-createdresources\"],\"diskImageTargetDetails\":{\"description\":\"s-description\",\"familyName\":\"s-familyname\",\"imageName\":\"s-imagename\",\"singleRegionStorage\":true,\"targetProject\":\"s-targetproject\"},\"endTime\":\"s-endtime\",\"machineImageTargetDetails\":{\"description\":\"s-description\",\"machineImageName\":\"s-machineimagename\",\"singleRegionStorage\":true,\"targetProject\":\"s-targetproject\"},\"name\":\"s-name\",\"state\":\"s-state\"}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"imageImportJobs\":[{\"cloudStorageUri\":\"s-cloudstorageuri\",\"createTime\":\"s-createtime\",\"createdResources\":[\"s-createdresources\"],\"diskImageTargetDetails\":{\"description\":\"s-description\",\"familyName\":\"s-familyname\",\"imageName\":\"s-imagename\",\"singleRegionStorage\":true,\"targetProject\":\"s-targetproject\"},\"endTime\":\"s-endtime\",\"machineImageTargetDetails\":{\"description\":\"s-description\",\"machineImageName\":\"s-machineimagename\",\"singleRegionStorage\":true,\"targetProject\":\"s-targetproject\"},\"name\":\"s-name\",\"state\":\"s-state\"}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: ok",
+]
+
+test "Go's vmmigration.projects.locations.imageImports.imageImportJobs.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"imageImportJobs\":[{\"cloudStorageUri\":\"s-cloudstorageuri\",\"createTime\":\"s-createtime\",\"createdResources\":[\"s-createdresources\"],\"diskImageTargetDetails\":{\"description\":\"s-description\",\"familyName\":\"s-familyname\",\"imageName\":\"s-imagename\",\"singleRegionStorage\":true,\"targetProject\":\"s-targetproject\"},\"endTime\":\"s-endtime\",\"machineImageTargetDetails\":{\"description\":\"s-description\",\"machineImageName\":\"s-machineimagename\",\"singleRegionStorage\":true,\"targetProject\":\"s-targetproject\"},\"name\":\"s-name\",\"state\":\"s-state\"}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}")
+  gv_queue(f, "{\"imageImportJobs\":[{\"cloudStorageUri\":\"s-cloudstorageuri\",\"createTime\":\"s-createtime\",\"createdResources\":[\"s-createdresources\"],\"diskImageTargetDetails\":{\"description\":\"s-description\",\"familyName\":\"s-familyname\",\"imageName\":\"s-imagename\",\"singleRegionStorage\":true,\"targetProject\":\"s-targetproject\"},\"endTime\":\"s-endtime\",\"machineImageTargetDetails\":{\"description\":\"s-description\",\"machineImageName\":\"s-machineimagename\",\"singleRegionStorage\":true,\"targetProject\":\"s-targetproject\"},\"name\":\"s-name\",\"state\":\"s-state\"}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_note(f, "CALL vmmigration.projects.locations.imageImports.imageImportJobs.list pages")
+  var p = svc.projects.locations.image_imports.image_import_jobs.list_pages("id1/ x", options: ProjectsLocationsImageImportsImageImportJobsListOptions{filter: Some("s-filter"), order_by: Some("s-orderby"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_19)
+}
+
+const GO_20: List[Str] = [
   "CALL vmmigration.projects.locations.operations.cancel",
   "REQ POST https://vmmigration.googleapis.com/v1alpha1/id1/%20x:cancel?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -369,10 +521,10 @@ test "Go's vmmigration.projects.locations.operations.cancel" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_16)
+  gv_compare(gv_log_of(f), GO_20)
 }
 
-const GO_17: List[Str] = [
+const GO_21: List[Str] = [
   "CALL vmmigration.projects.locations.operations.delete",
   "REQ DELETE https://vmmigration.googleapis.com/v1alpha1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -390,10 +542,10 @@ test "Go's vmmigration.projects.locations.operations.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_17)
+  gv_compare(gv_log_of(f), GO_21)
 }
 
-const GO_18: List[Str] = [
+const GO_22: List[Str] = [
   "CALL vmmigration.projects.locations.operations.get",
   "REQ GET https://vmmigration.googleapis.com/v1alpha1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -411,10 +563,10 @@ test "Go's vmmigration.projects.locations.operations.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_18)
+  gv_compare(gv_log_of(f), GO_22)
 }
 
-const GO_19: List[Str] = [
+const GO_23: List[Str] = [
   "CALL vmmigration.projects.locations.operations.list",
   "REQ GET https://vmmigration.googleapis.com/v1alpha1/id1/%20x/operations?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&returnPartialSuccess=true",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -432,14 +584,52 @@ test "Go's vmmigration.projects.locations.operations.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_19)
+  gv_compare(gv_log_of(f), GO_23)
 }
 
-const GO_20: List[Str] = [
+const GO_24: List[Str] = [
+  "CALL vmmigration.projects.locations.operations.list pages",
+  "REQ GET https://vmmigration.googleapis.com/v1alpha1/id1/%20x/operations?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&returnPartialSuccess=true",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "REQ GET https://vmmigration.googleapis.com/v1alpha1/id1/%20x/operations?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false&returnPartialSuccess=true",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: ok",
+]
+
+test "Go's vmmigration.projects.locations.operations.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_queue(f, "{\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_note(f, "CALL vmmigration.projects.locations.operations.list pages")
+  var p = svc.projects.locations.operations.list_pages("id1/ x", options: ProjectsLocationsOperationsListOptions{filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), return_partial_success: Some(true), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_24)
+}
+
+const GO_25: List[Str] = [
   "CALL vmmigration.projects.locations.sources.create",
   "REQ POST https://vmmigration.googleapis.com/v1alpha1/id1/%20x/sources?alt=json&fields=kind%2Cid&prettyPrint=false&requestId=s-requestid&sourceId=s-sourceid",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"aws\":{\"accessKeyCreds\":{\"accessKeyId\":\"s-accesskeyid\",\"secretAccessKey\":\"s-secretaccesskey\",\"sessionToken\":\"s-sessiontoken\"},\"awsRegion\":\"s-awsregion\",\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"inventorySecurityGroupNames\":[\"s-inventorysecuritygroupnames\"],\"inventoryTagList\":[{\"key\":\"s-key\",\"value\":\"s-value\"}],\"migrationResourcesUserTags\":{\"k1\":\"s-migrationresourcesusertags\"},\"publicIp\":\"s-publicip\",\"state\":\"s-state\"},\"azure\":{\"azureLocation\":\"s-azurelocation\",\"clientSecretCreds\":{\"clientId\":\"s-clientid\",\"clientSecret\":\"s-clientsecret\",\"tenantId\":\"s-tenantid\"},\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"migrationResourcesUserTags\":{\"k1\":\"s-migrationresourcesusertags\"},\"resourceGroupId\":\"s-resourcegroupid\",\"state\":\"s-state\",\"subscriptionId\":\"s-subscriptionid\"},\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"encryption\":{\"kmsKey\":\"s-kmskey\"},\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"updateTime\":\"s-updatetime\",\"vmware\":{\"password\":\"s-password\",\"resolvedVcenterHost\":\"s-resolvedvcenterhost\",\"thumbprint\":\"s-thumbprint\",\"username\":\"s-username\",\"vcenterIp\":\"s-vcenterip\"}}",
+  "  B <1200 bytes> {\"aws\":{\"accessKeyCreds\":{\"acces...me\",\"vcenterIp\":\"s-vcenterip\"}}",
   "",
   "  SERVED 200 {\"done\":true,\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}",
   "OUT: {\"done\":true,\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}",
@@ -454,10 +644,10 @@ test "Go's vmmigration.projects.locations.sources.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_20)
+  gv_compare(gv_log_of(f), GO_25)
 }
 
-const GO_21: List[Str] = [
+const GO_26: List[Str] = [
   "CALL vmmigration.projects.locations.sources.delete",
   "REQ DELETE https://vmmigration.googleapis.com/v1alpha1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&requestId=s-requestid",
   "  H x-extra=v1",
@@ -475,10 +665,10 @@ test "Go's vmmigration.projects.locations.sources.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_21)
+  gv_compare(gv_log_of(f), GO_26)
 }
 
-const GO_22: List[Str] = [
+const GO_27: List[Str] = [
   "CALL vmmigration.projects.locations.sources.fetchInventory",
   "REQ GET https://vmmigration.googleapis.com/v1alpha1/id1/%20x:fetchInventory?alt=json&fields=kind%2Cid&forceRefresh=true&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -496,10 +686,48 @@ test "Go's vmmigration.projects.locations.sources.fetchInventory" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_22)
+  gv_compare(gv_log_of(f), GO_27)
 }
 
-const GO_23: List[Str] = [
+const GO_28: List[Str] = [
+  "CALL vmmigration.projects.locations.sources.fetchInventory pages",
+  "REQ GET https://vmmigration.googleapis.com/v1alpha1/id1/%20x:fetchInventory?alt=json&fields=kind%2Cid&forceRefresh=true&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"awsVms\":{\"details\":[{\"architecture\":\"s-architecture\",\"bootOption\":\"s-bootoption\",\"committedStorageMb\":\"7\",\"cpuCount\":7,\"diskCount\":7,\"displayName\":\"s-displayname\",\"instanceType\":\"s-instancetype\",\"memoryMb\":7,\"osDescription\":\"s-osdescription\",\"powerState\":\"s-powerstate\",\"sourceDescription\":\"s-sourcedescription\",\"sourceId\":\"s-sourceid\",\"vcpuCount\":7,\"virtualizationType\":\"s-virtualizationtype\",\"vmId\":\"s-vmid\",\"vpcId\":\"s-vpcid\",\"zone\":\"s-zone\"}]},\"azureVms\":{\"details\":[{\"architecture\":\"s-architecture\",\"bootOption\":\"s-bootoption\",\"committedStorageMb\":\"7\",\"computerName\":\"s-computername\",\"cpuCount\":7,\"diskCount\":7,\"memoryMb\":7,\"powerState\":\"s-powerstate\",\"vmId\":\"s-vmid\",\"vmSize\":\"s-vmsize\"}]},\"nextPageToken\":\"s-nextpagetoken\",\"updateTime\":\"s-updatetime\",\"vmwareVms\":{\"details\":[{\"architecture\":\"s-architecture\",\"bootOption\":\"s-bootoption\",\"committedStorage\":\"7\",\"committedStorageMb\":\"7\",\"cpuCount\":7,\"datacenterDescription\":\"s-datacenterdescription\",\"datacenterId\":\"s-datacenterid\",\"diskCount\":7,\"displayName\":\"s-displayname\",\"guestDescription\":\"s-guestdescription\",\"memoryMb\":7,\"powerState\":\"s-powerstate\",\"uuid\":\"s-uuid\",\"vmId\":\"s-vmid\"}]}}",
+  "OUT: {\"awsVms\":{\"details\":[{\"architecture\":\"s-architecture\",\"bootOption\":\"s-bootoption\",\"committedStorageMb\":\"7\",\"cpuCount\":7,\"diskCount\":7,\"displayName\":\"s-displayname\",\"instanceType\":\"s-instancetype\",\"memoryMb\":7,\"osDescription\":\"s-osdescription\",\"powerState\":\"s-powerstate\",\"sourceDescription\":\"s-sourcedescription\",\"sourceId\":\"s-sourceid\",\"vcpuCount\":7,\"virtualizationType\":\"s-virtualizationtype\",\"vmId\":\"s-vmid\",\"vpcId\":\"s-vpcid\",\"zone\":\"s-zone\"}]},\"azureVms\":{\"details\":[{\"architecture\":\"s-architecture\",\"bootOption\":\"s-bootoption\",\"committedStorageMb\":\"7\",\"computerName\":\"s-computername\",\"cpuCount\":7,\"diskCount\":7,\"memoryMb\":7,\"powerState\":\"s-powerstate\",\"vmId\":\"s-vmid\",\"vmSize\":\"s-vmsize\"}]},\"nextPageToken\":\"s-nextpagetoken\",\"updateTime\":\"s-updatetime\",\"vmwareVms\":{\"details\":[{\"architecture\":\"s-architecture\",\"bootOption\":\"s-bootoption\",\"committedStorage\":\"7\",\"committedStorageMb\":\"7\",\"cpuCount\":7,\"datacenterDescription\":\"s-datacenterdescription\",\"datacenterId\":\"s-datacenterid\",\"diskCount\":7,\"displayName\":\"s-displayname\",\"guestDescription\":\"s-guestdescription\",\"memoryMb\":7,\"powerState\":\"s-powerstate\",\"uuid\":\"s-uuid\",\"vmId\":\"s-vmid\"}]}}",
+  "REQ GET https://vmmigration.googleapis.com/v1alpha1/id1/%20x:fetchInventory?alt=json&fields=kind%2Cid&forceRefresh=true&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"awsVms\":{\"details\":[{\"architecture\":\"s-architecture\",\"bootOption\":\"s-bootoption\",\"committedStorageMb\":\"7\",\"cpuCount\":7,\"diskCount\":7,\"displayName\":\"s-displayname\",\"instanceType\":\"s-instancetype\",\"memoryMb\":7,\"osDescription\":\"s-osdescription\",\"powerState\":\"s-powerstate\",\"sourceDescription\":\"s-sourcedescription\",\"sourceId\":\"s-sourceid\",\"vcpuCount\":7,\"virtualizationType\":\"s-virtualizationtype\",\"vmId\":\"s-vmid\",\"vpcId\":\"s-vpcid\",\"zone\":\"s-zone\"}]},\"azureVms\":{\"details\":[{\"architecture\":\"s-architecture\",\"bootOption\":\"s-bootoption\",\"committedStorageMb\":\"7\",\"computerName\":\"s-computername\",\"cpuCount\":7,\"diskCount\":7,\"memoryMb\":7,\"powerState\":\"s-powerstate\",\"vmId\":\"s-vmid\",\"vmSize\":\"s-vmsize\"}]},\"updateTime\":\"s-updatetime\",\"vmwareVms\":{\"details\":[{\"architecture\":\"s-architecture\",\"bootOption\":\"s-bootoption\",\"committedStorage\":\"7\",\"committedStorageMb\":\"7\",\"cpuCount\":7,\"datacenterDescription\":\"s-datacenterdescription\",\"datacenterId\":\"s-datacenterid\",\"diskCount\":7,\"displayName\":\"s-displayname\",\"guestDescription\":\"s-guestdescription\",\"memoryMb\":7,\"powerState\":\"s-powerstate\",\"uuid\":\"s-uuid\",\"vmId\":\"s-vmid\"}]}}",
+  "OUT: {\"awsVms\":{\"details\":[{\"architecture\":\"s-architecture\",\"bootOption\":\"s-bootoption\",\"committedStorageMb\":\"7\",\"cpuCount\":7,\"diskCount\":7,\"displayName\":\"s-displayname\",\"instanceType\":\"s-instancetype\",\"memoryMb\":7,\"osDescription\":\"s-osdescription\",\"powerState\":\"s-powerstate\",\"sourceDescription\":\"s-sourcedescription\",\"sourceId\":\"s-sourceid\",\"vcpuCount\":7,\"virtualizationType\":\"s-virtualizationtype\",\"vmId\":\"s-vmid\",\"vpcId\":\"s-vpcid\",\"zone\":\"s-zone\"}]},\"azureVms\":{\"details\":[{\"architecture\":\"s-architecture\",\"bootOption\":\"s-bootoption\",\"committedStorageMb\":\"7\",\"computerName\":\"s-computername\",\"cpuCount\":7,\"diskCount\":7,\"memoryMb\":7,\"powerState\":\"s-powerstate\",\"vmId\":\"s-vmid\",\"vmSize\":\"s-vmsize\"}]},\"updateTime\":\"s-updatetime\",\"vmwareVms\":{\"details\":[{\"architecture\":\"s-architecture\",\"bootOption\":\"s-bootoption\",\"committedStorage\":\"7\",\"committedStorageMb\":\"7\",\"cpuCount\":7,\"datacenterDescription\":\"s-datacenterdescription\",\"datacenterId\":\"s-datacenterid\",\"diskCount\":7,\"displayName\":\"s-displayname\",\"guestDescription\":\"s-guestdescription\",\"memoryMb\":7,\"powerState\":\"s-powerstate\",\"uuid\":\"s-uuid\",\"vmId\":\"s-vmid\"}]}}",
+  "OUT: ok",
+]
+
+test "Go's vmmigration.projects.locations.sources.fetchInventory pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"awsVms\":{\"details\":[{\"architecture\":\"s-architecture\",\"bootOption\":\"s-bootoption\",\"committedStorageMb\":\"7\",\"cpuCount\":7,\"diskCount\":7,\"displayName\":\"s-displayname\",\"instanceType\":\"s-instancetype\",\"memoryMb\":7,\"osDescription\":\"s-osdescription\",\"powerState\":\"s-powerstate\",\"sourceDescription\":\"s-sourcedescription\",\"sourceId\":\"s-sourceid\",\"vcpuCount\":7,\"virtualizationType\":\"s-virtualizationtype\",\"vmId\":\"s-vmid\",\"vpcId\":\"s-vpcid\",\"zone\":\"s-zone\"}]},\"azureVms\":{\"details\":[{\"architecture\":\"s-architecture\",\"bootOption\":\"s-bootoption\",\"committedStorageMb\":\"7\",\"computerName\":\"s-computername\",\"cpuCount\":7,\"diskCount\":7,\"memoryMb\":7,\"powerState\":\"s-powerstate\",\"vmId\":\"s-vmid\",\"vmSize\":\"s-vmsize\"}]},\"nextPageToken\":\"s-nextpagetoken\",\"updateTime\":\"s-updatetime\",\"vmwareVms\":{\"details\":[{\"architecture\":\"s-architecture\",\"bootOption\":\"s-bootoption\",\"committedStorage\":\"7\",\"committedStorageMb\":\"7\",\"cpuCount\":7,\"datacenterDescription\":\"s-datacenterdescription\",\"datacenterId\":\"s-datacenterid\",\"diskCount\":7,\"displayName\":\"s-displayname\",\"guestDescription\":\"s-guestdescription\",\"memoryMb\":7,\"powerState\":\"s-powerstate\",\"uuid\":\"s-uuid\",\"vmId\":\"s-vmid\"}]}}")
+  gv_queue(f, "{\"awsVms\":{\"details\":[{\"architecture\":\"s-architecture\",\"bootOption\":\"s-bootoption\",\"committedStorageMb\":\"7\",\"cpuCount\":7,\"diskCount\":7,\"displayName\":\"s-displayname\",\"instanceType\":\"s-instancetype\",\"memoryMb\":7,\"osDescription\":\"s-osdescription\",\"powerState\":\"s-powerstate\",\"sourceDescription\":\"s-sourcedescription\",\"sourceId\":\"s-sourceid\",\"vcpuCount\":7,\"virtualizationType\":\"s-virtualizationtype\",\"vmId\":\"s-vmid\",\"vpcId\":\"s-vpcid\",\"zone\":\"s-zone\"}]},\"azureVms\":{\"details\":[{\"architecture\":\"s-architecture\",\"bootOption\":\"s-bootoption\",\"committedStorageMb\":\"7\",\"computerName\":\"s-computername\",\"cpuCount\":7,\"diskCount\":7,\"memoryMb\":7,\"powerState\":\"s-powerstate\",\"vmId\":\"s-vmid\",\"vmSize\":\"s-vmsize\"}]},\"updateTime\":\"s-updatetime\",\"vmwareVms\":{\"details\":[{\"architecture\":\"s-architecture\",\"bootOption\":\"s-bootoption\",\"committedStorage\":\"7\",\"committedStorageMb\":\"7\",\"cpuCount\":7,\"datacenterDescription\":\"s-datacenterdescription\",\"datacenterId\":\"s-datacenterid\",\"diskCount\":7,\"displayName\":\"s-displayname\",\"guestDescription\":\"s-guestdescription\",\"memoryMb\":7,\"powerState\":\"s-powerstate\",\"uuid\":\"s-uuid\",\"vmId\":\"s-vmid\"}]}}")
+  gv_note(f, "CALL vmmigration.projects.locations.sources.fetchInventory pages")
+  var p = svc.projects.locations.sources.fetch_inventory_pages("id1/ x", options: ProjectsLocationsSourcesFetchInventoryOptions{force_refresh: Some(true), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_28)
+}
+
+const GO_29: List[Str] = [
   "CALL vmmigration.projects.locations.sources.fetchStorageInventory",
   "REQ GET https://vmmigration.googleapis.com/v1alpha1/id1/%20x:fetchStorageInventory?alt=json&fields=kind%2Cid&forceRefresh=true&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&type=s-type",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -517,10 +745,48 @@ test "Go's vmmigration.projects.locations.sources.fetchStorageInventory" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_23)
+  gv_compare(gv_log_of(f), GO_29)
 }
 
-const GO_24: List[Str] = [
+const GO_30: List[Str] = [
+  "CALL vmmigration.projects.locations.sources.fetchStorageInventory pages",
+  "REQ GET https://vmmigration.googleapis.com/v1alpha1/id1/%20x:fetchStorageInventory?alt=json&fields=kind%2Cid&forceRefresh=true&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&type=s-type",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"resources\":[{\"awsDiskDetails\":{\"diskType\":\"s-disktype\",\"sizeGib\":\"7\",\"volumeId\":\"s-volumeid\"}}],\"updateTime\":\"s-updatetime\"}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"resources\":[{\"awsDiskDetails\":{\"diskType\":\"s-disktype\",\"sizeGib\":\"7\",\"volumeId\":\"s-volumeid\"}}],\"updateTime\":\"s-updatetime\"}",
+  "REQ GET https://vmmigration.googleapis.com/v1alpha1/id1/%20x:fetchStorageInventory?alt=json&fields=kind%2Cid&forceRefresh=true&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false&type=s-type",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"resources\":[{\"awsDiskDetails\":{\"diskType\":\"s-disktype\",\"sizeGib\":\"7\",\"volumeId\":\"s-volumeid\"}}],\"updateTime\":\"s-updatetime\"}",
+  "OUT: {\"resources\":[{\"awsDiskDetails\":{\"diskType\":\"s-disktype\",\"sizeGib\":\"7\",\"volumeId\":\"s-volumeid\"}}],\"updateTime\":\"s-updatetime\"}",
+  "OUT: ok",
+]
+
+test "Go's vmmigration.projects.locations.sources.fetchStorageInventory pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"resources\":[{\"awsDiskDetails\":{\"diskType\":\"s-disktype\",\"sizeGib\":\"7\",\"volumeId\":\"s-volumeid\"}}],\"updateTime\":\"s-updatetime\"}")
+  gv_queue(f, "{\"resources\":[{\"awsDiskDetails\":{\"diskType\":\"s-disktype\",\"sizeGib\":\"7\",\"volumeId\":\"s-volumeid\"}}],\"updateTime\":\"s-updatetime\"}")
+  gv_note(f, "CALL vmmigration.projects.locations.sources.fetchStorageInventory pages")
+  var p = svc.projects.locations.sources.fetch_storage_inventory_pages("id1/ x", options: ProjectsLocationsSourcesFetchStorageInventoryOptions{force_refresh: Some(true), page_size: Some(7), page_token: Some("s-pagetoken"), type_: Some("s-type"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_30)
+}
+
+const GO_31: List[Str] = [
   "CALL vmmigration.projects.locations.sources.get",
   "REQ GET https://vmmigration.googleapis.com/v1alpha1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -538,10 +804,10 @@ test "Go's vmmigration.projects.locations.sources.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_24)
+  gv_compare(gv_log_of(f), GO_31)
 }
 
-const GO_25: List[Str] = [
+const GO_32: List[Str] = [
   "CALL vmmigration.projects.locations.sources.list",
   "REQ GET https://vmmigration.googleapis.com/v1alpha1/id1/%20x/sources?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -559,14 +825,52 @@ test "Go's vmmigration.projects.locations.sources.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_25)
+  gv_compare(gv_log_of(f), GO_32)
 }
 
-const GO_26: List[Str] = [
+const GO_33: List[Str] = [
+  "CALL vmmigration.projects.locations.sources.list pages",
+  "REQ GET https://vmmigration.googleapis.com/v1alpha1/id1/%20x/sources?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"sources\":[{\"aws\":{\"awsRegion\":\"s-awsregion\",\"publicIp\":\"s-publicip\",\"state\":\"s-state\"},\"azure\":{\"azureLocation\":\"s-azurelocation\",\"resourceGroupId\":\"s-resourcegroupid\",\"state\":\"s-state\",\"subscriptionId\":\"s-subscriptionid\"},\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"encryption\":{\"kmsKey\":\"s-kmskey\"},\"error\":{\"code\":7,\"message\":\"s-message\"},\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"updateTime\":\"s-updatetime\",\"vmware\":{\"password\":\"s-password\",\"resolvedVcenterHost\":\"s-resolvedvcenterhost\",\"thumbprint\":\"s-thumbprint\",\"username\":\"s-username\",\"vcenterIp\":\"s-vcenterip\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"sources\":[{\"aws\":{\"awsRegion\":\"s-awsregion\",\"publicIp\":\"s-publicip\",\"state\":\"s-state\"},\"azure\":{\"azureLocation\":\"s-azurelocation\",\"resourceGroupId\":\"s-resourcegroupid\",\"state\":\"s-state\",\"subscriptionId\":\"s-subscriptionid\"},\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"encryption\":{\"kmsKey\":\"s-kmskey\"},\"error\":{\"code\":7,\"message\":\"s-message\"},\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"updateTime\":\"s-updatetime\",\"vmware\":{\"password\":\"s-password\",\"resolvedVcenterHost\":\"s-resolvedvcenterhost\",\"thumbprint\":\"s-thumbprint\",\"username\":\"s-username\",\"vcenterIp\":\"s-vcenterip\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "REQ GET https://vmmigration.googleapis.com/v1alpha1/id1/%20x/sources?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"sources\":[{\"aws\":{\"awsRegion\":\"s-awsregion\",\"publicIp\":\"s-publicip\",\"state\":\"s-state\"},\"azure\":{\"azureLocation\":\"s-azurelocation\",\"resourceGroupId\":\"s-resourcegroupid\",\"state\":\"s-state\",\"subscriptionId\":\"s-subscriptionid\"},\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"encryption\":{\"kmsKey\":\"s-kmskey\"},\"error\":{\"code\":7,\"message\":\"s-message\"},\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"updateTime\":\"s-updatetime\",\"vmware\":{\"password\":\"s-password\",\"resolvedVcenterHost\":\"s-resolvedvcenterhost\",\"thumbprint\":\"s-thumbprint\",\"username\":\"s-username\",\"vcenterIp\":\"s-vcenterip\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"sources\":[{\"aws\":{\"awsRegion\":\"s-awsregion\",\"publicIp\":\"s-publicip\",\"state\":\"s-state\"},\"azure\":{\"azureLocation\":\"s-azurelocation\",\"resourceGroupId\":\"s-resourcegroupid\",\"state\":\"s-state\",\"subscriptionId\":\"s-subscriptionid\"},\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"encryption\":{\"kmsKey\":\"s-kmskey\"},\"error\":{\"code\":7,\"message\":\"s-message\"},\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"updateTime\":\"s-updatetime\",\"vmware\":{\"password\":\"s-password\",\"resolvedVcenterHost\":\"s-resolvedvcenterhost\",\"thumbprint\":\"s-thumbprint\",\"username\":\"s-username\",\"vcenterIp\":\"s-vcenterip\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: ok",
+]
+
+test "Go's vmmigration.projects.locations.sources.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"sources\":[{\"aws\":{\"awsRegion\":\"s-awsregion\",\"publicIp\":\"s-publicip\",\"state\":\"s-state\"},\"azure\":{\"azureLocation\":\"s-azurelocation\",\"resourceGroupId\":\"s-resourcegroupid\",\"state\":\"s-state\",\"subscriptionId\":\"s-subscriptionid\"},\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"encryption\":{\"kmsKey\":\"s-kmskey\"},\"error\":{\"code\":7,\"message\":\"s-message\"},\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"updateTime\":\"s-updatetime\",\"vmware\":{\"password\":\"s-password\",\"resolvedVcenterHost\":\"s-resolvedvcenterhost\",\"thumbprint\":\"s-thumbprint\",\"username\":\"s-username\",\"vcenterIp\":\"s-vcenterip\"}}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_queue(f, "{\"sources\":[{\"aws\":{\"awsRegion\":\"s-awsregion\",\"publicIp\":\"s-publicip\",\"state\":\"s-state\"},\"azure\":{\"azureLocation\":\"s-azurelocation\",\"resourceGroupId\":\"s-resourcegroupid\",\"state\":\"s-state\",\"subscriptionId\":\"s-subscriptionid\"},\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"encryption\":{\"kmsKey\":\"s-kmskey\"},\"error\":{\"code\":7,\"message\":\"s-message\"},\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"updateTime\":\"s-updatetime\",\"vmware\":{\"password\":\"s-password\",\"resolvedVcenterHost\":\"s-resolvedvcenterhost\",\"thumbprint\":\"s-thumbprint\",\"username\":\"s-username\",\"vcenterIp\":\"s-vcenterip\"}}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_note(f, "CALL vmmigration.projects.locations.sources.list pages")
+  var p = svc.projects.locations.sources.list_pages("id1/ x", options: ProjectsLocationsSourcesListOptions{filter: Some("s-filter"), order_by: Some("s-orderby"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_33)
+}
+
+const GO_34: List[Str] = [
   "CALL vmmigration.projects.locations.sources.patch",
   "REQ PATCH https://vmmigration.googleapis.com/v1alpha1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&requestId=s-requestid&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"aws\":{\"accessKeyCreds\":{\"accessKeyId\":\"s-accesskeyid\",\"secretAccessKey\":\"s-secretaccesskey\",\"sessionToken\":\"s-sessiontoken\"},\"awsRegion\":\"s-awsregion\",\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"inventorySecurityGroupNames\":[\"s-inventorysecuritygroupnames\"],\"inventoryTagList\":[{\"key\":\"s-key\",\"value\":\"s-value\"}],\"migrationResourcesUserTags\":{\"k1\":\"s-migrationresourcesusertags\"},\"publicIp\":\"s-publicip\",\"state\":\"s-state\"},\"azure\":{\"azureLocation\":\"s-azurelocation\",\"clientSecretCreds\":{\"clientId\":\"s-clientid\",\"clientSecret\":\"s-clientsecret\",\"tenantId\":\"s-tenantid\"},\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"migrationResourcesUserTags\":{\"k1\":\"s-migrationresourcesusertags\"},\"resourceGroupId\":\"s-resourcegroupid\",\"state\":\"s-state\",\"subscriptionId\":\"s-subscriptionid\"},\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"encryption\":{\"kmsKey\":\"s-kmskey\"},\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"labels\":{\"k1\":\"s-labels\"},\"name\":\"s-name\",\"updateTime\":\"s-updatetime\",\"vmware\":{\"password\":\"s-password\",\"resolvedVcenterHost\":\"s-resolvedvcenterhost\",\"thumbprint\":\"s-thumbprint\",\"username\":\"s-username\",\"vcenterIp\":\"s-vcenterip\"}}",
+  "  B <1200 bytes> {\"aws\":{\"accessKeyCreds\":{\"acces...me\",\"vcenterIp\":\"s-vcenterip\"}}",
   "",
   "  SERVED 200 {\"done\":true,\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}",
   "OUT: {\"done\":true,\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}",
@@ -581,10 +885,10 @@ test "Go's vmmigration.projects.locations.sources.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_26)
+  gv_compare(gv_log_of(f), GO_34)
 }
 
-const GO_27: List[Str] = [
+const GO_35: List[Str] = [
   "CALL vmmigration.projects.locations.sources.datacenterConnectors.create",
   "REQ POST https://vmmigration.googleapis.com/v1alpha1/id1/%20x/datacenterConnectors?alt=json&datacenterConnectorId=s-datacenterconnectorid&fields=kind%2Cid&prettyPrint=false&requestId=s-requestid",
   "  H content-type=application/json | x-extra=v1",
@@ -603,10 +907,10 @@ test "Go's vmmigration.projects.locations.sources.datacenterConnectors.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_27)
+  gv_compare(gv_log_of(f), GO_35)
 }
 
-const GO_28: List[Str] = [
+const GO_36: List[Str] = [
   "CALL vmmigration.projects.locations.sources.datacenterConnectors.delete",
   "REQ DELETE https://vmmigration.googleapis.com/v1alpha1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&requestId=s-requestid",
   "  H x-extra=v1",
@@ -624,10 +928,10 @@ test "Go's vmmigration.projects.locations.sources.datacenterConnectors.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_28)
+  gv_compare(gv_log_of(f), GO_36)
 }
 
-const GO_29: List[Str] = [
+const GO_37: List[Str] = [
   "CALL vmmigration.projects.locations.sources.datacenterConnectors.get",
   "REQ GET https://vmmigration.googleapis.com/v1alpha1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -645,10 +949,10 @@ test "Go's vmmigration.projects.locations.sources.datacenterConnectors.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_29)
+  gv_compare(gv_log_of(f), GO_37)
 }
 
-const GO_30: List[Str] = [
+const GO_38: List[Str] = [
   "CALL vmmigration.projects.locations.sources.datacenterConnectors.list",
   "REQ GET https://vmmigration.googleapis.com/v1alpha1/id1/%20x/datacenterConnectors?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -666,10 +970,48 @@ test "Go's vmmigration.projects.locations.sources.datacenterConnectors.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_30)
+  gv_compare(gv_log_of(f), GO_38)
 }
 
-const GO_31: List[Str] = [
+const GO_39: List[Str] = [
+  "CALL vmmigration.projects.locations.sources.datacenterConnectors.list pages",
+  "REQ GET https://vmmigration.googleapis.com/v1alpha1/id1/%20x/datacenterConnectors?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"datacenterConnectors\":[{\"applianceInfrastructureVersion\":\"s-applianceinfrastructureversion\",\"applianceSoftwareVersion\":\"s-appliancesoftwareversion\",\"availableVersions\":{},\"bucket\":\"s-bucket\",\"createTime\":\"s-createtime\",\"error\":{\"code\":7,\"message\":\"s-message\"},\"name\":\"s-name\",\"registrationId\":\"s-registrationid\",\"serviceAccount\":\"s-serviceaccount\",\"state\":\"s-state\",\"stateTime\":\"s-statetime\",\"updateTime\":\"s-updatetime\",\"upgradeStatus\":{\"previousVersion\":\"s-previousversion\",\"startTime\":\"s-starttime\",\"state\":\"s-state\",\"version\":\"s-version\"},\"version\":\"s-version\"}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"datacenterConnectors\":[{\"applianceInfrastructureVersion\":\"s-applianceinfrastructureversion\",\"applianceSoftwareVersion\":\"s-appliancesoftwareversion\",\"availableVersions\":{},\"bucket\":\"s-bucket\",\"createTime\":\"s-createtime\",\"error\":{\"code\":7,\"message\":\"s-message\"},\"name\":\"s-name\",\"registrationId\":\"s-registrationid\",\"serviceAccount\":\"s-serviceaccount\",\"state\":\"s-state\",\"stateTime\":\"s-statetime\",\"updateTime\":\"s-updatetime\",\"upgradeStatus\":{\"previousVersion\":\"s-previousversion\",\"startTime\":\"s-starttime\",\"state\":\"s-state\",\"version\":\"s-version\"},\"version\":\"s-version\"}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}",
+  "REQ GET https://vmmigration.googleapis.com/v1alpha1/id1/%20x/datacenterConnectors?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"datacenterConnectors\":[{\"applianceInfrastructureVersion\":\"s-applianceinfrastructureversion\",\"applianceSoftwareVersion\":\"s-appliancesoftwareversion\",\"availableVersions\":{},\"bucket\":\"s-bucket\",\"createTime\":\"s-createtime\",\"error\":{\"code\":7,\"message\":\"s-message\"},\"name\":\"s-name\",\"registrationId\":\"s-registrationid\",\"serviceAccount\":\"s-serviceaccount\",\"state\":\"s-state\",\"stateTime\":\"s-statetime\",\"updateTime\":\"s-updatetime\",\"upgradeStatus\":{\"previousVersion\":\"s-previousversion\",\"startTime\":\"s-starttime\",\"state\":\"s-state\",\"version\":\"s-version\"},\"version\":\"s-version\"}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"datacenterConnectors\":[{\"applianceInfrastructureVersion\":\"s-applianceinfrastructureversion\",\"applianceSoftwareVersion\":\"s-appliancesoftwareversion\",\"availableVersions\":{},\"bucket\":\"s-bucket\",\"createTime\":\"s-createtime\",\"error\":{\"code\":7,\"message\":\"s-message\"},\"name\":\"s-name\",\"registrationId\":\"s-registrationid\",\"serviceAccount\":\"s-serviceaccount\",\"state\":\"s-state\",\"stateTime\":\"s-statetime\",\"updateTime\":\"s-updatetime\",\"upgradeStatus\":{\"previousVersion\":\"s-previousversion\",\"startTime\":\"s-starttime\",\"state\":\"s-state\",\"version\":\"s-version\"},\"version\":\"s-version\"}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: ok",
+]
+
+test "Go's vmmigration.projects.locations.sources.datacenterConnectors.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"datacenterConnectors\":[{\"applianceInfrastructureVersion\":\"s-applianceinfrastructureversion\",\"applianceSoftwareVersion\":\"s-appliancesoftwareversion\",\"availableVersions\":{},\"bucket\":\"s-bucket\",\"createTime\":\"s-createtime\",\"error\":{\"code\":7,\"message\":\"s-message\"},\"name\":\"s-name\",\"registrationId\":\"s-registrationid\",\"serviceAccount\":\"s-serviceaccount\",\"state\":\"s-state\",\"stateTime\":\"s-statetime\",\"updateTime\":\"s-updatetime\",\"upgradeStatus\":{\"previousVersion\":\"s-previousversion\",\"startTime\":\"s-starttime\",\"state\":\"s-state\",\"version\":\"s-version\"},\"version\":\"s-version\"}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}")
+  gv_queue(f, "{\"datacenterConnectors\":[{\"applianceInfrastructureVersion\":\"s-applianceinfrastructureversion\",\"applianceSoftwareVersion\":\"s-appliancesoftwareversion\",\"availableVersions\":{},\"bucket\":\"s-bucket\",\"createTime\":\"s-createtime\",\"error\":{\"code\":7,\"message\":\"s-message\"},\"name\":\"s-name\",\"registrationId\":\"s-registrationid\",\"serviceAccount\":\"s-serviceaccount\",\"state\":\"s-state\",\"stateTime\":\"s-statetime\",\"updateTime\":\"s-updatetime\",\"upgradeStatus\":{\"previousVersion\":\"s-previousversion\",\"startTime\":\"s-starttime\",\"state\":\"s-state\",\"version\":\"s-version\"},\"version\":\"s-version\"}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_note(f, "CALL vmmigration.projects.locations.sources.datacenterConnectors.list pages")
+  var p = svc.projects.locations.sources.datacenter_connectors.list_pages("id1/ x", options: ProjectsLocationsSourcesDatacenterConnectorsListOptions{filter: Some("s-filter"), order_by: Some("s-orderby"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_39)
+}
+
+const GO_40: List[Str] = [
   "CALL vmmigration.projects.locations.sources.datacenterConnectors.upgradeAppliance",
   "REQ POST https://vmmigration.googleapis.com/v1alpha1/id1/%20x:upgradeAppliance?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -688,10 +1030,10 @@ test "Go's vmmigration.projects.locations.sources.datacenterConnectors.upgradeAp
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_31)
+  gv_compare(gv_log_of(f), GO_40)
 }
 
-const GO_32: List[Str] = [
+const GO_41: List[Str] = [
   "CALL vmmigration.projects.locations.sources.diskMigrationJobs.cancel",
   "REQ POST https://vmmigration.googleapis.com/v1alpha1/id1/%20x:cancel?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -710,10 +1052,10 @@ test "Go's vmmigration.projects.locations.sources.diskMigrationJobs.cancel" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_32)
+  gv_compare(gv_log_of(f), GO_41)
 }
 
-const GO_33: List[Str] = [
+const GO_42: List[Str] = [
   "CALL vmmigration.projects.locations.sources.diskMigrationJobs.create",
   "REQ POST https://vmmigration.googleapis.com/v1alpha1/id1/%20x/diskMigrationJobs?alt=json&diskMigrationJobId=s-diskmigrationjobid&fields=kind%2Cid&prettyPrint=false&requestId=s-requestid",
   "  H content-type=application/json | x-extra=v1",
@@ -732,10 +1074,10 @@ test "Go's vmmigration.projects.locations.sources.diskMigrationJobs.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_33)
+  gv_compare(gv_log_of(f), GO_42)
 }
 
-const GO_34: List[Str] = [
+const GO_43: List[Str] = [
   "CALL vmmigration.projects.locations.sources.diskMigrationJobs.delete",
   "REQ DELETE https://vmmigration.googleapis.com/v1alpha1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -753,10 +1095,10 @@ test "Go's vmmigration.projects.locations.sources.diskMigrationJobs.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_34)
+  gv_compare(gv_log_of(f), GO_43)
 }
 
-const GO_35: List[Str] = [
+const GO_44: List[Str] = [
   "CALL vmmigration.projects.locations.sources.diskMigrationJobs.get",
   "REQ GET https://vmmigration.googleapis.com/v1alpha1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -774,10 +1116,10 @@ test "Go's vmmigration.projects.locations.sources.diskMigrationJobs.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_35)
+  gv_compare(gv_log_of(f), GO_44)
 }
 
-const GO_36: List[Str] = [
+const GO_45: List[Str] = [
   "CALL vmmigration.projects.locations.sources.diskMigrationJobs.list",
   "REQ GET https://vmmigration.googleapis.com/v1alpha1/id1/%20x/diskMigrationJobs?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -795,10 +1137,48 @@ test "Go's vmmigration.projects.locations.sources.diskMigrationJobs.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_36)
+  gv_compare(gv_log_of(f), GO_45)
 }
 
-const GO_37: List[Str] = [
+const GO_46: List[Str] = [
+  "CALL vmmigration.projects.locations.sources.diskMigrationJobs.list pages",
+  "REQ GET https://vmmigration.googleapis.com/v1alpha1/id1/%20x/diskMigrationJobs?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"diskMigrationJobs\":[{\"awsSourceDiskDetails\":{\"diskType\":\"s-disktype\",\"sizeGib\":\"7\",\"volumeId\":\"s-volumeid\"},\"createTime\":\"s-createtime\",\"name\":\"s-name\",\"state\":\"s-state\",\"targetDetails\":{\"targetProject\":\"s-targetproject\"},\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"diskMigrationJobs\":[{\"awsSourceDiskDetails\":{\"diskType\":\"s-disktype\",\"sizeGib\":\"7\",\"volumeId\":\"s-volumeid\"},\"createTime\":\"s-createtime\",\"name\":\"s-name\",\"state\":\"s-state\",\"targetDetails\":{\"targetProject\":\"s-targetproject\"},\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}",
+  "REQ GET https://vmmigration.googleapis.com/v1alpha1/id1/%20x/diskMigrationJobs?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"diskMigrationJobs\":[{\"awsSourceDiskDetails\":{\"diskType\":\"s-disktype\",\"sizeGib\":\"7\",\"volumeId\":\"s-volumeid\"},\"createTime\":\"s-createtime\",\"name\":\"s-name\",\"state\":\"s-state\",\"targetDetails\":{\"targetProject\":\"s-targetproject\"},\"updateTime\":\"s-updatetime\"}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"diskMigrationJobs\":[{\"awsSourceDiskDetails\":{\"diskType\":\"s-disktype\",\"sizeGib\":\"7\",\"volumeId\":\"s-volumeid\"},\"createTime\":\"s-createtime\",\"name\":\"s-name\",\"state\":\"s-state\",\"targetDetails\":{\"targetProject\":\"s-targetproject\"},\"updateTime\":\"s-updatetime\"}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: ok",
+]
+
+test "Go's vmmigration.projects.locations.sources.diskMigrationJobs.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"diskMigrationJobs\":[{\"awsSourceDiskDetails\":{\"diskType\":\"s-disktype\",\"sizeGib\":\"7\",\"volumeId\":\"s-volumeid\"},\"createTime\":\"s-createtime\",\"name\":\"s-name\",\"state\":\"s-state\",\"targetDetails\":{\"targetProject\":\"s-targetproject\"},\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}")
+  gv_queue(f, "{\"diskMigrationJobs\":[{\"awsSourceDiskDetails\":{\"diskType\":\"s-disktype\",\"sizeGib\":\"7\",\"volumeId\":\"s-volumeid\"},\"createTime\":\"s-createtime\",\"name\":\"s-name\",\"state\":\"s-state\",\"targetDetails\":{\"targetProject\":\"s-targetproject\"},\"updateTime\":\"s-updatetime\"}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_note(f, "CALL vmmigration.projects.locations.sources.diskMigrationJobs.list pages")
+  var p = svc.projects.locations.sources.disk_migration_jobs.list_pages("id1/ x", options: ProjectsLocationsSourcesDiskMigrationJobsListOptions{filter: Some("s-filter"), order_by: Some("s-orderby"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_46)
+}
+
+const GO_47: List[Str] = [
   "CALL vmmigration.projects.locations.sources.diskMigrationJobs.patch",
   "REQ PATCH https://vmmigration.googleapis.com/v1alpha1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&requestId=s-requestid&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
@@ -817,10 +1197,10 @@ test "Go's vmmigration.projects.locations.sources.diskMigrationJobs.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_37)
+  gv_compare(gv_log_of(f), GO_47)
 }
 
-const GO_38: List[Str] = [
+const GO_48: List[Str] = [
   "CALL vmmigration.projects.locations.sources.diskMigrationJobs.run",
   "REQ POST https://vmmigration.googleapis.com/v1alpha1/id1/%20x:run?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -839,14 +1219,14 @@ test "Go's vmmigration.projects.locations.sources.diskMigrationJobs.run" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_38)
+  gv_compare(gv_log_of(f), GO_48)
 }
 
-const GO_39: List[Str] = [
+const GO_49: List[Str] = [
   "CALL vmmigration.projects.locations.sources.migratingVms.create",
   "REQ POST https://vmmigration.googleapis.com/v1alpha1/id1/%20x/migratingVms?alt=json&fields=kind%2Cid&migratingVmId=s-migratingvmid&prettyPrint=false&requestId=s-requestid",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"awsSourceVmDetails\":{\"architecture\":\"s-architecture\",\"committedStorageBytes\":\"7\",\"disks\":[{\"diskNumber\":7,\"sizeGb\":\"7\",\"volumeId\":\"s-volumeid\"}],\"firmware\":\"s-firmware\",\"vmCapabilitiesInfo\":{\"lastOsCapabilitiesUpdateTime\":\"s-lastoscapabilitiesupdatetime\",\"osCapabilities\":[\"s-oscapabilities\"]}},\"azureSourceVmDetails\":{\"architecture\":\"s-architecture\",\"committedStorageBytes\":\"7\",\"disks\":[{\"diskId\":\"s-diskid\",\"diskNumber\":7,\"sizeGb\":\"7\"}],\"firmware\":\"s-firmware\",\"vmCapabilitiesInfo\":{\"lastOsCapabilitiesUpdateTime\":\"s-lastoscapabilitiesupdatetime\",\"osCapabilities\":[\"s-oscapabilities\"]}},\"computeEngineDisksTargetDefaults\":{\"disks\":[{\"diskName\":\"s-diskname\",\"diskType\":\"s-disktype\",\"sourceDiskNumber\":7}],\"disksTargetDefaults\":{},\"targetProject\":\"s-targetproject\",\"vmTargetDefaults\":{\"additionalLicenses\":[\"s-additionallicenses\"],\"enableIntegrityMonitoring\":true,\"enableVtpm\":true,\"hostname\":\"s-hostname\",\"labels\":{\"k1\":\"s-labels\"},\"machineType\":\"s-machinetype\",\"machineTypeSeries\":\"s-machinetypeseries\",\"metadata\":{\"k1\":\"s-metadata\"},\"networkTags\":[\"s-networktags\"],\"secureBoot\":true,\"serviceAccount\":\"s-serviceaccount\",\"vmName\":\"s-vmname\"},\"zone\":\"s-zone\"},\"computeEngineTargetDefaults\":{\"adaptationModifiers\":[{\"modifier\":\"s-modifier\",\"value\":\"s-value\"}],\"additionalLicenses\":[\"s-additionallicenses\"],\"appliedLicense\":{\"osLicense\":\"s-oslicense\",\"type\":\"s-type\"},\"bootConversion\":\"s-bootconversion\",\"bootOption\":\"s-bootoption\",\"computeScheduling\":{\"automaticRestart\":true,\"minNodeCpus\":7,\"onHostMaintenance\":\"s-onhostmaintenance\",\"restartType\":\"s-restarttype\"},\"diskReplicaZones\":[\"s-diskreplicazones\"],\"diskType\":\"s-disktype\",\"disks\":[{\"diskName\":\"s-diskname\",\"diskType\":\"s-disktype\",\"sourceDiskNumber\":7}],\"enableIntegrityMonitoring\":true,\"enableVtpm\":true,\"encryption\":{\"kmsKey\":\"s-kmskey\"},\"hostname\":\"s-hostname\",\"labels\":{\"k1\":\"s-labels\"},\"licenseType\":\"s-licensetype\",\"machineType\":\"s-machinetype\",\"machineTypeSeries\":\"s-machinetypeseries\",\"metadata\":{\"k1\":\"s-metadata\"},\"networkInterfaces\":[{\"externalIp\":\"s-externalip\",\"internalIp\":\"s-internalip\",\"network\":\"s-network\",\"networkTier\":\"s-networktier\",\"subnetwork\":\"s-subnetwork\"}],\"networkTags\":[\"s-networktags\"],\"secureBoot\":true,\"serviceAccount\":\"s-serviceaccount\",\"storagePool\":\"s-storagepool\",\"targetProject\":\"s-targetproject\",\"vmName\":\"s-vmname\",\"zone\":\"s-zone\"},\"computeEngineVmDefaults\":{\"appliedLicense\":{\"osLicense\":\"s-oslicense\",\"type\":\"s-type\"},\"bootOption\":\"s-bootoption\",\"computeScheduling\":{\"automaticRestart\":true,\"minNodeCpus\":7,\"onHostMaintenance\":\"s-onhostmaintenance\",\"restartType\":\"s-restarttype\"},\"diskType\":\"s-disktype\",\"externalIp\":\"s-externalip\",\"internalIp\":\"s-internalip\",\"labels\":{\"k1\":\"s-labels\"},\"licenseType\":\"s-licensetype\",\"machineType\":\"s-machinetype\",\"machineTypeSeries\":\"s-machinetypeseries\",\"metadata\":{\"k1\":\"s-metadata\"},\"name\":\"s-name\",\"network\":\"s-network\",\"networkInterfaces\":[{\"externalIp\":\"s-externalip\",\"internalIp\":\"s-internalip\",\"network\":\"s-network\",\"networkTier\":\"s-networktier\",\"subnetwork\":\"s-subnetwork\"}],\"networkTags\":[\"s-networktags\"],\"project\":\"s-project\",\"secureBoot\":true,\"serviceAccount\":\"s-serviceaccount\",\"subnetwork\":\"s-subnetwork\",\"targetProject\":\"s-targetproject\",\"zone\":\"s-zone\"},\"createTime\":\"s-createtime\",\"currentSyncInfo\":{\"cycleNumber\":7,\"endTime\":\"s-endtime\",\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"name\":\"s-name\",\"progress\":7,\"progressPercent\":7,\"startTime\":\"s-starttime\",\"state\":\"s-state\",\"steps\":[{\"endTime\":\"s-endtime\",\"startTime\":\"s-starttime\"}],\"totalPauseDuration\":\"s-totalpauseduration\",\"warnings\":[{\"code\":\"s-code\",\"warningTime\":\"s-warningtime\"}]},\"cutoverForecast\":{\"estimatedCutoverJobDuration\":\"s-estimatedcutoverjobduration\"},\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"expiration\":{\"expireTime\":\"s-expiretime\",\"extendable\":true,\"extensionCount\":7},\"group\":\"s-group\",\"labels\":{\"k1\":\"s-labels\"},\"lastReplicationCycle\":{\"cycleNumber\":7,\"endTime\":\"s-endtime\",\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"name\":\"s-name\",\"progress\":7,\"progressPercent\":7,\"startTime\":\"s-starttime\",\"state\":\"s-state\",\"steps\":[{\"endTime\":\"s-endtime\",\"startTime\":\"s-starttime\"}],\"totalPauseDuration\":\"s-totalpauseduration\",\"warnings\":[{\"code\":\"s-code\",\"warningTime\":\"s-warningtime\"}]},\"lastSync\":{\"lastSyncTime\":\"s-lastsynctime\"},\"name\":\"s-name\",\"policy\":{\"idleDuration\":\"s-idleduration\",\"skipOsAdaptation\":true},\"recentCloneJobs\":[{\"computeEngineDisksTargetDetails\":{},\"computeEngineTargetDetails\":{\"bootConversion\":\"s-bootconversion\",\"bootOption\":\"s-bootoption\",\"diskType\":\"s-disktype\",\"enableIntegrityMonitoring\":true,\"enableVtpm\":true,\"hostname\":\"s-hostname\",\"licenseType\":\"s-licensetype\",\"machineType\":\"s-machinetype\",\"machineTypeSeries\":\"s-machinetypeseries\",\"project\":\"s-project\",\"secureBoot\":true,\"serviceAccount\":\"s-serviceaccount\",\"storagePool\":\"s-storagepool\",\"vmName\":\"s-vmname\",\"zone\":\"s-zone\"},\"computeEngineVmDetails\":{\"bootOption\":\"s-bootoption\",\"diskType\":\"s-disktype\",\"externalIp\":\"s-externalip\",\"internalIp\":\"s-internalip\",\"licenseType\":\"s-licensetype\",\"machineType\":\"s-machinetype\",\"machineTypeSeries\":\"s-machinetypeseries\",\"name\":\"s-name\",\"network\":\"s-network\",\"project\":\"s-project\",\"secureBoot\":true,\"serviceAccount\":\"s-serviceaccount\",\"subnetwork\":\"s-subnetwork\",\"targetProject\":\"s-targetproject\",\"zone\":\"s-zone\"},\"createTime\":\"s-createtime\",\"endTime\":\"s-endtime\",\"error\":{\"code\":7,\"message\":\"s-message\"},\"name\":\"s-name\",\"state\":\"s-state\",\"stateTime\":\"s-statetime\",\"targetDetails\":{\"bootOption\":\"s-bootoption\",\"diskType\":\"s-disktype\",\"externalIp\":\"s-externalip\",\"internalIp\":\"s-internalip\",\"licenseType\":\"s-licensetype\",\"machineType\":\"s-machinetype\",\"machineTypeSeries\":\"s-machinetypeseries\",\"name\":\"s-name\",\"network\":\"s-network\",\"project\":\"s-project\",\"secureBoot\":true,\"serviceAccount\":\"s-serviceaccount\",\"subnetwork\":\"s-subnetwork\",\"targetProject\":\"s-targetproject\",\"zone\":\"s-zone\"}}],\"recentCutoverJobs\":[{\"computeEngineDisksTargetDetails\":{},\"computeEngineTargetDetails\":{\"bootConversion\":\"s-bootconversion\",\"bootOption\":\"s-bootoption\",\"diskType\":\"s-disktype\",\"enableIntegrityMonitoring\":true,\"enableVtpm\":true,\"hostname\":\"s-hostname\",\"licenseType\":\"s-licensetype\",\"machineType\":\"s-machinetype\",\"machineTypeSeries\":\"s-machinetypeseries\",\"project\":\"s-project\",\"secureBoot\":true,\"serviceAccount\":\"s-serviceaccount\",\"storagePool\":\"s-storagepool\",\"vmName\":\"s-vmname\",\"zone\":\"s-zone\"},\"computeEngineVmDetails\":{\"bootOption\":\"s-bootoption\",\"diskType\":\"s-disktype\",\"externalIp\":\"s-externalip\",\"internalIp\":\"s-internalip\",\"licenseType\":\"s-licensetype\",\"machineType\":\"s-machinetype\",\"machineTypeSeries\":\"s-machinetypeseries\",\"name\":\"s-name\",\"network\":\"s-network\",\"project\":\"s-project\",\"secureBoot\":true,\"serviceAccount\":\"s-serviceaccount\",\"subnetwork\":\"s-subnetwork\",\"targetProject\":\"s-targetproject\",\"zone\":\"s-zone\"},\"createTime\":\"s-createtime\",\"endTime\":\"s-endtime\",\"error\":{\"code\":7,\"message\":\"s-message\"},\"name\":\"s-name\",\"progress\":7,\"progressPercent\":7,\"state\":\"s-state\",\"stateMessage\":\"s-statemessage\",\"stateTime\":\"s-statetime\",\"targetDetails\":{\"bootOption\":\"s-bootoption\",\"diskType\":\"s-disktype\",\"externalIp\":\"s-externalip\",\"internalIp\":\"s-internalip\",\"licenseType\":\"s-licensetype\",\"machineType\":\"s-machinetype\",\"machineTypeSeries\":\"s-machinetypeseries\",\"name\":\"s-name\",\"network\":\"s-network\",\"project\":\"s-project\",\"secureBoot\":true,\"serviceAccount\":\"s-serviceaccount\",\"subnetwork\":\"s-subnetwork\",\"targetProject\":\"s-targetproject\",\"zone\":\"s-zone\"}}],\"sourceVmId\":\"s-sourcevmid\",\"state\":\"s-state\",\"stateTime\":\"s-statetime\",\"targetDefaults\":{\"appliedLicense\":{\"osLicense\":\"s-oslicense\",\"type\":\"s-type\"},\"bootOption\":\"s-bootoption\",\"computeScheduling\":{\"automaticRestart\":true,\"minNodeCpus\":7,\"onHostMaintenance\":\"s-onhostmaintenance\",\"restartType\":\"s-restarttype\"},\"diskType\":\"s-disktype\",\"externalIp\":\"s-externalip\",\"internalIp\":\"s-internalip\",\"labels\":{\"k1\":\"s-labels\"},\"licenseType\":\"s-licensetype\",\"machineType\":\"s-machinetype\",\"machineTypeSeries\":\"s-machinetypeseries\",\"metadata\":{\"k1\":\"s-metadata\"},\"name\":\"s-name\",\"network\":\"s-network\",\"networkInterfaces\":[{\"externalIp\":\"s-externalip\",\"internalIp\":\"s-internalip\",\"network\":\"s-network\",\"networkTier\":\"s-networktier\",\"subnetwork\":\"s-subnetwork\"}],\"networkTags\":[\"s-networktags\"],\"project\":\"s-project\",\"secureBoot\":true,\"serviceAccount\":\"s-serviceaccount\",\"subnetwork\":\"s-subnetwork\",\"targetProject\":\"s-targetproject\",\"zone\":\"s-zone\"},\"updateTime\":\"s-updatetime\",\"vmwareSourceVmDetails\":{\"architecture\":\"s-architecture\",\"committedStorageBytes\":\"7\",\"disks\":[{\"diskNumber\":7,\"label\":\"s-label\",\"sizeGb\":\"7\"}],\"firmware\":\"s-firmware\",\"vmCapabilitiesInfo\":{\"lastOsCapabilitiesUpdateTime\":\"s-lastoscapabilitiesupdatetime\",\"osCapabilities\":[\"s-oscapabilities\"]}}}",
+  "  B <8775 bytes> {\"awsSourceVmDetails\":{\"architec...lities\":[\"s-oscapabilities\"]}}}",
   "",
   "  SERVED 200 {\"done\":true,\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}",
   "OUT: {\"done\":true,\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}",
@@ -861,10 +1241,10 @@ test "Go's vmmigration.projects.locations.sources.migratingVms.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_39)
+  gv_compare(gv_log_of(f), GO_49)
 }
 
-const GO_40: List[Str] = [
+const GO_50: List[Str] = [
   "CALL vmmigration.projects.locations.sources.migratingVms.delete",
   "REQ DELETE https://vmmigration.googleapis.com/v1alpha1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -882,10 +1262,10 @@ test "Go's vmmigration.projects.locations.sources.migratingVms.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_40)
+  gv_compare(gv_log_of(f), GO_50)
 }
 
-const GO_41: List[Str] = [
+const GO_51: List[Str] = [
   "CALL vmmigration.projects.locations.sources.migratingVms.extendMigration",
   "REQ POST https://vmmigration.googleapis.com/v1alpha1/id1/%20x:extendMigration?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -904,10 +1284,10 @@ test "Go's vmmigration.projects.locations.sources.migratingVms.extendMigration" 
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_41)
+  gv_compare(gv_log_of(f), GO_51)
 }
 
-const GO_42: List[Str] = [
+const GO_52: List[Str] = [
   "CALL vmmigration.projects.locations.sources.migratingVms.finalizeMigration",
   "REQ POST https://vmmigration.googleapis.com/v1alpha1/id1/%20x:finalizeMigration?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -926,10 +1306,10 @@ test "Go's vmmigration.projects.locations.sources.migratingVms.finalizeMigration
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_42)
+  gv_compare(gv_log_of(f), GO_52)
 }
 
-const GO_43: List[Str] = [
+const GO_53: List[Str] = [
   "CALL vmmigration.projects.locations.sources.migratingVms.get",
   "REQ GET https://vmmigration.googleapis.com/v1alpha1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&view=s-view",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -947,10 +1327,10 @@ test "Go's vmmigration.projects.locations.sources.migratingVms.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_43)
+  gv_compare(gv_log_of(f), GO_53)
 }
 
-const GO_44: List[Str] = [
+const GO_54: List[Str] = [
   "CALL vmmigration.projects.locations.sources.migratingVms.list",
   "REQ GET https://vmmigration.googleapis.com/v1alpha1/id1/%20x/migratingVms?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&view=s-view",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -968,14 +1348,52 @@ test "Go's vmmigration.projects.locations.sources.migratingVms.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_44)
+  gv_compare(gv_log_of(f), GO_54)
 }
 
-const GO_45: List[Str] = [
+const GO_55: List[Str] = [
+  "CALL vmmigration.projects.locations.sources.migratingVms.list pages",
+  "REQ GET https://vmmigration.googleapis.com/v1alpha1/id1/%20x/migratingVms?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&view=s-view",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"migratingVms\":[{\"awsSourceVmDetails\":{\"architecture\":\"s-architecture\",\"committedStorageBytes\":\"7\",\"firmware\":\"s-firmware\"},\"azureSourceVmDetails\":{\"architecture\":\"s-architecture\",\"committedStorageBytes\":\"7\",\"firmware\":\"s-firmware\"},\"computeEngineDisksTargetDefaults\":{\"targetProject\":\"s-targetproject\",\"zone\":\"s-zone\"},\"computeEngineTargetDefaults\":{\"bootConversion\":\"s-bootconversion\",\"bootOption\":\"s-bootoption\",\"diskType\":\"s-disktype\",\"enableIntegrityMonitoring\":true,\"enableVtpm\":true,\"hostname\":\"s-hostname\",\"licenseType\":\"s-licensetype\",\"machineType\":\"s-machinetype\",\"machineTypeSeries\":\"s-machinetypeseries\",\"secureBoot\":true,\"serviceAccount\":\"s-serviceaccount\",\"storagePool\":\"s-storagepool\",\"targetProject\":\"s-targetproject\",\"vmName\":\"s-vmname\",\"zone\":\"s-zone\"},\"computeEngineVmDefaults\":{\"bootOption\":\"s-bootoption\",\"diskType\":\"s-disktype\",\"externalIp\":\"s-externalip\",\"internalIp\":\"s-internalip\",\"licenseType\":\"s-licensetype\",\"machineType\":\"s-machinetype\",\"machineTypeSeries\":\"s-machinetypeseries\",\"name\":\"s-name\",\"network\":\"s-network\",\"project\":\"s-project\",\"secureBoot\":true,\"serviceAccount\":\"s-serviceaccount\",\"subnetwork\":\"s-subnetwork\",\"targetProject\":\"s-targetproject\",\"zone\":\"s-zone\"},\"createTime\":\"s-createtime\",\"currentSyncInfo\":{\"cycleNumber\":7,\"endTime\":\"s-endtime\",\"name\":\"s-name\",\"progress\":7,\"progressPercent\":7,\"startTime\":\"s-starttime\",\"state\":\"s-state\",\"totalPauseDuration\":\"s-totalpauseduration\"},\"cutoverForecast\":{\"estimatedCutoverJobDuration\":\"s-estimatedcutoverjobduration\"},\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"error\":{\"code\":7,\"message\":\"s-message\"},\"expiration\":{\"expireTime\":\"s-expiretime\",\"extendable\":true,\"extensionCount\":7},\"group\":\"s-group\",\"labels\":{\"k1\":\"s-labels\"},\"lastReplicationCycle\":{\"cycleNumber\":7,\"endTime\":\"s-endtime\",\"name\":\"s-name\",\"progress\":7,\"progressPercent\":7,\"startTime\":\"s-starttime\",\"state\":\"s-state\",\"totalPauseDuration\":\"s-totalpauseduration\"},\"lastSync\":{\"lastSyncTime\":\"s-lastsynctime\"},\"name\":\"s-name\",\"policy\":{\"idleDuration\":\"s-idleduration\",\"skipOsAdaptation\":true},\"sourceVmId\":\"s-sourcevmid\",\"state\":\"s-state\",\"stateTime\":\"s-statetime\",\"targetDefaults\":{\"bootOption\":\"s-bootoption\",\"diskType\":\"s-disktype\",\"externalIp\":\"s-externalip\",\"internalIp\":\"s-internalip\",\"licenseType\":\"s-licensetype\",\"machineType\":\"s-machinetype\",\"machineTypeSeries\":\"s-machinetypeseries\",\"name\":\"s-name\",\"network\":\"s-network\",\"project\":\"s-project\",\"secureBoot\":true,\"serviceAccount\":\"s-serviceaccount\",\"subnetwork\":\"s-subnetwork\",\"targetProject\":\"s-targetproject\",\"zone\":\"s-zone\"},\"updateTime\":\"s-updatetime\",\"vmwareSourceVmDetails\":{\"architecture\":\"s-architecture\",\"committedStorageBytes\":\"7\",\"firmware\":\"s-firmware\"}}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"migratingVms\":[{\"awsSourceVmDetails\":{\"architecture\":\"s-architecture\",\"committedStorageBytes\":\"7\",\"firmware\":\"s-firmware\"},\"azureSourceVmDetails\":{\"architecture\":\"s-architecture\",\"committedStorageBytes\":\"7\",\"firmware\":\"s-firmware\"},\"computeEngineDisksTargetDefaults\":{\"targetProject\":\"s-targetproject\",\"zone\":\"s-zone\"},\"computeEngineTargetDefaults\":{\"bootConversion\":\"s-bootconversion\",\"bootOption\":\"s-bootoption\",\"diskType\":\"s-disktype\",\"enableIntegrityMonitoring\":true,\"enableVtpm\":true,\"hostname\":\"s-hostname\",\"licenseType\":\"s-licensetype\",\"machineType\":\"s-machinetype\",\"machineTypeSeries\":\"s-machinetypeseries\",\"secureBoot\":true,\"serviceAccount\":\"s-serviceaccount\",\"storagePool\":\"s-storagepool\",\"targetProject\":\"s-targetproject\",\"vmName\":\"s-vmname\",\"zone\":\"s-zone\"},\"computeEngineVmDefaults\":{\"bootOption\":\"s-bootoption\",\"diskType\":\"s-disktype\",\"externalIp\":\"s-externalip\",\"internalIp\":\"s-internalip\",\"licenseType\":\"s-licensetype\",\"machineType\":\"s-machinetype\",\"machineTypeSeries\":\"s-machinetypeseries\",\"name\":\"s-name\",\"network\":\"s-network\",\"project\":\"s-project\",\"secureBoot\":true,\"serviceAccount\":\"s-serviceaccount\",\"subnetwork\":\"s-subnetwork\",\"targetProject\":\"s-targetproject\",\"zone\":\"s-zone\"},\"createTime\":\"s-createtime\",\"currentSyncInfo\":{\"cycleNumber\":7,\"endTime\":\"s-endtime\",\"name\":\"s-name\",\"progress\":7,\"progressPercent\":7,\"startTime\":\"s-starttime\",\"state\":\"s-state\",\"totalPauseDuration\":\"s-totalpauseduration\"},\"cutoverForecast\":{\"estimatedCutoverJobDuration\":\"s-estimatedcutoverjobduration\"},\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"error\":{\"code\":7,\"message\":\"s-message\"},\"expiration\":{\"expireTime\":\"s-expiretime\",\"extendable\":true,\"extensionCount\":7},\"group\":\"s-group\",\"labels\":{\"k1\":\"s-labels\"},\"lastReplicationCycle\":{\"cycleNumber\":7,\"endTime\":\"s-endtime\",\"name\":\"s-name\",\"progress\":7,\"progressPercent\":7,\"startTime\":\"s-starttime\",\"state\":\"s-state\",\"totalPauseDuration\":\"s-totalpauseduration\"},\"lastSync\":{\"lastSyncTime\":\"s-lastsynctime\"},\"name\":\"s-name\",\"policy\":{\"idleDuration\":\"s-idleduration\",\"skipOsAdaptation\":true},\"sourceVmId\":\"s-sourcevmid\",\"state\":\"s-state\",\"stateTime\":\"s-statetime\",\"targetDefaults\":{\"bootOption\":\"s-bootoption\",\"diskType\":\"s-disktype\",\"externalIp\":\"s-externalip\",\"internalIp\":\"s-internalip\",\"licenseType\":\"s-licensetype\",\"machineType\":\"s-machinetype\",\"machineTypeSeries\":\"s-machinetypeseries\",\"name\":\"s-name\",\"network\":\"s-network\",\"project\":\"s-project\",\"secureBoot\":true,\"serviceAccount\":\"s-serviceaccount\",\"subnetwork\":\"s-subnetwork\",\"targetProject\":\"s-targetproject\",\"zone\":\"s-zone\"},\"updateTime\":\"s-updatetime\",\"vmwareSourceVmDetails\":{\"architecture\":\"s-architecture\",\"committedStorageBytes\":\"7\",\"firmware\":\"s-firmware\"}}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}",
+  "REQ GET https://vmmigration.googleapis.com/v1alpha1/id1/%20x/migratingVms?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false&view=s-view",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"migratingVms\":[{\"awsSourceVmDetails\":{\"architecture\":\"s-architecture\",\"committedStorageBytes\":\"7\",\"firmware\":\"s-firmware\"},\"azureSourceVmDetails\":{\"architecture\":\"s-architecture\",\"committedStorageBytes\":\"7\",\"firmware\":\"s-firmware\"},\"computeEngineDisksTargetDefaults\":{\"targetProject\":\"s-targetproject\",\"zone\":\"s-zone\"},\"computeEngineTargetDefaults\":{\"bootConversion\":\"s-bootconversion\",\"bootOption\":\"s-bootoption\",\"diskType\":\"s-disktype\",\"enableIntegrityMonitoring\":true,\"enableVtpm\":true,\"hostname\":\"s-hostname\",\"licenseType\":\"s-licensetype\",\"machineType\":\"s-machinetype\",\"machineTypeSeries\":\"s-machinetypeseries\",\"secureBoot\":true,\"serviceAccount\":\"s-serviceaccount\",\"storagePool\":\"s-storagepool\",\"targetProject\":\"s-targetproject\",\"vmName\":\"s-vmname\",\"zone\":\"s-zone\"},\"computeEngineVmDefaults\":{\"bootOption\":\"s-bootoption\",\"diskType\":\"s-disktype\",\"externalIp\":\"s-externalip\",\"internalIp\":\"s-internalip\",\"licenseType\":\"s-licensetype\",\"machineType\":\"s-machinetype\",\"machineTypeSeries\":\"s-machinetypeseries\",\"name\":\"s-name\",\"network\":\"s-network\",\"project\":\"s-project\",\"secureBoot\":true,\"serviceAccount\":\"s-serviceaccount\",\"subnetwork\":\"s-subnetwork\",\"targetProject\":\"s-targetproject\",\"zone\":\"s-zone\"},\"createTime\":\"s-createtime\",\"currentSyncInfo\":{\"cycleNumber\":7,\"endTime\":\"s-endtime\",\"name\":\"s-name\",\"progress\":7,\"progressPercent\":7,\"startTime\":\"s-starttime\",\"state\":\"s-state\",\"totalPauseDuration\":\"s-totalpauseduration\"},\"cutoverForecast\":{\"estimatedCutoverJobDuration\":\"s-estimatedcutoverjobduration\"},\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"error\":{\"code\":7,\"message\":\"s-message\"},\"expiration\":{\"expireTime\":\"s-expiretime\",\"extendable\":true,\"extensionCount\":7},\"group\":\"s-group\",\"labels\":{\"k1\":\"s-labels\"},\"lastReplicationCycle\":{\"cycleNumber\":7,\"endTime\":\"s-endtime\",\"name\":\"s-name\",\"progress\":7,\"progressPercent\":7,\"startTime\":\"s-starttime\",\"state\":\"s-state\",\"totalPauseDuration\":\"s-totalpauseduration\"},\"lastSync\":{\"lastSyncTime\":\"s-lastsynctime\"},\"name\":\"s-name\",\"policy\":{\"idleDuration\":\"s-idleduration\",\"skipOsAdaptation\":true},\"sourceVmId\":\"s-sourcevmid\",\"state\":\"s-state\",\"stateTime\":\"s-statetime\",\"targetDefaults\":{\"bootOption\":\"s-bootoption\",\"diskType\":\"s-disktype\",\"externalIp\":\"s-externalip\",\"internalIp\":\"s-internalip\",\"licenseType\":\"s-licensetype\",\"machineType\":\"s-machinetype\",\"machineTypeSeries\":\"s-machinetypeseries\",\"name\":\"s-name\",\"network\":\"s-network\",\"project\":\"s-project\",\"secureBoot\":true,\"serviceAccount\":\"s-serviceaccount\",\"subnetwork\":\"s-subnetwork\",\"targetProject\":\"s-targetproject\",\"zone\":\"s-zone\"},\"updateTime\":\"s-updatetime\",\"vmwareSourceVmDetails\":{\"architecture\":\"s-architecture\",\"committedStorageBytes\":\"7\",\"firmware\":\"s-firmware\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"migratingVms\":[{\"awsSourceVmDetails\":{\"architecture\":\"s-architecture\",\"committedStorageBytes\":\"7\",\"firmware\":\"s-firmware\"},\"azureSourceVmDetails\":{\"architecture\":\"s-architecture\",\"committedStorageBytes\":\"7\",\"firmware\":\"s-firmware\"},\"computeEngineDisksTargetDefaults\":{\"targetProject\":\"s-targetproject\",\"zone\":\"s-zone\"},\"computeEngineTargetDefaults\":{\"bootConversion\":\"s-bootconversion\",\"bootOption\":\"s-bootoption\",\"diskType\":\"s-disktype\",\"enableIntegrityMonitoring\":true,\"enableVtpm\":true,\"hostname\":\"s-hostname\",\"licenseType\":\"s-licensetype\",\"machineType\":\"s-machinetype\",\"machineTypeSeries\":\"s-machinetypeseries\",\"secureBoot\":true,\"serviceAccount\":\"s-serviceaccount\",\"storagePool\":\"s-storagepool\",\"targetProject\":\"s-targetproject\",\"vmName\":\"s-vmname\",\"zone\":\"s-zone\"},\"computeEngineVmDefaults\":{\"bootOption\":\"s-bootoption\",\"diskType\":\"s-disktype\",\"externalIp\":\"s-externalip\",\"internalIp\":\"s-internalip\",\"licenseType\":\"s-licensetype\",\"machineType\":\"s-machinetype\",\"machineTypeSeries\":\"s-machinetypeseries\",\"name\":\"s-name\",\"network\":\"s-network\",\"project\":\"s-project\",\"secureBoot\":true,\"serviceAccount\":\"s-serviceaccount\",\"subnetwork\":\"s-subnetwork\",\"targetProject\":\"s-targetproject\",\"zone\":\"s-zone\"},\"createTime\":\"s-createtime\",\"currentSyncInfo\":{\"cycleNumber\":7,\"endTime\":\"s-endtime\",\"name\":\"s-name\",\"progress\":7,\"progressPercent\":7,\"startTime\":\"s-starttime\",\"state\":\"s-state\",\"totalPauseDuration\":\"s-totalpauseduration\"},\"cutoverForecast\":{\"estimatedCutoverJobDuration\":\"s-estimatedcutoverjobduration\"},\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"error\":{\"code\":7,\"message\":\"s-message\"},\"expiration\":{\"expireTime\":\"s-expiretime\",\"extendable\":true,\"extensionCount\":7},\"group\":\"s-group\",\"labels\":{\"k1\":\"s-labels\"},\"lastReplicationCycle\":{\"cycleNumber\":7,\"endTime\":\"s-endtime\",\"name\":\"s-name\",\"progress\":7,\"progressPercent\":7,\"startTime\":\"s-starttime\",\"state\":\"s-state\",\"totalPauseDuration\":\"s-totalpauseduration\"},\"lastSync\":{\"lastSyncTime\":\"s-lastsynctime\"},\"name\":\"s-name\",\"policy\":{\"idleDuration\":\"s-idleduration\",\"skipOsAdaptation\":true},\"sourceVmId\":\"s-sourcevmid\",\"state\":\"s-state\",\"stateTime\":\"s-statetime\",\"targetDefaults\":{\"bootOption\":\"s-bootoption\",\"diskType\":\"s-disktype\",\"externalIp\":\"s-externalip\",\"internalIp\":\"s-internalip\",\"licenseType\":\"s-licensetype\",\"machineType\":\"s-machinetype\",\"machineTypeSeries\":\"s-machinetypeseries\",\"name\":\"s-name\",\"network\":\"s-network\",\"project\":\"s-project\",\"secureBoot\":true,\"serviceAccount\":\"s-serviceaccount\",\"subnetwork\":\"s-subnetwork\",\"targetProject\":\"s-targetproject\",\"zone\":\"s-zone\"},\"updateTime\":\"s-updatetime\",\"vmwareSourceVmDetails\":{\"architecture\":\"s-architecture\",\"committedStorageBytes\":\"7\",\"firmware\":\"s-firmware\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: ok",
+]
+
+test "Go's vmmigration.projects.locations.sources.migratingVms.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"migratingVms\":[{\"awsSourceVmDetails\":{\"architecture\":\"s-architecture\",\"committedStorageBytes\":\"7\",\"firmware\":\"s-firmware\"},\"azureSourceVmDetails\":{\"architecture\":\"s-architecture\",\"committedStorageBytes\":\"7\",\"firmware\":\"s-firmware\"},\"computeEngineDisksTargetDefaults\":{\"targetProject\":\"s-targetproject\",\"zone\":\"s-zone\"},\"computeEngineTargetDefaults\":{\"bootConversion\":\"s-bootconversion\",\"bootOption\":\"s-bootoption\",\"diskType\":\"s-disktype\",\"enableIntegrityMonitoring\":true,\"enableVtpm\":true,\"hostname\":\"s-hostname\",\"licenseType\":\"s-licensetype\",\"machineType\":\"s-machinetype\",\"machineTypeSeries\":\"s-machinetypeseries\",\"secureBoot\":true,\"serviceAccount\":\"s-serviceaccount\",\"storagePool\":\"s-storagepool\",\"targetProject\":\"s-targetproject\",\"vmName\":\"s-vmname\",\"zone\":\"s-zone\"},\"computeEngineVmDefaults\":{\"bootOption\":\"s-bootoption\",\"diskType\":\"s-disktype\",\"externalIp\":\"s-externalip\",\"internalIp\":\"s-internalip\",\"licenseType\":\"s-licensetype\",\"machineType\":\"s-machinetype\",\"machineTypeSeries\":\"s-machinetypeseries\",\"name\":\"s-name\",\"network\":\"s-network\",\"project\":\"s-project\",\"secureBoot\":true,\"serviceAccount\":\"s-serviceaccount\",\"subnetwork\":\"s-subnetwork\",\"targetProject\":\"s-targetproject\",\"zone\":\"s-zone\"},\"createTime\":\"s-createtime\",\"currentSyncInfo\":{\"cycleNumber\":7,\"endTime\":\"s-endtime\",\"name\":\"s-name\",\"progress\":7,\"progressPercent\":7,\"startTime\":\"s-starttime\",\"state\":\"s-state\",\"totalPauseDuration\":\"s-totalpauseduration\"},\"cutoverForecast\":{\"estimatedCutoverJobDuration\":\"s-estimatedcutoverjobduration\"},\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"error\":{\"code\":7,\"message\":\"s-message\"},\"expiration\":{\"expireTime\":\"s-expiretime\",\"extendable\":true,\"extensionCount\":7},\"group\":\"s-group\",\"labels\":{\"k1\":\"s-labels\"},\"lastReplicationCycle\":{\"cycleNumber\":7,\"endTime\":\"s-endtime\",\"name\":\"s-name\",\"progress\":7,\"progressPercent\":7,\"startTime\":\"s-starttime\",\"state\":\"s-state\",\"totalPauseDuration\":\"s-totalpauseduration\"},\"lastSync\":{\"lastSyncTime\":\"s-lastsynctime\"},\"name\":\"s-name\",\"policy\":{\"idleDuration\":\"s-idleduration\",\"skipOsAdaptation\":true},\"sourceVmId\":\"s-sourcevmid\",\"state\":\"s-state\",\"stateTime\":\"s-statetime\",\"targetDefaults\":{\"bootOption\":\"s-bootoption\",\"diskType\":\"s-disktype\",\"externalIp\":\"s-externalip\",\"internalIp\":\"s-internalip\",\"licenseType\":\"s-licensetype\",\"machineType\":\"s-machinetype\",\"machineTypeSeries\":\"s-machinetypeseries\",\"name\":\"s-name\",\"network\":\"s-network\",\"project\":\"s-project\",\"secureBoot\":true,\"serviceAccount\":\"s-serviceaccount\",\"subnetwork\":\"s-subnetwork\",\"targetProject\":\"s-targetproject\",\"zone\":\"s-zone\"},\"updateTime\":\"s-updatetime\",\"vmwareSourceVmDetails\":{\"architecture\":\"s-architecture\",\"committedStorageBytes\":\"7\",\"firmware\":\"s-firmware\"}}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}")
+  gv_queue(f, "{\"migratingVms\":[{\"awsSourceVmDetails\":{\"architecture\":\"s-architecture\",\"committedStorageBytes\":\"7\",\"firmware\":\"s-firmware\"},\"azureSourceVmDetails\":{\"architecture\":\"s-architecture\",\"committedStorageBytes\":\"7\",\"firmware\":\"s-firmware\"},\"computeEngineDisksTargetDefaults\":{\"targetProject\":\"s-targetproject\",\"zone\":\"s-zone\"},\"computeEngineTargetDefaults\":{\"bootConversion\":\"s-bootconversion\",\"bootOption\":\"s-bootoption\",\"diskType\":\"s-disktype\",\"enableIntegrityMonitoring\":true,\"enableVtpm\":true,\"hostname\":\"s-hostname\",\"licenseType\":\"s-licensetype\",\"machineType\":\"s-machinetype\",\"machineTypeSeries\":\"s-machinetypeseries\",\"secureBoot\":true,\"serviceAccount\":\"s-serviceaccount\",\"storagePool\":\"s-storagepool\",\"targetProject\":\"s-targetproject\",\"vmName\":\"s-vmname\",\"zone\":\"s-zone\"},\"computeEngineVmDefaults\":{\"bootOption\":\"s-bootoption\",\"diskType\":\"s-disktype\",\"externalIp\":\"s-externalip\",\"internalIp\":\"s-internalip\",\"licenseType\":\"s-licensetype\",\"machineType\":\"s-machinetype\",\"machineTypeSeries\":\"s-machinetypeseries\",\"name\":\"s-name\",\"network\":\"s-network\",\"project\":\"s-project\",\"secureBoot\":true,\"serviceAccount\":\"s-serviceaccount\",\"subnetwork\":\"s-subnetwork\",\"targetProject\":\"s-targetproject\",\"zone\":\"s-zone\"},\"createTime\":\"s-createtime\",\"currentSyncInfo\":{\"cycleNumber\":7,\"endTime\":\"s-endtime\",\"name\":\"s-name\",\"progress\":7,\"progressPercent\":7,\"startTime\":\"s-starttime\",\"state\":\"s-state\",\"totalPauseDuration\":\"s-totalpauseduration\"},\"cutoverForecast\":{\"estimatedCutoverJobDuration\":\"s-estimatedcutoverjobduration\"},\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"error\":{\"code\":7,\"message\":\"s-message\"},\"expiration\":{\"expireTime\":\"s-expiretime\",\"extendable\":true,\"extensionCount\":7},\"group\":\"s-group\",\"labels\":{\"k1\":\"s-labels\"},\"lastReplicationCycle\":{\"cycleNumber\":7,\"endTime\":\"s-endtime\",\"name\":\"s-name\",\"progress\":7,\"progressPercent\":7,\"startTime\":\"s-starttime\",\"state\":\"s-state\",\"totalPauseDuration\":\"s-totalpauseduration\"},\"lastSync\":{\"lastSyncTime\":\"s-lastsynctime\"},\"name\":\"s-name\",\"policy\":{\"idleDuration\":\"s-idleduration\",\"skipOsAdaptation\":true},\"sourceVmId\":\"s-sourcevmid\",\"state\":\"s-state\",\"stateTime\":\"s-statetime\",\"targetDefaults\":{\"bootOption\":\"s-bootoption\",\"diskType\":\"s-disktype\",\"externalIp\":\"s-externalip\",\"internalIp\":\"s-internalip\",\"licenseType\":\"s-licensetype\",\"machineType\":\"s-machinetype\",\"machineTypeSeries\":\"s-machinetypeseries\",\"name\":\"s-name\",\"network\":\"s-network\",\"project\":\"s-project\",\"secureBoot\":true,\"serviceAccount\":\"s-serviceaccount\",\"subnetwork\":\"s-subnetwork\",\"targetProject\":\"s-targetproject\",\"zone\":\"s-zone\"},\"updateTime\":\"s-updatetime\",\"vmwareSourceVmDetails\":{\"architecture\":\"s-architecture\",\"committedStorageBytes\":\"7\",\"firmware\":\"s-firmware\"}}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_note(f, "CALL vmmigration.projects.locations.sources.migratingVms.list pages")
+  var p = svc.projects.locations.sources.migrating_vms.list_pages("id1/ x", options: ProjectsLocationsSourcesMigratingVmsListOptions{filter: Some("s-filter"), order_by: Some("s-orderby"), page_size: Some(7), page_token: Some("s-pagetoken"), view: Some("s-view"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_55)
+}
+
+const GO_56: List[Str] = [
   "CALL vmmigration.projects.locations.sources.migratingVms.patch",
   "REQ PATCH https://vmmigration.googleapis.com/v1alpha1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&requestId=s-requestid&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"awsSourceVmDetails\":{\"architecture\":\"s-architecture\",\"committedStorageBytes\":\"7\",\"disks\":[{\"diskNumber\":7,\"sizeGb\":\"7\",\"volumeId\":\"s-volumeid\"}],\"firmware\":\"s-firmware\",\"vmCapabilitiesInfo\":{\"lastOsCapabilitiesUpdateTime\":\"s-lastoscapabilitiesupdatetime\",\"osCapabilities\":[\"s-oscapabilities\"]}},\"azureSourceVmDetails\":{\"architecture\":\"s-architecture\",\"committedStorageBytes\":\"7\",\"disks\":[{\"diskId\":\"s-diskid\",\"diskNumber\":7,\"sizeGb\":\"7\"}],\"firmware\":\"s-firmware\",\"vmCapabilitiesInfo\":{\"lastOsCapabilitiesUpdateTime\":\"s-lastoscapabilitiesupdatetime\",\"osCapabilities\":[\"s-oscapabilities\"]}},\"computeEngineDisksTargetDefaults\":{\"disks\":[{\"diskName\":\"s-diskname\",\"diskType\":\"s-disktype\",\"sourceDiskNumber\":7}],\"disksTargetDefaults\":{},\"targetProject\":\"s-targetproject\",\"vmTargetDefaults\":{\"additionalLicenses\":[\"s-additionallicenses\"],\"enableIntegrityMonitoring\":true,\"enableVtpm\":true,\"hostname\":\"s-hostname\",\"labels\":{\"k1\":\"s-labels\"},\"machineType\":\"s-machinetype\",\"machineTypeSeries\":\"s-machinetypeseries\",\"metadata\":{\"k1\":\"s-metadata\"},\"networkTags\":[\"s-networktags\"],\"secureBoot\":true,\"serviceAccount\":\"s-serviceaccount\",\"vmName\":\"s-vmname\"},\"zone\":\"s-zone\"},\"computeEngineTargetDefaults\":{\"adaptationModifiers\":[{\"modifier\":\"s-modifier\",\"value\":\"s-value\"}],\"additionalLicenses\":[\"s-additionallicenses\"],\"appliedLicense\":{\"osLicense\":\"s-oslicense\",\"type\":\"s-type\"},\"bootConversion\":\"s-bootconversion\",\"bootOption\":\"s-bootoption\",\"computeScheduling\":{\"automaticRestart\":true,\"minNodeCpus\":7,\"onHostMaintenance\":\"s-onhostmaintenance\",\"restartType\":\"s-restarttype\"},\"diskReplicaZones\":[\"s-diskreplicazones\"],\"diskType\":\"s-disktype\",\"disks\":[{\"diskName\":\"s-diskname\",\"diskType\":\"s-disktype\",\"sourceDiskNumber\":7}],\"enableIntegrityMonitoring\":true,\"enableVtpm\":true,\"encryption\":{\"kmsKey\":\"s-kmskey\"},\"hostname\":\"s-hostname\",\"labels\":{\"k1\":\"s-labels\"},\"licenseType\":\"s-licensetype\",\"machineType\":\"s-machinetype\",\"machineTypeSeries\":\"s-machinetypeseries\",\"metadata\":{\"k1\":\"s-metadata\"},\"networkInterfaces\":[{\"externalIp\":\"s-externalip\",\"internalIp\":\"s-internalip\",\"network\":\"s-network\",\"networkTier\":\"s-networktier\",\"subnetwork\":\"s-subnetwork\"}],\"networkTags\":[\"s-networktags\"],\"secureBoot\":true,\"serviceAccount\":\"s-serviceaccount\",\"storagePool\":\"s-storagepool\",\"targetProject\":\"s-targetproject\",\"vmName\":\"s-vmname\",\"zone\":\"s-zone\"},\"computeEngineVmDefaults\":{\"appliedLicense\":{\"osLicense\":\"s-oslicense\",\"type\":\"s-type\"},\"bootOption\":\"s-bootoption\",\"computeScheduling\":{\"automaticRestart\":true,\"minNodeCpus\":7,\"onHostMaintenance\":\"s-onhostmaintenance\",\"restartType\":\"s-restarttype\"},\"diskType\":\"s-disktype\",\"externalIp\":\"s-externalip\",\"internalIp\":\"s-internalip\",\"labels\":{\"k1\":\"s-labels\"},\"licenseType\":\"s-licensetype\",\"machineType\":\"s-machinetype\",\"machineTypeSeries\":\"s-machinetypeseries\",\"metadata\":{\"k1\":\"s-metadata\"},\"name\":\"s-name\",\"network\":\"s-network\",\"networkInterfaces\":[{\"externalIp\":\"s-externalip\",\"internalIp\":\"s-internalip\",\"network\":\"s-network\",\"networkTier\":\"s-networktier\",\"subnetwork\":\"s-subnetwork\"}],\"networkTags\":[\"s-networktags\"],\"project\":\"s-project\",\"secureBoot\":true,\"serviceAccount\":\"s-serviceaccount\",\"subnetwork\":\"s-subnetwork\",\"targetProject\":\"s-targetproject\",\"zone\":\"s-zone\"},\"createTime\":\"s-createtime\",\"currentSyncInfo\":{\"cycleNumber\":7,\"endTime\":\"s-endtime\",\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"name\":\"s-name\",\"progress\":7,\"progressPercent\":7,\"startTime\":\"s-starttime\",\"state\":\"s-state\",\"steps\":[{\"endTime\":\"s-endtime\",\"startTime\":\"s-starttime\"}],\"totalPauseDuration\":\"s-totalpauseduration\",\"warnings\":[{\"code\":\"s-code\",\"warningTime\":\"s-warningtime\"}]},\"cutoverForecast\":{\"estimatedCutoverJobDuration\":\"s-estimatedcutoverjobduration\"},\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"expiration\":{\"expireTime\":\"s-expiretime\",\"extendable\":true,\"extensionCount\":7},\"group\":\"s-group\",\"labels\":{\"k1\":\"s-labels\"},\"lastReplicationCycle\":{\"cycleNumber\":7,\"endTime\":\"s-endtime\",\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"name\":\"s-name\",\"progress\":7,\"progressPercent\":7,\"startTime\":\"s-starttime\",\"state\":\"s-state\",\"steps\":[{\"endTime\":\"s-endtime\",\"startTime\":\"s-starttime\"}],\"totalPauseDuration\":\"s-totalpauseduration\",\"warnings\":[{\"code\":\"s-code\",\"warningTime\":\"s-warningtime\"}]},\"lastSync\":{\"lastSyncTime\":\"s-lastsynctime\"},\"name\":\"s-name\",\"policy\":{\"idleDuration\":\"s-idleduration\",\"skipOsAdaptation\":true},\"recentCloneJobs\":[{\"computeEngineDisksTargetDetails\":{},\"computeEngineTargetDetails\":{\"bootConversion\":\"s-bootconversion\",\"bootOption\":\"s-bootoption\",\"diskType\":\"s-disktype\",\"enableIntegrityMonitoring\":true,\"enableVtpm\":true,\"hostname\":\"s-hostname\",\"licenseType\":\"s-licensetype\",\"machineType\":\"s-machinetype\",\"machineTypeSeries\":\"s-machinetypeseries\",\"project\":\"s-project\",\"secureBoot\":true,\"serviceAccount\":\"s-serviceaccount\",\"storagePool\":\"s-storagepool\",\"vmName\":\"s-vmname\",\"zone\":\"s-zone\"},\"computeEngineVmDetails\":{\"bootOption\":\"s-bootoption\",\"diskType\":\"s-disktype\",\"externalIp\":\"s-externalip\",\"internalIp\":\"s-internalip\",\"licenseType\":\"s-licensetype\",\"machineType\":\"s-machinetype\",\"machineTypeSeries\":\"s-machinetypeseries\",\"name\":\"s-name\",\"network\":\"s-network\",\"project\":\"s-project\",\"secureBoot\":true,\"serviceAccount\":\"s-serviceaccount\",\"subnetwork\":\"s-subnetwork\",\"targetProject\":\"s-targetproject\",\"zone\":\"s-zone\"},\"createTime\":\"s-createtime\",\"endTime\":\"s-endtime\",\"error\":{\"code\":7,\"message\":\"s-message\"},\"name\":\"s-name\",\"state\":\"s-state\",\"stateTime\":\"s-statetime\",\"targetDetails\":{\"bootOption\":\"s-bootoption\",\"diskType\":\"s-disktype\",\"externalIp\":\"s-externalip\",\"internalIp\":\"s-internalip\",\"licenseType\":\"s-licensetype\",\"machineType\":\"s-machinetype\",\"machineTypeSeries\":\"s-machinetypeseries\",\"name\":\"s-name\",\"network\":\"s-network\",\"project\":\"s-project\",\"secureBoot\":true,\"serviceAccount\":\"s-serviceaccount\",\"subnetwork\":\"s-subnetwork\",\"targetProject\":\"s-targetproject\",\"zone\":\"s-zone\"}}],\"recentCutoverJobs\":[{\"computeEngineDisksTargetDetails\":{},\"computeEngineTargetDetails\":{\"bootConversion\":\"s-bootconversion\",\"bootOption\":\"s-bootoption\",\"diskType\":\"s-disktype\",\"enableIntegrityMonitoring\":true,\"enableVtpm\":true,\"hostname\":\"s-hostname\",\"licenseType\":\"s-licensetype\",\"machineType\":\"s-machinetype\",\"machineTypeSeries\":\"s-machinetypeseries\",\"project\":\"s-project\",\"secureBoot\":true,\"serviceAccount\":\"s-serviceaccount\",\"storagePool\":\"s-storagepool\",\"vmName\":\"s-vmname\",\"zone\":\"s-zone\"},\"computeEngineVmDetails\":{\"bootOption\":\"s-bootoption\",\"diskType\":\"s-disktype\",\"externalIp\":\"s-externalip\",\"internalIp\":\"s-internalip\",\"licenseType\":\"s-licensetype\",\"machineType\":\"s-machinetype\",\"machineTypeSeries\":\"s-machinetypeseries\",\"name\":\"s-name\",\"network\":\"s-network\",\"project\":\"s-project\",\"secureBoot\":true,\"serviceAccount\":\"s-serviceaccount\",\"subnetwork\":\"s-subnetwork\",\"targetProject\":\"s-targetproject\",\"zone\":\"s-zone\"},\"createTime\":\"s-createtime\",\"endTime\":\"s-endtime\",\"error\":{\"code\":7,\"message\":\"s-message\"},\"name\":\"s-name\",\"progress\":7,\"progressPercent\":7,\"state\":\"s-state\",\"stateMessage\":\"s-statemessage\",\"stateTime\":\"s-statetime\",\"targetDetails\":{\"bootOption\":\"s-bootoption\",\"diskType\":\"s-disktype\",\"externalIp\":\"s-externalip\",\"internalIp\":\"s-internalip\",\"licenseType\":\"s-licensetype\",\"machineType\":\"s-machinetype\",\"machineTypeSeries\":\"s-machinetypeseries\",\"name\":\"s-name\",\"network\":\"s-network\",\"project\":\"s-project\",\"secureBoot\":true,\"serviceAccount\":\"s-serviceaccount\",\"subnetwork\":\"s-subnetwork\",\"targetProject\":\"s-targetproject\",\"zone\":\"s-zone\"}}],\"sourceVmId\":\"s-sourcevmid\",\"state\":\"s-state\",\"stateTime\":\"s-statetime\",\"targetDefaults\":{\"appliedLicense\":{\"osLicense\":\"s-oslicense\",\"type\":\"s-type\"},\"bootOption\":\"s-bootoption\",\"computeScheduling\":{\"automaticRestart\":true,\"minNodeCpus\":7,\"onHostMaintenance\":\"s-onhostmaintenance\",\"restartType\":\"s-restarttype\"},\"diskType\":\"s-disktype\",\"externalIp\":\"s-externalip\",\"internalIp\":\"s-internalip\",\"labels\":{\"k1\":\"s-labels\"},\"licenseType\":\"s-licensetype\",\"machineType\":\"s-machinetype\",\"machineTypeSeries\":\"s-machinetypeseries\",\"metadata\":{\"k1\":\"s-metadata\"},\"name\":\"s-name\",\"network\":\"s-network\",\"networkInterfaces\":[{\"externalIp\":\"s-externalip\",\"internalIp\":\"s-internalip\",\"network\":\"s-network\",\"networkTier\":\"s-networktier\",\"subnetwork\":\"s-subnetwork\"}],\"networkTags\":[\"s-networktags\"],\"project\":\"s-project\",\"secureBoot\":true,\"serviceAccount\":\"s-serviceaccount\",\"subnetwork\":\"s-subnetwork\",\"targetProject\":\"s-targetproject\",\"zone\":\"s-zone\"},\"updateTime\":\"s-updatetime\",\"vmwareSourceVmDetails\":{\"architecture\":\"s-architecture\",\"committedStorageBytes\":\"7\",\"disks\":[{\"diskNumber\":7,\"label\":\"s-label\",\"sizeGb\":\"7\"}],\"firmware\":\"s-firmware\",\"vmCapabilitiesInfo\":{\"lastOsCapabilitiesUpdateTime\":\"s-lastoscapabilitiesupdatetime\",\"osCapabilities\":[\"s-oscapabilities\"]}}}",
+  "  B <8775 bytes> {\"awsSourceVmDetails\":{\"architec...lities\":[\"s-oscapabilities\"]}}}",
   "",
   "  SERVED 200 {\"done\":true,\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}",
   "OUT: {\"done\":true,\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}",
@@ -990,10 +1408,10 @@ test "Go's vmmigration.projects.locations.sources.migratingVms.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_45)
+  gv_compare(gv_log_of(f), GO_56)
 }
 
-const GO_46: List[Str] = [
+const GO_57: List[Str] = [
   "CALL vmmigration.projects.locations.sources.migratingVms.pauseMigration",
   "REQ POST https://vmmigration.googleapis.com/v1alpha1/id1/%20x:pauseMigration?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1012,10 +1430,10 @@ test "Go's vmmigration.projects.locations.sources.migratingVms.pauseMigration" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_46)
+  gv_compare(gv_log_of(f), GO_57)
 }
 
-const GO_47: List[Str] = [
+const GO_58: List[Str] = [
   "CALL vmmigration.projects.locations.sources.migratingVms.resumeMigration",
   "REQ POST https://vmmigration.googleapis.com/v1alpha1/id1/%20x:resumeMigration?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1034,10 +1452,10 @@ test "Go's vmmigration.projects.locations.sources.migratingVms.resumeMigration" 
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_47)
+  gv_compare(gv_log_of(f), GO_58)
 }
 
-const GO_48: List[Str] = [
+const GO_59: List[Str] = [
   "CALL vmmigration.projects.locations.sources.migratingVms.startMigration",
   "REQ POST https://vmmigration.googleapis.com/v1alpha1/id1/%20x:startMigration?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1056,10 +1474,10 @@ test "Go's vmmigration.projects.locations.sources.migratingVms.startMigration" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_48)
+  gv_compare(gv_log_of(f), GO_59)
 }
 
-const GO_49: List[Str] = [
+const GO_60: List[Str] = [
   "CALL vmmigration.projects.locations.sources.migratingVms.cloneJobs.cancel",
   "REQ POST https://vmmigration.googleapis.com/v1alpha1/id1/%20x:cancel?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1078,14 +1496,14 @@ test "Go's vmmigration.projects.locations.sources.migratingVms.cloneJobs.cancel"
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_49)
+  gv_compare(gv_log_of(f), GO_60)
 }
 
-const GO_50: List[Str] = [
+const GO_61: List[Str] = [
   "CALL vmmigration.projects.locations.sources.migratingVms.cloneJobs.create",
   "REQ POST https://vmmigration.googleapis.com/v1alpha1/id1/%20x/cloneJobs?alt=json&cloneJobId=s-clonejobid&fields=kind%2Cid&prettyPrint=false&requestId=s-requestid",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"computeEngineDisksTargetDetails\":{\"disks\":[{\"diskUri\":\"s-diskuri\",\"sourceDiskNumber\":7}],\"disksTargetDetails\":{},\"vmTargetDetails\":{\"vmUri\":\"s-vmuri\"}},\"computeEngineTargetDetails\":{\"adaptationModifiers\":[{\"modifier\":\"s-modifier\",\"value\":\"s-value\"}],\"additionalLicenses\":[\"s-additionallicenses\"],\"appliedLicense\":{\"osLicense\":\"s-oslicense\",\"type\":\"s-type\"},\"bootConversion\":\"s-bootconversion\",\"bootOption\":\"s-bootoption\",\"computeScheduling\":{\"automaticRestart\":true,\"minNodeCpus\":7,\"onHostMaintenance\":\"s-onhostmaintenance\",\"restartType\":\"s-restarttype\"},\"diskReplicaZones\":[\"s-diskreplicazones\"],\"diskType\":\"s-disktype\",\"enableIntegrityMonitoring\":true,\"enableVtpm\":true,\"encryption\":{\"kmsKey\":\"s-kmskey\"},\"hostname\":\"s-hostname\",\"labels\":{\"k1\":\"s-labels\"},\"licenseType\":\"s-licensetype\",\"machineType\":\"s-machinetype\",\"machineTypeSeries\":\"s-machinetypeseries\",\"metadata\":{\"k1\":\"s-metadata\"},\"networkInterfaces\":[{\"externalIp\":\"s-externalip\",\"internalIp\":\"s-internalip\",\"network\":\"s-network\",\"networkTier\":\"s-networktier\",\"subnetwork\":\"s-subnetwork\"}],\"networkTags\":[\"s-networktags\"],\"project\":\"s-project\",\"secureBoot\":true,\"serviceAccount\":\"s-serviceaccount\",\"storagePool\":\"s-storagepool\",\"vmName\":\"s-vmname\",\"zone\":\"s-zone\"},\"computeEngineVmDetails\":{\"appliedLicense\":{\"osLicense\":\"s-oslicense\",\"type\":\"s-type\"},\"bootOption\":\"s-bootoption\",\"computeScheduling\":{\"automaticRestart\":true,\"minNodeCpus\":7,\"onHostMaintenance\":\"s-onhostmaintenance\",\"restartType\":\"s-restarttype\"},\"diskType\":\"s-disktype\",\"externalIp\":\"s-externalip\",\"internalIp\":\"s-internalip\",\"labels\":{\"k1\":\"s-labels\"},\"licenseType\":\"s-licensetype\",\"machineType\":\"s-machinetype\",\"machineTypeSeries\":\"s-machinetypeseries\",\"metadata\":{\"k1\":\"s-metadata\"},\"name\":\"s-name\",\"network\":\"s-network\",\"networkInterfaces\":[{\"externalIp\":\"s-externalip\",\"internalIp\":\"s-internalip\",\"network\":\"s-network\",\"networkTier\":\"s-networktier\",\"subnetwork\":\"s-subnetwork\"}],\"networkTags\":[\"s-networktags\"],\"project\":\"s-project\",\"secureBoot\":true,\"serviceAccount\":\"s-serviceaccount\",\"subnetwork\":\"s-subnetwork\",\"targetProject\":\"s-targetproject\",\"zone\":\"s-zone\"},\"createTime\":\"s-createtime\",\"endTime\":\"s-endtime\",\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"name\":\"s-name\",\"state\":\"s-state\",\"stateTime\":\"s-statetime\",\"steps\":[{\"adaptingOs\":{},\"endTime\":\"s-endtime\",\"instantiatingMigratedVm\":{},\"preparingVmDisks\":{},\"startTime\":\"s-starttime\"}],\"targetDetails\":{\"appliedLicense\":{\"osLicense\":\"s-oslicense\",\"type\":\"s-type\"},\"bootOption\":\"s-bootoption\",\"computeScheduling\":{\"automaticRestart\":true,\"minNodeCpus\":7,\"onHostMaintenance\":\"s-onhostmaintenance\",\"restartType\":\"s-restarttype\"},\"diskType\":\"s-disktype\",\"externalIp\":\"s-externalip\",\"internalIp\":\"s-internalip\",\"labels\":{\"k1\":\"s-labels\"},\"licenseType\":\"s-licensetype\",\"machineType\":\"s-machinetype\",\"machineTypeSeries\":\"s-machinetypeseries\",\"metadata\":{\"k1\":\"s-metadata\"},\"name\":\"s-name\",\"network\":\"s-network\",\"networkInterfaces\":[{\"externalIp\":\"s-externalip\",\"internalIp\":\"s-internalip\",\"network\":\"s-network\",\"networkTier\":\"s-networktier\",\"subnetwork\":\"s-subnetwork\"}],\"networkTags\":[\"s-networktags\"],\"project\":\"s-project\",\"secureBoot\":true,\"serviceAccount\":\"s-serviceaccount\",\"subnetwork\":\"s-subnetwork\",\"targetProject\":\"s-targetproject\",\"zone\":\"s-zone\"}}",
+  "  B <3268 bytes> {\"computeEngineDisksTargetDetail...argetproject\",\"zone\":\"s-zone\"}}",
   "",
   "  SERVED 200 {\"done\":true,\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}",
   "OUT: {\"done\":true,\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}",
@@ -1100,10 +1518,10 @@ test "Go's vmmigration.projects.locations.sources.migratingVms.cloneJobs.create"
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_50)
+  gv_compare(gv_log_of(f), GO_61)
 }
 
-const GO_51: List[Str] = [
+const GO_62: List[Str] = [
   "CALL vmmigration.projects.locations.sources.migratingVms.cloneJobs.get",
   "REQ GET https://vmmigration.googleapis.com/v1alpha1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1121,10 +1539,10 @@ test "Go's vmmigration.projects.locations.sources.migratingVms.cloneJobs.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_51)
+  gv_compare(gv_log_of(f), GO_62)
 }
 
-const GO_52: List[Str] = [
+const GO_63: List[Str] = [
   "CALL vmmigration.projects.locations.sources.migratingVms.cloneJobs.list",
   "REQ GET https://vmmigration.googleapis.com/v1alpha1/id1/%20x/cloneJobs?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1142,10 +1560,48 @@ test "Go's vmmigration.projects.locations.sources.migratingVms.cloneJobs.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_52)
+  gv_compare(gv_log_of(f), GO_63)
 }
 
-const GO_53: List[Str] = [
+const GO_64: List[Str] = [
+  "CALL vmmigration.projects.locations.sources.migratingVms.cloneJobs.list pages",
+  "REQ GET https://vmmigration.googleapis.com/v1alpha1/id1/%20x/cloneJobs?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"cloneJobs\":[{\"computeEngineDisksTargetDetails\":{},\"computeEngineTargetDetails\":{\"bootConversion\":\"s-bootconversion\",\"bootOption\":\"s-bootoption\",\"diskType\":\"s-disktype\",\"enableIntegrityMonitoring\":true,\"enableVtpm\":true,\"hostname\":\"s-hostname\",\"licenseType\":\"s-licensetype\",\"machineType\":\"s-machinetype\",\"machineTypeSeries\":\"s-machinetypeseries\",\"project\":\"s-project\",\"secureBoot\":true,\"serviceAccount\":\"s-serviceaccount\",\"storagePool\":\"s-storagepool\",\"vmName\":\"s-vmname\",\"zone\":\"s-zone\"},\"computeEngineVmDetails\":{\"bootOption\":\"s-bootoption\",\"diskType\":\"s-disktype\",\"externalIp\":\"s-externalip\",\"internalIp\":\"s-internalip\",\"licenseType\":\"s-licensetype\",\"machineType\":\"s-machinetype\",\"machineTypeSeries\":\"s-machinetypeseries\",\"name\":\"s-name\",\"network\":\"s-network\",\"project\":\"s-project\",\"secureBoot\":true,\"serviceAccount\":\"s-serviceaccount\",\"subnetwork\":\"s-subnetwork\",\"targetProject\":\"s-targetproject\",\"zone\":\"s-zone\"},\"createTime\":\"s-createtime\",\"endTime\":\"s-endtime\",\"error\":{\"code\":7,\"message\":\"s-message\"},\"name\":\"s-name\",\"state\":\"s-state\",\"stateTime\":\"s-statetime\",\"targetDetails\":{\"bootOption\":\"s-bootoption\",\"diskType\":\"s-disktype\",\"externalIp\":\"s-externalip\",\"internalIp\":\"s-internalip\",\"licenseType\":\"s-licensetype\",\"machineType\":\"s-machinetype\",\"machineTypeSeries\":\"s-machinetypeseries\",\"name\":\"s-name\",\"network\":\"s-network\",\"project\":\"s-project\",\"secureBoot\":true,\"serviceAccount\":\"s-serviceaccount\",\"subnetwork\":\"s-subnetwork\",\"targetProject\":\"s-targetproject\",\"zone\":\"s-zone\"}}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"cloneJobs\":[{\"computeEngineDisksTargetDetails\":{},\"computeEngineTargetDetails\":{\"bootConversion\":\"s-bootconversion\",\"bootOption\":\"s-bootoption\",\"diskType\":\"s-disktype\",\"enableIntegrityMonitoring\":true,\"enableVtpm\":true,\"hostname\":\"s-hostname\",\"licenseType\":\"s-licensetype\",\"machineType\":\"s-machinetype\",\"machineTypeSeries\":\"s-machinetypeseries\",\"project\":\"s-project\",\"secureBoot\":true,\"serviceAccount\":\"s-serviceaccount\",\"storagePool\":\"s-storagepool\",\"vmName\":\"s-vmname\",\"zone\":\"s-zone\"},\"computeEngineVmDetails\":{\"bootOption\":\"s-bootoption\",\"diskType\":\"s-disktype\",\"externalIp\":\"s-externalip\",\"internalIp\":\"s-internalip\",\"licenseType\":\"s-licensetype\",\"machineType\":\"s-machinetype\",\"machineTypeSeries\":\"s-machinetypeseries\",\"name\":\"s-name\",\"network\":\"s-network\",\"project\":\"s-project\",\"secureBoot\":true,\"serviceAccount\":\"s-serviceaccount\",\"subnetwork\":\"s-subnetwork\",\"targetProject\":\"s-targetproject\",\"zone\":\"s-zone\"},\"createTime\":\"s-createtime\",\"endTime\":\"s-endtime\",\"error\":{\"code\":7,\"message\":\"s-message\"},\"name\":\"s-name\",\"state\":\"s-state\",\"stateTime\":\"s-statetime\",\"targetDetails\":{\"bootOption\":\"s-bootoption\",\"diskType\":\"s-disktype\",\"externalIp\":\"s-externalip\",\"internalIp\":\"s-internalip\",\"licenseType\":\"s-licensetype\",\"machineType\":\"s-machinetype\",\"machineTypeSeries\":\"s-machinetypeseries\",\"name\":\"s-name\",\"network\":\"s-network\",\"project\":\"s-project\",\"secureBoot\":true,\"serviceAccount\":\"s-serviceaccount\",\"subnetwork\":\"s-subnetwork\",\"targetProject\":\"s-targetproject\",\"zone\":\"s-zone\"}}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}",
+  "REQ GET https://vmmigration.googleapis.com/v1alpha1/id1/%20x/cloneJobs?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"cloneJobs\":[{\"computeEngineDisksTargetDetails\":{},\"computeEngineTargetDetails\":{\"bootConversion\":\"s-bootconversion\",\"bootOption\":\"s-bootoption\",\"diskType\":\"s-disktype\",\"enableIntegrityMonitoring\":true,\"enableVtpm\":true,\"hostname\":\"s-hostname\",\"licenseType\":\"s-licensetype\",\"machineType\":\"s-machinetype\",\"machineTypeSeries\":\"s-machinetypeseries\",\"project\":\"s-project\",\"secureBoot\":true,\"serviceAccount\":\"s-serviceaccount\",\"storagePool\":\"s-storagepool\",\"vmName\":\"s-vmname\",\"zone\":\"s-zone\"},\"computeEngineVmDetails\":{\"bootOption\":\"s-bootoption\",\"diskType\":\"s-disktype\",\"externalIp\":\"s-externalip\",\"internalIp\":\"s-internalip\",\"licenseType\":\"s-licensetype\",\"machineType\":\"s-machinetype\",\"machineTypeSeries\":\"s-machinetypeseries\",\"name\":\"s-name\",\"network\":\"s-network\",\"project\":\"s-project\",\"secureBoot\":true,\"serviceAccount\":\"s-serviceaccount\",\"subnetwork\":\"s-subnetwork\",\"targetProject\":\"s-targetproject\",\"zone\":\"s-zone\"},\"createTime\":\"s-createtime\",\"endTime\":\"s-endtime\",\"error\":{\"code\":7,\"message\":\"s-message\"},\"name\":\"s-name\",\"state\":\"s-state\",\"stateTime\":\"s-statetime\",\"targetDetails\":{\"bootOption\":\"s-bootoption\",\"diskType\":\"s-disktype\",\"externalIp\":\"s-externalip\",\"internalIp\":\"s-internalip\",\"licenseType\":\"s-licensetype\",\"machineType\":\"s-machinetype\",\"machineTypeSeries\":\"s-machinetypeseries\",\"name\":\"s-name\",\"network\":\"s-network\",\"project\":\"s-project\",\"secureBoot\":true,\"serviceAccount\":\"s-serviceaccount\",\"subnetwork\":\"s-subnetwork\",\"targetProject\":\"s-targetproject\",\"zone\":\"s-zone\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"cloneJobs\":[{\"computeEngineDisksTargetDetails\":{},\"computeEngineTargetDetails\":{\"bootConversion\":\"s-bootconversion\",\"bootOption\":\"s-bootoption\",\"diskType\":\"s-disktype\",\"enableIntegrityMonitoring\":true,\"enableVtpm\":true,\"hostname\":\"s-hostname\",\"licenseType\":\"s-licensetype\",\"machineType\":\"s-machinetype\",\"machineTypeSeries\":\"s-machinetypeseries\",\"project\":\"s-project\",\"secureBoot\":true,\"serviceAccount\":\"s-serviceaccount\",\"storagePool\":\"s-storagepool\",\"vmName\":\"s-vmname\",\"zone\":\"s-zone\"},\"computeEngineVmDetails\":{\"bootOption\":\"s-bootoption\",\"diskType\":\"s-disktype\",\"externalIp\":\"s-externalip\",\"internalIp\":\"s-internalip\",\"licenseType\":\"s-licensetype\",\"machineType\":\"s-machinetype\",\"machineTypeSeries\":\"s-machinetypeseries\",\"name\":\"s-name\",\"network\":\"s-network\",\"project\":\"s-project\",\"secureBoot\":true,\"serviceAccount\":\"s-serviceaccount\",\"subnetwork\":\"s-subnetwork\",\"targetProject\":\"s-targetproject\",\"zone\":\"s-zone\"},\"createTime\":\"s-createtime\",\"endTime\":\"s-endtime\",\"error\":{\"code\":7,\"message\":\"s-message\"},\"name\":\"s-name\",\"state\":\"s-state\",\"stateTime\":\"s-statetime\",\"targetDetails\":{\"bootOption\":\"s-bootoption\",\"diskType\":\"s-disktype\",\"externalIp\":\"s-externalip\",\"internalIp\":\"s-internalip\",\"licenseType\":\"s-licensetype\",\"machineType\":\"s-machinetype\",\"machineTypeSeries\":\"s-machinetypeseries\",\"name\":\"s-name\",\"network\":\"s-network\",\"project\":\"s-project\",\"secureBoot\":true,\"serviceAccount\":\"s-serviceaccount\",\"subnetwork\":\"s-subnetwork\",\"targetProject\":\"s-targetproject\",\"zone\":\"s-zone\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: ok",
+]
+
+test "Go's vmmigration.projects.locations.sources.migratingVms.cloneJobs.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"cloneJobs\":[{\"computeEngineDisksTargetDetails\":{},\"computeEngineTargetDetails\":{\"bootConversion\":\"s-bootconversion\",\"bootOption\":\"s-bootoption\",\"diskType\":\"s-disktype\",\"enableIntegrityMonitoring\":true,\"enableVtpm\":true,\"hostname\":\"s-hostname\",\"licenseType\":\"s-licensetype\",\"machineType\":\"s-machinetype\",\"machineTypeSeries\":\"s-machinetypeseries\",\"project\":\"s-project\",\"secureBoot\":true,\"serviceAccount\":\"s-serviceaccount\",\"storagePool\":\"s-storagepool\",\"vmName\":\"s-vmname\",\"zone\":\"s-zone\"},\"computeEngineVmDetails\":{\"bootOption\":\"s-bootoption\",\"diskType\":\"s-disktype\",\"externalIp\":\"s-externalip\",\"internalIp\":\"s-internalip\",\"licenseType\":\"s-licensetype\",\"machineType\":\"s-machinetype\",\"machineTypeSeries\":\"s-machinetypeseries\",\"name\":\"s-name\",\"network\":\"s-network\",\"project\":\"s-project\",\"secureBoot\":true,\"serviceAccount\":\"s-serviceaccount\",\"subnetwork\":\"s-subnetwork\",\"targetProject\":\"s-targetproject\",\"zone\":\"s-zone\"},\"createTime\":\"s-createtime\",\"endTime\":\"s-endtime\",\"error\":{\"code\":7,\"message\":\"s-message\"},\"name\":\"s-name\",\"state\":\"s-state\",\"stateTime\":\"s-statetime\",\"targetDetails\":{\"bootOption\":\"s-bootoption\",\"diskType\":\"s-disktype\",\"externalIp\":\"s-externalip\",\"internalIp\":\"s-internalip\",\"licenseType\":\"s-licensetype\",\"machineType\":\"s-machinetype\",\"machineTypeSeries\":\"s-machinetypeseries\",\"name\":\"s-name\",\"network\":\"s-network\",\"project\":\"s-project\",\"secureBoot\":true,\"serviceAccount\":\"s-serviceaccount\",\"subnetwork\":\"s-subnetwork\",\"targetProject\":\"s-targetproject\",\"zone\":\"s-zone\"}}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}")
+  gv_queue(f, "{\"cloneJobs\":[{\"computeEngineDisksTargetDetails\":{},\"computeEngineTargetDetails\":{\"bootConversion\":\"s-bootconversion\",\"bootOption\":\"s-bootoption\",\"diskType\":\"s-disktype\",\"enableIntegrityMonitoring\":true,\"enableVtpm\":true,\"hostname\":\"s-hostname\",\"licenseType\":\"s-licensetype\",\"machineType\":\"s-machinetype\",\"machineTypeSeries\":\"s-machinetypeseries\",\"project\":\"s-project\",\"secureBoot\":true,\"serviceAccount\":\"s-serviceaccount\",\"storagePool\":\"s-storagepool\",\"vmName\":\"s-vmname\",\"zone\":\"s-zone\"},\"computeEngineVmDetails\":{\"bootOption\":\"s-bootoption\",\"diskType\":\"s-disktype\",\"externalIp\":\"s-externalip\",\"internalIp\":\"s-internalip\",\"licenseType\":\"s-licensetype\",\"machineType\":\"s-machinetype\",\"machineTypeSeries\":\"s-machinetypeseries\",\"name\":\"s-name\",\"network\":\"s-network\",\"project\":\"s-project\",\"secureBoot\":true,\"serviceAccount\":\"s-serviceaccount\",\"subnetwork\":\"s-subnetwork\",\"targetProject\":\"s-targetproject\",\"zone\":\"s-zone\"},\"createTime\":\"s-createtime\",\"endTime\":\"s-endtime\",\"error\":{\"code\":7,\"message\":\"s-message\"},\"name\":\"s-name\",\"state\":\"s-state\",\"stateTime\":\"s-statetime\",\"targetDetails\":{\"bootOption\":\"s-bootoption\",\"diskType\":\"s-disktype\",\"externalIp\":\"s-externalip\",\"internalIp\":\"s-internalip\",\"licenseType\":\"s-licensetype\",\"machineType\":\"s-machinetype\",\"machineTypeSeries\":\"s-machinetypeseries\",\"name\":\"s-name\",\"network\":\"s-network\",\"project\":\"s-project\",\"secureBoot\":true,\"serviceAccount\":\"s-serviceaccount\",\"subnetwork\":\"s-subnetwork\",\"targetProject\":\"s-targetproject\",\"zone\":\"s-zone\"}}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_note(f, "CALL vmmigration.projects.locations.sources.migratingVms.cloneJobs.list pages")
+  var p = svc.projects.locations.sources.migrating_vms.clone_jobs.list_pages("id1/ x", options: ProjectsLocationsSourcesMigratingVmsCloneJobsListOptions{filter: Some("s-filter"), order_by: Some("s-orderby"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_64)
+}
+
+const GO_65: List[Str] = [
   "CALL vmmigration.projects.locations.sources.migratingVms.cutoverJobs.cancel",
   "REQ POST https://vmmigration.googleapis.com/v1alpha1/id1/%20x:cancel?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1164,14 +1620,14 @@ test "Go's vmmigration.projects.locations.sources.migratingVms.cutoverJobs.cance
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_53)
+  gv_compare(gv_log_of(f), GO_65)
 }
 
-const GO_54: List[Str] = [
+const GO_66: List[Str] = [
   "CALL vmmigration.projects.locations.sources.migratingVms.cutoverJobs.create",
   "REQ POST https://vmmigration.googleapis.com/v1alpha1/id1/%20x/cutoverJobs?alt=json&cutoverJobId=s-cutoverjobid&fields=kind%2Cid&prettyPrint=false&requestId=s-requestid",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"computeEngineDisksTargetDetails\":{\"disks\":[{\"diskUri\":\"s-diskuri\",\"sourceDiskNumber\":7}],\"disksTargetDetails\":{},\"vmTargetDetails\":{\"vmUri\":\"s-vmuri\"}},\"computeEngineTargetDetails\":{\"adaptationModifiers\":[{\"modifier\":\"s-modifier\",\"value\":\"s-value\"}],\"additionalLicenses\":[\"s-additionallicenses\"],\"appliedLicense\":{\"osLicense\":\"s-oslicense\",\"type\":\"s-type\"},\"bootConversion\":\"s-bootconversion\",\"bootOption\":\"s-bootoption\",\"computeScheduling\":{\"automaticRestart\":true,\"minNodeCpus\":7,\"onHostMaintenance\":\"s-onhostmaintenance\",\"restartType\":\"s-restarttype\"},\"diskReplicaZones\":[\"s-diskreplicazones\"],\"diskType\":\"s-disktype\",\"enableIntegrityMonitoring\":true,\"enableVtpm\":true,\"encryption\":{\"kmsKey\":\"s-kmskey\"},\"hostname\":\"s-hostname\",\"labels\":{\"k1\":\"s-labels\"},\"licenseType\":\"s-licensetype\",\"machineType\":\"s-machinetype\",\"machineTypeSeries\":\"s-machinetypeseries\",\"metadata\":{\"k1\":\"s-metadata\"},\"networkInterfaces\":[{\"externalIp\":\"s-externalip\",\"internalIp\":\"s-internalip\",\"network\":\"s-network\",\"networkTier\":\"s-networktier\",\"subnetwork\":\"s-subnetwork\"}],\"networkTags\":[\"s-networktags\"],\"project\":\"s-project\",\"secureBoot\":true,\"serviceAccount\":\"s-serviceaccount\",\"storagePool\":\"s-storagepool\",\"vmName\":\"s-vmname\",\"zone\":\"s-zone\"},\"computeEngineVmDetails\":{\"appliedLicense\":{\"osLicense\":\"s-oslicense\",\"type\":\"s-type\"},\"bootOption\":\"s-bootoption\",\"computeScheduling\":{\"automaticRestart\":true,\"minNodeCpus\":7,\"onHostMaintenance\":\"s-onhostmaintenance\",\"restartType\":\"s-restarttype\"},\"diskType\":\"s-disktype\",\"externalIp\":\"s-externalip\",\"internalIp\":\"s-internalip\",\"labels\":{\"k1\":\"s-labels\"},\"licenseType\":\"s-licensetype\",\"machineType\":\"s-machinetype\",\"machineTypeSeries\":\"s-machinetypeseries\",\"metadata\":{\"k1\":\"s-metadata\"},\"name\":\"s-name\",\"network\":\"s-network\",\"networkInterfaces\":[{\"externalIp\":\"s-externalip\",\"internalIp\":\"s-internalip\",\"network\":\"s-network\",\"networkTier\":\"s-networktier\",\"subnetwork\":\"s-subnetwork\"}],\"networkTags\":[\"s-networktags\"],\"project\":\"s-project\",\"secureBoot\":true,\"serviceAccount\":\"s-serviceaccount\",\"subnetwork\":\"s-subnetwork\",\"targetProject\":\"s-targetproject\",\"zone\":\"s-zone\"},\"createTime\":\"s-createtime\",\"endTime\":\"s-endtime\",\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"name\":\"s-name\",\"progress\":7,\"progressPercent\":7,\"state\":\"s-state\",\"stateMessage\":\"s-statemessage\",\"stateTime\":\"s-statetime\",\"steps\":[{\"endTime\":\"s-endtime\",\"finalSync\":{\"cycleNumber\":7,\"endTime\":\"s-endtime\",\"name\":\"s-name\",\"progress\":7,\"progressPercent\":7,\"startTime\":\"s-starttime\",\"state\":\"s-state\",\"totalPauseDuration\":\"s-totalpauseduration\"},\"instantiatingMigratedVm\":{},\"preparingVmDisks\":{},\"previousReplicationCycle\":{\"cycleNumber\":7,\"endTime\":\"s-endtime\",\"name\":\"s-name\",\"progress\":7,\"progressPercent\":7,\"startTime\":\"s-starttime\",\"state\":\"s-state\",\"totalPauseDuration\":\"s-totalpauseduration\"},\"shuttingDownSourceVm\":{},\"startTime\":\"s-starttime\"}],\"targetDetails\":{\"appliedLicense\":{\"osLicense\":\"s-oslicense\",\"type\":\"s-type\"},\"bootOption\":\"s-bootoption\",\"computeScheduling\":{\"automaticRestart\":true,\"minNodeCpus\":7,\"onHostMaintenance\":\"s-onhostmaintenance\",\"restartType\":\"s-restarttype\"},\"diskType\":\"s-disktype\",\"externalIp\":\"s-externalip\",\"internalIp\":\"s-internalip\",\"labels\":{\"k1\":\"s-labels\"},\"licenseType\":\"s-licensetype\",\"machineType\":\"s-machinetype\",\"machineTypeSeries\":\"s-machinetypeseries\",\"metadata\":{\"k1\":\"s-metadata\"},\"name\":\"s-name\",\"network\":\"s-network\",\"networkInterfaces\":[{\"externalIp\":\"s-externalip\",\"internalIp\":\"s-internalip\",\"network\":\"s-network\",\"networkTier\":\"s-networktier\",\"subnetwork\":\"s-subnetwork\"}],\"networkTags\":[\"s-networktags\"],\"project\":\"s-project\",\"secureBoot\":true,\"serviceAccount\":\"s-serviceaccount\",\"subnetwork\":\"s-subnetwork\",\"targetProject\":\"s-targetproject\",\"zone\":\"s-zone\"}}",
+  "  B <3736 bytes> {\"computeEngineDisksTargetDetail...argetproject\",\"zone\":\"s-zone\"}}",
   "",
   "  SERVED 200 {\"done\":true,\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}",
   "OUT: {\"done\":true,\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}",
@@ -1186,10 +1642,10 @@ test "Go's vmmigration.projects.locations.sources.migratingVms.cutoverJobs.creat
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_54)
+  gv_compare(gv_log_of(f), GO_66)
 }
 
-const GO_55: List[Str] = [
+const GO_67: List[Str] = [
   "CALL vmmigration.projects.locations.sources.migratingVms.cutoverJobs.get",
   "REQ GET https://vmmigration.googleapis.com/v1alpha1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1207,10 +1663,10 @@ test "Go's vmmigration.projects.locations.sources.migratingVms.cutoverJobs.get" 
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_55)
+  gv_compare(gv_log_of(f), GO_67)
 }
 
-const GO_56: List[Str] = [
+const GO_68: List[Str] = [
   "CALL vmmigration.projects.locations.sources.migratingVms.cutoverJobs.list",
   "REQ GET https://vmmigration.googleapis.com/v1alpha1/id1/%20x/cutoverJobs?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1228,10 +1684,48 @@ test "Go's vmmigration.projects.locations.sources.migratingVms.cutoverJobs.list"
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_56)
+  gv_compare(gv_log_of(f), GO_68)
 }
 
-const GO_57: List[Str] = [
+const GO_69: List[Str] = [
+  "CALL vmmigration.projects.locations.sources.migratingVms.cutoverJobs.list pages",
+  "REQ GET https://vmmigration.googleapis.com/v1alpha1/id1/%20x/cutoverJobs?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"cutoverJobs\":[{\"computeEngineDisksTargetDetails\":{},\"computeEngineTargetDetails\":{\"bootConversion\":\"s-bootconversion\",\"bootOption\":\"s-bootoption\",\"diskType\":\"s-disktype\",\"enableIntegrityMonitoring\":true,\"enableVtpm\":true,\"hostname\":\"s-hostname\",\"licenseType\":\"s-licensetype\",\"machineType\":\"s-machinetype\",\"machineTypeSeries\":\"s-machinetypeseries\",\"project\":\"s-project\",\"secureBoot\":true,\"serviceAccount\":\"s-serviceaccount\",\"storagePool\":\"s-storagepool\",\"vmName\":\"s-vmname\",\"zone\":\"s-zone\"},\"computeEngineVmDetails\":{\"bootOption\":\"s-bootoption\",\"diskType\":\"s-disktype\",\"externalIp\":\"s-externalip\",\"internalIp\":\"s-internalip\",\"licenseType\":\"s-licensetype\",\"machineType\":\"s-machinetype\",\"machineTypeSeries\":\"s-machinetypeseries\",\"name\":\"s-name\",\"network\":\"s-network\",\"project\":\"s-project\",\"secureBoot\":true,\"serviceAccount\":\"s-serviceaccount\",\"subnetwork\":\"s-subnetwork\",\"targetProject\":\"s-targetproject\",\"zone\":\"s-zone\"},\"createTime\":\"s-createtime\",\"endTime\":\"s-endtime\",\"error\":{\"code\":7,\"message\":\"s-message\"},\"name\":\"s-name\",\"progress\":7,\"progressPercent\":7,\"state\":\"s-state\",\"stateMessage\":\"s-statemessage\",\"stateTime\":\"s-statetime\",\"targetDetails\":{\"bootOption\":\"s-bootoption\",\"diskType\":\"s-disktype\",\"externalIp\":\"s-externalip\",\"internalIp\":\"s-internalip\",\"licenseType\":\"s-licensetype\",\"machineType\":\"s-machinetype\",\"machineTypeSeries\":\"s-machinetypeseries\",\"name\":\"s-name\",\"network\":\"s-network\",\"project\":\"s-project\",\"secureBoot\":true,\"serviceAccount\":\"s-serviceaccount\",\"subnetwork\":\"s-subnetwork\",\"targetProject\":\"s-targetproject\",\"zone\":\"s-zone\"}}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"cutoverJobs\":[{\"computeEngineDisksTargetDetails\":{},\"computeEngineTargetDetails\":{\"bootConversion\":\"s-bootconversion\",\"bootOption\":\"s-bootoption\",\"diskType\":\"s-disktype\",\"enableIntegrityMonitoring\":true,\"enableVtpm\":true,\"hostname\":\"s-hostname\",\"licenseType\":\"s-licensetype\",\"machineType\":\"s-machinetype\",\"machineTypeSeries\":\"s-machinetypeseries\",\"project\":\"s-project\",\"secureBoot\":true,\"serviceAccount\":\"s-serviceaccount\",\"storagePool\":\"s-storagepool\",\"vmName\":\"s-vmname\",\"zone\":\"s-zone\"},\"computeEngineVmDetails\":{\"bootOption\":\"s-bootoption\",\"diskType\":\"s-disktype\",\"externalIp\":\"s-externalip\",\"internalIp\":\"s-internalip\",\"licenseType\":\"s-licensetype\",\"machineType\":\"s-machinetype\",\"machineTypeSeries\":\"s-machinetypeseries\",\"name\":\"s-name\",\"network\":\"s-network\",\"project\":\"s-project\",\"secureBoot\":true,\"serviceAccount\":\"s-serviceaccount\",\"subnetwork\":\"s-subnetwork\",\"targetProject\":\"s-targetproject\",\"zone\":\"s-zone\"},\"createTime\":\"s-createtime\",\"endTime\":\"s-endtime\",\"error\":{\"code\":7,\"message\":\"s-message\"},\"name\":\"s-name\",\"progress\":7,\"progressPercent\":7,\"state\":\"s-state\",\"stateMessage\":\"s-statemessage\",\"stateTime\":\"s-statetime\",\"targetDetails\":{\"bootOption\":\"s-bootoption\",\"diskType\":\"s-disktype\",\"externalIp\":\"s-externalip\",\"internalIp\":\"s-internalip\",\"licenseType\":\"s-licensetype\",\"machineType\":\"s-machinetype\",\"machineTypeSeries\":\"s-machinetypeseries\",\"name\":\"s-name\",\"network\":\"s-network\",\"project\":\"s-project\",\"secureBoot\":true,\"serviceAccount\":\"s-serviceaccount\",\"subnetwork\":\"s-subnetwork\",\"targetProject\":\"s-targetproject\",\"zone\":\"s-zone\"}}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}",
+  "REQ GET https://vmmigration.googleapis.com/v1alpha1/id1/%20x/cutoverJobs?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"cutoverJobs\":[{\"computeEngineDisksTargetDetails\":{},\"computeEngineTargetDetails\":{\"bootConversion\":\"s-bootconversion\",\"bootOption\":\"s-bootoption\",\"diskType\":\"s-disktype\",\"enableIntegrityMonitoring\":true,\"enableVtpm\":true,\"hostname\":\"s-hostname\",\"licenseType\":\"s-licensetype\",\"machineType\":\"s-machinetype\",\"machineTypeSeries\":\"s-machinetypeseries\",\"project\":\"s-project\",\"secureBoot\":true,\"serviceAccount\":\"s-serviceaccount\",\"storagePool\":\"s-storagepool\",\"vmName\":\"s-vmname\",\"zone\":\"s-zone\"},\"computeEngineVmDetails\":{\"bootOption\":\"s-bootoption\",\"diskType\":\"s-disktype\",\"externalIp\":\"s-externalip\",\"internalIp\":\"s-internalip\",\"licenseType\":\"s-licensetype\",\"machineType\":\"s-machinetype\",\"machineTypeSeries\":\"s-machinetypeseries\",\"name\":\"s-name\",\"network\":\"s-network\",\"project\":\"s-project\",\"secureBoot\":true,\"serviceAccount\":\"s-serviceaccount\",\"subnetwork\":\"s-subnetwork\",\"targetProject\":\"s-targetproject\",\"zone\":\"s-zone\"},\"createTime\":\"s-createtime\",\"endTime\":\"s-endtime\",\"error\":{\"code\":7,\"message\":\"s-message\"},\"name\":\"s-name\",\"progress\":7,\"progressPercent\":7,\"state\":\"s-state\",\"stateMessage\":\"s-statemessage\",\"stateTime\":\"s-statetime\",\"targetDetails\":{\"bootOption\":\"s-bootoption\",\"diskType\":\"s-disktype\",\"externalIp\":\"s-externalip\",\"internalIp\":\"s-internalip\",\"licenseType\":\"s-licensetype\",\"machineType\":\"s-machinetype\",\"machineTypeSeries\":\"s-machinetypeseries\",\"name\":\"s-name\",\"network\":\"s-network\",\"project\":\"s-project\",\"secureBoot\":true,\"serviceAccount\":\"s-serviceaccount\",\"subnetwork\":\"s-subnetwork\",\"targetProject\":\"s-targetproject\",\"zone\":\"s-zone\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"cutoverJobs\":[{\"computeEngineDisksTargetDetails\":{},\"computeEngineTargetDetails\":{\"bootConversion\":\"s-bootconversion\",\"bootOption\":\"s-bootoption\",\"diskType\":\"s-disktype\",\"enableIntegrityMonitoring\":true,\"enableVtpm\":true,\"hostname\":\"s-hostname\",\"licenseType\":\"s-licensetype\",\"machineType\":\"s-machinetype\",\"machineTypeSeries\":\"s-machinetypeseries\",\"project\":\"s-project\",\"secureBoot\":true,\"serviceAccount\":\"s-serviceaccount\",\"storagePool\":\"s-storagepool\",\"vmName\":\"s-vmname\",\"zone\":\"s-zone\"},\"computeEngineVmDetails\":{\"bootOption\":\"s-bootoption\",\"diskType\":\"s-disktype\",\"externalIp\":\"s-externalip\",\"internalIp\":\"s-internalip\",\"licenseType\":\"s-licensetype\",\"machineType\":\"s-machinetype\",\"machineTypeSeries\":\"s-machinetypeseries\",\"name\":\"s-name\",\"network\":\"s-network\",\"project\":\"s-project\",\"secureBoot\":true,\"serviceAccount\":\"s-serviceaccount\",\"subnetwork\":\"s-subnetwork\",\"targetProject\":\"s-targetproject\",\"zone\":\"s-zone\"},\"createTime\":\"s-createtime\",\"endTime\":\"s-endtime\",\"error\":{\"code\":7,\"message\":\"s-message\"},\"name\":\"s-name\",\"progress\":7,\"progressPercent\":7,\"state\":\"s-state\",\"stateMessage\":\"s-statemessage\",\"stateTime\":\"s-statetime\",\"targetDetails\":{\"bootOption\":\"s-bootoption\",\"diskType\":\"s-disktype\",\"externalIp\":\"s-externalip\",\"internalIp\":\"s-internalip\",\"licenseType\":\"s-licensetype\",\"machineType\":\"s-machinetype\",\"machineTypeSeries\":\"s-machinetypeseries\",\"name\":\"s-name\",\"network\":\"s-network\",\"project\":\"s-project\",\"secureBoot\":true,\"serviceAccount\":\"s-serviceaccount\",\"subnetwork\":\"s-subnetwork\",\"targetProject\":\"s-targetproject\",\"zone\":\"s-zone\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: ok",
+]
+
+test "Go's vmmigration.projects.locations.sources.migratingVms.cutoverJobs.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"cutoverJobs\":[{\"computeEngineDisksTargetDetails\":{},\"computeEngineTargetDetails\":{\"bootConversion\":\"s-bootconversion\",\"bootOption\":\"s-bootoption\",\"diskType\":\"s-disktype\",\"enableIntegrityMonitoring\":true,\"enableVtpm\":true,\"hostname\":\"s-hostname\",\"licenseType\":\"s-licensetype\",\"machineType\":\"s-machinetype\",\"machineTypeSeries\":\"s-machinetypeseries\",\"project\":\"s-project\",\"secureBoot\":true,\"serviceAccount\":\"s-serviceaccount\",\"storagePool\":\"s-storagepool\",\"vmName\":\"s-vmname\",\"zone\":\"s-zone\"},\"computeEngineVmDetails\":{\"bootOption\":\"s-bootoption\",\"diskType\":\"s-disktype\",\"externalIp\":\"s-externalip\",\"internalIp\":\"s-internalip\",\"licenseType\":\"s-licensetype\",\"machineType\":\"s-machinetype\",\"machineTypeSeries\":\"s-machinetypeseries\",\"name\":\"s-name\",\"network\":\"s-network\",\"project\":\"s-project\",\"secureBoot\":true,\"serviceAccount\":\"s-serviceaccount\",\"subnetwork\":\"s-subnetwork\",\"targetProject\":\"s-targetproject\",\"zone\":\"s-zone\"},\"createTime\":\"s-createtime\",\"endTime\":\"s-endtime\",\"error\":{\"code\":7,\"message\":\"s-message\"},\"name\":\"s-name\",\"progress\":7,\"progressPercent\":7,\"state\":\"s-state\",\"stateMessage\":\"s-statemessage\",\"stateTime\":\"s-statetime\",\"targetDetails\":{\"bootOption\":\"s-bootoption\",\"diskType\":\"s-disktype\",\"externalIp\":\"s-externalip\",\"internalIp\":\"s-internalip\",\"licenseType\":\"s-licensetype\",\"machineType\":\"s-machinetype\",\"machineTypeSeries\":\"s-machinetypeseries\",\"name\":\"s-name\",\"network\":\"s-network\",\"project\":\"s-project\",\"secureBoot\":true,\"serviceAccount\":\"s-serviceaccount\",\"subnetwork\":\"s-subnetwork\",\"targetProject\":\"s-targetproject\",\"zone\":\"s-zone\"}}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}")
+  gv_queue(f, "{\"cutoverJobs\":[{\"computeEngineDisksTargetDetails\":{},\"computeEngineTargetDetails\":{\"bootConversion\":\"s-bootconversion\",\"bootOption\":\"s-bootoption\",\"diskType\":\"s-disktype\",\"enableIntegrityMonitoring\":true,\"enableVtpm\":true,\"hostname\":\"s-hostname\",\"licenseType\":\"s-licensetype\",\"machineType\":\"s-machinetype\",\"machineTypeSeries\":\"s-machinetypeseries\",\"project\":\"s-project\",\"secureBoot\":true,\"serviceAccount\":\"s-serviceaccount\",\"storagePool\":\"s-storagepool\",\"vmName\":\"s-vmname\",\"zone\":\"s-zone\"},\"computeEngineVmDetails\":{\"bootOption\":\"s-bootoption\",\"diskType\":\"s-disktype\",\"externalIp\":\"s-externalip\",\"internalIp\":\"s-internalip\",\"licenseType\":\"s-licensetype\",\"machineType\":\"s-machinetype\",\"machineTypeSeries\":\"s-machinetypeseries\",\"name\":\"s-name\",\"network\":\"s-network\",\"project\":\"s-project\",\"secureBoot\":true,\"serviceAccount\":\"s-serviceaccount\",\"subnetwork\":\"s-subnetwork\",\"targetProject\":\"s-targetproject\",\"zone\":\"s-zone\"},\"createTime\":\"s-createtime\",\"endTime\":\"s-endtime\",\"error\":{\"code\":7,\"message\":\"s-message\"},\"name\":\"s-name\",\"progress\":7,\"progressPercent\":7,\"state\":\"s-state\",\"stateMessage\":\"s-statemessage\",\"stateTime\":\"s-statetime\",\"targetDetails\":{\"bootOption\":\"s-bootoption\",\"diskType\":\"s-disktype\",\"externalIp\":\"s-externalip\",\"internalIp\":\"s-internalip\",\"licenseType\":\"s-licensetype\",\"machineType\":\"s-machinetype\",\"machineTypeSeries\":\"s-machinetypeseries\",\"name\":\"s-name\",\"network\":\"s-network\",\"project\":\"s-project\",\"secureBoot\":true,\"serviceAccount\":\"s-serviceaccount\",\"subnetwork\":\"s-subnetwork\",\"targetProject\":\"s-targetproject\",\"zone\":\"s-zone\"}}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_note(f, "CALL vmmigration.projects.locations.sources.migratingVms.cutoverJobs.list pages")
+  var p = svc.projects.locations.sources.migrating_vms.cutover_jobs.list_pages("id1/ x", options: ProjectsLocationsSourcesMigratingVmsCutoverJobsListOptions{filter: Some("s-filter"), order_by: Some("s-orderby"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_69)
+}
+
+const GO_70: List[Str] = [
   "CALL vmmigration.projects.locations.sources.migratingVms.replicationCycles.get",
   "REQ GET https://vmmigration.googleapis.com/v1alpha1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1249,10 +1743,10 @@ test "Go's vmmigration.projects.locations.sources.migratingVms.replicationCycles
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_57)
+  gv_compare(gv_log_of(f), GO_70)
 }
 
-const GO_58: List[Str] = [
+const GO_71: List[Str] = [
   "CALL vmmigration.projects.locations.sources.migratingVms.replicationCycles.list",
   "REQ GET https://vmmigration.googleapis.com/v1alpha1/id1/%20x/replicationCycles?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1270,14 +1764,52 @@ test "Go's vmmigration.projects.locations.sources.migratingVms.replicationCycles
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_58)
+  gv_compare(gv_log_of(f), GO_71)
 }
 
-const GO_59: List[Str] = [
+const GO_72: List[Str] = [
+  "CALL vmmigration.projects.locations.sources.migratingVms.replicationCycles.list pages",
+  "REQ GET https://vmmigration.googleapis.com/v1alpha1/id1/%20x/replicationCycles?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"replicationCycles\":[{\"cycleNumber\":7,\"endTime\":\"s-endtime\",\"error\":{\"code\":7,\"message\":\"s-message\"},\"name\":\"s-name\",\"progress\":7,\"progressPercent\":7,\"startTime\":\"s-starttime\",\"state\":\"s-state\",\"totalPauseDuration\":\"s-totalpauseduration\"}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"replicationCycles\":[{\"cycleNumber\":7,\"endTime\":\"s-endtime\",\"error\":{\"code\":7,\"message\":\"s-message\"},\"name\":\"s-name\",\"progress\":7,\"progressPercent\":7,\"startTime\":\"s-starttime\",\"state\":\"s-state\",\"totalPauseDuration\":\"s-totalpauseduration\"}],\"unreachable\":[\"s-unreachable\"]}",
+  "REQ GET https://vmmigration.googleapis.com/v1alpha1/id1/%20x/replicationCycles?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"replicationCycles\":[{\"cycleNumber\":7,\"endTime\":\"s-endtime\",\"error\":{\"code\":7,\"message\":\"s-message\"},\"name\":\"s-name\",\"progress\":7,\"progressPercent\":7,\"startTime\":\"s-starttime\",\"state\":\"s-state\",\"totalPauseDuration\":\"s-totalpauseduration\"}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"replicationCycles\":[{\"cycleNumber\":7,\"endTime\":\"s-endtime\",\"error\":{\"code\":7,\"message\":\"s-message\"},\"name\":\"s-name\",\"progress\":7,\"progressPercent\":7,\"startTime\":\"s-starttime\",\"state\":\"s-state\",\"totalPauseDuration\":\"s-totalpauseduration\"}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: ok",
+]
+
+test "Go's vmmigration.projects.locations.sources.migratingVms.replicationCycles.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"replicationCycles\":[{\"cycleNumber\":7,\"endTime\":\"s-endtime\",\"error\":{\"code\":7,\"message\":\"s-message\"},\"name\":\"s-name\",\"progress\":7,\"progressPercent\":7,\"startTime\":\"s-starttime\",\"state\":\"s-state\",\"totalPauseDuration\":\"s-totalpauseduration\"}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_queue(f, "{\"replicationCycles\":[{\"cycleNumber\":7,\"endTime\":\"s-endtime\",\"error\":{\"code\":7,\"message\":\"s-message\"},\"name\":\"s-name\",\"progress\":7,\"progressPercent\":7,\"startTime\":\"s-starttime\",\"state\":\"s-state\",\"totalPauseDuration\":\"s-totalpauseduration\"}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_note(f, "CALL vmmigration.projects.locations.sources.migratingVms.replicationCycles.list pages")
+  var p = svc.projects.locations.sources.migrating_vms.replication_cycles.list_pages("id1/ x", options: ProjectsLocationsSourcesMigratingVmsReplicationCyclesListOptions{filter: Some("s-filter"), order_by: Some("s-orderby"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_72)
+}
+
+const GO_73: List[Str] = [
   "CALL vmmigration.projects.locations.sources.utilizationReports.create",
   "REQ POST https://vmmigration.googleapis.com/v1alpha1/id1/%20x/utilizationReports?alt=json&fields=kind%2Cid&prettyPrint=false&requestId=s-requestid&utilizationReportId=s-utilizationreportid",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"createTime\":\"s-createtime\",\"displayName\":\"s-displayname\",\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"frameEndTime\":\"s-frameendtime\",\"name\":\"s-name\",\"state\":\"s-state\",\"stateTime\":\"s-statetime\",\"timeFrame\":\"s-timeframe\",\"vmCount\":7,\"vms\":[{\"utilization\":{\"cpuAverage\":7,\"cpuAveragePercent\":7,\"cpuMax\":7,\"cpuMaxPercent\":7,\"diskIoRateAverage\":\"7\",\"diskIoRateAverageKbps\":\"7\",\"diskIoRateMax\":\"7\",\"diskIoRateMaxKbps\":\"7\",\"memoryAverage\":7,\"memoryAveragePercent\":7,\"memoryMax\":7,\"memoryMaxPercent\":7,\"networkThroughputAverage\":\"7\",\"networkThroughputAverageKbps\":\"7\",\"networkThroughputMax\":\"7\",\"networkThroughputMaxKbps\":\"7\"},\"vmId\":\"s-vmid\",\"vmwareVmDetails\":{\"architecture\":\"s-architecture\",\"bootOption\":\"s-bootoption\",\"committedStorage\":\"7\",\"committedStorageMb\":\"7\",\"cpuCount\":7,\"datacenterDescription\":\"s-datacenterdescription\",\"datacenterId\":\"s-datacenterid\",\"diskCount\":7,\"displayName\":\"s-displayname\",\"guestDescription\":\"s-guestdescription\",\"memoryMb\":7,\"powerState\":\"s-powerstate\",\"uuid\":\"s-uuid\",\"vmId\":\"s-vmid\"}}],\"vmsCount\":7}",
+  "  B <1052 bytes> {\"createTime\":\"s-createtime\",\"di...vmId\":\"s-vmid\"}}],\"vmsCount\":7}",
   "",
   "  SERVED 200 {\"done\":true,\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}",
   "OUT: {\"done\":true,\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}",
@@ -1292,10 +1824,10 @@ test "Go's vmmigration.projects.locations.sources.utilizationReports.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_59)
+  gv_compare(gv_log_of(f), GO_73)
 }
 
-const GO_60: List[Str] = [
+const GO_74: List[Str] = [
   "CALL vmmigration.projects.locations.sources.utilizationReports.delete",
   "REQ DELETE https://vmmigration.googleapis.com/v1alpha1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&requestId=s-requestid",
   "  H x-extra=v1",
@@ -1313,10 +1845,10 @@ test "Go's vmmigration.projects.locations.sources.utilizationReports.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_60)
+  gv_compare(gv_log_of(f), GO_74)
 }
 
-const GO_61: List[Str] = [
+const GO_75: List[Str] = [
   "CALL vmmigration.projects.locations.sources.utilizationReports.get",
   "REQ GET https://vmmigration.googleapis.com/v1alpha1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&view=s-view",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1334,10 +1866,10 @@ test "Go's vmmigration.projects.locations.sources.utilizationReports.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_61)
+  gv_compare(gv_log_of(f), GO_75)
 }
 
-const GO_62: List[Str] = [
+const GO_76: List[Str] = [
   "CALL vmmigration.projects.locations.sources.utilizationReports.list",
   "REQ GET https://vmmigration.googleapis.com/v1alpha1/id1/%20x/utilizationReports?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&view=s-view",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1355,10 +1887,48 @@ test "Go's vmmigration.projects.locations.sources.utilizationReports.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_62)
+  gv_compare(gv_log_of(f), GO_76)
 }
 
-const GO_63: List[Str] = [
+const GO_77: List[Str] = [
+  "CALL vmmigration.projects.locations.sources.utilizationReports.list pages",
+  "REQ GET https://vmmigration.googleapis.com/v1alpha1/id1/%20x/utilizationReports?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&view=s-view",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"],\"utilizationReports\":[{\"createTime\":\"s-createtime\",\"displayName\":\"s-displayname\",\"error\":{\"code\":7,\"message\":\"s-message\"},\"frameEndTime\":\"s-frameendtime\",\"name\":\"s-name\",\"state\":\"s-state\",\"stateTime\":\"s-statetime\",\"timeFrame\":\"s-timeframe\",\"vmCount\":7,\"vmsCount\":7}]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"],\"utilizationReports\":[{\"createTime\":\"s-createtime\",\"displayName\":\"s-displayname\",\"error\":{\"code\":7,\"message\":\"s-message\"},\"frameEndTime\":\"s-frameendtime\",\"name\":\"s-name\",\"state\":\"s-state\",\"stateTime\":\"s-statetime\",\"timeFrame\":\"s-timeframe\",\"vmCount\":7,\"vmsCount\":7}]}",
+  "REQ GET https://vmmigration.googleapis.com/v1alpha1/id1/%20x/utilizationReports?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false&view=s-view",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"unreachable\":[\"s-unreachable\"],\"utilizationReports\":[{\"createTime\":\"s-createtime\",\"displayName\":\"s-displayname\",\"error\":{\"code\":7,\"message\":\"s-message\"},\"frameEndTime\":\"s-frameendtime\",\"name\":\"s-name\",\"state\":\"s-state\",\"stateTime\":\"s-statetime\",\"timeFrame\":\"s-timeframe\",\"vmCount\":7,\"vmsCount\":7}]}",
+  "OUT: {\"unreachable\":[\"s-unreachable\"],\"utilizationReports\":[{\"createTime\":\"s-createtime\",\"displayName\":\"s-displayname\",\"error\":{\"code\":7,\"message\":\"s-message\"},\"frameEndTime\":\"s-frameendtime\",\"name\":\"s-name\",\"state\":\"s-state\",\"stateTime\":\"s-statetime\",\"timeFrame\":\"s-timeframe\",\"vmCount\":7,\"vmsCount\":7}]}",
+  "OUT: ok",
+]
+
+test "Go's vmmigration.projects.locations.sources.utilizationReports.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"],\"utilizationReports\":[{\"createTime\":\"s-createtime\",\"displayName\":\"s-displayname\",\"error\":{\"code\":7,\"message\":\"s-message\"},\"frameEndTime\":\"s-frameendtime\",\"name\":\"s-name\",\"state\":\"s-state\",\"stateTime\":\"s-statetime\",\"timeFrame\":\"s-timeframe\",\"vmCount\":7,\"vmsCount\":7}]}")
+  gv_queue(f, "{\"unreachable\":[\"s-unreachable\"],\"utilizationReports\":[{\"createTime\":\"s-createtime\",\"displayName\":\"s-displayname\",\"error\":{\"code\":7,\"message\":\"s-message\"},\"frameEndTime\":\"s-frameendtime\",\"name\":\"s-name\",\"state\":\"s-state\",\"stateTime\":\"s-statetime\",\"timeFrame\":\"s-timeframe\",\"vmCount\":7,\"vmsCount\":7}]}")
+  gv_note(f, "CALL vmmigration.projects.locations.sources.utilizationReports.list pages")
+  var p = svc.projects.locations.sources.utilization_reports.list_pages("id1/ x", options: ProjectsLocationsSourcesUtilizationReportsListOptions{filter: Some("s-filter"), order_by: Some("s-orderby"), page_size: Some(7), page_token: Some("s-pagetoken"), view: Some("s-view"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_77)
+}
+
+const GO_78: List[Str] = [
   "CALL vmmigration.projects.locations.targetProjects.create",
   "REQ POST https://vmmigration.googleapis.com/v1alpha1/id1/%20x/targetProjects?alt=json&fields=kind%2Cid&prettyPrint=false&requestId=s-requestid&targetProjectId=s-targetprojectid",
   "  H content-type=application/json | x-extra=v1",
@@ -1377,10 +1947,10 @@ test "Go's vmmigration.projects.locations.targetProjects.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_63)
+  gv_compare(gv_log_of(f), GO_78)
 }
 
-const GO_64: List[Str] = [
+const GO_79: List[Str] = [
   "CALL vmmigration.projects.locations.targetProjects.delete",
   "REQ DELETE https://vmmigration.googleapis.com/v1alpha1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&requestId=s-requestid",
   "  H x-extra=v1",
@@ -1398,10 +1968,10 @@ test "Go's vmmigration.projects.locations.targetProjects.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_64)
+  gv_compare(gv_log_of(f), GO_79)
 }
 
-const GO_65: List[Str] = [
+const GO_80: List[Str] = [
   "CALL vmmigration.projects.locations.targetProjects.get",
   "REQ GET https://vmmigration.googleapis.com/v1alpha1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1419,10 +1989,10 @@ test "Go's vmmigration.projects.locations.targetProjects.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_65)
+  gv_compare(gv_log_of(f), GO_80)
 }
 
-const GO_66: List[Str] = [
+const GO_81: List[Str] = [
   "CALL vmmigration.projects.locations.targetProjects.list",
   "REQ GET https://vmmigration.googleapis.com/v1alpha1/id1/%20x/targetProjects?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1440,10 +2010,48 @@ test "Go's vmmigration.projects.locations.targetProjects.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_66)
+  gv_compare(gv_log_of(f), GO_81)
 }
 
-const GO_67: List[Str] = [
+const GO_82: List[Str] = [
+  "CALL vmmigration.projects.locations.targetProjects.list pages",
+  "REQ GET https://vmmigration.googleapis.com/v1alpha1/id1/%20x/targetProjects?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"targetProjects\":[{\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"name\":\"s-name\",\"project\":\"s-project\",\"updateTime\":\"s-updatetime\"}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"targetProjects\":[{\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"name\":\"s-name\",\"project\":\"s-project\",\"updateTime\":\"s-updatetime\"}],\"unreachable\":[\"s-unreachable\"]}",
+  "REQ GET https://vmmigration.googleapis.com/v1alpha1/id1/%20x/targetProjects?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"targetProjects\":[{\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"name\":\"s-name\",\"project\":\"s-project\",\"updateTime\":\"s-updatetime\"}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"targetProjects\":[{\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"name\":\"s-name\",\"project\":\"s-project\",\"updateTime\":\"s-updatetime\"}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: ok",
+]
+
+test "Go's vmmigration.projects.locations.targetProjects.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"targetProjects\":[{\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"name\":\"s-name\",\"project\":\"s-project\",\"updateTime\":\"s-updatetime\"}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_queue(f, "{\"targetProjects\":[{\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"name\":\"s-name\",\"project\":\"s-project\",\"updateTime\":\"s-updatetime\"}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_note(f, "CALL vmmigration.projects.locations.targetProjects.list pages")
+  var p = svc.projects.locations.target_projects.list_pages("id1/ x", options: ProjectsLocationsTargetProjectsListOptions{filter: Some("s-filter"), order_by: Some("s-orderby"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_82)
+}
+
+const GO_83: List[Str] = [
   "CALL vmmigration.projects.locations.targetProjects.patch",
   "REQ PATCH https://vmmigration.googleapis.com/v1alpha1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&requestId=s-requestid&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
@@ -1462,5 +2070,5 @@ test "Go's vmmigration.projects.locations.targetProjects.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_67)
+  gv_compare(gv_log_of(f), GO_83)
 }

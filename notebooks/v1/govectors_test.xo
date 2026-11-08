@@ -51,6 +51,44 @@ test "Go's notebooks.projects.locations.list" {
 }
 
 const GO_2: List[Str] = [
+  "CALL notebooks.projects.locations.list pages",
+  "REQ GET https://notebooks.googleapis.com/v1/id1/%20x/locations?alt=json&extraLocationTypes=s-extralocationtypes&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://notebooks.googleapis.com/v1/id1/%20x/locations?alt=json&extraLocationTypes=s-extralocationtypes&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}]}",
+  "OUT: {\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}]}",
+  "OUT: ok",
+]
+
+test "Go's notebooks.projects.locations.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"locations\":[{\"displayName\":\"s-displayname\",\"labels\":{\"k1\":\"s-labels\"},\"locationId\":\"s-locationid\",\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\"}]}")
+  gv_note(f, "CALL notebooks.projects.locations.list pages")
+  var p = svc.projects.locations.list_pages("id1/ x", options: ProjectsLocationsListOptions{extra_location_types: ["s-extralocationtypes"], filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_2)
+}
+
+const GO_3: List[Str] = [
   "CALL notebooks.projects.locations.environments.create",
   "REQ POST https://notebooks.googleapis.com/v1/id1/%20x/environments?alt=json&environmentId=s-environmentid&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -69,10 +107,10 @@ test "Go's notebooks.projects.locations.environments.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_2)
+  gv_compare(gv_log_of(f), GO_3)
 }
 
-const GO_3: List[Str] = [
+const GO_4: List[Str] = [
   "CALL notebooks.projects.locations.environments.delete",
   "REQ DELETE https://notebooks.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -90,10 +128,10 @@ test "Go's notebooks.projects.locations.environments.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_3)
+  gv_compare(gv_log_of(f), GO_4)
 }
 
-const GO_4: List[Str] = [
+const GO_5: List[Str] = [
   "CALL notebooks.projects.locations.environments.get",
   "REQ GET https://notebooks.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -111,10 +149,10 @@ test "Go's notebooks.projects.locations.environments.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_4)
+  gv_compare(gv_log_of(f), GO_5)
 }
 
-const GO_5: List[Str] = [
+const GO_6: List[Str] = [
   "CALL notebooks.projects.locations.environments.list",
   "REQ GET https://notebooks.googleapis.com/v1/id1/%20x/environments?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -132,10 +170,48 @@ test "Go's notebooks.projects.locations.environments.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_5)
+  gv_compare(gv_log_of(f), GO_6)
 }
 
-const GO_6: List[Str] = [
+const GO_7: List[Str] = [
+  "CALL notebooks.projects.locations.environments.list pages",
+  "REQ GET https://notebooks.googleapis.com/v1/id1/%20x/environments?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"environments\":[{\"containerImage\":{\"repository\":\"s-repository\",\"tag\":\"s-tag\"},\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"postStartupScript\":\"s-poststartupscript\",\"vmImage\":{\"imageFamily\":\"s-imagefamily\",\"imageName\":\"s-imagename\",\"project\":\"s-project\"}}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"environments\":[{\"containerImage\":{\"repository\":\"s-repository\",\"tag\":\"s-tag\"},\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"postStartupScript\":\"s-poststartupscript\",\"vmImage\":{\"imageFamily\":\"s-imagefamily\",\"imageName\":\"s-imagename\",\"project\":\"s-project\"}}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}",
+  "REQ GET https://notebooks.googleapis.com/v1/id1/%20x/environments?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"environments\":[{\"containerImage\":{\"repository\":\"s-repository\",\"tag\":\"s-tag\"},\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"postStartupScript\":\"s-poststartupscript\",\"vmImage\":{\"imageFamily\":\"s-imagefamily\",\"imageName\":\"s-imagename\",\"project\":\"s-project\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"environments\":[{\"containerImage\":{\"repository\":\"s-repository\",\"tag\":\"s-tag\"},\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"postStartupScript\":\"s-poststartupscript\",\"vmImage\":{\"imageFamily\":\"s-imagefamily\",\"imageName\":\"s-imagename\",\"project\":\"s-project\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: ok",
+]
+
+test "Go's notebooks.projects.locations.environments.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"environments\":[{\"containerImage\":{\"repository\":\"s-repository\",\"tag\":\"s-tag\"},\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"postStartupScript\":\"s-poststartupscript\",\"vmImage\":{\"imageFamily\":\"s-imagefamily\",\"imageName\":\"s-imagename\",\"project\":\"s-project\"}}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}")
+  gv_queue(f, "{\"environments\":[{\"containerImage\":{\"repository\":\"s-repository\",\"tag\":\"s-tag\"},\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"postStartupScript\":\"s-poststartupscript\",\"vmImage\":{\"imageFamily\":\"s-imagefamily\",\"imageName\":\"s-imagename\",\"project\":\"s-project\"}}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_note(f, "CALL notebooks.projects.locations.environments.list pages")
+  var p = svc.projects.locations.environments.list_pages("id1/ x", options: ProjectsLocationsEnvironmentsListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_7)
+}
+
+const GO_8: List[Str] = [
   "CALL notebooks.projects.locations.executions.create",
   "REQ POST https://notebooks.googleapis.com/v1/id1/%20x/executions?alt=json&executionId=s-executionid&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -154,10 +230,10 @@ test "Go's notebooks.projects.locations.executions.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_6)
+  gv_compare(gv_log_of(f), GO_8)
 }
 
-const GO_7: List[Str] = [
+const GO_9: List[Str] = [
   "CALL notebooks.projects.locations.executions.delete",
   "REQ DELETE https://notebooks.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -175,10 +251,10 @@ test "Go's notebooks.projects.locations.executions.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_7)
+  gv_compare(gv_log_of(f), GO_9)
 }
 
-const GO_8: List[Str] = [
+const GO_10: List[Str] = [
   "CALL notebooks.projects.locations.executions.get",
   "REQ GET https://notebooks.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -196,10 +272,10 @@ test "Go's notebooks.projects.locations.executions.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_8)
+  gv_compare(gv_log_of(f), GO_10)
 }
 
-const GO_9: List[Str] = [
+const GO_11: List[Str] = [
   "CALL notebooks.projects.locations.executions.list",
   "REQ GET https://notebooks.googleapis.com/v1/id1/%20x/executions?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -217,14 +293,52 @@ test "Go's notebooks.projects.locations.executions.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_9)
+  gv_compare(gv_log_of(f), GO_11)
 }
 
-const GO_10: List[Str] = [
+const GO_12: List[Str] = [
+  "CALL notebooks.projects.locations.executions.list pages",
+  "REQ GET https://notebooks.googleapis.com/v1/id1/%20x/executions?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"executions\":[{\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"executionTemplate\":{\"containerImageUri\":\"s-containerimageuri\",\"inputNotebookFile\":\"s-inputnotebookfile\",\"jobType\":\"s-jobtype\",\"kernelSpec\":\"s-kernelspec\",\"masterType\":\"s-mastertype\",\"outputNotebookFolder\":\"s-outputnotebookfolder\",\"parameters\":\"s-parameters\",\"paramsYamlFile\":\"s-paramsyamlfile\",\"scaleTier\":\"s-scaletier\",\"serviceAccount\":\"s-serviceaccount\",\"tensorboard\":\"s-tensorboard\"},\"jobUri\":\"s-joburi\",\"name\":\"s-name\",\"outputNotebookFile\":\"s-outputnotebookfile\",\"state\":\"s-state\",\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"executions\":[{\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"executionTemplate\":{\"containerImageUri\":\"s-containerimageuri\",\"inputNotebookFile\":\"s-inputnotebookfile\",\"jobType\":\"s-jobtype\",\"kernelSpec\":\"s-kernelspec\",\"masterType\":\"s-mastertype\",\"outputNotebookFolder\":\"s-outputnotebookfolder\",\"parameters\":\"s-parameters\",\"paramsYamlFile\":\"s-paramsyamlfile\",\"scaleTier\":\"s-scaletier\",\"serviceAccount\":\"s-serviceaccount\",\"tensorboard\":\"s-tensorboard\"},\"jobUri\":\"s-joburi\",\"name\":\"s-name\",\"outputNotebookFile\":\"s-outputnotebookfile\",\"state\":\"s-state\",\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}",
+  "REQ GET https://notebooks.googleapis.com/v1/id1/%20x/executions?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"executions\":[{\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"executionTemplate\":{\"containerImageUri\":\"s-containerimageuri\",\"inputNotebookFile\":\"s-inputnotebookfile\",\"jobType\":\"s-jobtype\",\"kernelSpec\":\"s-kernelspec\",\"masterType\":\"s-mastertype\",\"outputNotebookFolder\":\"s-outputnotebookfolder\",\"parameters\":\"s-parameters\",\"paramsYamlFile\":\"s-paramsyamlfile\",\"scaleTier\":\"s-scaletier\",\"serviceAccount\":\"s-serviceaccount\",\"tensorboard\":\"s-tensorboard\"},\"jobUri\":\"s-joburi\",\"name\":\"s-name\",\"outputNotebookFile\":\"s-outputnotebookfile\",\"state\":\"s-state\",\"updateTime\":\"s-updatetime\"}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"executions\":[{\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"executionTemplate\":{\"containerImageUri\":\"s-containerimageuri\",\"inputNotebookFile\":\"s-inputnotebookfile\",\"jobType\":\"s-jobtype\",\"kernelSpec\":\"s-kernelspec\",\"masterType\":\"s-mastertype\",\"outputNotebookFolder\":\"s-outputnotebookfolder\",\"parameters\":\"s-parameters\",\"paramsYamlFile\":\"s-paramsyamlfile\",\"scaleTier\":\"s-scaletier\",\"serviceAccount\":\"s-serviceaccount\",\"tensorboard\":\"s-tensorboard\"},\"jobUri\":\"s-joburi\",\"name\":\"s-name\",\"outputNotebookFile\":\"s-outputnotebookfile\",\"state\":\"s-state\",\"updateTime\":\"s-updatetime\"}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: ok",
+]
+
+test "Go's notebooks.projects.locations.executions.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"executions\":[{\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"executionTemplate\":{\"containerImageUri\":\"s-containerimageuri\",\"inputNotebookFile\":\"s-inputnotebookfile\",\"jobType\":\"s-jobtype\",\"kernelSpec\":\"s-kernelspec\",\"masterType\":\"s-mastertype\",\"outputNotebookFolder\":\"s-outputnotebookfolder\",\"parameters\":\"s-parameters\",\"paramsYamlFile\":\"s-paramsyamlfile\",\"scaleTier\":\"s-scaletier\",\"serviceAccount\":\"s-serviceaccount\",\"tensorboard\":\"s-tensorboard\"},\"jobUri\":\"s-joburi\",\"name\":\"s-name\",\"outputNotebookFile\":\"s-outputnotebookfile\",\"state\":\"s-state\",\"updateTime\":\"s-updatetime\"}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}")
+  gv_queue(f, "{\"executions\":[{\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"executionTemplate\":{\"containerImageUri\":\"s-containerimageuri\",\"inputNotebookFile\":\"s-inputnotebookfile\",\"jobType\":\"s-jobtype\",\"kernelSpec\":\"s-kernelspec\",\"masterType\":\"s-mastertype\",\"outputNotebookFolder\":\"s-outputnotebookfolder\",\"parameters\":\"s-parameters\",\"paramsYamlFile\":\"s-paramsyamlfile\",\"scaleTier\":\"s-scaletier\",\"serviceAccount\":\"s-serviceaccount\",\"tensorboard\":\"s-tensorboard\"},\"jobUri\":\"s-joburi\",\"name\":\"s-name\",\"outputNotebookFile\":\"s-outputnotebookfile\",\"state\":\"s-state\",\"updateTime\":\"s-updatetime\"}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_note(f, "CALL notebooks.projects.locations.executions.list pages")
+  var p = svc.projects.locations.executions.list_pages("id1/ x", options: ProjectsLocationsExecutionsListOptions{filter: Some("s-filter"), order_by: Some("s-orderby"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_12)
+}
+
+const GO_13: List[Str] = [
   "CALL notebooks.projects.locations.instances.create",
   "REQ POST https://notebooks.googleapis.com/v1/id1/%20x/instances?alt=json&fields=kind%2Cid&instanceId=s-instanceid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"acceleratorConfig\":{\"coreCount\":\"7\",\"type\":\"s-type\"},\"bootDiskSizeGb\":\"7\",\"bootDiskType\":\"s-bootdisktype\",\"canIpForward\":true,\"containerImage\":{\"repository\":\"s-repository\",\"tag\":\"s-tag\"},\"createTime\":\"s-createtime\",\"creator\":\"s-creator\",\"customGpuDriverPath\":\"s-customgpudriverpath\",\"dataDiskSizeGb\":\"7\",\"dataDiskType\":\"s-datadisktype\",\"diskEncryption\":\"s-diskencryption\",\"disks\":[{\"autoDelete\":true,\"boot\":true,\"deviceName\":\"s-devicename\",\"diskSizeGb\":\"7\",\"index\":\"7\",\"interface\":\"s-interface\",\"kind\":\"s-kind\",\"licenses\":[\"s-licenses\"],\"mode\":\"s-mode\",\"source\":\"s-source\",\"type\":\"s-type\"}],\"installGpuDriver\":true,\"instanceMigrationEligibility\":{\"errors\":[\"s-errors\"],\"warnings\":[\"s-warnings\"]},\"instanceOwners\":[\"s-instanceowners\"],\"kmsKey\":\"s-kmskey\",\"labels\":{\"k1\":\"s-labels\"},\"machineType\":\"s-machinetype\",\"metadata\":{\"k1\":\"s-metadata\"},\"migrated\":true,\"name\":\"s-name\",\"network\":\"s-network\",\"nicType\":\"s-nictype\",\"noProxyAccess\":true,\"noPublicIp\":true,\"noRemoveDataDisk\":true,\"postStartupScript\":\"s-poststartupscript\",\"proxyUri\":\"s-proxyuri\",\"reservationAffinity\":{\"consumeReservationType\":\"s-consumereservationtype\",\"key\":\"s-key\",\"values\":[\"s-values\"]},\"serviceAccount\":\"s-serviceaccount\",\"serviceAccountScopes\":[\"s-serviceaccountscopes\"],\"shieldedInstanceConfig\":{\"enableIntegrityMonitoring\":true,\"enableSecureBoot\":true,\"enableVtpm\":true},\"state\":\"s-state\",\"subnet\":\"s-subnet\",\"tags\":[\"s-tags\"],\"updateTime\":\"s-updatetime\",\"upgradeHistory\":[{\"action\":\"s-action\",\"containerImage\":\"s-containerimage\",\"createTime\":\"s-createtime\",\"framework\":\"s-framework\",\"snapshot\":\"s-snapshot\",\"state\":\"s-state\",\"targetImage\":\"s-targetimage\",\"targetVersion\":\"s-targetversion\",\"version\":\"s-version\",\"vmImage\":\"s-vmimage\"}],\"vmImage\":{\"imageFamily\":\"s-imagefamily\",\"imageName\":\"s-imagename\",\"project\":\"s-project\"}}",
+  "  B <1805 bytes> {\"acceleratorConfig\":{\"coreCount...gename\",\"project\":\"s-project\"}}",
   "",
   "  SERVED 200 {\"done\":true,\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}",
   "OUT: {\"done\":true,\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}",
@@ -239,10 +353,10 @@ test "Go's notebooks.projects.locations.instances.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_10)
+  gv_compare(gv_log_of(f), GO_13)
 }
 
-const GO_11: List[Str] = [
+const GO_14: List[Str] = [
   "CALL notebooks.projects.locations.instances.delete",
   "REQ DELETE https://notebooks.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -260,10 +374,10 @@ test "Go's notebooks.projects.locations.instances.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_11)
+  gv_compare(gv_log_of(f), GO_14)
 }
 
-const GO_12: List[Str] = [
+const GO_15: List[Str] = [
   "CALL notebooks.projects.locations.instances.diagnose",
   "REQ POST https://notebooks.googleapis.com/v1/id1/%20x:diagnose?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -282,10 +396,10 @@ test "Go's notebooks.projects.locations.instances.diagnose" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_12)
+  gv_compare(gv_log_of(f), GO_15)
 }
 
-const GO_13: List[Str] = [
+const GO_16: List[Str] = [
   "CALL notebooks.projects.locations.instances.get",
   "REQ GET https://notebooks.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -303,10 +417,10 @@ test "Go's notebooks.projects.locations.instances.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_13)
+  gv_compare(gv_log_of(f), GO_16)
 }
 
-const GO_14: List[Str] = [
+const GO_17: List[Str] = [
   "CALL notebooks.projects.locations.instances.getIamPolicy",
   "REQ GET https://notebooks.googleapis.com/v1/id1/%20x:getIamPolicy?alt=json&fields=kind%2Cid&options.requestedPolicyVersion=7&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -324,10 +438,10 @@ test "Go's notebooks.projects.locations.instances.getIamPolicy" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_14)
+  gv_compare(gv_log_of(f), GO_17)
 }
 
-const GO_15: List[Str] = [
+const GO_18: List[Str] = [
   "CALL notebooks.projects.locations.instances.getInstanceHealth",
   "REQ GET https://notebooks.googleapis.com/v1/id1/%20x:getInstanceHealth?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -345,10 +459,10 @@ test "Go's notebooks.projects.locations.instances.getInstanceHealth" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_15)
+  gv_compare(gv_log_of(f), GO_18)
 }
 
-const GO_16: List[Str] = [
+const GO_19: List[Str] = [
   "CALL notebooks.projects.locations.instances.isUpgradeable",
   "REQ GET https://notebooks.googleapis.com/v1/id1/%20x:isUpgradeable?alt=json&fields=kind%2Cid&prettyPrint=false&type=s-type",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -366,10 +480,10 @@ test "Go's notebooks.projects.locations.instances.isUpgradeable" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_16)
+  gv_compare(gv_log_of(f), GO_19)
 }
 
-const GO_17: List[Str] = [
+const GO_20: List[Str] = [
   "CALL notebooks.projects.locations.instances.list",
   "REQ GET https://notebooks.googleapis.com/v1/id1/%20x/instances?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -387,10 +501,48 @@ test "Go's notebooks.projects.locations.instances.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_17)
+  gv_compare(gv_log_of(f), GO_20)
 }
 
-const GO_18: List[Str] = [
+const GO_21: List[Str] = [
+  "CALL notebooks.projects.locations.instances.list pages",
+  "REQ GET https://notebooks.googleapis.com/v1/id1/%20x/instances?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"instances\":[{\"acceleratorConfig\":{\"coreCount\":\"7\",\"type\":\"s-type\"},\"bootDiskSizeGb\":\"7\",\"bootDiskType\":\"s-bootdisktype\",\"canIpForward\":true,\"containerImage\":{\"repository\":\"s-repository\",\"tag\":\"s-tag\"},\"createTime\":\"s-createtime\",\"creator\":\"s-creator\",\"customGpuDriverPath\":\"s-customgpudriverpath\",\"dataDiskSizeGb\":\"7\",\"dataDiskType\":\"s-datadisktype\",\"diskEncryption\":\"s-diskencryption\",\"installGpuDriver\":true,\"instanceMigrationEligibility\":{},\"instanceOwners\":[\"s-instanceowners\"],\"kmsKey\":\"s-kmskey\",\"labels\":{\"k1\":\"s-labels\"},\"machineType\":\"s-machinetype\",\"metadata\":{\"k1\":\"s-metadata\"},\"migrated\":true,\"name\":\"s-name\",\"network\":\"s-network\",\"nicType\":\"s-nictype\",\"noProxyAccess\":true,\"noPublicIp\":true,\"noRemoveDataDisk\":true,\"postStartupScript\":\"s-poststartupscript\",\"proxyUri\":\"s-proxyuri\",\"reservationAffinity\":{\"consumeReservationType\":\"s-consumereservationtype\",\"key\":\"s-key\"},\"serviceAccount\":\"s-serviceaccount\",\"serviceAccountScopes\":[\"s-serviceaccountscopes\"],\"shieldedInstanceConfig\":{\"enableIntegrityMonitoring\":true,\"enableSecureBoot\":true,\"enableVtpm\":true},\"state\":\"s-state\",\"subnet\":\"s-subnet\",\"tags\":[\"s-tags\"],\"updateTime\":\"s-updatetime\",\"vmImage\":{\"imageFamily\":\"s-imagefamily\",\"imageName\":\"s-imagename\",\"project\":\"s-project\"}}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"instances\":[{\"acceleratorConfig\":{\"coreCount\":\"7\",\"type\":\"s-type\"},\"bootDiskSizeGb\":\"7\",\"bootDiskType\":\"s-bootdisktype\",\"canIpForward\":true,\"containerImage\":{\"repository\":\"s-repository\",\"tag\":\"s-tag\"},\"createTime\":\"s-createtime\",\"creator\":\"s-creator\",\"customGpuDriverPath\":\"s-customgpudriverpath\",\"dataDiskSizeGb\":\"7\",\"dataDiskType\":\"s-datadisktype\",\"diskEncryption\":\"s-diskencryption\",\"installGpuDriver\":true,\"instanceMigrationEligibility\":{},\"instanceOwners\":[\"s-instanceowners\"],\"kmsKey\":\"s-kmskey\",\"labels\":{\"k1\":\"s-labels\"},\"machineType\":\"s-machinetype\",\"metadata\":{\"k1\":\"s-metadata\"},\"migrated\":true,\"name\":\"s-name\",\"network\":\"s-network\",\"nicType\":\"s-nictype\",\"noProxyAccess\":true,\"noPublicIp\":true,\"noRemoveDataDisk\":true,\"postStartupScript\":\"s-poststartupscript\",\"proxyUri\":\"s-proxyuri\",\"reservationAffinity\":{\"consumeReservationType\":\"s-consumereservationtype\",\"key\":\"s-key\"},\"serviceAccount\":\"s-serviceaccount\",\"serviceAccountScopes\":[\"s-serviceaccountscopes\"],\"shieldedInstanceConfig\":{\"enableIntegrityMonitoring\":true,\"enableSecureBoot\":true,\"enableVtpm\":true},\"state\":\"s-state\",\"subnet\":\"s-subnet\",\"tags\":[\"s-tags\"],\"updateTime\":\"s-updatetime\",\"vmImage\":{\"imageFamily\":\"s-imagefamily\",\"imageName\":\"s-imagename\",\"project\":\"s-project\"}}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}",
+  "REQ GET https://notebooks.googleapis.com/v1/id1/%20x/instances?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"instances\":[{\"acceleratorConfig\":{\"coreCount\":\"7\",\"type\":\"s-type\"},\"bootDiskSizeGb\":\"7\",\"bootDiskType\":\"s-bootdisktype\",\"canIpForward\":true,\"containerImage\":{\"repository\":\"s-repository\",\"tag\":\"s-tag\"},\"createTime\":\"s-createtime\",\"creator\":\"s-creator\",\"customGpuDriverPath\":\"s-customgpudriverpath\",\"dataDiskSizeGb\":\"7\",\"dataDiskType\":\"s-datadisktype\",\"diskEncryption\":\"s-diskencryption\",\"installGpuDriver\":true,\"instanceMigrationEligibility\":{},\"instanceOwners\":[\"s-instanceowners\"],\"kmsKey\":\"s-kmskey\",\"labels\":{\"k1\":\"s-labels\"},\"machineType\":\"s-machinetype\",\"metadata\":{\"k1\":\"s-metadata\"},\"migrated\":true,\"name\":\"s-name\",\"network\":\"s-network\",\"nicType\":\"s-nictype\",\"noProxyAccess\":true,\"noPublicIp\":true,\"noRemoveDataDisk\":true,\"postStartupScript\":\"s-poststartupscript\",\"proxyUri\":\"s-proxyuri\",\"reservationAffinity\":{\"consumeReservationType\":\"s-consumereservationtype\",\"key\":\"s-key\"},\"serviceAccount\":\"s-serviceaccount\",\"serviceAccountScopes\":[\"s-serviceaccountscopes\"],\"shieldedInstanceConfig\":{\"enableIntegrityMonitoring\":true,\"enableSecureBoot\":true,\"enableVtpm\":true},\"state\":\"s-state\",\"subnet\":\"s-subnet\",\"tags\":[\"s-tags\"],\"updateTime\":\"s-updatetime\",\"vmImage\":{\"imageFamily\":\"s-imagefamily\",\"imageName\":\"s-imagename\",\"project\":\"s-project\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"instances\":[{\"acceleratorConfig\":{\"coreCount\":\"7\",\"type\":\"s-type\"},\"bootDiskSizeGb\":\"7\",\"bootDiskType\":\"s-bootdisktype\",\"canIpForward\":true,\"containerImage\":{\"repository\":\"s-repository\",\"tag\":\"s-tag\"},\"createTime\":\"s-createtime\",\"creator\":\"s-creator\",\"customGpuDriverPath\":\"s-customgpudriverpath\",\"dataDiskSizeGb\":\"7\",\"dataDiskType\":\"s-datadisktype\",\"diskEncryption\":\"s-diskencryption\",\"installGpuDriver\":true,\"instanceMigrationEligibility\":{},\"instanceOwners\":[\"s-instanceowners\"],\"kmsKey\":\"s-kmskey\",\"labels\":{\"k1\":\"s-labels\"},\"machineType\":\"s-machinetype\",\"metadata\":{\"k1\":\"s-metadata\"},\"migrated\":true,\"name\":\"s-name\",\"network\":\"s-network\",\"nicType\":\"s-nictype\",\"noProxyAccess\":true,\"noPublicIp\":true,\"noRemoveDataDisk\":true,\"postStartupScript\":\"s-poststartupscript\",\"proxyUri\":\"s-proxyuri\",\"reservationAffinity\":{\"consumeReservationType\":\"s-consumereservationtype\",\"key\":\"s-key\"},\"serviceAccount\":\"s-serviceaccount\",\"serviceAccountScopes\":[\"s-serviceaccountscopes\"],\"shieldedInstanceConfig\":{\"enableIntegrityMonitoring\":true,\"enableSecureBoot\":true,\"enableVtpm\":true},\"state\":\"s-state\",\"subnet\":\"s-subnet\",\"tags\":[\"s-tags\"],\"updateTime\":\"s-updatetime\",\"vmImage\":{\"imageFamily\":\"s-imagefamily\",\"imageName\":\"s-imagename\",\"project\":\"s-project\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: ok",
+]
+
+test "Go's notebooks.projects.locations.instances.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"instances\":[{\"acceleratorConfig\":{\"coreCount\":\"7\",\"type\":\"s-type\"},\"bootDiskSizeGb\":\"7\",\"bootDiskType\":\"s-bootdisktype\",\"canIpForward\":true,\"containerImage\":{\"repository\":\"s-repository\",\"tag\":\"s-tag\"},\"createTime\":\"s-createtime\",\"creator\":\"s-creator\",\"customGpuDriverPath\":\"s-customgpudriverpath\",\"dataDiskSizeGb\":\"7\",\"dataDiskType\":\"s-datadisktype\",\"diskEncryption\":\"s-diskencryption\",\"installGpuDriver\":true,\"instanceMigrationEligibility\":{},\"instanceOwners\":[\"s-instanceowners\"],\"kmsKey\":\"s-kmskey\",\"labels\":{\"k1\":\"s-labels\"},\"machineType\":\"s-machinetype\",\"metadata\":{\"k1\":\"s-metadata\"},\"migrated\":true,\"name\":\"s-name\",\"network\":\"s-network\",\"nicType\":\"s-nictype\",\"noProxyAccess\":true,\"noPublicIp\":true,\"noRemoveDataDisk\":true,\"postStartupScript\":\"s-poststartupscript\",\"proxyUri\":\"s-proxyuri\",\"reservationAffinity\":{\"consumeReservationType\":\"s-consumereservationtype\",\"key\":\"s-key\"},\"serviceAccount\":\"s-serviceaccount\",\"serviceAccountScopes\":[\"s-serviceaccountscopes\"],\"shieldedInstanceConfig\":{\"enableIntegrityMonitoring\":true,\"enableSecureBoot\":true,\"enableVtpm\":true},\"state\":\"s-state\",\"subnet\":\"s-subnet\",\"tags\":[\"s-tags\"],\"updateTime\":\"s-updatetime\",\"vmImage\":{\"imageFamily\":\"s-imagefamily\",\"imageName\":\"s-imagename\",\"project\":\"s-project\"}}],\"nextPageToken\":\"s-nextpagetoken\",\"unreachable\":[\"s-unreachable\"]}")
+  gv_queue(f, "{\"instances\":[{\"acceleratorConfig\":{\"coreCount\":\"7\",\"type\":\"s-type\"},\"bootDiskSizeGb\":\"7\",\"bootDiskType\":\"s-bootdisktype\",\"canIpForward\":true,\"containerImage\":{\"repository\":\"s-repository\",\"tag\":\"s-tag\"},\"createTime\":\"s-createtime\",\"creator\":\"s-creator\",\"customGpuDriverPath\":\"s-customgpudriverpath\",\"dataDiskSizeGb\":\"7\",\"dataDiskType\":\"s-datadisktype\",\"diskEncryption\":\"s-diskencryption\",\"installGpuDriver\":true,\"instanceMigrationEligibility\":{},\"instanceOwners\":[\"s-instanceowners\"],\"kmsKey\":\"s-kmskey\",\"labels\":{\"k1\":\"s-labels\"},\"machineType\":\"s-machinetype\",\"metadata\":{\"k1\":\"s-metadata\"},\"migrated\":true,\"name\":\"s-name\",\"network\":\"s-network\",\"nicType\":\"s-nictype\",\"noProxyAccess\":true,\"noPublicIp\":true,\"noRemoveDataDisk\":true,\"postStartupScript\":\"s-poststartupscript\",\"proxyUri\":\"s-proxyuri\",\"reservationAffinity\":{\"consumeReservationType\":\"s-consumereservationtype\",\"key\":\"s-key\"},\"serviceAccount\":\"s-serviceaccount\",\"serviceAccountScopes\":[\"s-serviceaccountscopes\"],\"shieldedInstanceConfig\":{\"enableIntegrityMonitoring\":true,\"enableSecureBoot\":true,\"enableVtpm\":true},\"state\":\"s-state\",\"subnet\":\"s-subnet\",\"tags\":[\"s-tags\"],\"updateTime\":\"s-updatetime\",\"vmImage\":{\"imageFamily\":\"s-imagefamily\",\"imageName\":\"s-imagename\",\"project\":\"s-project\"}}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_note(f, "CALL notebooks.projects.locations.instances.list pages")
+  var p = svc.projects.locations.instances.list_pages("id1/ x", options: ProjectsLocationsInstancesListOptions{filter: Some("s-filter"), order_by: Some("s-orderby"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_21)
+}
+
+const GO_22: List[Str] = [
   "CALL notebooks.projects.locations.instances.migrate",
   "REQ POST https://notebooks.googleapis.com/v1/id1/%20x:migrate?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -409,10 +561,10 @@ test "Go's notebooks.projects.locations.instances.migrate" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_18)
+  gv_compare(gv_log_of(f), GO_22)
 }
 
-const GO_19: List[Str] = [
+const GO_23: List[Str] = [
   "CALL notebooks.projects.locations.instances.register",
   "REQ POST https://notebooks.googleapis.com/v1/id1/%20x/instances:register?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -431,10 +583,10 @@ test "Go's notebooks.projects.locations.instances.register" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_19)
+  gv_compare(gv_log_of(f), GO_23)
 }
 
-const GO_20: List[Str] = [
+const GO_24: List[Str] = [
   "CALL notebooks.projects.locations.instances.report",
   "REQ POST https://notebooks.googleapis.com/v1/id1/%20x:report?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -453,10 +605,10 @@ test "Go's notebooks.projects.locations.instances.report" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_20)
+  gv_compare(gv_log_of(f), GO_24)
 }
 
-const GO_21: List[Str] = [
+const GO_25: List[Str] = [
   "CALL notebooks.projects.locations.instances.reportEvent",
   "REQ POST https://notebooks.googleapis.com/v1/id1/%20x:reportEvent?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -475,10 +627,10 @@ test "Go's notebooks.projects.locations.instances.reportEvent" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_21)
+  gv_compare(gv_log_of(f), GO_25)
 }
 
-const GO_22: List[Str] = [
+const GO_26: List[Str] = [
   "CALL notebooks.projects.locations.instances.reset",
   "REQ POST https://notebooks.googleapis.com/v1/id1/%20x:reset?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -497,10 +649,10 @@ test "Go's notebooks.projects.locations.instances.reset" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_22)
+  gv_compare(gv_log_of(f), GO_26)
 }
 
-const GO_23: List[Str] = [
+const GO_27: List[Str] = [
   "CALL notebooks.projects.locations.instances.rollback",
   "REQ POST https://notebooks.googleapis.com/v1/id1/%20x:rollback?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -519,10 +671,10 @@ test "Go's notebooks.projects.locations.instances.rollback" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_23)
+  gv_compare(gv_log_of(f), GO_27)
 }
 
-const GO_24: List[Str] = [
+const GO_28: List[Str] = [
   "CALL notebooks.projects.locations.instances.setAccelerator",
   "REQ PATCH https://notebooks.googleapis.com/v1/id1/%20x:setAccelerator?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -541,10 +693,10 @@ test "Go's notebooks.projects.locations.instances.setAccelerator" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_24)
+  gv_compare(gv_log_of(f), GO_28)
 }
 
-const GO_25: List[Str] = [
+const GO_29: List[Str] = [
   "CALL notebooks.projects.locations.instances.setIamPolicy",
   "REQ POST https://notebooks.googleapis.com/v1/id1/%20x:setIamPolicy?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -563,10 +715,10 @@ test "Go's notebooks.projects.locations.instances.setIamPolicy" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_25)
+  gv_compare(gv_log_of(f), GO_29)
 }
 
-const GO_26: List[Str] = [
+const GO_30: List[Str] = [
   "CALL notebooks.projects.locations.instances.setLabels",
   "REQ PATCH https://notebooks.googleapis.com/v1/id1/%20x:setLabels?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -585,10 +737,10 @@ test "Go's notebooks.projects.locations.instances.setLabels" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_26)
+  gv_compare(gv_log_of(f), GO_30)
 }
 
-const GO_27: List[Str] = [
+const GO_31: List[Str] = [
   "CALL notebooks.projects.locations.instances.setMachineType",
   "REQ PATCH https://notebooks.googleapis.com/v1/id1/%20x:setMachineType?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -607,10 +759,10 @@ test "Go's notebooks.projects.locations.instances.setMachineType" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_27)
+  gv_compare(gv_log_of(f), GO_31)
 }
 
-const GO_28: List[Str] = [
+const GO_32: List[Str] = [
   "CALL notebooks.projects.locations.instances.start",
   "REQ POST https://notebooks.googleapis.com/v1/id1/%20x:start?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -629,10 +781,10 @@ test "Go's notebooks.projects.locations.instances.start" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_28)
+  gv_compare(gv_log_of(f), GO_32)
 }
 
-const GO_29: List[Str] = [
+const GO_33: List[Str] = [
   "CALL notebooks.projects.locations.instances.stop",
   "REQ POST https://notebooks.googleapis.com/v1/id1/%20x:stop?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -651,10 +803,10 @@ test "Go's notebooks.projects.locations.instances.stop" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_29)
+  gv_compare(gv_log_of(f), GO_33)
 }
 
-const GO_30: List[Str] = [
+const GO_34: List[Str] = [
   "CALL notebooks.projects.locations.instances.testIamPermissions",
   "REQ POST https://notebooks.googleapis.com/v1/id1/%20x:testIamPermissions?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -673,10 +825,10 @@ test "Go's notebooks.projects.locations.instances.testIamPermissions" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_30)
+  gv_compare(gv_log_of(f), GO_34)
 }
 
-const GO_31: List[Str] = [
+const GO_35: List[Str] = [
   "CALL notebooks.projects.locations.instances.updateConfig",
   "REQ PATCH https://notebooks.googleapis.com/v1/id1/%20x:updateConfig?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -695,10 +847,10 @@ test "Go's notebooks.projects.locations.instances.updateConfig" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_31)
+  gv_compare(gv_log_of(f), GO_35)
 }
 
-const GO_32: List[Str] = [
+const GO_36: List[Str] = [
   "CALL notebooks.projects.locations.instances.updateMetadataItems",
   "REQ PATCH https://notebooks.googleapis.com/v1/id1/%20x:updateMetadataItems?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -717,10 +869,10 @@ test "Go's notebooks.projects.locations.instances.updateMetadataItems" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_32)
+  gv_compare(gv_log_of(f), GO_36)
 }
 
-const GO_33: List[Str] = [
+const GO_37: List[Str] = [
   "CALL notebooks.projects.locations.instances.updateShieldedInstanceConfig",
   "REQ PATCH https://notebooks.googleapis.com/v1/id1/%20x:updateShieldedInstanceConfig?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -739,10 +891,10 @@ test "Go's notebooks.projects.locations.instances.updateShieldedInstanceConfig" 
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_33)
+  gv_compare(gv_log_of(f), GO_37)
 }
 
-const GO_34: List[Str] = [
+const GO_38: List[Str] = [
   "CALL notebooks.projects.locations.instances.upgrade",
   "REQ POST https://notebooks.googleapis.com/v1/id1/%20x:upgrade?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -761,10 +913,10 @@ test "Go's notebooks.projects.locations.instances.upgrade" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_34)
+  gv_compare(gv_log_of(f), GO_38)
 }
 
-const GO_35: List[Str] = [
+const GO_39: List[Str] = [
   "CALL notebooks.projects.locations.instances.upgradeInternal",
   "REQ POST https://notebooks.googleapis.com/v1/id1/%20x:upgradeInternal?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -783,10 +935,10 @@ test "Go's notebooks.projects.locations.instances.upgradeInternal" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_35)
+  gv_compare(gv_log_of(f), GO_39)
 }
 
-const GO_36: List[Str] = [
+const GO_40: List[Str] = [
   "CALL notebooks.projects.locations.operations.cancel",
   "REQ POST https://notebooks.googleapis.com/v1/id1/%20x:cancel?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -805,10 +957,10 @@ test "Go's notebooks.projects.locations.operations.cancel" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_36)
+  gv_compare(gv_log_of(f), GO_40)
 }
 
-const GO_37: List[Str] = [
+const GO_41: List[Str] = [
   "CALL notebooks.projects.locations.operations.delete",
   "REQ DELETE https://notebooks.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -826,10 +978,10 @@ test "Go's notebooks.projects.locations.operations.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_37)
+  gv_compare(gv_log_of(f), GO_41)
 }
 
-const GO_38: List[Str] = [
+const GO_42: List[Str] = [
   "CALL notebooks.projects.locations.operations.get",
   "REQ GET https://notebooks.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -847,10 +999,10 @@ test "Go's notebooks.projects.locations.operations.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_38)
+  gv_compare(gv_log_of(f), GO_42)
 }
 
-const GO_39: List[Str] = [
+const GO_43: List[Str] = [
   "CALL notebooks.projects.locations.operations.list",
   "REQ GET https://notebooks.googleapis.com/v1/id1/%20x/operations?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&returnPartialSuccess=true",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -868,14 +1020,52 @@ test "Go's notebooks.projects.locations.operations.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_39)
+  gv_compare(gv_log_of(f), GO_43)
 }
 
-const GO_40: List[Str] = [
+const GO_44: List[Str] = [
+  "CALL notebooks.projects.locations.operations.list pages",
+  "REQ GET https://notebooks.googleapis.com/v1/id1/%20x/operations?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&returnPartialSuccess=true",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "REQ GET https://notebooks.googleapis.com/v1/id1/%20x/operations?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false&returnPartialSuccess=true",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: ok",
+]
+
+test "Go's notebooks.projects.locations.operations.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_queue(f, "{\"operations\":[{\"done\":true,\"error\":{\"code\":7,\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_note(f, "CALL notebooks.projects.locations.operations.list pages")
+  var p = svc.projects.locations.operations.list_pages("id1/ x", options: ProjectsLocationsOperationsListOptions{filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), return_partial_success: Some(true), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_44)
+}
+
+const GO_45: List[Str] = [
   "CALL notebooks.projects.locations.runtimes.create",
   "REQ POST https://notebooks.googleapis.com/v1/id1/%20x/runtimes?alt=json&fields=kind%2Cid&prettyPrint=false&requestId=s-requestid&runtimeId=s-runtimeid",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"accessConfig\":{\"accessType\":\"s-accesstype\",\"proxyUri\":\"s-proxyuri\",\"runtimeOwner\":\"s-runtimeowner\"},\"createTime\":\"s-createtime\",\"healthState\":\"s-healthstate\",\"labels\":{\"k1\":\"s-labels\"},\"metrics\":{\"systemMetrics\":{\"k1\":\"s-systemmetrics\"}},\"migrated\":true,\"name\":\"s-name\",\"runtimeMigrationEligibility\":{\"errors\":[\"s-errors\"],\"warnings\":[\"s-warnings\"]},\"softwareConfig\":{\"customGpuDriverPath\":\"s-customgpudriverpath\",\"disableTerminal\":true,\"enableHealthMonitoring\":true,\"idleShutdown\":true,\"idleShutdownTimeout\":7,\"installGpuDriver\":true,\"kernels\":[{\"repository\":\"s-repository\",\"tag\":\"s-tag\"}],\"mixerDisabled\":true,\"notebookUpgradeSchedule\":\"s-notebookupgradeschedule\",\"postStartupScript\":\"s-poststartupscript\",\"postStartupScriptBehavior\":\"s-poststartupscriptbehavior\",\"upgradeable\":true,\"version\":\"s-version\"},\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"virtualMachine\":{\"instanceId\":\"s-instanceid\",\"instanceName\":\"s-instancename\",\"virtualMachineConfig\":{\"guestAttributes\":{\"k1\":\"s-guestattributes\"},\"internalIpOnly\":true,\"labels\":{\"k1\":\"s-labels\"},\"machineType\":\"s-machinetype\",\"metadata\":{\"k1\":\"s-metadata\"},\"network\":\"s-network\",\"nicType\":\"s-nictype\",\"reservedIpRange\":\"s-reservediprange\",\"subnet\":\"s-subnet\",\"tags\":[\"s-tags\"],\"zone\":\"s-zone\"}}}",
+  "  B <1252 bytes> {\"accessConfig\":{\"accessType\":\"s...\":[\"s-tags\"],\"zone\":\"s-zone\"}}}",
   "",
   "  SERVED 200 {\"done\":true,\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}",
   "OUT: {\"done\":true,\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}",
@@ -890,10 +1080,10 @@ test "Go's notebooks.projects.locations.runtimes.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_40)
+  gv_compare(gv_log_of(f), GO_45)
 }
 
-const GO_41: List[Str] = [
+const GO_46: List[Str] = [
   "CALL notebooks.projects.locations.runtimes.delete",
   "REQ DELETE https://notebooks.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&requestId=s-requestid",
   "  H x-extra=v1",
@@ -911,10 +1101,10 @@ test "Go's notebooks.projects.locations.runtimes.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_41)
+  gv_compare(gv_log_of(f), GO_46)
 }
 
-const GO_42: List[Str] = [
+const GO_47: List[Str] = [
   "CALL notebooks.projects.locations.runtimes.diagnose",
   "REQ POST https://notebooks.googleapis.com/v1/id1/%20x:diagnose?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -933,10 +1123,10 @@ test "Go's notebooks.projects.locations.runtimes.diagnose" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_42)
+  gv_compare(gv_log_of(f), GO_47)
 }
 
-const GO_43: List[Str] = [
+const GO_48: List[Str] = [
   "CALL notebooks.projects.locations.runtimes.get",
   "REQ GET https://notebooks.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -954,10 +1144,10 @@ test "Go's notebooks.projects.locations.runtimes.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_43)
+  gv_compare(gv_log_of(f), GO_48)
 }
 
-const GO_44: List[Str] = [
+const GO_49: List[Str] = [
   "CALL notebooks.projects.locations.runtimes.getIamPolicy",
   "REQ GET https://notebooks.googleapis.com/v1/id1/%20x:getIamPolicy?alt=json&fields=kind%2Cid&options.requestedPolicyVersion=7&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -975,10 +1165,10 @@ test "Go's notebooks.projects.locations.runtimes.getIamPolicy" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_44)
+  gv_compare(gv_log_of(f), GO_49)
 }
 
-const GO_45: List[Str] = [
+const GO_50: List[Str] = [
   "CALL notebooks.projects.locations.runtimes.list",
   "REQ GET https://notebooks.googleapis.com/v1/id1/%20x/runtimes?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -996,10 +1186,48 @@ test "Go's notebooks.projects.locations.runtimes.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_45)
+  gv_compare(gv_log_of(f), GO_50)
 }
 
-const GO_46: List[Str] = [
+const GO_51: List[Str] = [
+  "CALL notebooks.projects.locations.runtimes.list pages",
+  "REQ GET https://notebooks.googleapis.com/v1/id1/%20x/runtimes?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"runtimes\":[{\"accessConfig\":{\"accessType\":\"s-accesstype\",\"proxyUri\":\"s-proxyuri\",\"runtimeOwner\":\"s-runtimeowner\"},\"createTime\":\"s-createtime\",\"healthState\":\"s-healthstate\",\"labels\":{\"k1\":\"s-labels\"},\"metrics\":{},\"migrated\":true,\"name\":\"s-name\",\"runtimeMigrationEligibility\":{},\"softwareConfig\":{\"customGpuDriverPath\":\"s-customgpudriverpath\",\"disableTerminal\":true,\"enableHealthMonitoring\":true,\"idleShutdown\":true,\"idleShutdownTimeout\":7,\"installGpuDriver\":true,\"mixerDisabled\":true,\"notebookUpgradeSchedule\":\"s-notebookupgradeschedule\",\"postStartupScript\":\"s-poststartupscript\",\"postStartupScriptBehavior\":\"s-poststartupscriptbehavior\",\"upgradeable\":true,\"version\":\"s-version\"},\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"virtualMachine\":{\"instanceId\":\"s-instanceid\",\"instanceName\":\"s-instancename\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"runtimes\":[{\"accessConfig\":{\"accessType\":\"s-accesstype\",\"proxyUri\":\"s-proxyuri\",\"runtimeOwner\":\"s-runtimeowner\"},\"createTime\":\"s-createtime\",\"healthState\":\"s-healthstate\",\"labels\":{\"k1\":\"s-labels\"},\"metrics\":{},\"migrated\":true,\"name\":\"s-name\",\"runtimeMigrationEligibility\":{},\"softwareConfig\":{\"customGpuDriverPath\":\"s-customgpudriverpath\",\"disableTerminal\":true,\"enableHealthMonitoring\":true,\"idleShutdown\":true,\"idleShutdownTimeout\":7,\"installGpuDriver\":true,\"mixerDisabled\":true,\"notebookUpgradeSchedule\":\"s-notebookupgradeschedule\",\"postStartupScript\":\"s-poststartupscript\",\"postStartupScriptBehavior\":\"s-poststartupscriptbehavior\",\"upgradeable\":true,\"version\":\"s-version\"},\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"virtualMachine\":{\"instanceId\":\"s-instanceid\",\"instanceName\":\"s-instancename\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "REQ GET https://notebooks.googleapis.com/v1/id1/%20x/runtimes?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"runtimes\":[{\"accessConfig\":{\"accessType\":\"s-accesstype\",\"proxyUri\":\"s-proxyuri\",\"runtimeOwner\":\"s-runtimeowner\"},\"createTime\":\"s-createtime\",\"healthState\":\"s-healthstate\",\"labels\":{\"k1\":\"s-labels\"},\"metrics\":{},\"migrated\":true,\"name\":\"s-name\",\"runtimeMigrationEligibility\":{},\"softwareConfig\":{\"customGpuDriverPath\":\"s-customgpudriverpath\",\"disableTerminal\":true,\"enableHealthMonitoring\":true,\"idleShutdown\":true,\"idleShutdownTimeout\":7,\"installGpuDriver\":true,\"mixerDisabled\":true,\"notebookUpgradeSchedule\":\"s-notebookupgradeschedule\",\"postStartupScript\":\"s-poststartupscript\",\"postStartupScriptBehavior\":\"s-poststartupscriptbehavior\",\"upgradeable\":true,\"version\":\"s-version\"},\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"virtualMachine\":{\"instanceId\":\"s-instanceid\",\"instanceName\":\"s-instancename\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"runtimes\":[{\"accessConfig\":{\"accessType\":\"s-accesstype\",\"proxyUri\":\"s-proxyuri\",\"runtimeOwner\":\"s-runtimeowner\"},\"createTime\":\"s-createtime\",\"healthState\":\"s-healthstate\",\"labels\":{\"k1\":\"s-labels\"},\"metrics\":{},\"migrated\":true,\"name\":\"s-name\",\"runtimeMigrationEligibility\":{},\"softwareConfig\":{\"customGpuDriverPath\":\"s-customgpudriverpath\",\"disableTerminal\":true,\"enableHealthMonitoring\":true,\"idleShutdown\":true,\"idleShutdownTimeout\":7,\"installGpuDriver\":true,\"mixerDisabled\":true,\"notebookUpgradeSchedule\":\"s-notebookupgradeschedule\",\"postStartupScript\":\"s-poststartupscript\",\"postStartupScriptBehavior\":\"s-poststartupscriptbehavior\",\"upgradeable\":true,\"version\":\"s-version\"},\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"virtualMachine\":{\"instanceId\":\"s-instanceid\",\"instanceName\":\"s-instancename\"}}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: ok",
+]
+
+test "Go's notebooks.projects.locations.runtimes.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"runtimes\":[{\"accessConfig\":{\"accessType\":\"s-accesstype\",\"proxyUri\":\"s-proxyuri\",\"runtimeOwner\":\"s-runtimeowner\"},\"createTime\":\"s-createtime\",\"healthState\":\"s-healthstate\",\"labels\":{\"k1\":\"s-labels\"},\"metrics\":{},\"migrated\":true,\"name\":\"s-name\",\"runtimeMigrationEligibility\":{},\"softwareConfig\":{\"customGpuDriverPath\":\"s-customgpudriverpath\",\"disableTerminal\":true,\"enableHealthMonitoring\":true,\"idleShutdown\":true,\"idleShutdownTimeout\":7,\"installGpuDriver\":true,\"mixerDisabled\":true,\"notebookUpgradeSchedule\":\"s-notebookupgradeschedule\",\"postStartupScript\":\"s-poststartupscript\",\"postStartupScriptBehavior\":\"s-poststartupscriptbehavior\",\"upgradeable\":true,\"version\":\"s-version\"},\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"virtualMachine\":{\"instanceId\":\"s-instanceid\",\"instanceName\":\"s-instancename\"}}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_queue(f, "{\"runtimes\":[{\"accessConfig\":{\"accessType\":\"s-accesstype\",\"proxyUri\":\"s-proxyuri\",\"runtimeOwner\":\"s-runtimeowner\"},\"createTime\":\"s-createtime\",\"healthState\":\"s-healthstate\",\"labels\":{\"k1\":\"s-labels\"},\"metrics\":{},\"migrated\":true,\"name\":\"s-name\",\"runtimeMigrationEligibility\":{},\"softwareConfig\":{\"customGpuDriverPath\":\"s-customgpudriverpath\",\"disableTerminal\":true,\"enableHealthMonitoring\":true,\"idleShutdown\":true,\"idleShutdownTimeout\":7,\"installGpuDriver\":true,\"mixerDisabled\":true,\"notebookUpgradeSchedule\":\"s-notebookupgradeschedule\",\"postStartupScript\":\"s-poststartupscript\",\"postStartupScriptBehavior\":\"s-poststartupscriptbehavior\",\"upgradeable\":true,\"version\":\"s-version\"},\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"virtualMachine\":{\"instanceId\":\"s-instanceid\",\"instanceName\":\"s-instancename\"}}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_note(f, "CALL notebooks.projects.locations.runtimes.list pages")
+  var p = svc.projects.locations.runtimes.list_pages("id1/ x", options: ProjectsLocationsRuntimesListOptions{filter: Some("s-filter"), order_by: Some("s-orderby"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_51)
+}
+
+const GO_52: List[Str] = [
   "CALL notebooks.projects.locations.runtimes.migrate",
   "REQ POST https://notebooks.googleapis.com/v1/id1/%20x:migrate?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1018,14 +1246,14 @@ test "Go's notebooks.projects.locations.runtimes.migrate" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_46)
+  gv_compare(gv_log_of(f), GO_52)
 }
 
-const GO_47: List[Str] = [
+const GO_53: List[Str] = [
   "CALL notebooks.projects.locations.runtimes.patch",
   "REQ PATCH https://notebooks.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&requestId=s-requestid&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"accessConfig\":{\"accessType\":\"s-accesstype\",\"proxyUri\":\"s-proxyuri\",\"runtimeOwner\":\"s-runtimeowner\"},\"createTime\":\"s-createtime\",\"healthState\":\"s-healthstate\",\"labels\":{\"k1\":\"s-labels\"},\"metrics\":{\"systemMetrics\":{\"k1\":\"s-systemmetrics\"}},\"migrated\":true,\"name\":\"s-name\",\"runtimeMigrationEligibility\":{\"errors\":[\"s-errors\"],\"warnings\":[\"s-warnings\"]},\"softwareConfig\":{\"customGpuDriverPath\":\"s-customgpudriverpath\",\"disableTerminal\":true,\"enableHealthMonitoring\":true,\"idleShutdown\":true,\"idleShutdownTimeout\":7,\"installGpuDriver\":true,\"kernels\":[{\"repository\":\"s-repository\",\"tag\":\"s-tag\"}],\"mixerDisabled\":true,\"notebookUpgradeSchedule\":\"s-notebookupgradeschedule\",\"postStartupScript\":\"s-poststartupscript\",\"postStartupScriptBehavior\":\"s-poststartupscriptbehavior\",\"upgradeable\":true,\"version\":\"s-version\"},\"state\":\"s-state\",\"updateTime\":\"s-updatetime\",\"virtualMachine\":{\"instanceId\":\"s-instanceid\",\"instanceName\":\"s-instancename\",\"virtualMachineConfig\":{\"guestAttributes\":{\"k1\":\"s-guestattributes\"},\"internalIpOnly\":true,\"labels\":{\"k1\":\"s-labels\"},\"machineType\":\"s-machinetype\",\"metadata\":{\"k1\":\"s-metadata\"},\"network\":\"s-network\",\"nicType\":\"s-nictype\",\"reservedIpRange\":\"s-reservediprange\",\"subnet\":\"s-subnet\",\"tags\":[\"s-tags\"],\"zone\":\"s-zone\"}}}",
+  "  B <1252 bytes> {\"accessConfig\":{\"accessType\":\"s...\":[\"s-tags\"],\"zone\":\"s-zone\"}}}",
   "",
   "  SERVED 200 {\"done\":true,\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}",
   "OUT: {\"done\":true,\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}",
@@ -1040,10 +1268,10 @@ test "Go's notebooks.projects.locations.runtimes.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_47)
+  gv_compare(gv_log_of(f), GO_53)
 }
 
-const GO_48: List[Str] = [
+const GO_54: List[Str] = [
   "CALL notebooks.projects.locations.runtimes.refreshRuntimeTokenInternal",
   "REQ POST https://notebooks.googleapis.com/v1/id1/%20x:refreshRuntimeTokenInternal?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1062,10 +1290,10 @@ test "Go's notebooks.projects.locations.runtimes.refreshRuntimeTokenInternal" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_48)
+  gv_compare(gv_log_of(f), GO_54)
 }
 
-const GO_49: List[Str] = [
+const GO_55: List[Str] = [
   "CALL notebooks.projects.locations.runtimes.reportEvent",
   "REQ POST https://notebooks.googleapis.com/v1/id1/%20x:reportEvent?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1084,10 +1312,10 @@ test "Go's notebooks.projects.locations.runtimes.reportEvent" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_49)
+  gv_compare(gv_log_of(f), GO_55)
 }
 
-const GO_50: List[Str] = [
+const GO_56: List[Str] = [
   "CALL notebooks.projects.locations.runtimes.reset",
   "REQ POST https://notebooks.googleapis.com/v1/id1/%20x:reset?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1106,10 +1334,10 @@ test "Go's notebooks.projects.locations.runtimes.reset" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_50)
+  gv_compare(gv_log_of(f), GO_56)
 }
 
-const GO_51: List[Str] = [
+const GO_57: List[Str] = [
   "CALL notebooks.projects.locations.runtimes.setIamPolicy",
   "REQ POST https://notebooks.googleapis.com/v1/id1/%20x:setIamPolicy?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1128,10 +1356,10 @@ test "Go's notebooks.projects.locations.runtimes.setIamPolicy" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_51)
+  gv_compare(gv_log_of(f), GO_57)
 }
 
-const GO_52: List[Str] = [
+const GO_58: List[Str] = [
   "CALL notebooks.projects.locations.runtimes.start",
   "REQ POST https://notebooks.googleapis.com/v1/id1/%20x:start?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1150,10 +1378,10 @@ test "Go's notebooks.projects.locations.runtimes.start" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_52)
+  gv_compare(gv_log_of(f), GO_58)
 }
 
-const GO_53: List[Str] = [
+const GO_59: List[Str] = [
   "CALL notebooks.projects.locations.runtimes.stop",
   "REQ POST https://notebooks.googleapis.com/v1/id1/%20x:stop?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1172,10 +1400,10 @@ test "Go's notebooks.projects.locations.runtimes.stop" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_53)
+  gv_compare(gv_log_of(f), GO_59)
 }
 
-const GO_54: List[Str] = [
+const GO_60: List[Str] = [
   "CALL notebooks.projects.locations.runtimes.switch",
   "REQ POST https://notebooks.googleapis.com/v1/id1/%20x:switch?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1194,10 +1422,10 @@ test "Go's notebooks.projects.locations.runtimes.switch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_54)
+  gv_compare(gv_log_of(f), GO_60)
 }
 
-const GO_55: List[Str] = [
+const GO_61: List[Str] = [
   "CALL notebooks.projects.locations.runtimes.testIamPermissions",
   "REQ POST https://notebooks.googleapis.com/v1/id1/%20x:testIamPermissions?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1216,10 +1444,10 @@ test "Go's notebooks.projects.locations.runtimes.testIamPermissions" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_55)
+  gv_compare(gv_log_of(f), GO_61)
 }
 
-const GO_56: List[Str] = [
+const GO_62: List[Str] = [
   "CALL notebooks.projects.locations.runtimes.upgrade",
   "REQ POST https://notebooks.googleapis.com/v1/id1/%20x:upgrade?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1238,14 +1466,14 @@ test "Go's notebooks.projects.locations.runtimes.upgrade" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_56)
+  gv_compare(gv_log_of(f), GO_62)
 }
 
-const GO_57: List[Str] = [
+const GO_63: List[Str] = [
   "CALL notebooks.projects.locations.schedules.create",
   "REQ POST https://notebooks.googleapis.com/v1/id1/%20x/schedules?alt=json&fields=kind%2Cid&prettyPrint=false&scheduleId=s-scheduleid",
   "  H content-type=application/json | x-extra=v1",
-  "  B {\"createTime\":\"s-createtime\",\"cronSchedule\":\"s-cronschedule\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"executionTemplate\":{\"acceleratorConfig\":{\"coreCount\":\"7\",\"type\":\"s-type\"},\"containerImageUri\":\"s-containerimageuri\",\"dataprocParameters\":{\"cluster\":\"s-cluster\"},\"inputNotebookFile\":\"s-inputnotebookfile\",\"jobType\":\"s-jobtype\",\"kernelSpec\":\"s-kernelspec\",\"labels\":{\"k1\":\"s-labels\"},\"masterType\":\"s-mastertype\",\"outputNotebookFolder\":\"s-outputnotebookfolder\",\"parameters\":\"s-parameters\",\"paramsYamlFile\":\"s-paramsyamlfile\",\"scaleTier\":\"s-scaletier\",\"serviceAccount\":\"s-serviceaccount\",\"tensorboard\":\"s-tensorboard\",\"vertexAiParameters\":{\"env\":{\"k1\":\"s-env\"},\"network\":\"s-network\"}},\"name\":\"s-name\",\"recentExecutions\":[{\"createTime\":\"s-createtime\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"executionTemplate\":{\"containerImageUri\":\"s-containerimageuri\",\"inputNotebookFile\":\"s-inputnotebookfile\",\"jobType\":\"s-jobtype\",\"kernelSpec\":\"s-kernelspec\",\"masterType\":\"s-mastertype\",\"outputNotebookFolder\":\"s-outputnotebookfolder\",\"parameters\":\"s-parameters\",\"paramsYamlFile\":\"s-paramsyamlfile\",\"scaleTier\":\"s-scaletier\",\"serviceAccount\":\"s-serviceaccount\",\"tensorboard\":\"s-tensorboard\"},\"jobUri\":\"s-joburi\",\"name\":\"s-name\",\"outputNotebookFile\":\"s-outputnotebookfile\",\"state\":\"s-state\",\"updateTime\":\"s-updatetime\"}],\"state\":\"s-state\",\"timeZone\":\"s-timezone\",\"updateTime\":\"s-updatetime\"}",
+  "  B <1413 bytes> {\"createTime\":\"s-createtime\",\"cr...e\",\"updateTime\":\"s-updatetime\"}",
   "",
   "  SERVED 200 {\"done\":true,\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}",
   "OUT: {\"done\":true,\"error\":{\"code\":7,\"details\":[{\"k\":\"v\"}],\"message\":\"s-message\"},\"metadata\":{\"k\":\"v\"},\"name\":\"s-name\",\"response\":{\"k\":\"v\"}}",
@@ -1260,10 +1488,10 @@ test "Go's notebooks.projects.locations.schedules.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_57)
+  gv_compare(gv_log_of(f), GO_63)
 }
 
-const GO_58: List[Str] = [
+const GO_64: List[Str] = [
   "CALL notebooks.projects.locations.schedules.delete",
   "REQ DELETE https://notebooks.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H x-extra=v1",
@@ -1281,10 +1509,10 @@ test "Go's notebooks.projects.locations.schedules.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_58)
+  gv_compare(gv_log_of(f), GO_64)
 }
 
-const GO_59: List[Str] = [
+const GO_65: List[Str] = [
   "CALL notebooks.projects.locations.schedules.get",
   "REQ GET https://notebooks.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1302,10 +1530,10 @@ test "Go's notebooks.projects.locations.schedules.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_59)
+  gv_compare(gv_log_of(f), GO_65)
 }
 
-const GO_60: List[Str] = [
+const GO_66: List[Str] = [
   "CALL notebooks.projects.locations.schedules.list",
   "REQ GET https://notebooks.googleapis.com/v1/id1/%20x/schedules?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -1323,10 +1551,48 @@ test "Go's notebooks.projects.locations.schedules.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_60)
+  gv_compare(gv_log_of(f), GO_66)
 }
 
-const GO_61: List[Str] = [
+const GO_67: List[Str] = [
+  "CALL notebooks.projects.locations.schedules.list pages",
+  "REQ GET https://notebooks.googleapis.com/v1/id1/%20x/schedules?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"schedules\":[{\"createTime\":\"s-createtime\",\"cronSchedule\":\"s-cronschedule\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"executionTemplate\":{\"containerImageUri\":\"s-containerimageuri\",\"inputNotebookFile\":\"s-inputnotebookfile\",\"jobType\":\"s-jobtype\",\"kernelSpec\":\"s-kernelspec\",\"masterType\":\"s-mastertype\",\"outputNotebookFolder\":\"s-outputnotebookfolder\",\"parameters\":\"s-parameters\",\"paramsYamlFile\":\"s-paramsyamlfile\",\"scaleTier\":\"s-scaletier\",\"serviceAccount\":\"s-serviceaccount\",\"tensorboard\":\"s-tensorboard\"},\"name\":\"s-name\",\"state\":\"s-state\",\"timeZone\":\"s-timezone\",\"updateTime\":\"s-updatetime\"}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"schedules\":[{\"createTime\":\"s-createtime\",\"cronSchedule\":\"s-cronschedule\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"executionTemplate\":{\"containerImageUri\":\"s-containerimageuri\",\"inputNotebookFile\":\"s-inputnotebookfile\",\"jobType\":\"s-jobtype\",\"kernelSpec\":\"s-kernelspec\",\"masterType\":\"s-mastertype\",\"outputNotebookFolder\":\"s-outputnotebookfolder\",\"parameters\":\"s-parameters\",\"paramsYamlFile\":\"s-paramsyamlfile\",\"scaleTier\":\"s-scaletier\",\"serviceAccount\":\"s-serviceaccount\",\"tensorboard\":\"s-tensorboard\"},\"name\":\"s-name\",\"state\":\"s-state\",\"timeZone\":\"s-timezone\",\"updateTime\":\"s-updatetime\"}],\"unreachable\":[\"s-unreachable\"]}",
+  "REQ GET https://notebooks.googleapis.com/v1/id1/%20x/schedules?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"schedules\":[{\"createTime\":\"s-createtime\",\"cronSchedule\":\"s-cronschedule\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"executionTemplate\":{\"containerImageUri\":\"s-containerimageuri\",\"inputNotebookFile\":\"s-inputnotebookfile\",\"jobType\":\"s-jobtype\",\"kernelSpec\":\"s-kernelspec\",\"masterType\":\"s-mastertype\",\"outputNotebookFolder\":\"s-outputnotebookfolder\",\"parameters\":\"s-parameters\",\"paramsYamlFile\":\"s-paramsyamlfile\",\"scaleTier\":\"s-scaletier\",\"serviceAccount\":\"s-serviceaccount\",\"tensorboard\":\"s-tensorboard\"},\"name\":\"s-name\",\"state\":\"s-state\",\"timeZone\":\"s-timezone\",\"updateTime\":\"s-updatetime\"}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: {\"schedules\":[{\"createTime\":\"s-createtime\",\"cronSchedule\":\"s-cronschedule\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"executionTemplate\":{\"containerImageUri\":\"s-containerimageuri\",\"inputNotebookFile\":\"s-inputnotebookfile\",\"jobType\":\"s-jobtype\",\"kernelSpec\":\"s-kernelspec\",\"masterType\":\"s-mastertype\",\"outputNotebookFolder\":\"s-outputnotebookfolder\",\"parameters\":\"s-parameters\",\"paramsYamlFile\":\"s-paramsyamlfile\",\"scaleTier\":\"s-scaletier\",\"serviceAccount\":\"s-serviceaccount\",\"tensorboard\":\"s-tensorboard\"},\"name\":\"s-name\",\"state\":\"s-state\",\"timeZone\":\"s-timezone\",\"updateTime\":\"s-updatetime\"}],\"unreachable\":[\"s-unreachable\"]}",
+  "OUT: ok",
+]
+
+test "Go's notebooks.projects.locations.schedules.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"schedules\":[{\"createTime\":\"s-createtime\",\"cronSchedule\":\"s-cronschedule\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"executionTemplate\":{\"containerImageUri\":\"s-containerimageuri\",\"inputNotebookFile\":\"s-inputnotebookfile\",\"jobType\":\"s-jobtype\",\"kernelSpec\":\"s-kernelspec\",\"masterType\":\"s-mastertype\",\"outputNotebookFolder\":\"s-outputnotebookfolder\",\"parameters\":\"s-parameters\",\"paramsYamlFile\":\"s-paramsyamlfile\",\"scaleTier\":\"s-scaletier\",\"serviceAccount\":\"s-serviceaccount\",\"tensorboard\":\"s-tensorboard\"},\"name\":\"s-name\",\"state\":\"s-state\",\"timeZone\":\"s-timezone\",\"updateTime\":\"s-updatetime\"}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_queue(f, "{\"schedules\":[{\"createTime\":\"s-createtime\",\"cronSchedule\":\"s-cronschedule\",\"description\":\"s-description\",\"displayName\":\"s-displayname\",\"executionTemplate\":{\"containerImageUri\":\"s-containerimageuri\",\"inputNotebookFile\":\"s-inputnotebookfile\",\"jobType\":\"s-jobtype\",\"kernelSpec\":\"s-kernelspec\",\"masterType\":\"s-mastertype\",\"outputNotebookFolder\":\"s-outputnotebookfolder\",\"parameters\":\"s-parameters\",\"paramsYamlFile\":\"s-paramsyamlfile\",\"scaleTier\":\"s-scaletier\",\"serviceAccount\":\"s-serviceaccount\",\"tensorboard\":\"s-tensorboard\"},\"name\":\"s-name\",\"state\":\"s-state\",\"timeZone\":\"s-timezone\",\"updateTime\":\"s-updatetime\"}],\"unreachable\":[\"s-unreachable\"]}")
+  gv_note(f, "CALL notebooks.projects.locations.schedules.list pages")
+  var p = svc.projects.locations.schedules.list_pages("id1/ x", options: ProjectsLocationsSchedulesListOptions{filter: Some("s-filter"), order_by: Some("s-orderby"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_67)
+}
+
+const GO_68: List[Str] = [
   "CALL notebooks.projects.locations.schedules.trigger",
   "REQ POST https://notebooks.googleapis.com/v1/id1/%20x:trigger?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -1345,5 +1611,5 @@ test "Go's notebooks.projects.locations.schedules.trigger" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_61)
+  gv_compare(gv_log_of(f), GO_68)
 }

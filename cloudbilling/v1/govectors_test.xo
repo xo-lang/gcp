@@ -94,6 +94,44 @@ test "Go's cloudbilling.billingAccounts.list" {
 }
 
 const GO_4: List[Str] = [
+  "CALL cloudbilling.billingAccounts.list pages",
+  "REQ GET https://cloudbilling.googleapis.com/v1/billingAccounts?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&parent=s-parent&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"billingAccounts\":[{\"currencyCode\":\"s-currencycode\",\"displayName\":\"s-displayname\",\"masterBillingAccount\":\"s-masterbillingaccount\",\"name\":\"s-name\",\"open\":true,\"parent\":\"s-parent\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"billingAccounts\":[{\"currencyCode\":\"s-currencycode\",\"displayName\":\"s-displayname\",\"masterBillingAccount\":\"s-masterbillingaccount\",\"name\":\"s-name\",\"open\":true,\"parent\":\"s-parent\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://cloudbilling.googleapis.com/v1/billingAccounts?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&parent=s-parent&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"billingAccounts\":[{\"currencyCode\":\"s-currencycode\",\"displayName\":\"s-displayname\",\"masterBillingAccount\":\"s-masterbillingaccount\",\"name\":\"s-name\",\"open\":true,\"parent\":\"s-parent\"}]}",
+  "OUT: {\"billingAccounts\":[{\"currencyCode\":\"s-currencycode\",\"displayName\":\"s-displayname\",\"masterBillingAccount\":\"s-masterbillingaccount\",\"name\":\"s-name\",\"open\":true,\"parent\":\"s-parent\"}]}",
+  "OUT: ok",
+]
+
+test "Go's cloudbilling.billingAccounts.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"billingAccounts\":[{\"currencyCode\":\"s-currencycode\",\"displayName\":\"s-displayname\",\"masterBillingAccount\":\"s-masterbillingaccount\",\"name\":\"s-name\",\"open\":true,\"parent\":\"s-parent\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"billingAccounts\":[{\"currencyCode\":\"s-currencycode\",\"displayName\":\"s-displayname\",\"masterBillingAccount\":\"s-masterbillingaccount\",\"name\":\"s-name\",\"open\":true,\"parent\":\"s-parent\"}]}")
+  gv_note(f, "CALL cloudbilling.billingAccounts.list pages")
+  var p = svc.billing_accounts.list_pages(options: BillingAccountsListOptions{filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), parent: Some("s-parent"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_4)
+}
+
+const GO_5: List[Str] = [
   "CALL cloudbilling.billingAccounts.move",
   "REQ POST https://cloudbilling.googleapis.com/v1/id1/%20x:move?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -112,10 +150,10 @@ test "Go's cloudbilling.billingAccounts.move" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_4)
+  gv_compare(gv_log_of(f), GO_5)
 }
 
-const GO_5: List[Str] = [
+const GO_6: List[Str] = [
   "CALL cloudbilling.billingAccounts.patch",
   "REQ PATCH https://cloudbilling.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&updateMask=s-updatemask",
   "  H content-type=application/json | x-extra=v1",
@@ -134,10 +172,10 @@ test "Go's cloudbilling.billingAccounts.patch" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_5)
+  gv_compare(gv_log_of(f), GO_6)
 }
 
-const GO_6: List[Str] = [
+const GO_7: List[Str] = [
   "CALL cloudbilling.billingAccounts.setIamPolicy",
   "REQ POST https://cloudbilling.googleapis.com/v1/id1/%20x:setIamPolicy?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -156,10 +194,10 @@ test "Go's cloudbilling.billingAccounts.setIamPolicy" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_6)
+  gv_compare(gv_log_of(f), GO_7)
 }
 
-const GO_7: List[Str] = [
+const GO_8: List[Str] = [
   "CALL cloudbilling.billingAccounts.testIamPermissions",
   "REQ POST https://cloudbilling.googleapis.com/v1/id1/%20x:testIamPermissions?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -178,10 +216,10 @@ test "Go's cloudbilling.billingAccounts.testIamPermissions" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_7)
+  gv_compare(gv_log_of(f), GO_8)
 }
 
-const GO_8: List[Str] = [
+const GO_9: List[Str] = [
   "CALL cloudbilling.billingAccounts.projects.list",
   "REQ GET https://cloudbilling.googleapis.com/v1/id1/%20x/projects?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -199,10 +237,48 @@ test "Go's cloudbilling.billingAccounts.projects.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_8)
+  gv_compare(gv_log_of(f), GO_9)
 }
 
-const GO_9: List[Str] = [
+const GO_10: List[Str] = [
+  "CALL cloudbilling.billingAccounts.projects.list pages",
+  "REQ GET https://cloudbilling.googleapis.com/v1/id1/%20x/projects?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"projectBillingInfo\":[{\"billingAccountName\":\"s-billingaccountname\",\"billingEnabled\":true,\"name\":\"s-name\",\"projectId\":\"s-projectid\"}]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"projectBillingInfo\":[{\"billingAccountName\":\"s-billingaccountname\",\"billingEnabled\":true,\"name\":\"s-name\",\"projectId\":\"s-projectid\"}]}",
+  "REQ GET https://cloudbilling.googleapis.com/v1/id1/%20x/projects?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"projectBillingInfo\":[{\"billingAccountName\":\"s-billingaccountname\",\"billingEnabled\":true,\"name\":\"s-name\",\"projectId\":\"s-projectid\"}]}",
+  "OUT: {\"projectBillingInfo\":[{\"billingAccountName\":\"s-billingaccountname\",\"billingEnabled\":true,\"name\":\"s-name\",\"projectId\":\"s-projectid\"}]}",
+  "OUT: ok",
+]
+
+test "Go's cloudbilling.billingAccounts.projects.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"projectBillingInfo\":[{\"billingAccountName\":\"s-billingaccountname\",\"billingEnabled\":true,\"name\":\"s-name\",\"projectId\":\"s-projectid\"}]}")
+  gv_queue(f, "{\"projectBillingInfo\":[{\"billingAccountName\":\"s-billingaccountname\",\"billingEnabled\":true,\"name\":\"s-name\",\"projectId\":\"s-projectid\"}]}")
+  gv_note(f, "CALL cloudbilling.billingAccounts.projects.list pages")
+  var p = svc.billing_accounts.projects.list_pages("id1/ x", options: BillingAccountsProjectsListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_10)
+}
+
+const GO_11: List[Str] = [
   "CALL cloudbilling.billingAccounts.subAccounts.create",
   "REQ POST https://cloudbilling.googleapis.com/v1/id1/%20x/subAccounts?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -221,10 +297,10 @@ test "Go's cloudbilling.billingAccounts.subAccounts.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_9)
+  gv_compare(gv_log_of(f), GO_11)
 }
 
-const GO_10: List[Str] = [
+const GO_12: List[Str] = [
   "CALL cloudbilling.billingAccounts.subAccounts.list",
   "REQ GET https://cloudbilling.googleapis.com/v1/id1/%20x/subAccounts?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -242,10 +318,48 @@ test "Go's cloudbilling.billingAccounts.subAccounts.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_10)
+  gv_compare(gv_log_of(f), GO_12)
 }
 
-const GO_11: List[Str] = [
+const GO_13: List[Str] = [
+  "CALL cloudbilling.billingAccounts.subAccounts.list pages",
+  "REQ GET https://cloudbilling.googleapis.com/v1/id1/%20x/subAccounts?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"billingAccounts\":[{\"currencyCode\":\"s-currencycode\",\"displayName\":\"s-displayname\",\"masterBillingAccount\":\"s-masterbillingaccount\",\"name\":\"s-name\",\"open\":true,\"parent\":\"s-parent\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"billingAccounts\":[{\"currencyCode\":\"s-currencycode\",\"displayName\":\"s-displayname\",\"masterBillingAccount\":\"s-masterbillingaccount\",\"name\":\"s-name\",\"open\":true,\"parent\":\"s-parent\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://cloudbilling.googleapis.com/v1/id1/%20x/subAccounts?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"billingAccounts\":[{\"currencyCode\":\"s-currencycode\",\"displayName\":\"s-displayname\",\"masterBillingAccount\":\"s-masterbillingaccount\",\"name\":\"s-name\",\"open\":true,\"parent\":\"s-parent\"}]}",
+  "OUT: {\"billingAccounts\":[{\"currencyCode\":\"s-currencycode\",\"displayName\":\"s-displayname\",\"masterBillingAccount\":\"s-masterbillingaccount\",\"name\":\"s-name\",\"open\":true,\"parent\":\"s-parent\"}]}",
+  "OUT: ok",
+]
+
+test "Go's cloudbilling.billingAccounts.subAccounts.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"billingAccounts\":[{\"currencyCode\":\"s-currencycode\",\"displayName\":\"s-displayname\",\"masterBillingAccount\":\"s-masterbillingaccount\",\"name\":\"s-name\",\"open\":true,\"parent\":\"s-parent\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"billingAccounts\":[{\"currencyCode\":\"s-currencycode\",\"displayName\":\"s-displayname\",\"masterBillingAccount\":\"s-masterbillingaccount\",\"name\":\"s-name\",\"open\":true,\"parent\":\"s-parent\"}]}")
+  gv_note(f, "CALL cloudbilling.billingAccounts.subAccounts.list pages")
+  var p = svc.billing_accounts.sub_accounts.list_pages("id1/ x", options: BillingAccountsSubAccountsListOptions{filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_13)
+}
+
+const GO_14: List[Str] = [
   "CALL cloudbilling.message.send",
   "REQ POST https://cloudbilling.googleapis.com/v1/message:send?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -264,10 +378,10 @@ test "Go's cloudbilling.message.send" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_11)
+  gv_compare(gv_log_of(f), GO_14)
 }
 
-const GO_12: List[Str] = [
+const GO_15: List[Str] = [
   "CALL cloudbilling.message.stream",
   "REQ POST https://cloudbilling.googleapis.com/v1/message:stream?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -286,10 +400,10 @@ test "Go's cloudbilling.message.stream" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_12)
+  gv_compare(gv_log_of(f), GO_15)
 }
 
-const GO_13: List[Str] = [
+const GO_16: List[Str] = [
   "CALL cloudbilling.organizations.billingAccounts.create",
   "REQ POST https://cloudbilling.googleapis.com/v1/id1/%20x/billingAccounts?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -308,10 +422,10 @@ test "Go's cloudbilling.organizations.billingAccounts.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_13)
+  gv_compare(gv_log_of(f), GO_16)
 }
 
-const GO_14: List[Str] = [
+const GO_17: List[Str] = [
   "CALL cloudbilling.organizations.billingAccounts.list",
   "REQ GET https://cloudbilling.googleapis.com/v1/id1/%20x/billingAccounts?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -329,10 +443,48 @@ test "Go's cloudbilling.organizations.billingAccounts.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_14)
+  gv_compare(gv_log_of(f), GO_17)
 }
 
-const GO_15: List[Str] = [
+const GO_18: List[Str] = [
+  "CALL cloudbilling.organizations.billingAccounts.list pages",
+  "REQ GET https://cloudbilling.googleapis.com/v1/id1/%20x/billingAccounts?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"billingAccounts\":[{\"currencyCode\":\"s-currencycode\",\"displayName\":\"s-displayname\",\"masterBillingAccount\":\"s-masterbillingaccount\",\"name\":\"s-name\",\"open\":true,\"parent\":\"s-parent\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"billingAccounts\":[{\"currencyCode\":\"s-currencycode\",\"displayName\":\"s-displayname\",\"masterBillingAccount\":\"s-masterbillingaccount\",\"name\":\"s-name\",\"open\":true,\"parent\":\"s-parent\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://cloudbilling.googleapis.com/v1/id1/%20x/billingAccounts?alt=json&fields=kind%2Cid&filter=s-filter&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"billingAccounts\":[{\"currencyCode\":\"s-currencycode\",\"displayName\":\"s-displayname\",\"masterBillingAccount\":\"s-masterbillingaccount\",\"name\":\"s-name\",\"open\":true,\"parent\":\"s-parent\"}]}",
+  "OUT: {\"billingAccounts\":[{\"currencyCode\":\"s-currencycode\",\"displayName\":\"s-displayname\",\"masterBillingAccount\":\"s-masterbillingaccount\",\"name\":\"s-name\",\"open\":true,\"parent\":\"s-parent\"}]}",
+  "OUT: ok",
+]
+
+test "Go's cloudbilling.organizations.billingAccounts.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"billingAccounts\":[{\"currencyCode\":\"s-currencycode\",\"displayName\":\"s-displayname\",\"masterBillingAccount\":\"s-masterbillingaccount\",\"name\":\"s-name\",\"open\":true,\"parent\":\"s-parent\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"billingAccounts\":[{\"currencyCode\":\"s-currencycode\",\"displayName\":\"s-displayname\",\"masterBillingAccount\":\"s-masterbillingaccount\",\"name\":\"s-name\",\"open\":true,\"parent\":\"s-parent\"}]}")
+  gv_note(f, "CALL cloudbilling.organizations.billingAccounts.list pages")
+  var p = svc.organizations.billing_accounts.list_pages("id1/ x", options: OrganizationsBillingAccountsListOptions{filter: Some("s-filter"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_18)
+}
+
+const GO_19: List[Str] = [
   "CALL cloudbilling.organizations.billingAccounts.move",
   "REQ GET https://cloudbilling.googleapis.com/v1/id1/%20x/id2/%20x:move?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -350,10 +502,10 @@ test "Go's cloudbilling.organizations.billingAccounts.move" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_15)
+  gv_compare(gv_log_of(f), GO_19)
 }
 
-const GO_16: List[Str] = [
+const GO_20: List[Str] = [
   "CALL cloudbilling.projects.getBillingInfo",
   "REQ GET https://cloudbilling.googleapis.com/v1/id1/%20x/billingInfo?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -371,10 +523,10 @@ test "Go's cloudbilling.projects.getBillingInfo" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_16)
+  gv_compare(gv_log_of(f), GO_20)
 }
 
-const GO_17: List[Str] = [
+const GO_21: List[Str] = [
   "CALL cloudbilling.projects.updateBillingInfo",
   "REQ PUT https://cloudbilling.googleapis.com/v1/id1/%20x/billingInfo?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -393,10 +545,10 @@ test "Go's cloudbilling.projects.updateBillingInfo" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_17)
+  gv_compare(gv_log_of(f), GO_21)
 }
 
-const GO_18: List[Str] = [
+const GO_22: List[Str] = [
   "CALL cloudbilling.services.list",
   "REQ GET https://cloudbilling.googleapis.com/v1/services?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -414,10 +566,48 @@ test "Go's cloudbilling.services.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_18)
+  gv_compare(gv_log_of(f), GO_22)
 }
 
-const GO_19: List[Str] = [
+const GO_23: List[Str] = [
+  "CALL cloudbilling.services.list pages",
+  "REQ GET https://cloudbilling.googleapis.com/v1/services?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"services\":[{\"businessEntityName\":\"s-businessentityname\",\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"serviceId\":\"s-serviceid\"}]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"services\":[{\"businessEntityName\":\"s-businessentityname\",\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"serviceId\":\"s-serviceid\"}]}",
+  "REQ GET https://cloudbilling.googleapis.com/v1/services?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"services\":[{\"businessEntityName\":\"s-businessentityname\",\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"serviceId\":\"s-serviceid\"}]}",
+  "OUT: {\"services\":[{\"businessEntityName\":\"s-businessentityname\",\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"serviceId\":\"s-serviceid\"}]}",
+  "OUT: ok",
+]
+
+test "Go's cloudbilling.services.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"services\":[{\"businessEntityName\":\"s-businessentityname\",\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"serviceId\":\"s-serviceid\"}]}")
+  gv_queue(f, "{\"services\":[{\"businessEntityName\":\"s-businessentityname\",\"displayName\":\"s-displayname\",\"name\":\"s-name\",\"serviceId\":\"s-serviceid\"}]}")
+  gv_note(f, "CALL cloudbilling.services.list pages")
+  var p = svc.services.list_pages(options: ServicesListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_23)
+}
+
+const GO_24: List[Str] = [
   "CALL cloudbilling.services.skus.list",
   "REQ GET https://cloudbilling.googleapis.com/v1/id1/%20x/skus?alt=json&currencyCode=s-currencycode&endTime=s-endtime&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&startTime=s-starttime",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -435,10 +625,48 @@ test "Go's cloudbilling.services.skus.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_19)
+  gv_compare(gv_log_of(f), GO_24)
 }
 
-const GO_20: List[Str] = [
+const GO_25: List[Str] = [
+  "CALL cloudbilling.services.skus.list pages",
+  "REQ GET https://cloudbilling.googleapis.com/v1/id1/%20x/skus?alt=json&currencyCode=s-currencycode&endTime=s-endtime&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&startTime=s-starttime",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"skus\":[{\"category\":{\"resourceFamily\":\"s-resourcefamily\",\"resourceGroup\":\"s-resourcegroup\",\"serviceDisplayName\":\"s-servicedisplayname\",\"usageType\":\"s-usagetype\"},\"description\":\"s-description\",\"geoTaxonomy\":{\"type\":\"s-type\"},\"name\":\"s-name\",\"serviceProviderName\":\"s-serviceprovidername\",\"serviceRegions\":[\"s-serviceregions\"],\"skuId\":\"s-skuid\"}]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"skus\":[{\"category\":{\"resourceFamily\":\"s-resourcefamily\",\"resourceGroup\":\"s-resourcegroup\",\"serviceDisplayName\":\"s-servicedisplayname\",\"usageType\":\"s-usagetype\"},\"description\":\"s-description\",\"geoTaxonomy\":{\"type\":\"s-type\"},\"name\":\"s-name\",\"serviceProviderName\":\"s-serviceprovidername\",\"serviceRegions\":[\"s-serviceregions\"],\"skuId\":\"s-skuid\"}]}",
+  "REQ GET https://cloudbilling.googleapis.com/v1/id1/%20x/skus?alt=json&currencyCode=s-currencycode&endTime=s-endtime&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false&startTime=s-starttime",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"skus\":[{\"category\":{\"resourceFamily\":\"s-resourcefamily\",\"resourceGroup\":\"s-resourcegroup\",\"serviceDisplayName\":\"s-servicedisplayname\",\"usageType\":\"s-usagetype\"},\"description\":\"s-description\",\"geoTaxonomy\":{\"type\":\"s-type\"},\"name\":\"s-name\",\"serviceProviderName\":\"s-serviceprovidername\",\"serviceRegions\":[\"s-serviceregions\"],\"skuId\":\"s-skuid\"}]}",
+  "OUT: {\"skus\":[{\"category\":{\"resourceFamily\":\"s-resourcefamily\",\"resourceGroup\":\"s-resourcegroup\",\"serviceDisplayName\":\"s-servicedisplayname\",\"usageType\":\"s-usagetype\"},\"description\":\"s-description\",\"geoTaxonomy\":{\"type\":\"s-type\"},\"name\":\"s-name\",\"serviceProviderName\":\"s-serviceprovidername\",\"serviceRegions\":[\"s-serviceregions\"],\"skuId\":\"s-skuid\"}]}",
+  "OUT: ok",
+]
+
+test "Go's cloudbilling.services.skus.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"skus\":[{\"category\":{\"resourceFamily\":\"s-resourcefamily\",\"resourceGroup\":\"s-resourcegroup\",\"serviceDisplayName\":\"s-servicedisplayname\",\"usageType\":\"s-usagetype\"},\"description\":\"s-description\",\"geoTaxonomy\":{\"type\":\"s-type\"},\"name\":\"s-name\",\"serviceProviderName\":\"s-serviceprovidername\",\"serviceRegions\":[\"s-serviceregions\"],\"skuId\":\"s-skuid\"}]}")
+  gv_queue(f, "{\"skus\":[{\"category\":{\"resourceFamily\":\"s-resourcefamily\",\"resourceGroup\":\"s-resourcegroup\",\"serviceDisplayName\":\"s-servicedisplayname\",\"usageType\":\"s-usagetype\"},\"description\":\"s-description\",\"geoTaxonomy\":{\"type\":\"s-type\"},\"name\":\"s-name\",\"serviceProviderName\":\"s-serviceprovidername\",\"serviceRegions\":[\"s-serviceregions\"],\"skuId\":\"s-skuid\"}]}")
+  gv_note(f, "CALL cloudbilling.services.skus.list pages")
+  var p = svc.services.skus.list_pages("id1/ x", options: ServicesSkusListOptions{currency_code: Some("s-currencycode"), end_time: Some("s-endtime"), page_size: Some(7), page_token: Some("s-pagetoken"), start_time: Some("s-starttime"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_25)
+}
+
+const GO_26: List[Str] = [
   "CALL cloudbilling.tasks.cancel",
   "REQ POST https://cloudbilling.googleapis.com/v1/id1/%20x:cancel?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H content-type=application/json | x-extra=v1",
@@ -457,10 +685,10 @@ test "Go's cloudbilling.tasks.cancel" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_20)
+  gv_compare(gv_log_of(f), GO_26)
 }
 
-const GO_21: List[Str] = [
+const GO_27: List[Str] = [
   "CALL cloudbilling.tasks.get",
   "REQ GET https://cloudbilling.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&historyLength=7&prettyPrint=false&tenant=s-tenant",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -478,10 +706,10 @@ test "Go's cloudbilling.tasks.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_21)
+  gv_compare(gv_log_of(f), GO_27)
 }
 
-const GO_22: List[Str] = [
+const GO_28: List[Str] = [
   "CALL cloudbilling.tasks.subscribe",
   "REQ GET https://cloudbilling.googleapis.com/v1/id1/%20x:subscribe?alt=json&fields=kind%2Cid&prettyPrint=false&tenant=s-tenant",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -499,10 +727,10 @@ test "Go's cloudbilling.tasks.subscribe" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_22)
+  gv_compare(gv_log_of(f), GO_28)
 }
 
-const GO_23: List[Str] = [
+const GO_29: List[Str] = [
   "CALL cloudbilling.tasks.pushNotificationConfigs.create",
   "REQ POST https://cloudbilling.googleapis.com/v1/id1/%20x?alt=json&configId=s-configid&fields=kind%2Cid&prettyPrint=false&tenant=s-tenant",
   "  H content-type=application/json | x-extra=v1",
@@ -521,10 +749,10 @@ test "Go's cloudbilling.tasks.pushNotificationConfigs.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_23)
+  gv_compare(gv_log_of(f), GO_29)
 }
 
-const GO_24: List[Str] = [
+const GO_30: List[Str] = [
   "CALL cloudbilling.tasks.pushNotificationConfigs.delete",
   "REQ DELETE https://cloudbilling.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&tenant=s-tenant",
   "  H x-extra=v1",
@@ -542,10 +770,10 @@ test "Go's cloudbilling.tasks.pushNotificationConfigs.delete" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_24)
+  gv_compare(gv_log_of(f), GO_30)
 }
 
-const GO_25: List[Str] = [
+const GO_31: List[Str] = [
   "CALL cloudbilling.tasks.pushNotificationConfigs.get",
   "REQ GET https://cloudbilling.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false&tenant=s-tenant",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -563,10 +791,10 @@ test "Go's cloudbilling.tasks.pushNotificationConfigs.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_25)
+  gv_compare(gv_log_of(f), GO_31)
 }
 
-const GO_26: List[Str] = [
+const GO_32: List[Str] = [
   "CALL cloudbilling.tasks.pushNotificationConfigs.list",
   "REQ GET https://cloudbilling.googleapis.com/v1/id1/%20x/pushNotificationConfigs?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&tenant=s-tenant",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -584,10 +812,48 @@ test "Go's cloudbilling.tasks.pushNotificationConfigs.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_26)
+  gv_compare(gv_log_of(f), GO_32)
 }
 
-const GO_27: List[Str] = [
+const GO_33: List[Str] = [
+  "CALL cloudbilling.tasks.pushNotificationConfigs.list pages",
+  "REQ GET https://cloudbilling.googleapis.com/v1/id1/%20x/pushNotificationConfigs?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-pagetoken&prettyPrint=false&tenant=s-tenant",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"configs\":[{\"name\":\"s-name\",\"pushNotificationConfig\":{\"id\":\"s-id\",\"token\":\"s-token\",\"url\":\"s-url\"}}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"configs\":[{\"name\":\"s-name\",\"pushNotificationConfig\":{\"id\":\"s-id\",\"token\":\"s-token\",\"url\":\"s-url\"}}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://cloudbilling.googleapis.com/v1/id1/%20x/pushNotificationConfigs?alt=json&fields=kind%2Cid&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false&tenant=s-tenant",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"configs\":[{\"name\":\"s-name\",\"pushNotificationConfig\":{\"id\":\"s-id\",\"token\":\"s-token\",\"url\":\"s-url\"}}]}",
+  "OUT: {\"configs\":[{\"name\":\"s-name\",\"pushNotificationConfig\":{\"id\":\"s-id\",\"token\":\"s-token\",\"url\":\"s-url\"}}]}",
+  "OUT: ok",
+]
+
+test "Go's cloudbilling.tasks.pushNotificationConfigs.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"configs\":[{\"name\":\"s-name\",\"pushNotificationConfig\":{\"id\":\"s-id\",\"token\":\"s-token\",\"url\":\"s-url\"}}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"configs\":[{\"name\":\"s-name\",\"pushNotificationConfig\":{\"id\":\"s-id\",\"token\":\"s-token\",\"url\":\"s-url\"}}]}")
+  gv_note(f, "CALL cloudbilling.tasks.pushNotificationConfigs.list pages")
+  var p = svc.tasks.push_notification_configs.list_pages("id1/ x", options: TasksPushNotificationConfigsListOptions{page_size: Some(7), page_token: Some("s-pagetoken"), tenant: Some("s-tenant"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_33)
+}
+
+const GO_34: List[Str] = [
   "CALL cloudbilling.getCard",
   "REQ GET https://cloudbilling.googleapis.com/v1/card?alt=json&fields=kind%2Cid&prettyPrint=false&tenant=s-tenant",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -605,5 +871,5 @@ test "Go's cloudbilling.getCard" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_27)
+  gv_compare(gv_log_of(f), GO_34)
 }

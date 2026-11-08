@@ -5,6 +5,7 @@
 // compares the request, the response served and the result.
 
 use std/json
+use github.com/xo-lang/gcp/gensupport
 
 const GV_HOST: Str = "https://deepreview.googleapis.com"
 
@@ -94,6 +95,44 @@ test "Go's deepreview.documents.list" {
 }
 
 const GO_4: List[Str] = [
+  "CALL deepreview.documents.list pages",
+  "REQ GET https://deepreview.googleapis.com/v1/documents?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"documents\":[{\"createTime\":\"s-createtime\",\"displayName\":\"s-displayname\",\"driveSource\":{\"fileId\":\"s-fileid\",\"resourceKey\":\"s-resourcekey\",\"resourceKeySet\":true,\"revisionId\":\"s-revisionid\"},\"latestReviewSummary\":{\"createTime\":\"s-createtime\",\"review\":\"s-review\",\"state\":\"s-state\"},\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "OUT: {\"documents\":[{\"createTime\":\"s-createtime\",\"displayName\":\"s-displayname\",\"driveSource\":{\"fileId\":\"s-fileid\",\"resourceKey\":\"s-resourcekey\",\"resourceKeySet\":true,\"revisionId\":\"s-revisionid\"},\"latestReviewSummary\":{\"createTime\":\"s-createtime\",\"review\":\"s-review\",\"state\":\"s-state\"},\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}",
+  "REQ GET https://deepreview.googleapis.com/v1/documents?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"documents\":[{\"createTime\":\"s-createtime\",\"displayName\":\"s-displayname\",\"driveSource\":{\"fileId\":\"s-fileid\",\"resourceKey\":\"s-resourcekey\",\"resourceKeySet\":true,\"revisionId\":\"s-revisionid\"},\"latestReviewSummary\":{\"createTime\":\"s-createtime\",\"review\":\"s-review\",\"state\":\"s-state\"},\"name\":\"s-name\"}]}",
+  "OUT: {\"documents\":[{\"createTime\":\"s-createtime\",\"displayName\":\"s-displayname\",\"driveSource\":{\"fileId\":\"s-fileid\",\"resourceKey\":\"s-resourcekey\",\"resourceKeySet\":true,\"revisionId\":\"s-revisionid\"},\"latestReviewSummary\":{\"createTime\":\"s-createtime\",\"review\":\"s-review\",\"state\":\"s-state\"},\"name\":\"s-name\"}]}",
+  "OUT: ok",
+]
+
+test "Go's deepreview.documents.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"documents\":[{\"createTime\":\"s-createtime\",\"displayName\":\"s-displayname\",\"driveSource\":{\"fileId\":\"s-fileid\",\"resourceKey\":\"s-resourcekey\",\"resourceKeySet\":true,\"revisionId\":\"s-revisionid\"},\"latestReviewSummary\":{\"createTime\":\"s-createtime\",\"review\":\"s-review\",\"state\":\"s-state\"},\"name\":\"s-name\"}],\"nextPageToken\":\"s-nextpagetoken\"}")
+  gv_queue(f, "{\"documents\":[{\"createTime\":\"s-createtime\",\"displayName\":\"s-displayname\",\"driveSource\":{\"fileId\":\"s-fileid\",\"resourceKey\":\"s-resourcekey\",\"resourceKeySet\":true,\"revisionId\":\"s-revisionid\"},\"latestReviewSummary\":{\"createTime\":\"s-createtime\",\"review\":\"s-review\",\"state\":\"s-state\"},\"name\":\"s-name\"}]}")
+  gv_note(f, "CALL deepreview.documents.list pages")
+  var p = svc.documents.list_pages(options: DocumentsListOptions{filter: Some("s-filter"), order_by: Some("s-orderby"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_4)
+}
+
+const GO_5: List[Str] = [
   "CALL deepreview.documents.reviews.create",
   "REQ POST https://deepreview.googleapis.com/v1/id1/%20x/reviews?alt=json&fields=kind%2Cid&prettyPrint=false&requestId=s-requestid&reviewId=s-reviewid",
   "  H content-type=application/json | x-extra=v1",
@@ -112,10 +151,10 @@ test "Go's deepreview.documents.reviews.create" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_4)
+  gv_compare(gv_log_of(f), GO_5)
 }
 
-const GO_5: List[Str] = [
+const GO_6: List[Str] = [
   "CALL deepreview.documents.reviews.get",
   "REQ GET https://deepreview.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -133,10 +172,10 @@ test "Go's deepreview.documents.reviews.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_5)
+  gv_compare(gv_log_of(f), GO_6)
 }
 
-const GO_6: List[Str] = [
+const GO_7: List[Str] = [
   "CALL deepreview.documents.reviews.list",
   "REQ GET https://deepreview.googleapis.com/v1/id1/%20x/reviews?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -154,10 +193,48 @@ test "Go's deepreview.documents.reviews.list" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_6)
+  gv_compare(gv_log_of(f), GO_7)
 }
 
-const GO_7: List[Str] = [
+const GO_8: List[Str] = [
+  "CALL deepreview.documents.reviews.list pages",
+  "REQ GET https://deepreview.googleapis.com/v1/id1/%20x/reviews?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-pagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"nextPageToken\":\"s-nextpagetoken\",\"reviews\":[{\"createTime\":\"s-createtime\",\"endTime\":\"s-endtime\",\"name\":\"s-name\",\"progressPercent\":7,\"result\":{\"reviewMarkdown\":\"s-reviewmarkdown\"},\"runConfig\":{\"geminiApiKey\":\"s-geminiapikey\",\"geminiApiKeySet\":true,\"model\":\"s-model\",\"thinkingLevel\":\"s-thinkinglevel\",\"topology\":\"s-topology\",\"userPrompt\":\"s-userprompt\"},\"startTime\":\"s-starttime\",\"state\":\"s-state\"}]}",
+  "OUT: {\"nextPageToken\":\"s-nextpagetoken\",\"reviews\":[{\"createTime\":\"s-createtime\",\"endTime\":\"s-endtime\",\"name\":\"s-name\",\"progressPercent\":7,\"result\":{\"reviewMarkdown\":\"s-reviewmarkdown\"},\"runConfig\":{\"geminiApiKey\":\"s-geminiapikey\",\"geminiApiKeySet\":true,\"model\":\"s-model\",\"thinkingLevel\":\"s-thinkinglevel\",\"topology\":\"s-topology\",\"userPrompt\":\"s-userprompt\"},\"startTime\":\"s-starttime\",\"state\":\"s-state\"}]}",
+  "REQ GET https://deepreview.googleapis.com/v1/id1/%20x/reviews?alt=json&fields=kind%2Cid&filter=s-filter&orderBy=s-orderby&pageSize=7&pageToken=s-nextpagetoken&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 {\"reviews\":[{\"createTime\":\"s-createtime\",\"endTime\":\"s-endtime\",\"name\":\"s-name\",\"progressPercent\":7,\"result\":{\"reviewMarkdown\":\"s-reviewmarkdown\"},\"runConfig\":{\"geminiApiKey\":\"s-geminiapikey\",\"geminiApiKeySet\":true,\"model\":\"s-model\",\"thinkingLevel\":\"s-thinkinglevel\",\"topology\":\"s-topology\",\"userPrompt\":\"s-userprompt\"},\"startTime\":\"s-starttime\",\"state\":\"s-state\"}]}",
+  "OUT: {\"reviews\":[{\"createTime\":\"s-createtime\",\"endTime\":\"s-endtime\",\"name\":\"s-name\",\"progressPercent\":7,\"result\":{\"reviewMarkdown\":\"s-reviewmarkdown\"},\"runConfig\":{\"geminiApiKey\":\"s-geminiapikey\",\"geminiApiKeySet\":true,\"model\":\"s-model\",\"thinkingLevel\":\"s-thinkinglevel\",\"topology\":\"s-topology\",\"userPrompt\":\"s-userprompt\"},\"startTime\":\"s-starttime\",\"state\":\"s-state\"}]}",
+  "OUT: ok",
+]
+
+test "Go's deepreview.documents.reviews.list pages" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"nextPageToken\":\"s-nextpagetoken\",\"reviews\":[{\"createTime\":\"s-createtime\",\"endTime\":\"s-endtime\",\"name\":\"s-name\",\"progressPercent\":7,\"result\":{\"reviewMarkdown\":\"s-reviewmarkdown\"},\"runConfig\":{\"geminiApiKey\":\"s-geminiapikey\",\"geminiApiKeySet\":true,\"model\":\"s-model\",\"thinkingLevel\":\"s-thinkinglevel\",\"topology\":\"s-topology\",\"userPrompt\":\"s-userprompt\"},\"startTime\":\"s-starttime\",\"state\":\"s-state\"}]}")
+  gv_queue(f, "{\"reviews\":[{\"createTime\":\"s-createtime\",\"endTime\":\"s-endtime\",\"name\":\"s-name\",\"progressPercent\":7,\"result\":{\"reviewMarkdown\":\"s-reviewmarkdown\"},\"runConfig\":{\"geminiApiKey\":\"s-geminiapikey\",\"geminiApiKeySet\":true,\"model\":\"s-model\",\"thinkingLevel\":\"s-thinkinglevel\",\"topology\":\"s-topology\",\"userPrompt\":\"s-userprompt\"},\"startTime\":\"s-starttime\",\"state\":\"s-state\"}]}")
+  gv_note(f, "CALL deepreview.documents.reviews.list pages")
+  var p = svc.documents.reviews.list_pages("id1/ x", options: DocumentsReviewsListOptions{filter: Some("s-filter"), order_by: Some("s-orderby"), page_size: Some(7), page_token: Some("s-pagetoken"), fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]})
+  var failed = false
+  while !failed && p.more() {
+    match p.next_page() {
+      Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+      Err(e) => {
+        gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+        failed = true
+      }
+    }
+  }
+  if !failed {
+    gv_note(f, "OUT: ok")
+  }
+  gv_compare(gv_log_of(f), GO_8)
+}
+
+const GO_9: List[Str] = [
   "CALL deepreview.media.download",
   "REQ GET https://deepreview.googleapis.com/v1/id1/%20x:download?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -175,10 +252,31 @@ test "Go's deepreview.media.download" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_7)
+  gv_compare(gv_log_of(f), GO_9)
 }
 
-const GO_8: List[Str] = [
+const GO_10: List[Str] = [
+  "CALL deepreview.media.download download",
+  "REQ GET https://deepreview.googleapis.com/v1/id1/%20x:download?alt=media&fields=kind%2Cid&prettyPrint=false",
+  "  H if-none-match=etag-1 | x-extra=v1",
+  "  B ",
+  "  SERVED 200 media-bytes \u{0001}ÿ",
+  "OUT: media 200 media-bytes \u{0001}ÿ",
+]
+
+test "Go's deepreview.media.download download" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "media-bytes \u{0001}ÿ")
+  gv_note(f, "CALL deepreview.media.download download")
+  match svc.media.download_download("id1/ x", options: MediaDownloadOptions{fields: ["kind", "id"], if_none_match: "etag-1", headers: [("X-Extra", "v1")]}) {
+    Ok(r) => gv_note(f, "OUT: media ${r.status} ${r.body.to_str_lossy()}")
+    Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+  }
+  gv_compare(gv_log_of(f), GO_10)
+}
+
+const GO_11: List[Str] = [
   "CALL deepreview.media.upload",
   "REQ POST https://deepreview.googleapis.com/v1/documents?alt=json&documentId=s-documentid&fields=kind%2Cid&prettyPrint=false&requestId=s-requestid",
   "  H content-type=application/json | x-extra=v1",
@@ -197,10 +295,73 @@ test "Go's deepreview.media.upload" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_8)
+  gv_compare(gv_log_of(f), GO_11)
 }
 
-const GO_9: List[Str] = [
+const GO_12: List[Str] = [
+  "CALL deepreview.media.upload media",
+  "REQ POST https://deepreview.googleapis.com/upload/v1/documents?alt=json&documentId=s-documentid&fields=kind%2Cid&prettyPrint=false&requestId=s-requestid&uploadType=multipart",
+  "  H content-type=multipart/related; boundary=BOUNDARY | x-extra=v1",
+  "  B --BOUNDARY\u{000d}",
+  "Content-Type: application/json\u{000d}",
+  "\u{000d}",
+  "{\"createTime\":\"s-createtime\",\"displayName\":\"s-displayname\",\"driveSource\":{\"fileId\":\"s-fileid\",\"resourceKey\":\"s-resourcekey\",\"resourceKeySet\":true,\"revisionId\":\"s-revisionid\"},\"latestReviewSummary\":{\"createTime\":\"s-createtime\",\"review\":\"s-review\",\"state\":\"s-state\"},\"name\":\"s-name\"}",
+  "\u{000d}",
+  "--BOUNDARY\u{000d}",
+  "Content-Type: text/plain\u{000d}",
+  "\u{000d}",
+  "hello media\u{000d}",
+  "--BOUNDARY--\u{000d}",
+  "",
+  "  SERVED 200 {\"createTime\":\"s-createtime\",\"displayName\":\"s-displayname\",\"driveSource\":{\"fileId\":\"s-fileid\",\"resourceKey\":\"s-resourcekey\",\"resourceKeySet\":true,\"revisionId\":\"s-revisionid\"},\"latestReviewSummary\":{\"createTime\":\"s-createtime\",\"review\":\"s-review\",\"state\":\"s-state\"},\"name\":\"s-name\"}",
+  "OUT: {\"createTime\":\"s-createtime\",\"displayName\":\"s-displayname\",\"driveSource\":{\"fileId\":\"s-fileid\",\"resourceKey\":\"s-resourcekey\",\"resourceKeySet\":true,\"revisionId\":\"s-revisionid\"},\"latestReviewSummary\":{\"createTime\":\"s-createtime\",\"review\":\"s-review\",\"state\":\"s-state\"},\"name\":\"s-name\"}",
+]
+
+test "Go's deepreview.media.upload media" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "{\"createTime\":\"s-createtime\",\"displayName\":\"s-displayname\",\"driveSource\":{\"fileId\":\"s-fileid\",\"resourceKey\":\"s-resourcekey\",\"resourceKeySet\":true,\"revisionId\":\"s-revisionid\"},\"latestReviewSummary\":{\"createTime\":\"s-createtime\",\"review\":\"s-review\",\"state\":\"s-state\"},\"name\":\"s-name\"}")
+  gv_note(f, "CALL deepreview.media.upload media")
+  match svc.media.upload_media(os.clock, os.rand, json.decode_str[Document]("{\"createTime\":\"s-createtime\",\"displayName\":\"s-displayname\",\"driveSource\":{\"fileId\":\"s-fileid\",\"resourceKey\":\"s-resourcekey\",\"resourceKeySet\":true,\"revisionId\":\"s-revisionid\"},\"latestReviewSummary\":{\"createTime\":\"s-createtime\",\"review\":\"s-review\",\"state\":\"s-state\"},\"name\":\"s-name\"}") ?? e => fault(e.display()), media: gensupport.Media{data: "hello media".bytes(), content_type: "text/plain"}, options: MediaUploadOptions{document_id: Some("s-documentid"), request_id: Some("s-requestid"), fields: ["kind", "id"], headers: [("X-Extra", "v1")]}) {
+    Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+    Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+  }
+  gv_compare(gv_log_of(f), GO_12)
+}
+
+const GO_13: List[Str] = [
+  "CALL deepreview.media.upload resumable",
+  "REQ POST https://deepreview.googleapis.com/upload/v1/documents?alt=json&documentId=s-documentid&fields=kind%2Cid&prettyPrint=false&requestId=s-requestid&uploadType=resumable",
+  "  H content-type=application/json | x-extra=v1 | x-upload-content-type=text/plain",
+  "  B {\"createTime\":\"s-createtime\",\"displayName\":\"s-displayname\",\"driveSource\":{\"fileId\":\"s-fileid\",\"resourceKey\":\"s-resourcekey\",\"resourceKeySet\":true,\"revisionId\":\"s-revisionid\"},\"latestReviewSummary\":{\"createTime\":\"s-createtime\",\"review\":\"s-review\",\"state\":\"s-state\"},\"name\":\"s-name\"}",
+  "",
+  "  SERVED 200 @H Location=https://deepreview.googleapis.com/upload/session-1 @B ",
+  "REQ POST https://deepreview.googleapis.com/upload/session-1",
+  "  H content-range=bytes 0-262143/* | content-type=text/plain | x-goog-gcs-idempotency-token=UUID | x-guploader-no-308=yes",
+  "  B <262144 bytes> 0123456789abcdef0123456789abcdef...0123456789abcdef0123456789abcdef",
+  "  SERVED 200 @H X-Http-Status-Code-Override=308 @B ",
+  "REQ POST https://deepreview.googleapis.com/upload/session-1",
+  "  H content-range=bytes 262144-262153/262154 | content-type=text/plain | x-goog-gcs-idempotency-token=UUID | x-guploader-no-308=yes",
+  "  B 0123456789",
+  "  SERVED 200 {\"createTime\":\"s-createtime\",\"displayName\":\"s-displayname\",\"driveSource\":{\"fileId\":\"s-fileid\",\"resourceKey\":\"s-resourcekey\",\"resourceKeySet\":true,\"revisionId\":\"s-revisionid\"},\"latestReviewSummary\":{\"createTime\":\"s-createtime\",\"review\":\"s-review\",\"state\":\"s-state\"},\"name\":\"s-name\"}",
+  "OUT: {\"createTime\":\"s-createtime\",\"displayName\":\"s-displayname\",\"driveSource\":{\"fileId\":\"s-fileid\",\"resourceKey\":\"s-resourcekey\",\"resourceKeySet\":true,\"revisionId\":\"s-revisionid\"},\"latestReviewSummary\":{\"createTime\":\"s-createtime\",\"review\":\"s-review\",\"state\":\"s-state\"},\"name\":\"s-name\"}",
+]
+
+test "Go's deepreview.media.upload resumable" {
+  let f = gv_new_fake(os.net, GV_HOST)
+  let svc = new_service(os.net, gv_opts())
+  gv_set(f, "@H Location=https://deepreview.googleapis.com/upload/session-1 @B ")
+  gv_queue(f, "@H X-Http-Status-Code-Override=308 @B ")
+  gv_queue(f, "{\"createTime\":\"s-createtime\",\"displayName\":\"s-displayname\",\"driveSource\":{\"fileId\":\"s-fileid\",\"resourceKey\":\"s-resourcekey\",\"resourceKeySet\":true,\"revisionId\":\"s-revisionid\"},\"latestReviewSummary\":{\"createTime\":\"s-createtime\",\"review\":\"s-review\",\"state\":\"s-state\"},\"name\":\"s-name\"}")
+  gv_note(f, "CALL deepreview.media.upload resumable")
+  match svc.media.upload_media(os.clock, os.rand, json.decode_str[Document]("{\"createTime\":\"s-createtime\",\"displayName\":\"s-displayname\",\"driveSource\":{\"fileId\":\"s-fileid\",\"resourceKey\":\"s-resourcekey\",\"resourceKeySet\":true,\"revisionId\":\"s-revisionid\"},\"latestReviewSummary\":{\"createTime\":\"s-createtime\",\"review\":\"s-review\",\"state\":\"s-state\"},\"name\":\"s-name\"}") ?? e => fault(e.display()), media: gensupport.Media{data: gv_big(), content_type: "text/plain", chunk_size: 262144}, options: MediaUploadOptions{document_id: Some("s-documentid"), request_id: Some("s-requestid"), fields: ["kind", "id"], headers: [("X-Extra", "v1")]}) {
+    Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
+    Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
+  }
+  gv_compare(gv_log_of(f), GO_13)
+}
+
+const GO_14: List[Str] = [
   "CALL deepreview.operations.documents.reviews.get",
   "REQ GET https://deepreview.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -218,10 +379,10 @@ test "Go's deepreview.operations.documents.reviews.get" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_9)
+  gv_compare(gv_log_of(f), GO_14)
 }
 
-const GO_10: List[Str] = [
+const GO_15: List[Str] = [
   "CALL deepreview.getUserQuota",
   "REQ GET https://deepreview.googleapis.com/v1/id1/%20x?alt=json&fields=kind%2Cid&prettyPrint=false",
   "  H if-none-match=etag-1 | x-extra=v1",
@@ -239,5 +400,5 @@ test "Go's deepreview.getUserQuota" {
     Ok(r) => gv_note(f, "OUT: ${json.encode_str(r)}")
     Err(e) => gv_note_lines(f, "OUT: error: ${e.display().replace("\n", "\n| ")}")
   }
-  gv_compare(gv_log_of(f), GO_10)
+  gv_compare(gv_log_of(f), GO_15)
 }
