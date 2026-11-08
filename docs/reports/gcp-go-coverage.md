@@ -7,8 +7,8 @@ with the same arguments, comparing the request, the response served and
 the result), compiled (generated and type-checked), not generated.
 
 - Go-verified: 660
-- Go-verified on the go backend only (an xo bug blocks native arm64): 2
-- compiled: 5
+- Go-verified on the go backend only (an xo bug blocks native arm64): 3
+- compiled: 4
 - not generated: 0
 
 | Module | Status | Methods |
@@ -49,7 +49,7 @@ the result), compiled (generated and type-checked), not generated.
 | agentidentitycredentials/v1beta | Go-verified | 2 |
 | agentregistry/v1 | Go-verified | 53 |
 | agentregistry/v1alpha | Go-verified | 53 |
-| aiplatform/v1 | compiled | 1143 |
+| aiplatform/v1 | Go-verified on the go backend; native arm64 blocked by the closure capture word limit (xo.frameargs of a large options struct, arm64 backend) | 1143 |
 | aiplatform/v1beta1 | compiled | 812 |
 | airquality/v1 | Go-verified | 4 |
 | alertcenter/v1beta1 | Go-verified | 11 |
