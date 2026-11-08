@@ -759,13 +759,18 @@ fn (var g: Gen) method_text(tn: Str, core: Str, full: Str, mn: Str, m: json.Valu
   var body = "b\"\""
   if has_body {
     let b = body_arg ?? Arg{api: "", name: "", t: "", location: ""}
-    body = if raw_request { b.name } else if proto_request { "${b.name}.encode().bytes()" } else { "gensupport.json_body(${b.name}, data_wrapper: ${wrapper})" }
+    // ml.projects.predict sends its HttpBody's data as it is, already
+    // JSON (google-api-go-generator's special case for this method)
+    body = if raw_request { b.name } else if proto_request { "${b.name}.encode().bytes()" } else if id == "ml.projects.predict" { "(${b.name}.http_body.map(fn(h: GoogleApiHttpBody) -> Str { h.data }) ?? \"\").bytes()" } else { "gensupport.json_body(${b.name}, data_wrapper: ${wrapper})" }
   }
   out = out + "  let resp = r.${core}.client.send(gensupport.Request{method: \"${http_method}\", url: u, query: q, headers: hs, body: ${body}})?\n"
   if raw_response {
     out = out + "  gensupport.check(resp)?\n  Ok(resp)\n}\n"
   } else if ret == "()" {
     out = out + "  gensupport.check(resp)?\n  Ok(())\n}\n"
+  } else if id == "ml.projects.predict" {
+    // and its result's data is the whole response text, decoded too
+    out = out + "  gensupport.check(resp)?\n  let v = gensupport.decode[${ret}](resp)?\n  Ok(v with {data: resp.body.to_str_lossy()})\n}\n"
   } else if wrapper {
     out = out + "  gensupport.check(resp)?\n  gensupport.decode_data[${ret}](resp)\n}\n"
   } else {
