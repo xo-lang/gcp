@@ -23,6 +23,17 @@ No real Google Cloud endpoint is called anywhere: every test runs
 against local fakes. The records in
 [docs/decisions](docs/decisions/README.md) were accepted by the owner.
 
+## Install
+
+Every module is tagged v0.1.0 (the first release, with Xo 0.46.0). Get
+the API versions your program uses; each requires the root:
+
+    xo get github.com/xo-lang/gcp@v0.1.0
+    xo get github.com/xo-lang/gcp/storage/v1@v0.1.0
+
+Requires Xo 0.45.0 or later. Release notes:
+[docs/releases/v0.1.0.md](docs/releases/v0.1.0.md).
+
 ## Layout
 
 - `auth`, `gensupport`, `googleapi`, `option`: the hand-written core.
