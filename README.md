@@ -1,5 +1,8 @@
 # Google Cloud for Xo
 
+A community Google Cloud SDK for the Xo language. Not affiliated with or
+endorsed by Google. Google Cloud is a trademark of Google LLC.
+
 A port of Google's Go SDK for Google Cloud, starting with
 google.golang.org/api's REST packages, generated from the Discovery
 documents Go itself ships and checked against Go byte for byte.
