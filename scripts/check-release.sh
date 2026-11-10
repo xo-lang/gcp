@@ -5,7 +5,7 @@
 # every published module from the tagged clone with no workspace (after
 # `xo mod tidy`, which must leave each xo.mod as it is), fetching
 # the modules it requires from the scratch remote (XO_GIT_REWRITE), and
-# last an app that gets the root, and storage/v1 with
+# last an app that gets the root and storage/v1 with
 # `xo get` and type checks with no workspace.
 # Usage: XO_CLI=/path/to/xo scripts/check-release.sh v0.1.0 [scratch dir]
 set -eu
@@ -29,9 +29,13 @@ n=0
 for m in . $(cd "$work/clone" && git ls-files '*/xo.mod' | sed 's#/xo.mod$##' | grep -vx codegen); do
   d="$work/clone/$m"
   n=$((n + 1))
+  # the root has no .xo file at the top: its packages are the directories
+  # with .xo files outside every nested module (./... would load them all)
+  pkgs=.
+  [ "$m" = . ] && pkgs=$(cd "$d" && git ls-files '*.xo' | sed 's#/[^/]*$##' | sort -u | awk -v mods="$(git ls-files '*/xo.mod' | sed 's#/xo.mod$##' | tr '\n' ' ')" 'BEGIN { n = split(mods, a, " ") } { for (i = 1; i <= n; i++) if ($0 == a[i] || index($0, a[i] "/") == 1) next; print "./" $0 }')
   # tidy records the lock (no module carries one) and must not change the
   # requires: a change means a missing or extra require.
-  if ! (cd "$d" && "$xo" mod tidy > "$work/check.out" 2>&1 && git diff --quiet -- xo.mod && "$xo" check --workspace=off . >> "$work/check.out" 2>&1); then
+  if ! (cd "$d" && "$xo" mod tidy > "$work/check.out" 2>&1 && git diff --quiet -- xo.mod && "$xo" check --workspace=off $pkgs >> "$work/check.out" 2>&1); then
     echo "check-release: FAIL $m"
     (cd "$d" && git diff --stat -- xo.mod) | sed 's/^/  /'
     tail -5 "$work/check.out" | sed 's/^/  /'
@@ -52,5 +56,5 @@ fn main(os: Os) {
 XO
 "$xo" get github.com/xo-lang/gcp@"$v" github.com/xo-lang/gcp/storage/v1@"$v" > "$work/get.out" 2>&1 || { echo "check-release: FAIL xo get"; tail -5 "$work/get.out"; exit 1; }
 "$xo" check --workspace=off . > "$work/app.out" 2>&1 || { echo "check-release: FAIL app"; tail -5 "$work/app.out"; exit 1; }
-echo "check-release: an app got the root, and storage/v1 at $v and checks"
+echo "check-release: an app got the root and storage/v1 at $v and checks"
 [ $fails -eq 0 ]
