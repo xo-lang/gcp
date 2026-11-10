@@ -2,7 +2,8 @@
 # Rehearses a first release with no network write (docs/release-checklist.md):
 # clones HEAD into a scratch directory with a bare "remote", runs
 # scripts/first-release.sh --push against that remote, then type checks
-# every published module from the tagged clone with no workspace, fetching
+# every published module from the tagged clone with no workspace (after
+# `xo mod tidy`, which must leave each xo.mod as it is), fetching
 # the modules it requires from the scratch remote (XO_GIT_REWRITE), and
 # last an app that gets the root, and storage/v1 with
 # `xo get` and type checks with no workspace.
@@ -23,11 +24,14 @@ export XO_MODCACHE="$work/modcache"
 rm -f "$work/clone/xo.work"
 fails=0
 n=0
-for m in $(cd "$work/clone" && git ls-files '*xo.mod' | sed 's#/*xo.mod$##' | grep -vx codegen); do
-  d="$work/clone/${m:-.}"
+for m in . $(cd "$work/clone" && git ls-files '*/xo.mod' | sed 's#/xo.mod$##' | grep -vx codegen); do
+  d="$work/clone/$m"
   n=$((n + 1))
-  if ! (cd "$d" && "$xo" check --workspace=off . > "$work/check.out" 2>&1); then
-    echo "check-release: FAIL ${m:-root}"
+  # tidy records the lock (no module carries one) and must not change the
+  # requires: a change means a missing or extra require.
+  if ! (cd "$d" && "$xo" mod tidy > "$work/check.out" 2>&1 && git diff --quiet -- xo.mod && "$xo" check --workspace=off . >> "$work/check.out" 2>&1); then
+    echo "check-release: FAIL $m"
+    (cd "$d" && git diff --stat -- xo.mod) | sed 's/^/  /'
     tail -5 "$work/check.out" | sed 's/^/  /'
     fails=$((fails + 1))
   fi
