@@ -15,6 +15,8 @@ xo=${XO_CLI:-xo}
 work=${2:-$(mktemp -d)}
 mkdir -p "$work"
 src=$(pwd)
+# the module cache is read-only, as Go's is
+[ -d "$work/modcache" ] && chmod -R u+w "$work/modcache"
 rm -rf "$work/remote.git" "$work/clone" "$work/app" "$work/modcache"
 git clone -q --bare "$src" "$work/remote.git"
 git clone -q "$work/remote.git" "$work/clone"
