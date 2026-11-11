@@ -21,8 +21,9 @@ Status (google.golang.org/api v0.311.0, 667 modules; the full table is
 - **Not ported yet: cloud.google.com/go** (206 modules: 724 GAPIC
   clients over gRPC, plus the hand-written bigquery, spanner, firestore
   and pubsub clients). The storage client is in progress (`storage`,
-  [decision 0010](docs/decisions/0010-storage.md): step 1, metadata
-  calls, listings and retries, is done; reads and writes come next), and
+  [decision 0010](docs/decisions/0010-storage.md): steps 1 and 2,
+  metadata calls, listings, retries, reads, writes, copies and composes,
+  are done; access and keys come next), and
   `auth` has decision 0009's credentials. See
   [gcp-cloud-go-coverage.md](docs/reports/gcp-cloud-go-coverage.md).
 

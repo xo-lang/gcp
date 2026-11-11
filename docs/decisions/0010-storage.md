@@ -92,6 +92,22 @@ which is 0009's.
     which differs per run); the oracle's comparison sorts the list.
   - Go's check that an object name is valid UTF-8 has no case: an Xo
     `Str` always is. Its oracle case is not replayed.
+- Step 2's departures from Go (2026-11-11):
+  - `Writer` holds the data until `close` (Go streams it through a
+    pipe as it is written), so `write` fails only after a failed or
+    finished close. Go's `ChunkRetryDeadline` and `ProgressFunc` on
+    `Writer` are not ported yet; chunks are retried by the client's
+    retry settings.
+  - `Copier.progress` is an optional function and
+    `max_bytes_per_call` is public (Go's field is private, for its
+    tests). `composer_from` takes a `List`.
+  - `Client` has a test hook that cuts a read body short (FakeNet can
+    serve no body that fails part way), to replay Go's reopen cases.
+  - `gensupport` gained `Media.auto_checksum`, `crc32c_text`,
+    `crc32c_of` and a public `resumable` with the last chunk's
+    checksum. The generated `Objects.insert` does not yet add Go's
+    automatic CRC32C (Go's generator special-cases that call); the
+    `Writer` sends it itself.
 
 ## Consequences
 

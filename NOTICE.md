@@ -16,8 +16,8 @@ This project ports code, behavior and tests from the following works:
   the metadata server client (`compute/metadata`).
 - cloud.google.com/go/storage v1.70.0, Copyright Google LLC, under the
   Apache License, Version 2.0 (below): the Cloud Storage client
-  (`storage`: handles, attributes, conditions, listings, errors and
-  retries).
+  (`storage`: handles, attributes, conditions, listings, errors,
+  retries, reads, writes, copies and composes).
 
 Google Cloud and its product names are trademarks of Google LLC. This
 project is not affiliated with or endorsed by Google.

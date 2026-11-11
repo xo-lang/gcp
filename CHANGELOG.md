@@ -7,6 +7,17 @@ touches. Release notes: [docs/releases](docs/releases).
 
 ## Unreleased
 
+- `storage` (decision 0010 step 2): `Reader` over the XML API (ranges,
+  negative offsets, `read_compressed`, Go's CRC32C check, the reopen
+  after a body cut short, `ObjectNotExist` and `Checksum` errors),
+  `Writer` (one multipart request when the data fits a chunk, else a
+  resumable session; Go's auto CRC32C, `send_crc32c`, MD5, chunk size
+  0 with the service's checksum checked), `Copier` (rewrite with its
+  token and progress) and `Composer`. 50 more cases replay the Go
+  oracle (65 in all over FakeNet).
+- `gensupport`: `Media.auto_checksum`, `crc32c_text` and `crc32c_of`,
+  and `resumable` is public with the last chunk's checksum
+  (`X-Goog-Hash: crc32c=...`), as Go's storage sends it.
 - `storage` (new module `github.com/xo-lang/gcp/storage`, decision 0010
   step 1): Go's Cloud Storage client over the JSON API: `new_client`
   (endpoint, STORAGE_EMULATOR_HOST), bucket and object handles with
