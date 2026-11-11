@@ -1,7 +1,7 @@
 # 0009: Credentials (cloud.google.com/go/auth)
 
-Status: Proposed (2026-11-11, drafted at the Xo Lead's request for the
-owner's acceptance).
+Status: Accepted (owner, 2026-11-11, relayed by the Xo Lead; proposed
+the same day at the Xo Lead's request).
 
 ## Context
 

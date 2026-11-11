@@ -13,4 +13,4 @@ deleted.
 - [0006](0006-bulk-rules.md): every API generated from the first commit, customization only as data derived from Go, batched differentials and a written coverage report (Accepted, 2026-11-07)
 - [0007](0007-grpc-deferred.md): gRPC and the GAPIC clients wait for a std gRPC decision (Accepted, 2026-11-07)
 - [0008](0008-license-and-hygiene.md): license and attribution for the BSD-3-Clause and Apache-2.0 sources, the trademark notice, the Azure repository's hygiene, local until approved (Accepted, 2026-11-07)
-- [0009](0009-credentials.md): cloud.google.com/go/auth credentials in three Go-vectored steps (cache and metadata server, service account and authorized user files, Application Default Credentials); external accounts and impersonation later (Proposed, 2026-11-11)
+- [0009](0009-credentials.md): cloud.google.com/go/auth credentials in three Go-vectored steps (cache and metadata server, service account and authorized user files, Application Default Credentials); external accounts and impersonation later (Accepted, 2026-11-11)
