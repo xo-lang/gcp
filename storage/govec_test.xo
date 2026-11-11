@@ -557,6 +557,341 @@ test "oracle: read, an empty object name" {
   expect(lines(f)) == ["  error storage: object name is empty"]
 }
 
+test "oracle: signed url v2" {
+  let f = new_reply_fake(os.net, [])
+  os.clock.set(Time.from_unix(NOW0))
+  var o = so(f)
+  signed_lines(f, signed_url(os.clock, os.rand, "b1", "dir/a b+c&é.txt", o))
+  expect(lines(f)) == ["  sign \"GET\\n\\n\\n1767326645\\n/b1/dir/a%20b+c&%C3%A9.txt\"", "  url https://storage.googleapis.com/b1/dir/a%20b+c&%C3%A9.txt?Expires=1767326645&GoogleAccessId=robot%40example.com&Signature=vjGQuQRB75T%2FdnJQiBMSwapxX2h4%2FdpW%2BvyJI8gpPsk%3D"]
+}
+
+test "oracle: signed url v2, put with type, md5 and headers" {
+  let f = new_reply_fake(os.net, [])
+  os.clock.set(Time.from_unix(NOW0))
+  var o = so(f)
+  o.method = "put"
+  o.content_type = "text/plain"
+  o.md5 = "XrY7u+Ae7tCTyyK7j1rNww=="
+  o.headers = ["x-goog-meta-owner: ada", "X-Goog-Meta-Owner:  bob ", "x-goog-acl:public-read", "Content-Language: en", "x-goog-encryption-key: k", "x-goog-meta-tabs:\ta\t\tb  c"]
+  o.query_parameters = qv([("ignored", "in v2")])
+  signed_lines(f, signed_url(os.clock, os.rand, "b1", "a", o))
+  expect(lines(f)) == ["  sign \"PUT\\nXrY7u+Ae7tCTyyK7j1rNww==\\ntext/plain\\n1767326645\\nx-goog-acl:public-read\\nx-goog-meta-owner:ada,bob\\nx-goog-meta-tabs:a\\t\\tb  c\\n/b1/a\"", "  url https://storage.googleapis.com/b1/a?Expires=1767326645&GoogleAccessId=robot%40example.com&Signature=17gh5FvQc2bI%2FiNsHI7d7LXgsaWJYdeTcTEA%2FBfBSY4%3D"]
+}
+
+test "oracle: signed url v2, a hostname" {
+  let f = new_reply_fake(os.net, [])
+  os.clock.set(Time.from_unix(NOW0))
+  var o = so(f)
+  o.hostname = "https://cdn.example.com"
+  signed_lines(f, signed_url(os.clock, os.rand, "b1", "a", o))
+  expect(lines(f)) == ["  sign \"GET\\n\\n\\n1767326645\\n/b1/a\"", "  url https://cdn.example.com/b1/a?Expires=1767326645&GoogleAccessId=robot%40example.com&Signature=zRTPZPx2edhPQEv5%2BaqrMdA5d8H%2BVqn7gWCYDbGmFxA%3D"]
+}
+
+test "oracle: signed url v2, virtual hosted" {
+  let f = new_reply_fake(os.net, [])
+  os.clock.set(Time.from_unix(NOW0))
+  var o = so(f)
+  o.style = URLStyle.VirtualHosted
+  signed_lines(f, signed_url(os.clock, os.rand, "b1", "a", o))
+  expect(lines(f)) == ["  sign \"GET\\n\\n\\n1767326645\\n/b1/a\"", "  url https://storage.googleapis.com/b1/a?Expires=1767326645&GoogleAccessId=robot%40example.com&Signature=zRTPZPx2edhPQEv5%2BaqrMdA5d8H%2BVqn7gWCYDbGmFxA%3D"]
+}
+
+test "oracle: signed url v4" {
+  let f = new_reply_fake(os.net, [])
+  os.clock.set(Time.from_unix(NOW0))
+  var o = so(f)
+  o.scheme = SigningScheme.V4
+  signed_lines(f, signed_url(os.clock, os.rand, "b1", "dir/a b+c&é~.txt", o))
+  expect(lines(f)) == ["  sign \"GOOG4-RSA-SHA256\\n20260102T030405Z\\n20260102/auto/storage/goog4_request\\n0213fb2cf571c25c6ca4c7bf0f8cf7830eb616f12d6819f0f809195f94dde54f\"", "  url https://storage.googleapis.com/b1/dir/a%20b%2Bc%26%C3%A9~.txt?X-Goog-Algorithm=GOOG4-RSA-SHA256&X-Goog-Credential=robot%40example.com%2F20260102%2Fauto%2Fstorage%2Fgoog4_request&X-Goog-Date=20260102T030405Z&X-Goog-Expires=3600&X-Goog-Signature=a8c52cb9c38dd888aaa76922b02f70b9d98fdfd080ee48a8593daa2a046cc8e0&X-Goog-SignedHeaders=host"]
+}
+
+test "oracle: signed url v4, put with type, md5, headers and query" {
+  let f = new_reply_fake(os.net, [])
+  os.clock.set(Time.from_unix(NOW0))
+  var o = so(f)
+  o.scheme = SigningScheme.V4
+  o.method = "PUT"
+  o.content_type = "text/plain"
+  o.md5 = "XrY7u+Ae7tCTyyK7j1rNww=="
+  o.headers = ["x-goog-meta-owner: ada", "x-goog-acl:public-read", "Content-Language:   en  us "]
+  o.query_parameters = qv([("response-content-disposition", "attachment; filename=a b.txt"), ("x", "2"), ("x", "1")])
+  signed_lines(f, signed_url(os.clock, os.rand, "b1", "a", o))
+  expect(lines(f)) == ["  sign \"GOOG4-RSA-SHA256\\n20260102T030405Z\\n20260102/auto/storage/goog4_request\\n29a0b1c9547b36dc9dbf2a280f509208a3a1050ec32b84460e49ba355947a09f\"", "  url https://storage.googleapis.com/b1/a?X-Goog-Algorithm=GOOG4-RSA-SHA256&X-Goog-Credential=robot%40example.com%2F20260102%2Fauto%2Fstorage%2Fgoog4_request&X-Goog-Date=20260102T030405Z&X-Goog-Expires=3600&X-Goog-Signature=22b24dc98bef14df1ff42071e1f865c0e51630e4ead2417d602991f1211c4bf4&X-Goog-SignedHeaders=content-language%3Bcontent-md5%3Bcontent-type%3Bhost%3Bx-goog-acl%3Bx-goog-meta-owner&response-content-disposition=attachment%3B+filename%3Da+b.txt&x=2&x=1"]
+}
+
+test "oracle: signed url v4, a content sha256 header" {
+  let f = new_reply_fake(os.net, [])
+  os.clock.set(Time.from_unix(NOW0))
+  var o = so(f)
+  o.scheme = SigningScheme.V4
+  o.method = "PUT"
+  o.headers = ["x-goog-content-sha256:abc123"]
+  signed_lines(f, signed_url(os.clock, os.rand, "b1", "a", o))
+  expect(lines(f)) == ["  sign \"GOOG4-RSA-SHA256\\n20260102T030405Z\\n20260102/auto/storage/goog4_request\\nb20e21f87d306ef90b5a4fc83b2d6d430a80768bbe826e990bf6208ea44af916\"", "  url https://storage.googleapis.com/b1/a?X-Goog-Algorithm=GOOG4-RSA-SHA256&X-Goog-Credential=robot%40example.com%2F20260102%2Fauto%2Fstorage%2Fgoog4_request&X-Goog-Date=20260102T030405Z&X-Goog-Expires=3600&X-Goog-Signature=f605d49f607a7494bcbfb309d06ea4a0239441797e77919d31ef84e49be18569&X-Goog-SignedHeaders=host%3Bx-goog-content-sha256"]
+}
+
+test "oracle: signed url v4, virtual hosted" {
+  let f = new_reply_fake(os.net, [])
+  os.clock.set(Time.from_unix(NOW0))
+  var o = so(f)
+  o.scheme = SigningScheme.V4
+  o.style = URLStyle.VirtualHosted
+  signed_lines(f, signed_url(os.clock, os.rand, "b1", "dir/a", o))
+  expect(lines(f)) == ["  sign \"GOOG4-RSA-SHA256\\n20260102T030405Z\\n20260102/auto/storage/goog4_request\\n3d59301decc5311ebb173451b29812d5597d9f7ac997c2622f71ef4422082f86\"", "  url https://b1.storage.googleapis.com/dir/a?X-Goog-Algorithm=GOOG4-RSA-SHA256&X-Goog-Credential=robot%40example.com%2F20260102%2Fauto%2Fstorage%2Fgoog4_request&X-Goog-Date=20260102T030405Z&X-Goog-Expires=3600&X-Goog-Signature=5210b8818027bdf45dbc5492930f5f3f906c8eed2102049a062f2dd28e644d74&X-Goog-SignedHeaders=host"]
+}
+
+test "oracle: signed url v4, bucket bound hostname, insecure" {
+  let f = new_reply_fake(os.net, [])
+  os.clock.set(Time.from_unix(NOW0))
+  var o = so(f)
+  o.scheme = SigningScheme.V4
+  o.style = URLStyle.BucketBound(hostname: "files.example.com")
+  o.insecure = true
+  signed_lines(f, signed_url(os.clock, os.rand, "b1", "dir/a", o))
+  expect(lines(f)) == ["  sign \"GOOG4-RSA-SHA256\\n20260102T030405Z\\n20260102/auto/storage/goog4_request\\n6d25dcc31c356f163656c82467bd811279b93b9ad4c7950a0f4b3091c693bf52\"", "  url http://files.example.com/dir/a?X-Goog-Algorithm=GOOG4-RSA-SHA256&X-Goog-Credential=robot%40example.com%2F20260102%2Fauto%2Fstorage%2Fgoog4_request&X-Goog-Date=20260102T030405Z&X-Goog-Expires=3600&X-Goog-Signature=f5aa61c4e79bf81787537fcd9bd4e21dc0ebec69cc740761834b3304a73545bd&X-Goog-SignedHeaders=host"]
+}
+
+test "oracle: signed url v4, a hostname with a port" {
+  let f = new_reply_fake(os.net, [])
+  os.clock.set(Time.from_unix(NOW0))
+  var o = so(f)
+  o.scheme = SigningScheme.V4
+  o.hostname = "localhost:8080"
+  signed_lines(f, signed_url(os.clock, os.rand, "b1", "a", o))
+  expect(lines(f)) == ["  sign \"GOOG4-RSA-SHA256\\n20260102T030405Z\\n20260102/auto/storage/goog4_request\\n54c642335add5b9ec6ced7b069d97f727269b737dc6d9eb9075db284194c24fb\"", "  url https://localhost:8080/b1/a?X-Goog-Algorithm=GOOG4-RSA-SHA256&X-Goog-Credential=robot%40example.com%2F20260102%2Fauto%2Fstorage%2Fgoog4_request&X-Goog-Date=20260102T030405Z&X-Goog-Expires=3600&X-Goog-Signature=8904d1157c1dd07fb53877ba3a3a538dbf324ea58dddf1d8e791784af7156ca8&X-Goog-SignedHeaders=host"]
+}
+
+test "oracle: signed url v4, seven days" {
+  let f = new_reply_fake(os.net, [])
+  os.clock.set(Time.from_unix(NOW0))
+  var o = so(f)
+  o.scheme = SigningScheme.V4
+  o.expires = Some(Time.from_unix(NOW0 + 604800))
+  signed_lines(f, signed_url(os.clock, os.rand, "b1", "a", o))
+  expect(lines(f)) == ["  sign \"GOOG4-RSA-SHA256\\n20260102T030405Z\\n20260102/auto/storage/goog4_request\\n59bb946cdc91e3609edffa9bb71a706baf6128512c9963240cdbe685419eef43\"", "  url https://storage.googleapis.com/b1/a?X-Goog-Algorithm=GOOG4-RSA-SHA256&X-Goog-Credential=robot%40example.com%2F20260102%2Fauto%2Fstorage%2Fgoog4_request&X-Goog-Date=20260102T030405Z&X-Goog-Expires=604800&X-Goog-Signature=cea3efbb8a7b6ddda0e02b0e3232adb3f6eda2acb1013bf47426422276f54e17&X-Goog-SignedHeaders=host"]
+}
+
+test "oracle: signed url v4, past seven days" {
+  let f = new_reply_fake(os.net, [])
+  os.clock.set(Time.from_unix(NOW0))
+  var o = so(f)
+  o.scheme = SigningScheme.V4
+  o.expires = Some(Time.from_unix(NOW0 + 604801))
+  signed_lines(f, signed_url(os.clock, os.rand, "b1", "a", o))
+  expect(lines(f)) == ["  error storage: expires must be within seven days from now"]
+}
+
+test "oracle: signed url, no access id" {
+  let f = new_reply_fake(os.net, [])
+  os.clock.set(Time.from_unix(NOW0))
+  var o = so(f)
+  o.google_access_id = ""
+  signed_lines(f, signed_url(os.clock, os.rand, "b1", "a", o))
+  expect(lines(f)) == ["  error storage: missing required GoogleAccessID"]
+}
+
+test "oracle: signed url, a key and a signer" {
+  let f = new_reply_fake(os.net, [])
+  os.clock.set(Time.from_unix(NOW0))
+  var o = so(f)
+  o.private_key = Some(b"k")
+  signed_lines(f, signed_url(os.clock, os.rand, "b1", "a", o))
+  expect(lines(f)) == ["  error storage: exactly one of PrivateKey or SignedBytes must be set"]
+}
+
+test "oracle: signed url, no key or signer" {
+  let f = new_reply_fake(os.net, [])
+  os.clock.set(Time.from_unix(NOW0))
+  var o = so(f)
+  o.sign_bytes = None
+  signed_lines(f, signed_url(os.clock, os.rand, "b1", "a", o))
+  expect(lines(f)) == ["  error storage: exactly one of PrivateKey or SignedBytes must be set"]
+}
+
+test "oracle: signed url, a bad method" {
+  let f = new_reply_fake(os.net, [])
+  os.clock.set(Time.from_unix(NOW0))
+  var o = so(f)
+  o.method = "PATCH"
+  signed_lines(f, signed_url(os.clock, os.rand, "b1", "a", o))
+  expect(lines(f)) == ["  error storage: HTTP method should be one of [DELETE GET HEAD POST PUT]"]
+}
+
+test "oracle: signed url, no expiry" {
+  let f = new_reply_fake(os.net, [])
+  os.clock.set(Time.from_unix(NOW0))
+  var o = so(f)
+  o.expires = None
+  signed_lines(f, signed_url(os.clock, os.rand, "b1", "a", o))
+  expect(lines(f)) == ["  error storage: missing required expires option"]
+}
+
+test "oracle: signed url, a bad md5" {
+  let f = new_reply_fake(os.net, [])
+  os.clock.set(Time.from_unix(NOW0))
+  var o = so(f)
+  o.md5 = "abc"
+  signed_lines(f, signed_url(os.clock, os.rand, "b1", "a", o))
+  expect(lines(f)) == ["  error storage: invalid MD5 checksum"]
+}
+
+test "oracle: signed url v4, an RSA key" {
+  let f = new_reply_fake(os.net, [])
+  os.clock.set(Time.from_unix(NOW0))
+  var o = so(f)
+  o.scheme = SigningScheme.V4
+  o.sign_bytes = None
+  o.private_key = Some(test_key(os).pem.bytes())
+  signed_rsa_lines(f, signed_url(os.clock, os.rand, "b1", "a", o))
+  expect(lines(f)) == ["  url https://storage.googleapis.com/b1/a?X-Goog-Algorithm=GOOG4-RSA-SHA256&X-Goog-Credential=robot%40example.com%2F20260102%2Fauto%2Fstorage%2Fgoog4_request&X-Goog-Date=20260102T030405Z&X-Goog-Expires=3600&X-Goog-Signature=SIG&X-Goog-SignedHeaders=host", "  signature 256 bytes"]
+}
+
+test "oracle: signed url v2, an RSA key" {
+  let f = new_reply_fake(os.net, [])
+  os.clock.set(Time.from_unix(NOW0))
+  var o = so(f)
+  o.sign_bytes = None
+  o.private_key = Some(test_key(os).pem.bytes())
+  signed_rsa_lines(f, signed_url(os.clock, os.rand, "b1", "a", o))
+  expect(lines(f)) == ["  url https://storage.googleapis.com/b1/a?Expires=1767326645&GoogleAccessId=robot%40example.com&Signature=SIG", "  signature 256 bytes"]
+}
+
+test "oracle: bucket signed url, the client's host" {
+  let f = new_reply_fake(os.net, [])
+  let c = fake_client(os)
+  os.clock.set(Time.from_unix(NOW0))
+  var o = so(f)
+  o.scheme = SigningScheme.V4
+  signed_lines(f, c.bucket("b1").signed_url("a", o))
+  expect(lines(f)) == ["  sign \"GOOG4-RSA-SHA256\\n20260102T030405Z\\n20260102/auto/storage/goog4_request\\n8139bdecebe7f6875b7b16579bcb08c878a9dff753e899f8f6eba5cef5e52716\"", "  url https://storage.fake/b1/a?X-Goog-Algorithm=GOOG4-RSA-SHA256&X-Goog-Credential=robot%40example.com%2F20260102%2Fauto%2Fstorage%2Fgoog4_request&X-Goog-Date=20260102T030405Z&X-Goog-Expires=3600&X-Goog-Signature=f875ce2326405e592b1220d39bda6f2c0d7cc7a3f8b1da5072732575639b6982&X-Goog-SignedHeaders=host"]
+}
+
+test "oracle: bucket signed url, the service account's email and key" {
+  let f = new_reply_fake(os.net, [])
+  os.clock.set(Time.from_unix(NOW0))
+  let cc = cred_client(os, sa_json(test_key(os), false))
+  signed_rsa_lines(f, cc.bucket("b1").signed_url("a", SignedURLOptions{method: "GET", expires: Some(exp1h()), scheme: SigningScheme.V4}))
+  expect(lines(f)) == ["  url https://storage.fake/b1/a?X-Goog-Algorithm=GOOG4-RSA-SHA256&X-Goog-Credential=robot%40example.com%2F20260102%2Fauto%2Fstorage%2Fgoog4_request&X-Goog-Date=20260102T030405Z&X-Goog-Expires=3600&X-Goog-Signature=SIG&X-Goog-SignedHeaders=host", "  signature 256 bytes"]
+}
+
+test "oracle: bucket signed url, an impersonated account signs with IAM" {
+  let f = new_reply_fake(os.net, [Reply{status: 200, headers: {"Content-Type": "application/json; charset=UTF-8"}, body: "{\"keyId\":\"k1\",\"signedBlob\":\"c2lnbmVkIGJ5IGlhbQ==\"}"}])
+  os.clock.set(Time.from_unix(NOW0))
+  let cc = cred_client(os, sa_json(test_key(os), true))
+  signed_lines(f, cc.bucket("b1").signed_url("a", SignedURLOptions{method: "GET", expires: Some(exp1h()), scheme: SigningScheme.V4}))
+  expect(lines(f)) == ["  POST https://iamcredentials.googleapis.com/v1/projects/-/serviceAccounts/signer@example.com:signBlob?alt=json&prettyPrint=false", "    X-Goog-Api-Client: gl-go/GO gdcl/V", "    Content-Type: application/json", "    body {\"payload\":\"R09PRzQtUlNBLVNIQTI1NgoyMDI2MDEwMlQwMzA0MDVaCjIwMjYwMTAyL2F1dG8vc3RvcmFnZS9nb29nNF9yZXF1ZXN0CmQwYTc5Zjc3MzlkZmU4Mjg4OWU0NzljM2MwY2QzMGY5MDc0MDI0YzJkYzQ2MWQ2OGZhZjViZGFlZGNkMzlkYTg=\"}", "  url https://storage.fake/b1/a?X-Goog-Algorithm=GOOG4-RSA-SHA256&X-Goog-Credential=signer%40example.com%2F20260102%2Fauto%2Fstorage%2Fgoog4_request&X-Goog-Date=20260102T030405Z&X-Goog-Expires=3600&X-Goog-Signature=7369676e65642062792069616d&X-Goog-SignedHeaders=host"]
+}
+
+test "oracle: bucket signed url, IAM fails" {
+  let f = new_reply_fake(os.net, [Reply{status: 403, headers: {"Content-Type": "application/json; charset=UTF-8"}, body: "{\"error\":{\"code\":403,\"message\":\"denied\"}}"}])
+  os.clock.set(Time.from_unix(NOW0))
+  let cc = cred_client(os, sa_json(test_key(os), true))
+  signed_lines(f, cc.bucket("b1").signed_url("a", SignedURLOptions{method: "GET", expires: Some(exp1h()), scheme: SigningScheme.V4}))
+  expect(lines(f)) == ["  POST https://iamcredentials.googleapis.com/v1/projects/-/serviceAccounts/signer@example.com:signBlob?alt=json&prettyPrint=false", "    X-Goog-Api-Client: gl-go/GO gdcl/V", "    Content-Type: application/json", "    body {\"payload\":\"R09PRzQtUlNBLVNIQTI1NgoyMDI2MDEwMlQwMzA0MDVaCjIwMjYwMTAyL2F1dG8vc3RvcmFnZS9nb29nNF9yZXF1ZXN0CmQwYTc5Zjc3MzlkZmU4Mjg4OWU0NzljM2MwY2QzMGY5MDc0MDI0YzJkYzQ2MWQ2OGZhZjViZGFlZGNkMzlkYTg=\"}", "  error unable to sign bytes: googleapi: Error 403: denied"]
+}
+
+test "oracle: post policy v4" {
+  let f = new_reply_fake(os.net, [])
+  os.clock.set(Time.from_unix(NOW0))
+  var o = po(f)
+  policy_lines(f, generate_signed_post_policy_v4(os.clock, os.rand, "b1", "dir/a b.txt", o))
+  expect(lines(f)) == ["  sign \"eyJjb25kaXRpb25zIjpbeyJidWNrZXQiOiJiMSJ9LHsia2V5IjoiZGlyL2EgYi50eHQifSx7IngtZ29vZy1kYXRlIjoiMjAyNjAxMDJUMDMwNDA1WiJ9LHsieC1nb29nLWNyZWRlbnRpYWwiOiJyb2JvdEBleGFtcGxlLmNvbS8yMDI2MDEwMi9hdXRvL3N0b3JhZ2UvZ29vZzRfcmVxdWVzdCJ9LHsieC1nb29nLWFsZ29yaXRobSI6IkdPT0c0LVJTQS1TSEEyNTYifV0sImV4cGlyYXRpb24iOiIyMDI2LTAxLTAyVDA0OjA0OjA1WiJ9\"", "  url https://storage.googleapis.com/b1/", "  field key=dir/a b.txt", "  field policy (decoded) {\"conditions\":[{\"bucket\":\"b1\"},{\"key\":\"dir/a b.txt\"},{\"x-goog-date\":\"20260102T030405Z\"},{\"x-goog-credential\":\"robot@example.com/20260102/auto/storage/goog4_request\"},{\"x-goog-algorithm\":\"GOOG4-RSA-SHA256\"}],\"expiration\":\"2026-01-02T04:04:05Z\"}", "  field x-goog-algorithm=GOOG4-RSA-SHA256", "  field x-goog-credential=robot@example.com/20260102/auto/storage/goog4_request", "  field x-goog-date=20260102T030405Z", "  field x-goog-signature=860d9bce3e21505c595c2be4a888e947092fd791600d2098d6d1c2a2c9f67727"]
+}
+
+test "oracle: post policy v4, fields and conditions" {
+  let f = new_reply_fake(os.net, [])
+  os.clock.set(Time.from_unix(NOW0))
+  var o = po(f)
+  o.fields = PolicyV4Fields{acl: "public-read", cache_control: "no-cache", content_type: "text/plain", content_disposition: "inline", content_encoding: "gzip", metadata: {"x-goog-meta-owner": "ada"}, status_code_on_success: 201, redirect_to_url_on_success: "https://example.com/done?a=1&b=<2>"}
+  o.conditions = [PostPolicyV4Condition.StartsWith(key: "$key", value: "dir/"), PostPolicyV4Condition.ContentLengthRange(start: 1, end: 1024), PostPolicyV4Condition.StartsWith(key: "$x", value: ""), PostPolicyV4Condition.ContentLengthRange(start: 0, end: 0)]
+  policy_lines(f, generate_signed_post_policy_v4(os.clock, os.rand, "b1", "a", o))
+  expect(lines(f)) == ["  sign \"eyJjb25kaXRpb25zIjpbWyJzdGFydHMtd2l0aCIsIiRrZXkiLCJkaXIvIl0sWyJjb250ZW50LWxlbmd0aC1yYW5nZSIsMSwxMDI0XSx7ImFjbCI6InB1YmxpYy1yZWFkIn0seyJjYWNoZS1jb250cm9sIjoibm8tY2FjaGUifSx7ImNvbnRlbnQtZGlzcG9zaXRpb24iOiJpbmxpbmUifSx7ImNvbnRlbnQtZW5jb2RpbmciOiJnemlwIn0seyJjb250ZW50LXR5cGUiOiJ0ZXh0L3BsYWluIn0seyJzdWNjZXNzX2FjdGlvbl9yZWRpcmVjdCI6Imh0dHBzOi8vZXhhbXBsZS5jb20vZG9uZT9hPTFcdTAwMjZiPVx1MDAzYzJcdTAwM2UifSx7InN1Y2Nlc3NfYWN0aW9uX3N0YXR1cyI6IjIwMSJ9LHsieC1nb29nLW1ldGEtb3duZXIiOiJhZGEifSx7ImJ1Y2tldCI6ImIxIn0seyJrZXkiOiJhIn0seyJ4LWdvb2ctZGF0ZSI6IjIwMjYwMTAyVDAzMDQwNVoifSx7IngtZ29vZy1jcmVkZW50aWFsIjoicm9ib3RAZXhhbXBsZS5jb20vMjAyNjAxMDIvYXV0by9zdG9yYWdlL2dvb2c0X3JlcXVlc3QifSx7IngtZ29vZy1hbGdvcml0aG0iOiJHT09HNC1SU0EtU0hBMjU2In1dLCJleHBpcmF0aW9uIjoiMjAyNi0wMS0wMlQwNDowNDowNVoifQ==\"", "  url https://storage.googleapis.com/b1/", "  field acl=public-read", "  field cache-control=no-cache", "  field content-disposition=inline", "  field content-encoding=gzip", "  field content-type=text/plain", "  field key=a", "  field policy (decoded) {\"conditions\":[[\"starts-with\",\"\$key\",\"dir/\"],[\"content-length-range\",1,1024],{\"acl\":\"public-read\"},{\"cache-control\":\"no-cache\"},{\"content-disposition\":\"inline\"},{\"content-encoding\":\"gzip\"},{\"content-type\":\"text/plain\"},{\"success_action_redirect\":\"https://example.com/done?a=1\\u0026b=\\u003c2\\u003e\"},{\"success_action_status\":\"201\"},{\"x-goog-meta-owner\":\"ada\"},{\"bucket\":\"b1\"},{\"key\":\"a\"},{\"x-goog-date\":\"20260102T030405Z\"},{\"x-goog-credential\":\"robot@example.com/20260102/auto/storage/goog4_request\"},{\"x-goog-algorithm\":\"GOOG4-RSA-SHA256\"}],\"expiration\":\"2026-01-02T04:04:05Z\"}", "  field success_action_redirect=https://example.com/done?a=1&b=<2>", "  field success_action_status=201", "  field x-goog-algorithm=GOOG4-RSA-SHA256", "  field x-goog-credential=robot@example.com/20260102/auto/storage/goog4_request", "  field x-goog-date=20260102T030405Z", "  field x-goog-meta-owner=ada", "  field x-goog-signature=d5284f041cc2e677e9bfbaadbf081943df67fa191f88fdd70bb5506e46260e46"]
+}
+
+test "oracle: post policy v4, a hashed signer, virtual hosted" {
+  let f = new_reply_fake(os.net, [])
+  os.clock.set(Time.from_unix(NOW0))
+  var o = po(f)
+  o.sign_raw_bytes = None
+  o.sign_bytes = Some(fake_signer(f))
+  o.style = URLStyle.VirtualHosted
+  policy_lines(f, generate_signed_post_policy_v4(os.clock, os.rand, "b1", "a", o))
+  expect(lines(f)) == ["  sign \"\\xcc\\xf0\\xe7\\xed\\\\\\x89Cǳ\\x9c\\xf9o\\x87\\xd3&\\xfe\\x16\\nd\\x0f\\xe6\\xda_\\xeb\\xa7\\x01X\\xa4ٗ\\x81&\"", "  url https://b1.storage.googleapis.com/", "  field key=a", "  field policy (decoded) {\"conditions\":[{\"bucket\":\"b1\"},{\"key\":\"a\"},{\"x-goog-date\":\"20260102T030405Z\"},{\"x-goog-credential\":\"robot@example.com/20260102/auto/storage/goog4_request\"},{\"x-goog-algorithm\":\"GOOG4-RSA-SHA256\"}],\"expiration\":\"2026-01-02T04:04:05Z\"}", "  field x-goog-algorithm=GOOG4-RSA-SHA256", "  field x-goog-credential=robot@example.com/20260102/auto/storage/goog4_request", "  field x-goog-date=20260102T030405Z", "  field x-goog-signature=bea1a77558d2be3bdc7b204e6bdecc63d6b98a0484d200d46e1477e70c0a5ee8"]
+}
+
+test "oracle: post policy v4, bucket bound hostname, insecure" {
+  let f = new_reply_fake(os.net, [])
+  os.clock.set(Time.from_unix(NOW0))
+  var o = po(f)
+  o.style = URLStyle.BucketBound(hostname: "files.example.com")
+  o.insecure = true
+  policy_lines(f, generate_signed_post_policy_v4(os.clock, os.rand, "b1", "a", o))
+  expect(lines(f)) == ["  sign \"eyJjb25kaXRpb25zIjpbeyJidWNrZXQiOiJiMSJ9LHsia2V5IjoiYSJ9LHsieC1nb29nLWRhdGUiOiIyMDI2MDEwMlQwMzA0MDVaIn0seyJ4LWdvb2ctY3JlZGVudGlhbCI6InJvYm90QGV4YW1wbGUuY29tLzIwMjYwMTAyL2F1dG8vc3RvcmFnZS9nb29nNF9yZXF1ZXN0In0seyJ4LWdvb2ctYWxnb3JpdGhtIjoiR09PRzQtUlNBLVNIQTI1NiJ9XSwiZXhwaXJhdGlvbiI6IjIwMjYtMDEtMDJUMDQ6MDQ6MDVaIn0=\"", "  url http://files.example.com/", "  field key=a", "  field policy (decoded) {\"conditions\":[{\"bucket\":\"b1\"},{\"key\":\"a\"},{\"x-goog-date\":\"20260102T030405Z\"},{\"x-goog-credential\":\"robot@example.com/20260102/auto/storage/goog4_request\"},{\"x-goog-algorithm\":\"GOOG4-RSA-SHA256\"}],\"expiration\":\"2026-01-02T04:04:05Z\"}", "  field x-goog-algorithm=GOOG4-RSA-SHA256", "  field x-goog-credential=robot@example.com/20260102/auto/storage/goog4_request", "  field x-goog-date=20260102T030405Z", "  field x-goog-signature=ccf0e7ed5c8943c7b39cf96f87d326fe160a640fe6da5feba70158a4d9978126"]
+}
+
+test "oracle: post policy v4, an RSA key" {
+  let f = new_reply_fake(os.net, [])
+  os.clock.set(Time.from_unix(NOW0))
+  let k = test_key(os)
+  var o = po(f)
+  o.sign_raw_bytes = None
+  o.private_key = Some(k.pem.bytes())
+  policy_rsa_lines(f, generate_signed_post_policy_v4(os.clock, os.rand, "b1", "a", o), k)
+  expect(lines(f)) == ["  verified", "  url https://storage.googleapis.com/b1/", "  field key=a", "  field policy (decoded) {\"conditions\":[{\"bucket\":\"b1\"},{\"key\":\"a\"},{\"x-goog-date\":\"20260102T030405Z\"},{\"x-goog-credential\":\"robot@example.com/20260102/auto/storage/goog4_request\"},{\"x-goog-algorithm\":\"GOOG4-RSA-SHA256\"}],\"expiration\":\"2026-01-02T04:04:05Z\"}", "  field x-goog-algorithm=GOOG4-RSA-SHA256", "  field x-goog-credential=robot@example.com/20260102/auto/storage/goog4_request", "  field x-goog-date=20260102T030405Z", "  field x-goog-signature=SIG"]
+}
+
+test "oracle: post policy v4, bad metadata" {
+  let f = new_reply_fake(os.net, [])
+  os.clock.set(Time.from_unix(NOW0))
+  var o = po(f)
+  o.fields = PolicyV4Fields{metadata: {"owner": "ada"}}
+  policy_lines(f, generate_signed_post_policy_v4(os.clock, os.rand, "b1", "a", o))
+  expect(lines(f)) == ["  error storage: expected metadata to begin with x-goog-meta-, got owner"]
+}
+
+test "oracle: post policy v4, expired" {
+  let f = new_reply_fake(os.net, [])
+  os.clock.set(Time.from_unix(NOW0))
+  var o = po(f)
+  o.expires = Some(Time.from_unix(NOW0 - 1))
+  policy_lines(f, generate_signed_post_policy_v4(os.clock, os.rand, "b1", "a", o))
+  expect(lines(f)) == ["  error storage: expecting Expires to be in the future"]
+}
+
+test "oracle: post policy v4, no bucket" {
+  let f = new_reply_fake(os.net, [])
+  os.clock.set(Time.from_unix(NOW0))
+  var o = po(f)
+  policy_lines(f, generate_signed_post_policy_v4(os.clock, os.rand, "", "a", o))
+  expect(lines(f)) == ["  error storage: bucket must be non-empty"]
+}
+
+test "oracle: post policy v4, no access id" {
+  let f = new_reply_fake(os.net, [])
+  os.clock.set(Time.from_unix(NOW0))
+  var o = po(f)
+  o.google_access_id = ""
+  policy_lines(f, generate_signed_post_policy_v4(os.clock, os.rand, "b1", "a", o))
+  expect(lines(f)) == ["  error storage: missing required GoogleAccessID"]
+}
+
+test "oracle: post policy v4, no signer" {
+  let f = new_reply_fake(os.net, [])
+  os.clock.set(Time.from_unix(NOW0))
+  var o = po(f)
+  o.sign_raw_bytes = None
+  policy_lines(f, generate_signed_post_policy_v4(os.clock, os.rand, "b1", "a", o))
+  expect(lines(f)) == ["  error storage: exactly one of PrivateKey or SignRawBytes must be set"]
+}
+
+test "oracle: bucket post policy v4, the client's host" {
+  let f = new_reply_fake(os.net, [])
+  let c = fake_client(os)
+  os.clock.set(Time.from_unix(NOW0))
+  policy_lines(f, c.bucket("b1").generate_signed_post_policy_v4("a", po(f)))
+  expect(lines(f)) == ["  sign \"eyJjb25kaXRpb25zIjpbeyJidWNrZXQiOiJiMSJ9LHsia2V5IjoiYSJ9LHsieC1nb29nLWRhdGUiOiIyMDI2MDEwMlQwMzA0MDVaIn0seyJ4LWdvb2ctY3JlZGVudGlhbCI6InJvYm90QGV4YW1wbGUuY29tLzIwMjYwMTAyL2F1dG8vc3RvcmFnZS9nb29nNF9yZXF1ZXN0In0seyJ4LWdvb2ctYWxnb3JpdGhtIjoiR09PRzQtUlNBLVNIQTI1NiJ9XSwiZXhwaXJhdGlvbiI6IjIwMjYtMDEtMDJUMDQ6MDQ6MDVaIn0=\"", "  url https://storage.fake/b1/", "  field key=a", "  field policy (decoded) {\"conditions\":[{\"bucket\":\"b1\"},{\"key\":\"a\"},{\"x-goog-date\":\"20260102T030405Z\"},{\"x-goog-credential\":\"robot@example.com/20260102/auto/storage/goog4_request\"},{\"x-goog-algorithm\":\"GOOG4-RSA-SHA256\"}],\"expiration\":\"2026-01-02T04:04:05Z\"}", "  field x-goog-algorithm=GOOG4-RSA-SHA256", "  field x-goog-credential=robot@example.com/20260102/auto/storage/goog4_request", "  field x-goog-date=20260102T030405Z", "  field x-goog-signature=ccf0e7ed5c8943c7b39cf96f87d326fe160a640fe6da5feba70158a4d9978126"]
+}
+
 test "oracle: write, small: multipart with the auto checksum" {
   let f = new_reply_fake(os.net, [Reply{status: 200, headers: {"Content-Type": "application/json; charset=UTF-8"}, body: obj_for("dir/a.txt", "hello, world")}])
   let c = fake_client(os)

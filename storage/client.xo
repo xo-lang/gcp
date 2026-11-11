@@ -140,6 +140,10 @@ pub struct ClientOptions[fx: Effects] {
   pub emulator_host: Str = ""
   /// The client's retries; a handle's `retryer` replaces them.
   pub retry: Retry = Retry{}
+  /// The credentials file's bytes (Go's Credentials.JSON, for example
+  /// credentials.Credentials.json): a bucket's signed_url takes the
+  /// signer's email and key from it.
+  pub credentials_json: Bytes = b""
 }
 
 /// STORAGE_EMULATOR_HOST's value, "" when unset.
@@ -156,6 +160,7 @@ pub struct Client[fx: Effects] {
   /// The XML API's base, where reads go: the endpoint's scheme and host
   /// (Go's xmlHost and scheme).
   read_base: Str
+  credentials_json: Bytes = b""
   /// Tests only: each read body opened takes the next value and is cut
   /// short after that many bytes (-1: not cut), as a dropped connection.
   cuts: Mutex[List[Int]]? = None
@@ -192,7 +197,7 @@ pub fn new_client[fx: Effects](net: Net, clock: Clock, rand: Rand, opts: ClientO
     o.without_authentication = true
   }
   let ep = if o.endpoint == "" { raw.BASE_PATH } else { o.endpoint }
-  Client{svc: raw.new_service(net, o), core: gensupport.new_core(net, o, ep), clock: clock, rand: rand, retry: opts.retry, read_base: host_base(ep)}
+  Client{svc: raw.new_service(net, o), core: gensupport.new_core(net, o, ep), clock: clock, rand: rand, retry: opts.retry, read_base: host_base(ep), credentials_json: opts.credentials_json}
 }
 
 /// The handle of the bucket called name (no request is made).

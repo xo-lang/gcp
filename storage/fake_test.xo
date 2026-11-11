@@ -4,10 +4,12 @@
 // results rendered as its JSON of Go's ObjectAttrs and BucketAttrs.
 
 use std/base64
+use std/crypto
 use std/http
 use std/json
 use std/testing
 use std/time
+use std/url
 use github.com/xo-lang/gcp/gensupport
 use github.com/xo-lang/gcp/option
 
@@ -167,6 +169,8 @@ fn new_reply_fake(net: testing.FakeNet, replies: List[Reply]) -> Fake {
   for m in ["GET", "PUT", "POST", "DELETE", "PATCH", "HEAD"] {
     net.handle("${m} https://storage.fake/{rest...}", h)
   }
+  // the IAM Credentials API, where a bucket's signed_url signs
+  net.handle("POST https://iamcredentials.googleapis.com/{rest...}", h)
   f
 }
 
@@ -374,4 +378,125 @@ fn rewrite_reply(done: Bool, token: Str, written: Int, size: Int, obj: Str) -> S
     return "{\"kind\":\"storage#rewriteResponse\",\"done\":true,\"totalBytesRewritten\":\"${written}\",\"objectSize\":\"${size}\",\"resource\":${obj}}"
   }
   "{\"kind\":\"storage#rewriteResponse\",\"done\":false,\"totalBytesRewritten\":\"${written}\",\"objectSize\":\"${size}\",\"rewriteToken\":${token.quote()}}"
+}
+
+// Signing (decision 0010 step 3): the oracle's fixed time is NOW0, its
+// fake signer notes what it signs and gives its SHA-256, and its RSA key
+// is generated per run (none is stored).
+
+const NOW0: Int = 1767323045
+
+fn fake_signer(f: Fake) -> Signer {
+  fn(x: Bytes) -> Bytes ! StorageErr {
+    note(f, "  sign ${x.quote()}")
+    Ok(crypto.sha256(x))
+  }
+}
+
+fn exp1h() -> Time { Time.from_unix(NOW0 + 3600) }
+
+/// The oracle's SignedURLOptions: robot@example.com, the fake signer,
+/// GET, an hour.
+fn so(f: Fake) -> SignedURLOptions { SignedURLOptions{google_access_id: "robot@example.com", sign_bytes: Some(fake_signer(f)), method: "GET", expires: Some(exp1h())} }
+
+fn po(f: Fake) -> PostPolicyV4Options { PostPolicyV4Options{google_access_id: "robot@example.com", sign_raw_bytes: Some(fake_signer(f)), expires: Some(exp1h())} }
+
+fn qv(kv: List[(Str, Str)]) -> url.Values {
+  var q = url.values()
+  for (k, v) in kv {
+    q.add(k, v)
+  }
+  q
+}
+
+struct TestKey {
+  pem: Str
+  public: crypto.PublicKey
+}
+
+fn test_key(os: testing.TestOs) -> TestKey uses rand {
+  let k = crypto.generate_key(os.rand, crypto.KeyAlg.Rsa) ?? e => fault(e.display())
+  let pem = crypto.pem_encode(crypto.PemBlock{kind: "PRIVATE KEY", headers: {}, bytes: crypto.marshal_private_key(k)}) ?? e => fault(e.display())
+  TestKey{pem: pem, public: k.public_key()}
+}
+
+/// The oracle's credentials file: a service account with the key, or an
+/// impersonated account signer@example.com over it.
+fn sa_json(k: TestKey, impersonated: Bool) -> Bytes {
+  let sa = json.Value.Object([("type", s("service_account")), ("project_id", s("project-one")), ("private_key_id", s("key-one")), ("private_key", s(k.pem)), ("client_email", s("robot@example.com")), ("client_id", s("100000000000000000001")), ("token_uri", s("https://oauth2.fake/token"))])
+  if !impersonated {
+    return sa.encode().bytes()
+  }
+  json.Value.Object([("type", s("impersonated_service_account")), ("service_account_impersonation_url", s("https://iamcredentials.fake/v1/projects/-/serviceAccounts/signer@example.com:generateAccessToken")), ("source_credentials", sa)]).encode().bytes()
+}
+
+fn cred_client(os: testing.TestOs, j: Bytes) -> Client[()] {
+  new_client(os.net, os.clock, os.rand, ClientOptions{service: option.ClientOptions{endpoint: "https://storage.fake/storage/v1/", without_authentication: true}, credentials_json: j})
+}
+
+fn signed_lines(f: Fake, r: Result[Str, StorageErr]) {
+  match r {
+    Ok(u) => note(f, "  url ${u}")
+    Err(e) => note(f, "  error ${e.display()}")
+  }
+}
+
+/// An RSA-signed URL with its signature as SIG.
+fn signed_rsa_lines(f: Fake, r: Result[Str, StorageErr]) {
+  let u = match r {
+    Ok(u) => u
+    Err(e) => {
+      note(f, "  error ${e.display()}")
+      return
+    }
+  }
+  let i = u.find("?") ?? u.len()
+  var parts: List[Str] = []
+  var n = 0
+  for p in u[i + 1..u.len()].split("&") {
+    if p.starts_with("Signature=") || p.starts_with("X-Goog-Signature=") {
+      let k = p[0..(p.find("=") ?? 0)]
+      let v = p[k.len() + 1..p.len()]
+      n = if k == "Signature" { (base64.decode(url.query_unescape(v) ?? _ => "", base64.Base64.Std) ?? _ => b"").len() } else { (Bytes.from_hex(v) ?? b"").len() }
+      parts.push("${k}=SIG")
+    } else {
+      parts.push(p)
+    }
+  }
+  note(f, "  url ${u[0..i]}?${parts.join("&")}")
+  note(f, "  signature ${n} bytes")
+}
+
+fn policy_lines(f: Fake, r: Result[PostPolicyV4, StorageErr]) {
+  let p = match r {
+    Ok(p) => p
+    Err(e) => {
+      note(f, "  error ${e.display()}")
+      return
+    }
+  }
+  note(f, "  url ${p.url}")
+  for k in p.fields.keys().sort() {
+    let v = p.fields.get_or_fault(k, "a key")
+    if k == "policy" {
+      note(f, "  field policy (decoded) ${(base64.decode(v, base64.Base64.Std) ?? _ => b"").to_str_lossy()}")
+    } else {
+      note(f, "  field ${k}=${v}")
+    }
+  }
+}
+
+/// An RSA-signed policy: checked with the public key, its signature SIG.
+fn policy_rsa_lines(f: Fake, r: Result[PostPolicyV4, StorageErr], k: TestKey) {
+  match r {
+    Ok(p) => {
+      let sig = Bytes.from_hex(p.fields.get("x-goog-signature") ?? "") ?? b""
+      let ok = crypto.verify(k.public, crypto.Hash.Sha256, (p.fields.get("policy") ?? "").bytes(), sig)
+      note(f, if ok { "  verified" } else { "  NOT verified" })
+      var fs = p.fields
+      fs.put("x-goog-signature", "SIG")
+      policy_lines(f, Ok(PostPolicyV4{url: p.url, fields: fs}))
+    }
+    Err(e) => policy_lines(f, Err(e))
+  }
 }

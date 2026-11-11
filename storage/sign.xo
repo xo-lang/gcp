@@ -1,0 +1,702 @@
+// Signed URLs (V2 and V4) and V4 POST policies, as cloud.google.com/go/
+// storage v1.70.0's storage.go, post_policy_v4.go and bucket.go
+// (SignedURL, GenerateSignedPostPolicyV4, the bucket's detection of the
+// signer; Apache-2.0, Copyright Google LLC; NOTICE.md). The time is the
+// given clock's (Go reads the system clock).
+
+use std/base64
+use std/crypto
+use std/json
+use github.com/xo-lang/gcp/gensupport
+use std/url
+
+/// Go's SigningScheme: Default signs as V2.
+pub enum SigningScheme {
+  Default
+  V2
+  V4
+}
+
+/// Go's URLStyle: where the bucket goes in a signed URL.
+pub enum URLStyle {
+  /// host/bucket/object (Go's PathStyle).
+  Path
+  /// bucket.host/object (Go's VirtualHostedStyle).
+  VirtualHosted
+  /// A host bound to the bucket: host/object (Go's BucketBoundHostname).
+  BucketBound(hostname: Str)
+}
+
+fn strip_scheme(host: Str) -> Str {
+  match host.find("://") {
+    Some(i) => host[i + 3..host.len()]
+    None => host
+  }
+}
+
+fn (s: URLStyle) host(hostname: Str, bucket: Str) -> Str {
+  match s {
+    Path => if hostname != "" { strip_scheme(hostname) } else { "storage.googleapis.com" }
+    VirtualHosted => if hostname != "" { "${bucket}.${strip_scheme(hostname)}" } else { "${bucket}.storage.googleapis.com" }
+    BucketBound(h) => h
+  }
+}
+
+fn (s: URLStyle) path(bucket: Str, object: Str) -> Str {
+  match s {
+    Path => if object != "" { "${bucket}/${object}" } else { bucket }
+    VirtualHosted => object
+    BucketBound(_) => object
+  }
+}
+
+/// A signer (Go's SignBytes): given the bytes, their signature.
+pub type Signer = fn(Bytes) -> Bytes ! StorageErr
+
+/// Go's SignedURLOptions. Exactly one of private_key and sign_bytes is
+/// set; expires is required.
+pub struct SignedURLOptions {
+  /// The signer's email (Go's GoogleAccessID).
+  pub google_access_id: Str = ""
+  /// A PEM or DER RSA key, PKCS #8 or PKCS #1.
+  pub private_key: Bytes? = None
+  pub sign_bytes: Signer? = None
+  /// GET, HEAD, PUT, POST or DELETE, any case.
+  pub method: Str = ""
+  pub expires: Time? = None
+  pub content_type: Str = ""
+  /// Headers the request must send, as "name:value".
+  pub headers: List[Str] = []
+  /// V4 only: query parameters signed with the URL.
+  pub query_parameters: url.Values = url.values()
+  /// The base64 MD5 the request must send.
+  pub md5: Str = ""
+  pub style: URLStyle = URLStyle.Path
+  /// http, not https.
+  pub insecure: Bool = false
+  pub scheme: SigningScheme = SigningScheme.Default
+  /// The host in place of storage.googleapis.com; a bucket's signed_url
+  /// fills in its client's.
+  pub hostname: Str = ""
+}
+
+const BAD_METHOD: Str = "storage: HTTP method should be one of [DELETE GET HEAD POST PUT]"
+
+fn invalid(m: Str) -> StorageErr { StorageErr.Invalid(m) }
+
+/// t as Go's "20060102T150405Z" (UTC).
+fn iso8601(t: Time) -> Str {
+  let s = t.format_rfc3339()
+  let d = s[0..19].replace("-", "").replace(":", "")
+  "${d}Z"
+}
+
+/// t as Go's time.RFC3339 (whole seconds, UTC).
+fn rfc3339(t: Time) -> Str { "${t.format_rfc3339()[0..19]}Z" }
+
+fn validate_signed(given: SignedURLOptions, now: Time) -> SignedURLOptions ! StorageErr {
+  var opts = given
+  if opts.google_access_id == "" {
+    return Err(invalid("storage: missing required GoogleAccessID"))
+  }
+  if opts.private_key.is_none() == opts.sign_bytes.is_none() {
+    return Err(invalid("storage: exactly one of PrivateKey or SignedBytes must be set"))
+  }
+  opts.method = opts.method.to_upper()
+  if !["DELETE", "GET", "HEAD", "POST", "PUT"].contains(opts.method) {
+    // Go lists a map's keys, in a different order each run; these are sorted
+    return Err(invalid(BAD_METHOD))
+  }
+  let exp = opts.expires ?? return Err(invalid("storage: missing required expires option"))
+  if opts.md5 != "" {
+    let ok = match base64.decode(opts.md5, base64.Base64.Std) {
+      Ok(b) => b.len() == 16
+      Err(_) => false
+    }
+    if !ok {
+      return Err(invalid("storage: invalid MD5 checksum"))
+    }
+  }
+  if !(opts.style is URLStyle.Path) && opts.scheme is SigningScheme.V2 {
+    return Err(invalid("storage: only path-style URLs are permitted with SigningSchemeV2"))
+  }
+  if opts.scheme is SigningScheme.V4 {
+    // Expires.Before(now + 7 days + 1 second)
+    if exp.unix_nanos() >= now.unix_nanos() + 604801 * 1000000000 {
+      return Err(invalid("storage: expires must be within seven days from now"))
+    }
+  }
+  Ok(opts)
+}
+
+/// Go's escape(s, encodePath): what URL.String does to a path (query
+/// escaping, with a space as %20 and `$&+,/:;=@` kept).
+fn encode_path(s: Str) -> Str {
+  var t = url.query_escape(s).replace("+", "%20")
+  for (e, c) in [("%24", "$"), ("%26", "&"), ("%2B", "+"), ("%2C", ","), ("%2F", "/"), ("%3A", ":"), ("%3B", ";"), ("%3D", "="), ("%40", "@")] {
+    t = t.replace(e, c)
+  }
+  t
+}
+
+/// Go's pathEncodeV4: each segment query-escaped, + as %20.
+fn path_encode_v4(path: Str) -> Str {
+  var segs: List[Str] = []
+  for s in path.split("/") {
+    segs.push(url.query_escape(s))
+  }
+  segs.join("/").replace("+", "%20")
+}
+
+/// Go's v2SanitizeHeaders: x-goog-* headers, lower case names, values
+/// trimmed and joined by name, the encryption key's left out, sorted.
+fn v2_headers(hs: List[Str]) -> List[Str] {
+  var names: List[Str] = []
+  var vals: Map[Str, List[Str]] = {}
+  for h in hs {
+    let t = h.trim()
+    let i = t.find(":") ?? continue
+    let name = t[0..i]
+    if name.len() <= 7 || name[0..7].to_lower() != "x-goog-" {
+      continue
+    }
+    let k = name.trim().to_lower()
+    let v = t[i + 1..t.len()].trim()
+    if k == "x-goog-encryption-key" || k == "x-goog-encryption-key-sha256" || v == "" {
+      continue
+    }
+    if !vals.contains(k) {
+      names.push(k)
+      vals.put(k, [])
+    }
+    vals.put(k, vals.get_or_fault(k, "put above") + [v])
+  }
+  var out: List[Str] = []
+  for k in names {
+    out.push("${k}:${vals.get_or_fault(k, "a name").join(",")}")
+  }
+  out.sort()
+}
+
+/// Go's v4SanitizeHeaders: "name:value" headers, lower case names, runs
+/// of spaces as one, values joined by name (Go's map order; sorted here,
+/// as everything after sorts them again).
+fn v4_headers(hs: List[Str]) -> List[Str] {
+  var names: List[Str] = []
+  var vals: Map[Str, List[Str]] = {}
+  for h in hs {
+    let t = h.trim()
+    let i = t.find(":") ?? continue
+    let k = t[0..i].trim().to_lower()
+    var v = t[i + 1..t.len()].trim()
+    while v.contains("  ") {
+      v = v.replace("  ", " ")
+    }
+    while v.contains("\t\t") {
+      v = v.replace("\t\t", "\t")
+    }
+    if v == "" {
+      continue
+    }
+    if !vals.contains(k) {
+      names.push(k)
+      vals.put(k, [])
+    }
+    vals.put(k, vals.get_or_fault(k, "put above") + [v])
+  }
+  var out: List[Str] = []
+  for k in names {
+    out.push("${k}:${vals.get_or_fault(k, "a name").join(",")}")
+  }
+  out.sort()
+}
+
+/// URL.Hostname: the host without its port.
+fn hostname_of(host: Str) -> Str {
+  if host.starts_with("[") {
+    let i = host.find("]") ?? return host
+    return host[1..i]
+  }
+  match host.rfind(":") {
+    Some(i) => host[0..i]
+    None => host
+  }
+}
+
+/// strings.Fields joined by one space.
+fn fields_joined(s: Str) -> Str {
+  var t = s
+  for c in ["\t", "\n", "\r", "\x0b", "\x0c"] {
+    t = t.replace(c, " ")
+  }
+  var out: List[Str] = []
+  for f in t.split(" ") {
+    if f != "" {
+      out.push(f)
+    }
+  }
+  out.join(" ")
+}
+
+/// Go's sortHeadersByKey: by name, a repeated name each time with its last
+/// value.
+fn sort_headers_by_key(hs: List[Str]) -> List[Str] {
+  var last: Map[Str, Str] = {}
+  var keys: List[Str] = []
+  for h in hs {
+    let i = h.find(":") ?? h.len()
+    let k = h[0..i]
+    let v = if i < h.len() { h[i + 1..h.len()] } else { "" }
+    last.put(k, v)
+    keys.push(k)
+  }
+  var out: List[Str] = []
+  for k in keys.sort() {
+    out.push("${k}:${last.get_or_fault(k, "a key")}")
+  }
+  out
+}
+
+fn signed_v2[fx: Effects](bucket: Str, name: Str, opts: SignedURLOptions, sign: fn(Bytes) -> Bytes ! StorageErr uses fx) -> Str ! StorageErr uses fx {
+  let exp = (opts.expires ?? fault("validated")).unix()
+  let path = encode_path("/${bucket}/${name}")
+  var buf = "${opts.method}\n${opts.md5}\n${opts.content_type}\n${exp}\n"
+  if !opts.headers.is_empty() {
+    buf = buf + opts.headers.join("\n") + "\n"
+  }
+  buf = buf + path
+  let sig = sign(buf.bytes())?
+  var q = url.values()
+  q.set("GoogleAccessId", opts.google_access_id)
+  q.set("Expires", "${exp}")
+  q.set("Signature", base64.encode(sig, base64.Base64.Std))
+  Ok("https://${URLStyle.Path.host(opts.hostname, bucket)}${path}?${q.encode()}")
+}
+
+fn signed_v4[fx: Effects](bucket: Str, name: Str, opts: SignedURLOptions, now: Time, sign: fn(Bytes) -> Bytes ! StorageErr uses fx) -> Str ! StorageErr uses fx {
+  let raw_path = path_encode_v4(opts.style.path(bucket, name))
+  var names: List[Str] = []
+  for h in opts.headers {
+    let i = h.find(":") ?? h.len()
+    names.push(h[0..i])
+  }
+  names.push("host")
+  if opts.content_type != "" {
+    names.push("content-type")
+  }
+  if opts.md5 != "" {
+    names.push("content-md5")
+  }
+  let signed_headers = names.sort().join(";")
+  let ts = iso8601(now)
+  let scope = "${ts[0..8]}/auto/storage/goog4_request"
+  let exp = opts.expires ?? fault("validated")
+  var q = url.values()
+  q.set("X-Goog-Algorithm", "GOOG4-RSA-SHA256")
+  q.set("X-Goog-Credential", "${opts.google_access_id}/${scope}")
+  q.set("X-Goog-Date", ts)
+  q.set("X-Goog-Expires", "${(exp.unix_nanos() - now.unix_nanos()) / 1000000000}")
+  q.set("X-Goog-SignedHeaders", signed_headers)
+  for k in opts.query_parameters.keys() {
+    for v in opts.query_parameters.all(k) {
+      q.add(k, v)
+    }
+  }
+  let host = opts.style.host(opts.hostname, bucket)
+  var with_value: List[Str] = ["host:${hostname_of(host)}"] + opts.headers
+  if opts.content_type != "" {
+    with_value.push("content-type:${opts.content_type}")
+  }
+  if opts.md5 != "" {
+    with_value.push("content-md5:${opts.md5}")
+  }
+  var trimmed: List[Str] = []
+  for h in with_value {
+    trimmed.push(fields_joined(h))
+  }
+  var payload = "UNSIGNED-PAYLOAD"
+  for h in trimmed {
+    if h.to_lower().starts_with("x-goog-content-sha256") && h.contains(":") {
+      payload = h[(h.find(":") ?? 0) + 1..h.len()]
+      break
+    }
+  }
+  let canonical = "${opts.method}\n/${raw_path}\n${q.encode().replace("+", "%20")}\n${sort_headers_by_key(trimmed).join("\n")}\n\n${signed_headers}\n${payload}"
+  let digest = crypto.sha256(canonical.bytes()).to_hex()
+  let sig = sign("GOOG4-RSA-SHA256\n${ts}\n${scope}\n${digest}".bytes())?
+  q.set("X-Goog-Signature", sig.to_hex())
+  let scheme = if opts.insecure { "http" } else { "https" }
+  Ok("${scheme}://${host}/${raw_path}?${q.encode()}")
+}
+
+/// Go's parseKey: an RSA key from PEM or DER, PKCS #8 or PKCS #1.
+fn parse_rsa_key(key: Bytes) -> crypto.PrivateKey ! StorageErr {
+  let text = key.to_str_lossy()
+  let blocks = crypto.pem_decode(text)
+  let der = if blocks.len() > 0 { blocks[0].bytes } else { key }
+  let k = crypto.parse_private_key(der) ?? e => return Err(invalid(e.display()))
+  if !(k.alg() is crypto.KeyAlg.Rsa) {
+    return Err(invalid("oauth2: private key is invalid"))
+  }
+  Ok(k)
+}
+
+/// A signed URL for the object (Go's SignedURL), at the clock's time.
+pub fn signed_url(clock: Clock, rand: Rand, bucket: Str, object: Str, opts: SignedURLOptions) -> Str ! StorageErr uses (clock, rand) {
+  let now = clock.now()
+  let o = validate_signed(opts, now)?
+  sign_validated(rand, bucket, object, o, now, o.sign_bytes)
+}
+
+/// Signs validated options with the key, else with sign.
+fn sign_validated[fx: Effects](rand: Rand, bucket: Str, object: Str, opts: SignedURLOptions, now: Time, sign: (fn(Bytes) -> Bytes ! StorageErr uses fx)?) -> Str ! StorageErr uses (rand, fx) {
+  var o = opts
+  o.headers = if o.scheme is SigningScheme.V4 { v4_headers(o.headers) } else { v2_headers(o.headers) }
+  if let Some(pk) = o.private_key {
+    let key = parse_rsa_key(pk)?
+    let by_key = fn(b: Bytes) -> Bytes ! StorageErr uses rand { crypto.sign(rand, key, crypto.Hash.Sha256, b) ?? e => Err(invalid(e.display())) }
+    return if o.scheme is SigningScheme.V4 { signed_v4(bucket, object, o, now, by_key) } else { signed_v2(bucket, object, o, by_key) }
+  }
+  let s = sign ?? fault("validated: a key or a signer")
+  if o.scheme is SigningScheme.V4 { signed_v4(bucket, object, o, now, s) } else { signed_v2(bucket, object, o, s) }
+}
+
+/// A condition of a V4 POST policy (Go's PostPolicyV4Condition).
+pub enum PostPolicyV4Condition {
+  /// ["starts-with", key, value] (Go's ConditionStartsWith); left out
+  /// when value is "".
+  StartsWith(key: Str, value: Str)
+  /// ["content-length-range", start, end] (Go's
+  /// ConditionContentLengthRange); left out when both are 0.
+  ContentLengthRange(start: Int, end: Int)
+}
+
+/// The fields a V4 POST policy sets (Go's PolicyV4Fields).
+pub struct PolicyV4Fields {
+  pub acl: Str = ""
+  pub cache_control: Str = ""
+  pub content_type: Str = ""
+  pub content_disposition: Str = ""
+  pub content_encoding: Str = ""
+  /// x-goog-meta-* names only.
+  pub metadata: Map[Str, Str] = {}
+  pub status_code_on_success: Int = 0
+  pub redirect_to_url_on_success: Str = ""
+}
+
+/// Go's PostPolicyV4Options. One of private_key, sign_raw_bytes and
+/// sign_bytes (which signs the policy's SHA-256) is set.
+pub struct PostPolicyV4Options {
+  pub google_access_id: Str = ""
+  pub private_key: Bytes? = None
+  /// Given the policy's SHA-256 (Go's deprecated SignBytes).
+  pub sign_bytes: Signer? = None
+  /// Given the policy itself (Go's SignRawBytes).
+  pub sign_raw_bytes: Signer? = None
+  pub expires: Time? = None
+  pub style: URLStyle = URLStyle.Path
+  pub insecure: Bool = false
+  pub fields: PolicyV4Fields = PolicyV4Fields{}
+  pub conditions: List[PostPolicyV4Condition] = []
+  pub hostname: Str = ""
+}
+
+/// A signed V4 POST policy: the form's URL and its fields.
+pub struct PostPolicyV4 {
+  pub url: Str
+  pub fields: Map[Str, Str]
+}
+
+/// One condition in Go's JSON (a single value is {"name":"value"}).
+enum Cond {
+  Given(c: PostPolicyV4Condition)
+  One(name: Str, value: Str)
+}
+
+fn one(n: Str, v: Str) -> Cond { Cond.One(name: n, value: v) }
+
+fn (c: Cond) is_empty() -> Bool {
+  match c {
+    Given(g) => match g {
+      StartsWith(_, v) => v == ""
+      ContentLengthRange(s, e) => s == 0 && e == 0
+    }
+    One(_, v) => v == ""
+  }
+}
+
+fn (c: Cond) write(var w: json.JsonWriter) {
+  match c {
+    Given(g) => match g {
+      StartsWith(k, v) => {
+        w.array_start()
+        w.str("starts-with")
+        w.str(k)
+        w.str(v)
+        w.array_end()
+      }
+      ContentLengthRange(s, e) => {
+        w.array_start()
+        w.str("content-length-range")
+        w.int(s)
+        w.int(e)
+        w.array_end()
+      }
+    }
+    One(n, v) => {
+      w.object_start()
+      w.key(n)
+      w.str(v)
+      w.object_end()
+    }
+  }
+}
+
+/// A signed V4 POST policy for the object (Go's
+/// GenerateSignedPostPolicyV4), at the clock's time.
+pub fn generate_signed_post_policy_v4(clock: Clock, rand: Rand, bucket: Str, object: Str, opts: PostPolicyV4Options) -> PostPolicyV4 ! StorageErr uses (clock, rand) {
+  post_policy(rand, bucket, object, opts, clock.now(), opts.sign_raw_bytes)
+}
+
+fn post_policy[fx: Effects](rand: Rand, bucket: Str, object: Str, opts: PostPolicyV4Options, now: Time, raw_signer: (fn(Bytes) -> Bytes ! StorageErr uses fx)?) -> PostPolicyV4 ! StorageErr uses (rand, fx) {
+  if bucket == "" {
+    return Err(invalid("storage: bucket must be non-empty"))
+  }
+  if opts.google_access_id == "" {
+    return Err(invalid("storage: missing required GoogleAccessID"))
+  }
+  if opts.private_key.is_none() == (opts.sign_bytes.is_none() && raw_signer.is_none()) {
+    return Err(invalid("storage: exactly one of PrivateKey or SignRawBytes must be set"))
+  }
+  let exp = opts.expires ?? Time.UNIX_EPOCH
+  if exp.unix_nanos() < now.unix_nanos() {
+    return Err(invalid("storage: expecting Expires to be in the future"))
+  }
+  let f = opts.fields
+  var bad: List[Str] = []
+  for k in f.metadata.keys().sort() {
+    if !k.starts_with("x-goog-meta-") {
+      bad.push(k)
+    }
+  }
+  if !bad.is_empty() {
+    return Err(invalid("storage: expected metadata to begin with x-goog-meta-, got ${bad.join(", ")}"))
+  }
+  let ymd = iso8601(now)[0..8]
+  let cred = "${opts.google_access_id}/${ymd}/auto/storage/goog4_request"
+  var conds: List[Cond] = []
+  for c in opts.conditions {
+    conds.push(Cond.Given(c))
+  }
+  conds = conds + [one("acl", f.acl), one("cache-control", f.cache_control), one("content-disposition", f.content_disposition), one("content-encoding", f.content_encoding), one("content-type", f.content_type), one("success_action_redirect", f.redirect_to_url_on_success), one("success_action_status", if f.status_code_on_success > 0 { "${f.status_code_on_success}" } else { "" })]
+  var fields: Map[Str, Str] = {"key": object, "x-goog-date": iso8601(now), "x-goog-credential": cred, "x-goog-algorithm": "GOOG4-RSA-SHA256", "acl": f.acl, "cache-control": f.cache_control, "content-disposition": f.content_disposition, "content-encoding": f.content_encoding, "content-type": f.content_type, "success_action_redirect": f.redirect_to_url_on_success}
+  // Go adds the metadata in its map's order; sorted here
+  for k in f.metadata.keys().sort() {
+    let v = f.metadata.get_or_fault(k, "a key")
+    conds.push(one(k, v))
+    fields.put(k, v)
+  }
+  conds = conds + [one("bucket", bucket), one("key", object), one("x-goog-date", iso8601(now)), one("x-goog-credential", cred), one("x-goog-algorithm", "GOOG4-RSA-SHA256")]
+  var w = json.json_writer()
+  w.object_start()
+  w.key("conditions")
+  w.array_start()
+  for c in conds {
+    if !c.is_empty() {
+      c.write(w)
+    }
+  }
+  w.array_end()
+  w.key("expiration")
+  w.str(rfc3339(exp))
+  w.object_end()
+  let policy = base64.encode(w.finish(), base64.Base64.Std)
+  let sig = if let Some(s) = raw_signer {
+    s(policy.bytes())?
+  } else if let Some(s) = opts.sign_bytes {
+    s(crypto.sha256(policy.bytes()))?
+  } else {
+    let key = parse_rsa_key(opts.private_key ?? fault("validated"))?
+    crypto.sign(rand, key, crypto.Hash.Sha256, policy.bytes()) ?? e => return Err(invalid(e.display()))
+  }
+  fields.put("policy", policy)
+  fields.put("x-goog-signature", sig.to_hex())
+  if f.status_code_on_success > 0 {
+    fields.put("success_action_status", "${f.status_code_on_success}")
+  }
+  var kept: Map[Str, Str] = {}
+  for k in fields.keys() {
+    let v = fields.get_or_fault(k, "a key")
+    if v != "" {
+      kept.put(k, v)
+    }
+  }
+  let scheme = if opts.insecure { "http" } else { "https" }
+  let path = path_encode_v4("${opts.style.path(bucket, "")}/")
+  let p = if path.starts_with("/") { path } else { "/${path}" }
+  Ok(PostPolicyV4{url: "${scheme}://${opts.style.host(opts.hostname, bucket)}${p}", fields: kept})
+}
+
+/// The client's XML host (Go's xmlHost): the endpoint's host.
+fn (c: Client[fx]) xml_host() -> Str {
+  let b = c.read_base
+  let i = b.find("://") ?? return b
+  b[i + 3..b.len()].trim_suffix("/")
+}
+
+const DETECT_HELP: Str = ". Please provide the GoogleAccessID or use a supported means for autodetecting it (see https://pkg.go.dev/cloud.google.com/go/storage#hdr-Credential_requirements_for_signing)"
+
+/// Go's detectDefaultGoogleAccessID from the client's credentials file
+/// (ClientOptions.credentials_json). Go then asks the metadata server
+/// when on GCE; this client does not.
+fn (b: BucketHandle[fx]) detect_access_id() -> Str ! StorageErr {
+  var why = "no credentials found on client and not on GCE (Google Compute Engine)"
+  let j = b.c.credentials_json
+  if !j.is_empty() {
+    match json.parse_value(j.to_str_lossy()) {
+      Err(e) => why = e.display()
+      Ok(v) => {
+        let typ = json_str(v, "type")
+        if typ == "impersonated_service_account" || typ == "external_account" {
+          let u = json_str(v, "service_account_impersonation_url")
+          let start = u.rfind("/") ?? -1
+          let end = u.rfind(":") ?? -1
+          if end <= start {
+            why = "error parsing external or impersonated service account credentials"
+          } else {
+            return Ok(u[start + 1..end])
+          }
+        } else if typ == "service_account" {
+          let e = json_str(v, "client_email")
+          if e != "" {
+            return Ok(e)
+          }
+          why = "empty service account client email"
+        } else {
+          why = "unable to parse credentials; only service_account, external_account and impersonated_service_account credentials are supported"
+        }
+      }
+    }
+  }
+  Err(invalid("storage: unable to detect default GoogleAccessID: ${why}${DETECT_HELP}"))
+}
+
+fn json_str(v: json.Value, k: Str) -> Str {
+  match v {
+    json.Value.Object(kv) => {
+      for (n, x) in kv {
+        if n == k {
+          if let json.Value.Str(s) = x {
+            return s
+          }
+        }
+      }
+      ""
+    }
+    _ => ""
+  }
+}
+
+struct SignBlobResponse {
+  key_id as "keyId": Str = ""
+  signed_blob as "signedBlob": Str = ""
+} derive Json
+
+/// Go's defaultSignBytesFunc: the IAM Credentials API's signBlob for
+/// email, retried as the bucket's calls are.
+fn (b: BucketHandle[fx]) sign_blob(email: Str, data: Bytes) -> Bytes ! StorageErr uses (net.dial, clock, rand, fx) {
+  let c = b.c
+  var universe = "googleapis.com"
+  if !c.credentials_json.is_empty() {
+    if let Ok(v) = json.parse_value(c.credentials_json.to_str_lossy()) {
+      let u = json_str(v, "universe_domain")
+      if u != "" {
+        universe = u
+      }
+    }
+  }
+  let target = "https://iamcredentials.${universe}/v1/projects/-/serviceAccounts/${url.path_escape(email).replace("%40", "@")}:signBlob"
+  var q = url.values()
+  q.set("alt", "json")
+  q.set("prettyPrint", "false")
+  var w = json.json_writer()
+  w.object_start()
+  w.key("payload")
+  w.str(base64.encode(data, base64.Base64.Std))
+  w.object_end()
+  let body = w.finish()
+  let res = c.run(b.retry, true, fn(_h: List[(Str, Str)]) -> SignBlobResponse ! gensupport.CallErr uses net.dial, clock, rand, fx {
+    let resp = c.core.client.send(gensupport.Request{method: "POST", url: target, query: q, headers: [("Content-Type", "application/json")], body: body})?
+    gensupport.check(resp)?
+    gensupport.decode[SignBlobResponse](resp)
+  }) ?? e => return Err(invalid("unable to sign bytes: ${call_err(e).display()}"))
+  base64.decode(res.signed_blob, base64.Base64.Std) ?? e => Err(invalid("unable to base64 decode response: ${e.display()}"))
+}
+
+/// The private_key of the client's credentials file, if it has one.
+fn (b: BucketHandle[fx]) creds_key() -> Bytes? {
+  let j = b.c.credentials_json
+  if j.is_empty() {
+    return None
+  }
+  let v = json.parse_value(j.to_str_lossy()) ?? _ => return None
+  let k = json_str(v, "private_key")
+  if k == "" { None } else { Some(k.bytes()) }
+}
+
+/// A signed URL for an object of the bucket (Go's BucketHandle.SignedURL):
+/// the client's host, and when not given, the access id and key of the
+/// client's credentials file, else a signature from the IAM Credentials
+/// API.
+pub fn (b: BucketHandle[fx]) signed_url(object: Str, opts: SignedURLOptions) -> Str ! StorageErr uses (net.dial, clock, rand, fx) {
+  var o = opts
+  if o.hostname == "" {
+    o.hostname = b.c.xml_host()
+  }
+  let now = b.c.clock.now()
+  if opts.google_access_id != "" && (opts.sign_bytes.is_some() || opts.private_key.is_some()) {
+    let v = validate_signed(o, now)?
+    return sign_validated(b.c.rand, b.name, object, v, now, v.sign_bytes)
+  }
+  if o.google_access_id == "" {
+    o.google_access_id = b.detect_access_id()?
+  }
+  if o.sign_bytes.is_none() && o.private_key.is_none() {
+    o.private_key = b.creds_key()
+    if o.private_key.is_none() {
+      let email = o.google_access_id
+      // Go sets the IAM signer before it validates: a stand-in here
+      var p = o
+      p.sign_bytes = Some(fn(x: Bytes) -> Bytes ! StorageErr { Ok(x) })
+      let v = validate_signed(p, now)?
+      return sign_validated(b.c.rand, b.name, object, v, now, Some(fn(x: Bytes) -> Bytes ! StorageErr uses net.dial, clock, rand, fx { b.sign_blob(email, x) }))
+    }
+  }
+  let v = validate_signed(o, now)?
+  sign_validated(b.c.rand, b.name, object, v, now, v.sign_bytes)
+}
+
+/// A signed V4 POST policy for an object of the bucket (Go's
+/// BucketHandle.GenerateSignedPostPolicyV4), its signer found as
+/// signed_url finds it.
+pub fn (b: BucketHandle[fx]) generate_signed_post_policy_v4(object: Str, opts: PostPolicyV4Options) -> PostPolicyV4 ! StorageErr uses (net.dial, clock, rand, fx) {
+  var o = opts
+  if o.hostname == "" {
+    o.hostname = b.c.xml_host()
+  }
+  let now = b.c.clock.now()
+  if opts.google_access_id != "" && (opts.sign_raw_bytes.is_some() || opts.sign_bytes.is_some() || opts.private_key.is_some()) {
+    return post_policy(b.c.rand, b.name, object, o, now, o.sign_raw_bytes)
+  }
+  if o.google_access_id == "" {
+    o.google_access_id = b.detect_access_id()?
+  }
+  if o.sign_bytes.is_none() && o.sign_raw_bytes.is_none() && o.private_key.is_none() {
+    o.private_key = b.creds_key()
+    if o.private_key.is_none() {
+      let email = o.google_access_id
+      return post_policy(b.c.rand, b.name, object, o, now, Some(fn(x: Bytes) -> Bytes ! StorageErr uses net.dial, clock, rand, fx { b.sign_blob(email, x) }))
+    }
+  }
+  post_policy(b.c.rand, b.name, object, o, now, o.sign_raw_bytes)
+}
