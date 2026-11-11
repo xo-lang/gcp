@@ -18,6 +18,11 @@ Status (google.golang.org/api v0.311.0, 667 modules; the full table is
   discoveryengine/v1 and v1alpha are generated from the older document
   Go's package for them was built from (google.golang.org/api v0.293.0;
   see [not-generated.md](docs/reports/not-generated.md)).
+- **Not ported yet: cloud.google.com/go** (206 modules: 724 GAPIC
+  clients over gRPC, plus the hand-written storage, bigquery, spanner,
+  firestore, pubsub and auth clients), and real credentials (`auth` is a
+  static token). See
+  [gcp-cloud-go-coverage.md](docs/reports/gcp-cloud-go-coverage.md).
 
 No real Google Cloud endpoint is called anywhere: every test runs
 against local fakes. The records in
