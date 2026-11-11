@@ -1,0 +1,542 @@
+// Access control: ACLs, HMAC keys, notifications, IAM policies and the
+// project's service account, as cloud.google.com/go/storage v1.70.0's
+// acl.go, hmac.go, notifications.go, iam.go and http_client.go, with
+// cloud.google.com/go/iam v1.12.0's Handle and Policy (Apache-2.0,
+// Copyright Google LLC; NOTICE.md).
+
+use github.com/xo-lang/gcp/gensupport
+use github.com/xo-lang/gcp/storage/v1 as raw
+use std/time
+use std/timego
+
+// ACLs
+
+/// ACL roles (Go's ACLRole).
+pub const ROLE_OWNER: Str = "OWNER"
+pub const ROLE_READER: Str = "READER"
+pub const ROLE_WRITER: Str = "WRITER"
+
+/// ACL entities that are not one user, group or domain (Go's ACLEntity).
+pub const ALL_USERS: Str = "allUsers"
+pub const ALL_AUTHENTICATED_USERS: Str = "allAuthenticatedUsers"
+
+/// A bucket's, an object's, or a bucket's default object ACL (Go's
+/// ACLHandle).
+pub struct ACLHandle[fx: Effects] {
+  c: Client[fx]
+  bucket: Str
+  object: Str = ""
+  is_default: Bool = false
+  user_project: Str = ""
+  retry: Retry
+}
+
+/// The bucket's ACL (Go's BucketHandle.ACL).
+pub fn (b: BucketHandle[fx]) acl() -> ACLHandle[fx] { ACLHandle{c: b.c, bucket: b.name, user_project: b.user_project, retry: b.retry} }
+
+/// The ACL new objects of the bucket get (Go's DefaultObjectACL).
+pub fn (b: BucketHandle[fx]) default_object_acl() -> ACLHandle[fx] { ACLHandle{c: b.c, bucket: b.name, is_default: true, user_project: b.user_project, retry: b.retry} }
+
+/// The object's ACL (Go's ObjectHandle.ACL).
+pub fn (o: ObjectHandle[fx]) acl() -> ACLHandle[fx] { ACLHandle{c: o.c, bucket: o.bucket, object: o.object, user_project: o.user_project, retry: o.retry} }
+
+fn team(n: Str, t: Str, given: Bool) -> ProjectTeam? { if given { Some(ProjectTeam{project_number: n, team: t}) } else { None } }
+
+fn object_rule(a: raw.ObjectAccessControl) -> ACLRule {
+  let t = match a.project_team {
+    Some(p) => team(p.project_number, p.team, true)
+    None => None
+  }
+  ACLRule{entity: a.entity, entity_id: a.entity_id, role: a.role, domain: a.domain, email: a.email, project_team: t}
+}
+
+fn bucket_rule(a: raw.BucketAccessControl) -> ACLRule {
+  let t = match a.project_team {
+    Some(p) => team(p.project_number, p.team, true)
+    None => None
+  }
+  ACLRule{entity: a.entity, entity_id: a.entity_id, role: a.role, domain: a.domain, email: a.email, project_team: t}
+}
+
+/// The ACL's entries (Go's List).
+pub fn (a: ACLHandle[fx]) list() -> List[ACLRule] ! StorageErr uses (net.dial, clock, rand, fx) {
+  let up = opt_str(a.user_project)
+  var out: List[ACLRule] = []
+  if a.object != "" {
+    let r = a.c.run(a.retry, true, fn(h: List[(Str, Str)]) -> raw.ObjectAccessControls ! gensupport.CallErr uses net.dial, clock, rand, fx {
+      a.c.svc.object_access_controls.list(a.bucket, a.object, raw.ObjectAccessControlsListOptions{user_project: up, headers: h})
+    }) ?? e => return Err(call_err(e))
+    for x in r.items {
+      out.push(object_rule(x))
+    }
+  } else if a.is_default {
+    let r = a.c.run(a.retry, true, fn(h: List[(Str, Str)]) -> raw.ObjectAccessControls ! gensupport.CallErr uses net.dial, clock, rand, fx {
+      a.c.svc.default_object_access_controls.list(a.bucket, raw.DefaultObjectAccessControlsListOptions{user_project: up, headers: h})
+    }) ?? e => return Err(call_err(e))
+    for x in r.items {
+      out.push(object_rule(x))
+    }
+  } else {
+    let r = a.c.run(a.retry, true, fn(h: List[(Str, Str)]) -> raw.BucketAccessControls ! gensupport.CallErr uses net.dial, clock, rand, fx {
+      a.c.svc.bucket_access_controls.list(a.bucket, raw.BucketAccessControlsListOptions{user_project: up, headers: h})
+    }) ?? e => return Err(call_err(e))
+    for x in r.items {
+      out.push(bucket_rule(x))
+    }
+  }
+  Ok(out)
+}
+
+/// Gives entity the role (Go's Set). Retried only by the Always policy.
+pub fn (a: ACLHandle[fx]) set(entity: Str, role: Str) -> () ! StorageErr uses (net.dial, clock, rand, fx) {
+  let up = opt_str(a.user_project)
+  if a.object != "" || a.is_default {
+    let body = raw.ObjectAccessControl{bucket: a.bucket, entity: entity, role: role}
+    a.c.run(a.retry, false, fn(h: List[(Str, Str)]) -> () ! gensupport.CallErr uses net.dial, clock, rand, fx {
+      if a.object != "" {
+        a.c.svc.object_access_controls.update(a.bucket, a.object, entity, body, raw.ObjectAccessControlsUpdateOptions{user_project: up, headers: h})?
+      } else {
+        a.c.svc.default_object_access_controls.update(a.bucket, entity, body, raw.DefaultObjectAccessControlsUpdateOptions{user_project: up, headers: h})?
+      }
+      Ok(())
+    }) ?? e => return Err(call_err(e))
+    return Ok(())
+  }
+  let body = raw.BucketAccessControl{bucket: a.bucket, entity: entity, role: role}
+  a.c.run(a.retry, false, fn(h: List[(Str, Str)]) -> () ! gensupport.CallErr uses net.dial, clock, rand, fx {
+    a.c.svc.bucket_access_controls.update(a.bucket, entity, body, raw.BucketAccessControlsUpdateOptions{user_project: up, headers: h})?
+    Ok(())
+  }) ?? e => return Err(call_err(e))
+  Ok(())
+}
+
+/// Removes entity's entry (Go's Delete). Retried only by the Always policy.
+pub fn (a: ACLHandle[fx]) delete(entity: Str) -> () ! StorageErr uses (net.dial, clock, rand, fx) {
+  let up = opt_str(a.user_project)
+  a.c.run(a.retry, false, fn(h: List[(Str, Str)]) -> () ! gensupport.CallErr uses net.dial, clock, rand, fx {
+    if a.object != "" {
+      a.c.svc.object_access_controls.delete(a.bucket, a.object, entity, raw.ObjectAccessControlsDeleteOptions{user_project: up, headers: h})
+    } else if a.is_default {
+      a.c.svc.default_object_access_controls.delete(a.bucket, entity, raw.DefaultObjectAccessControlsDeleteOptions{user_project: up, headers: h})
+    } else {
+      a.c.svc.bucket_access_controls.delete(a.bucket, entity, raw.BucketAccessControlsDeleteOptions{user_project: up, headers: h})
+    }
+  }) ?? e => return Err(call_err(e))
+  Ok(())
+}
+
+// HMAC keys
+
+/// HMAC key states (Go's HMACState).
+pub const HMAC_ACTIVE: Str = "ACTIVE"
+pub const HMAC_INACTIVE: Str = "INACTIVE"
+pub const HMAC_DELETED: Str = "DELETED"
+
+/// An HMAC key (Go's HMACKey); the secret only from create_hmac_key. A
+/// time the service leaves out is None.
+pub struct HMACKey {
+  pub secret: Str = ""
+  pub access_id: Str = ""
+  pub etag: Str = ""
+  pub id: Str = ""
+  pub project_id: Str = ""
+  pub service_account_email: Str = ""
+  pub created_time: Time? = None
+  pub updated_time: Time? = None
+  pub state: Str = ""
+}
+
+/// Go's HMACKeyOption values: ForHMACKeyServiceAccountEmail,
+/// ShowDeletedHMACKeys and UserProjectForHMACKeys.
+pub struct HMACKeyOptions {
+  pub for_service_account_email: Str = ""
+  pub show_deleted_keys: Bool = false
+  pub user_project: Str = ""
+}
+
+/// What update changes (Go's HMACKeyAttrsToUpdate): state is ACTIVE or
+/// INACTIVE; an etag makes the update idempotent.
+pub struct HMACKeyAttrsToUpdate {
+  pub state: Str
+  pub etag: Str = ""
+}
+
+/// A project's HMAC key (Go's HMACKeyHandle).
+pub struct HMACKeyHandle[fx: Effects] {
+  c: Client[fx]
+  project_id: Str
+  access_id: Str
+}
+
+/// The handle of a project's HMAC key (no request is made).
+pub fn (c: Client[fx]) hmac_key_handle(project_id: Str, access_id: Str) -> HMACKeyHandle[fx] { HMACKeyHandle{c: c, project_id: project_id, access_id: access_id} }
+
+/// Go's toHMACKeyFromRaw.
+fn to_hmac_key(md: raw.HmacKeyMetadata?, secret: Str, updated_can_be_nil: Bool) -> HMACKey ! StorageErr {
+  let m = md ?? return Err(invalid("field Metadata cannot be nil"))
+  let created = timego.parse(m.time_created, timego.RFC3339, time.utc()) ?? e => return Err(invalid("field CreatedTime: ${timego.go_text(e)}"))
+  let updated = match timego.parse(m.updated, timego.RFC3339, time.utc()) {
+    Ok(t) => Some(t)
+    Err(e) => {
+      if !updated_can_be_nil {
+        return Err(invalid("field UpdatedTime: ${timego.go_text(e)}"))
+      }
+      None
+    }
+  }
+  Ok(HMACKey{access_id: m.access_id, secret: secret, etag: m.etag, id: m.id, state: m.state, project_id: m.project_id, created_time: Some(created), updated_time: updated, service_account_email: m.service_account_email})
+}
+
+/// The key's metadata (Go's Get).
+pub fn (k: HMACKeyHandle[fx]) get(opts: HMACKeyOptions = HMACKeyOptions{}) -> HMACKey ! StorageErr uses (net.dial, clock, rand, fx) {
+  let md = k.c.run(k.c.retry, true, fn(h: List[(Str, Str)]) -> raw.HmacKeyMetadata ! gensupport.CallErr uses net.dial, clock, rand, fx {
+    k.c.svc.projects.hmac_keys.get(k.project_id, k.access_id, raw.ProjectsHmacKeysGetOptions{user_project: opt_str(opts.user_project), headers: h})
+  }) ?? e => return Err(call_err(e))
+  to_hmac_key(Some(md), "", false)
+}
+
+/// Deletes the key, which must be INACTIVE (Go's Delete).
+pub fn (k: HMACKeyHandle[fx]) delete(opts: HMACKeyOptions = HMACKeyOptions{}) -> () ! StorageErr uses (net.dial, clock, rand, fx) {
+  k.c.run(k.c.retry, true, fn(h: List[(Str, Str)]) -> () ! gensupport.CallErr uses net.dial, clock, rand, fx {
+    k.c.svc.projects.hmac_keys.delete(k.project_id, k.access_id, raw.ProjectsHmacKeysDeleteOptions{user_project: opt_str(opts.user_project), headers: h})
+  }) ?? e => return Err(call_err(e))
+  Ok(())
+}
+
+/// Sets the key's state (Go's Update).
+pub fn (k: HMACKeyHandle[fx]) update(au: HMACKeyAttrsToUpdate, opts: HMACKeyOptions = HMACKeyOptions{}) -> HMACKey ! StorageErr uses (net.dial, clock, rand, fx) {
+  if au.state != HMAC_ACTIVE && au.state != HMAC_INACTIVE {
+    return Err(invalid("storage: invalid state ${au.state.quote()} for update, must be either ${HMAC_ACTIVE.quote()} or ${HMAC_INACTIVE.quote()}"))
+  }
+  let body = raw.HmacKeyMetadata{etag: au.etag, state: au.state}
+  let md = k.c.run(k.c.retry, au.etag != "", fn(h: List[(Str, Str)]) -> raw.HmacKeyMetadata ! gensupport.CallErr uses net.dial, clock, rand, fx {
+    k.c.svc.projects.hmac_keys.update(k.project_id, k.access_id, body, raw.ProjectsHmacKeysUpdateOptions{user_project: opt_str(opts.user_project), headers: h})
+  }) ?? e => return Err(call_err(e))
+  to_hmac_key(Some(md), "", false)
+}
+
+/// A new HMAC key of the service account, with its secret (Go's
+/// CreateHMACKey). Retried only by the Always policy.
+pub fn (c: Client[fx]) create_hmac_key(project_id: Str, service_account_email: Str, opts: HMACKeyOptions = HMACKeyOptions{}) -> HMACKey ! StorageErr uses (net.dial, clock, rand, fx) {
+  if project_id == "" {
+    return Err(invalid("storage: expecting a non-blank projectID"))
+  }
+  if service_account_email == "" {
+    return Err(invalid("storage: expecting a non-blank service account email"))
+  }
+  let k = c.run(c.retry, false, fn(h: List[(Str, Str)]) -> raw.HmacKey ! gensupport.CallErr uses net.dial, clock, rand, fx {
+    c.svc.projects.hmac_keys.create(project_id, service_account_email, raw.ProjectsHmacKeysCreateOptions{user_project: opt_str(opts.user_project), headers: h})
+  }) ?? e => return Err(call_err(e))
+  to_hmac_key(k.metadata, k.secret, true)
+}
+
+/// A project's HMAC keys (Go's HMACKeysIterator).
+pub struct HMACKeysIterator[fx: Effects] {
+  c: Client[fx]
+  project_id: Str
+  opts: HMACKeyOptions
+  buf: List[HMACKey] = []
+  at: Int = 0
+  token: Str = ""
+  done: Bool = false
+}
+
+/// The project's HMAC keys (Go's ListHMACKeys).
+pub fn (c: Client[fx]) list_hmac_keys(project_id: Str, opts: HMACKeyOptions = HMACKeyOptions{}) -> HMACKeysIterator[fx] { HMACKeysIterator{c: c, project_id: project_id, opts: opts} }
+
+/// The next key, None at the end. An error ends the listing.
+pub fn (var it: HMACKeysIterator[fx]) next() -> HMACKey? ! StorageErr uses (net.dial, clock, rand, fx) {
+  while true {
+    if it.at < it.buf.len() {
+      let k = it.buf[it.at]
+      it.at += 1
+      return Ok(Some(k))
+    }
+    if it.done {
+      return Ok(None)
+    }
+    let c = it.c
+    let o = it.opts
+    let p = it.project_id
+    let tok = it.token
+    let page = c.run(c.retry, true, fn(h: List[(Str, Str)]) -> raw.HmacKeysMetadata ! gensupport.CallErr uses net.dial, clock, rand, fx {
+      c.svc.projects.hmac_keys.list(p, raw.ProjectsHmacKeysListOptions{page_token: opt_str(tok), show_deleted_keys: if o.show_deleted_keys { Some(true) } else { None }, user_project: opt_str(o.user_project), service_account_email: opt_str(o.for_service_account_email), headers: h})
+    })
+    let r = match page {
+      Ok(r) => r
+      Err(e) => {
+        it.done = true
+        return Err(call_err(e))
+      }
+    }
+    var buf: List[HMACKey] = []
+    for m in r.items {
+      match to_hmac_key(Some(m), "", true) {
+        Ok(k) => buf.push(k)
+        Err(e) => {
+          it.done = true
+          return Err(e)
+        }
+      }
+    }
+    it.buf = buf
+    it.at = 0
+    it.token = r.next_page_token
+    it.done = r.next_page_token == ""
+  }
+  fault("unreachable")
+}
+
+// Notifications
+
+/// Notification payload formats (Go's NoPayload, JSONPayload).
+pub const NO_PAYLOAD: Str = "NONE"
+pub const JSON_PAYLOAD: Str = "JSON_API_V1"
+
+/// Notification event types.
+pub const OBJECT_FINALIZE_EVENT: Str = "OBJECT_FINALIZE"
+pub const OBJECT_METADATA_UPDATE_EVENT: Str = "OBJECT_METADATA_UPDATE"
+pub const OBJECT_DELETE_EVENT: Str = "OBJECT_DELETE"
+pub const OBJECT_ARCHIVE_EVENT: Str = "OBJECT_ARCHIVE"
+
+/// A bucket's Pub/Sub notification (Go's Notification).
+pub struct Notification {
+  /// Set by the service.
+  pub id: Str = ""
+  pub topic_id: Str = ""
+  pub topic_project_id: Str = ""
+  /// Empty for every event type.
+  pub event_types: List[Str] = []
+  pub object_name_prefix: Str = ""
+  pub custom_attributes: Map[Str, Str] = {}
+  pub payload_format: Str = ""
+}
+
+/// Go's parseNotificationTopic: ("?", "?") when the topic is not
+/// //pubsub.googleapis.com/projects/P/topics/T.
+fn parse_topic(t: Str) -> (Str, Str) {
+  let pre = "//pubsub.googleapis.com/projects/"
+  if !t.starts_with(pre) {
+    return ("?", "?")
+  }
+  let rest = t[pre.len()..t.len()]
+  let i = rest.find("/") ?? return ("?", "?")
+  let p = rest[0..i]
+  let after = rest[i..rest.len()]
+  if p == "" || !after.starts_with("/topics/") {
+    return ("?", "?")
+  }
+  let tail = after[8..after.len()]
+  let id = tail[0..(tail.find("/") ?? tail.len())]
+  if id == "" {
+    return ("?", "?")
+  }
+  (p, id)
+}
+
+fn to_notification(r: raw.Notification) -> Notification {
+  let (p, t) = parse_topic(r.topic)
+  Notification{id: r.id, topic_id: t, topic_project_id: p, event_types: r.event_types, object_name_prefix: r.object_name_prefix, custom_attributes: r.custom_attributes, payload_format: r.payload_format}
+}
+
+/// Adds a notification to the bucket (Go's AddNotification). Retried only
+/// by the Always policy.
+pub fn (b: BucketHandle[fx]) add_notification(n: Notification) -> Notification ! StorageErr uses (net.dial, clock, rand, fx) {
+  if n.id != "" {
+    return Err(invalid("storage: AddNotification: ID must not be set"))
+  }
+  if n.topic_project_id == "" {
+    return Err(invalid("storage: AddNotification: missing TopicProjectID"))
+  }
+  if n.topic_id == "" {
+    return Err(invalid("storage: AddNotification: missing TopicID"))
+  }
+  let body = raw.Notification{topic: "//pubsub.googleapis.com/projects/${n.topic_project_id}/topics/${n.topic_id}", event_types: n.event_types, object_name_prefix: n.object_name_prefix, custom_attributes: n.custom_attributes, payload_format: n.payload_format}
+  let r = b.c.run(b.retry, false, fn(h: List[(Str, Str)]) -> raw.Notification ! gensupport.CallErr uses net.dial, clock, rand, fx {
+    b.c.svc.notifications.insert(b.name, body, raw.NotificationsInsertOptions{user_project: opt_str(b.user_project), headers: h})
+  }) ?? e => return Err(call_err(e))
+  Ok(to_notification(r))
+}
+
+/// The bucket's notifications by id (Go's Notifications).
+pub fn (b: BucketHandle[fx]) notifications() -> Map[Str, Notification] ! StorageErr uses (net.dial, clock, rand, fx) {
+  let r = b.c.run(b.retry, true, fn(h: List[(Str, Str)]) -> raw.Notifications ! gensupport.CallErr uses net.dial, clock, rand, fx {
+    b.c.svc.notifications.list(b.name, raw.NotificationsListOptions{user_project: opt_str(b.user_project), headers: h})
+  }) ?? e => return Err(call_err(e))
+  var m: Map[Str, Notification] = {}
+  for x in r.items {
+    m.put(x.id, to_notification(x))
+  }
+  Ok(m)
+}
+
+/// Removes a notification (Go's DeleteNotification).
+pub fn (b: BucketHandle[fx]) delete_notification(id: Str) -> () ! StorageErr uses (net.dial, clock, rand, fx) {
+  b.c.run(b.retry, true, fn(h: List[(Str, Str)]) -> () ! gensupport.CallErr uses net.dial, clock, rand, fx {
+    b.c.svc.notifications.delete(b.name, id, raw.NotificationsDeleteOptions{user_project: opt_str(b.user_project), headers: h})
+  }) ?? e => return Err(call_err(e))
+  Ok(())
+}
+
+// IAM
+
+/// Basic IAM roles (Go's iam.Owner, iam.Editor, iam.Viewer).
+pub const IAM_OWNER: Str = "roles/owner"
+pub const IAM_EDITOR: Str = "roles/editor"
+pub const IAM_VIEWER: Str = "roles/viewer"
+
+/// A binding's condition (Go's expr.Expr).
+pub struct Expr {
+  pub expression: Str = ""
+  pub title: Str = ""
+  pub description: Str = ""
+  pub location: Str = ""
+}
+
+/// A role and its members (Go's iampb.Binding).
+pub struct Binding {
+  pub role: Str
+  pub members: List[Str] = []
+  pub condition: Expr? = None
+}
+
+/// A bucket's IAM policy (Go's iam.Policy and Policy3): bindings, and the
+/// etag that makes setting it idempotent.
+pub struct Policy {
+  pub bindings: List[Binding] = []
+  pub etag: Str = ""
+}
+
+fn (p: Policy) index(role: Str) -> Int {
+  var i = 0
+  for b in p.bindings {
+    if b.role == role {
+      return i
+    }
+    i += 1
+  }
+  -1
+}
+
+/// The role's members (Go's Members).
+pub fn (p: Policy) members(role: Str) -> List[Str] {
+  let i = p.index(role)
+  if i < 0 { [] } else { p.bindings[i].members }
+}
+
+/// Whether member has role (Go's HasRole).
+pub fn (p: Policy) has_role(member: Str, role: Str) -> Bool { p.members(role).contains(member) }
+
+/// Adds member to role (Go's Add): a new binding at the end when none has
+/// the role.
+pub fn (var p: Policy) add(member: Str, role: Str) {
+  let i = p.index(role)
+  if i < 0 {
+    p.bindings.push(Binding{role: role, members: [member]})
+    return
+  }
+  if !p.bindings[i].members.contains(member) {
+    var b = p.bindings[i]
+    b.members.push(member)
+    p.bindings[i] = b
+  }
+}
+
+/// Removes member from role (Go's Remove): as Go does, the last binding or
+/// member takes the place of one removed.
+pub fn (var p: Policy) remove(member: Str, role: Str) {
+  let i = p.index(role)
+  if i < 0 {
+    return
+  }
+  var b = p.bindings[i]
+  var mi = -1
+  var k = 0
+  for m in b.members {
+    if m == member && mi < 0 {
+      mi = k
+    }
+    k += 1
+  }
+  if mi < 0 {
+    return
+  }
+  if b.members.len() == 1 {
+    let last = p.bindings.len() - 1
+    p.bindings[i] = p.bindings[last]
+    p.bindings = p.bindings[0..last]
+    return
+  }
+  let last = b.members.len() - 1
+  b.members[mi] = b.members[last]
+  b.members = b.members[0..last]
+  p.bindings[i] = b
+}
+
+/// The roles of the bindings, in order (Go's Roles).
+pub fn (p: Policy) roles() -> List[Str] {
+  var out: List[Str] = []
+  for b in p.bindings {
+    out.push(b.role)
+  }
+  out
+}
+
+/// A bucket's IAM policy (Go's iam.Handle, and Handle3 from v3).
+pub struct IAMHandle[fx: Effects] {
+  b: BucketHandle[fx]
+  version: Int = 1
+}
+
+/// The bucket's IAM policy (Go's BucketHandle.IAM).
+pub fn (b: BucketHandle[fx]) iam() -> IAMHandle[fx] { IAMHandle{b: b} }
+
+/// The handle of version 3 policies, with conditions (Go's V3).
+pub fn (h: IAMHandle[fx]) v3() -> IAMHandle[fx] { IAMHandle{b: h.b, version: 3} }
+
+/// The policy (Go's Policy).
+pub fn (h: IAMHandle[fx]) policy() -> Policy ! StorageErr uses (net.dial, clock, rand, fx) {
+  let b = h.b
+  let v = h.version
+  let r = b.c.run(b.retry, true, fn(hs: List[(Str, Str)]) -> raw.Policy ! gensupport.CallErr uses net.dial, clock, rand, fx {
+    b.c.svc.buckets.get_iam_policy(b.name, raw.BucketsGetIamPolicyOptions{options_requested_policy_version: Some(v), user_project: opt_str(b.user_project), headers: hs})
+  }) ?? e => return Err(call_err(e))
+  var bs: List[Binding] = []
+  for x in r.bindings {
+    let cond = match x.condition {
+      Some(c) => Some(Expr{expression: c.expression, title: c.title, description: c.description, location: c.location})
+      None => None
+    }
+    bs.push(Binding{role: x.role, members: x.members, condition: cond})
+  }
+  Ok(Policy{bindings: bs, etag: r.etag})
+}
+
+/// Sets the policy (Go's SetPolicy): a v3 handle sends version 3. With an
+/// etag it is retried by the Idempotent policy.
+pub fn (h: IAMHandle[fx]) set_policy(p: Policy) -> () ! StorageErr uses (net.dial, clock, rand, fx) {
+  let b = h.b
+  var bs: List[raw.PolicyBindings] = []
+  for x in p.bindings {
+    let cond = match x.condition {
+      Some(c) => Some(raw.Expr{expression: c.expression, title: c.title, description: c.description, location: c.location})
+      None => None
+    }
+    bs.push(raw.PolicyBindings{role: x.role, members: x.members, condition: cond})
+  }
+  let body = raw.Policy{bindings: bs, etag: p.etag, version: if h.version == 3 { 3 } else { 0 }}
+  b.c.run(b.retry, p.etag != "", fn(hs: List[(Str, Str)]) -> () ! gensupport.CallErr uses net.dial, clock, rand, fx {
+    b.c.svc.buckets.set_iam_policy(b.name, body, raw.BucketsSetIamPolicyOptions{user_project: opt_str(b.user_project), headers: hs})?
+    Ok(())
+  }) ?? e => return Err(call_err(e))
+  Ok(())
+}
+
+/// The permissions the caller has of those given (Go's TestPermissions).
+pub fn (h: IAMHandle[fx]) test_permissions(permissions: List[Str]) -> List[Str] ! StorageErr uses (net.dial, clock, rand, fx) {
+  let b = h.b
+  let r = b.c.run(b.retry, true, fn(hs: List[(Str, Str)]) -> raw.TestIamPermissionsResponse ! gensupport.CallErr uses net.dial, clock, rand, fx {
+    b.c.svc.buckets.test_iam_permissions(b.name, permissions, raw.BucketsTestIamPermissionsOptions{user_project: opt_str(b.user_project), headers: hs})
+  }) ?? e => return Err(call_err(e))
+  Ok(r.permissions)
+}

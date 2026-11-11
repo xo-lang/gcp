@@ -275,6 +275,245 @@ test "oracle: service account" {
   expect(lines(f)) == ["  GET https://storage.fake/storage/v1/projects/my-project/serviceAccount?alt=json&prettyPrint=false", "    X-Goog-Api-Client: gl-go/GO gdcl/V gccl-invocation-id/UUID gccl-attempt-count/1 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID", "  ok \"svc@example.com\""]
 }
 
+test "oracle: bucket acl list" {
+  let f = new_reply_fake(os.net, [Reply{status: 200, headers: {"Content-Type": "application/json; charset=UTF-8"}, body: "{\"kind\":\"storage#bucketAccessControls\",\"items\":[{\"kind\":\"storage#bucketAccessControl\",\"entity\":\"user-a@example.com\",\"role\":\"OWNER\",\"email\":\"a@example.com\",\"entityId\":\"x1\",\"domain\":\"example.com\",\"projectTeam\":{\"projectNumber\":\"123\",\"team\":\"owners\"}},{\"kind\":\"storage#bucketAccessControl\",\"entity\":\"allUsers\",\"role\":\"READER\"}]}"}])
+  let c = fake_client(os)
+  acl_lines(f, c.bucket("b1").acl().list())
+  expect(lines(f)) == ["  GET https://storage.fake/storage/v1/b/b1/acl?alt=json&prettyPrint=false", "    X-Goog-Api-Client: gl-go/GO gdcl/V gccl-invocation-id/UUID gccl-attempt-count/1 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID", "  ok [{\"Domain\":\"example.com\",\"Email\":\"a@example.com\",\"Entity\":\"user-a@example.com\",\"EntityID\":\"x1\",\"ProjectTeam\":{\"ProjectNumber\":\"123\",\"Team\":\"owners\"},\"Role\":\"OWNER\"},{\"Domain\":\"\",\"Email\":\"\",\"Entity\":\"allUsers\",\"EntityID\":\"\",\"ProjectTeam\":null,\"Role\":\"READER\"}]"]
+}
+
+test "oracle: bucket acl set, user project" {
+  let f = new_reply_fake(os.net, [Reply{status: 200, headers: {"Content-Type": "application/json; charset=UTF-8"}, body: "{\"kind\":\"storage#bucketAccessControl\",\"entity\":\"allUsers\",\"role\":\"READER\"}"}])
+  let c = fake_client(os)
+  unit_lines(f, c.bucket("b1").billed_to("billed").acl().set(ALL_USERS, ROLE_READER))
+  expect(lines(f)) == ["  PUT https://storage.fake/storage/v1/b/b1/acl/allUsers?alt=json&prettyPrint=false&userProject=billed", "    X-Goog-Api-Client: gl-go/GO gdcl/V gccl-invocation-id/UUID gccl-attempt-count/1 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID", "    Content-Type: application/json", "    body {\"bucket\":\"b1\",\"entity\":\"allUsers\",\"role\":\"READER\"}", "  ok"]
+}
+
+test "oracle: bucket acl delete" {
+  let f = new_reply_fake(os.net, [Reply{status: 204, headers: {"Content-Type": "application/json; charset=UTF-8"}, body: ""}])
+  let c = fake_client(os)
+  unit_lines(f, c.bucket("b1").acl().delete("user-a@example.com"))
+  expect(lines(f)) == ["  DELETE https://storage.fake/storage/v1/b/b1/acl/user-a%40example.com?alt=json&prettyPrint=false", "    X-Goog-Api-Client: gl-go/GO gdcl/V gccl-invocation-id/UUID gccl-attempt-count/1 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID", "  ok"]
+}
+
+test "oracle: bucket acl set, 503 is not retried" {
+  let f = new_reply_fake(os.net, [Reply{status: 503, headers: {"Content-Type": "application/json; charset=UTF-8"}, body: "{\"error\":{\"code\":503,\"message\":\"Backend Error\",\"errors\":[{\"message\":\"Backend Error\",\"domain\":\"global\",\"reason\":\"backendError\"}]}}"}, Reply{status: 200, headers: {"Content-Type": "application/json; charset=UTF-8"}, body: "{\"kind\":\"storage#bucketAccessControl\",\"entity\":\"allUsers\",\"role\":\"READER\"}"}])
+  let c = fake_client(os)
+  unit_lines(f, c.bucket("b1").retryer(Retry{backoff: FAST}).acl().set(ALL_USERS, ROLE_READER))
+  expect(lines(f)) == ["  PUT https://storage.fake/storage/v1/b/b1/acl/allUsers?alt=json&prettyPrint=false", "    X-Goog-Api-Client: gl-go/GO gdcl/V gccl-invocation-id/UUID gccl-attempt-count/1 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID", "    Content-Type: application/json", "    body {\"bucket\":\"b1\",\"entity\":\"allUsers\",\"role\":\"READER\"}", "  error googleapi: Error 503: Backend Error, backendError"]
+}
+
+test "oracle: bucket acl list, 503 is retried" {
+  let f = new_reply_fake(os.net, [Reply{status: 503, headers: {"Content-Type": "application/json; charset=UTF-8"}, body: "{\"error\":{\"code\":503,\"message\":\"Backend Error\",\"errors\":[{\"message\":\"Backend Error\",\"domain\":\"global\",\"reason\":\"backendError\"}]}}"}, Reply{status: 200, headers: {"Content-Type": "application/json; charset=UTF-8"}, body: "{\"kind\":\"storage#bucketAccessControls\",\"items\":[{\"kind\":\"storage#bucketAccessControl\",\"entity\":\"user-a@example.com\",\"role\":\"OWNER\",\"email\":\"a@example.com\",\"entityId\":\"x1\",\"domain\":\"example.com\",\"projectTeam\":{\"projectNumber\":\"123\",\"team\":\"owners\"}},{\"kind\":\"storage#bucketAccessControl\",\"entity\":\"allUsers\",\"role\":\"READER\"}]}"}])
+  let c = fake_client(os)
+  acl_lines(f, c.bucket("b1").retryer(Retry{backoff: FAST}).acl().list())
+  expect(lines(f)) == ["  GET https://storage.fake/storage/v1/b/b1/acl?alt=json&prettyPrint=false", "    X-Goog-Api-Client: gl-go/GO gdcl/V gccl-invocation-id/UUID gccl-attempt-count/1 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID", "  GET https://storage.fake/storage/v1/b/b1/acl?alt=json&prettyPrint=false", "    X-Goog-Api-Client: gl-go/GO gdcl/V gccl-invocation-id/UUID gccl-attempt-count/2 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID", "  ok [{\"Domain\":\"example.com\",\"Email\":\"a@example.com\",\"Entity\":\"user-a@example.com\",\"EntityID\":\"x1\",\"ProjectTeam\":{\"ProjectNumber\":\"123\",\"Team\":\"owners\"},\"Role\":\"OWNER\"},{\"Domain\":\"\",\"Email\":\"\",\"Entity\":\"allUsers\",\"EntityID\":\"\",\"ProjectTeam\":null,\"Role\":\"READER\"}]"]
+}
+
+test "oracle: default object acl list, set, delete" {
+  let f = new_reply_fake(os.net, [Reply{status: 200, headers: {"Content-Type": "application/json; charset=UTF-8"}, body: "{\"kind\":\"storage#bucketAccessControls\",\"items\":[{\"kind\":\"storage#bucketAccessControl\",\"entity\":\"user-a@example.com\",\"role\":\"OWNER\",\"email\":\"a@example.com\",\"entityId\":\"x1\",\"domain\":\"example.com\",\"projectTeam\":{\"projectNumber\":\"123\",\"team\":\"owners\"}},{\"kind\":\"storage#bucketAccessControl\",\"entity\":\"allUsers\",\"role\":\"READER\"}]}"}, Reply{status: 200, headers: {"Content-Type": "application/json; charset=UTF-8"}, body: "{\"kind\":\"storage#bucketAccessControl\",\"entity\":\"allUsers\",\"role\":\"READER\"}"}, Reply{status: 204, headers: {"Content-Type": "application/json; charset=UTF-8"}, body: ""}])
+  let c = fake_client(os)
+  let a = c.bucket("b1").billed_to("billed").default_object_acl()
+  acl_lines(f, a.list())
+  unit_lines(f, a.set(ALL_AUTHENTICATED_USERS, ROLE_READER))
+  unit_lines(f, a.delete(ALL_AUTHENTICATED_USERS))
+  expect(lines(f)) == ["  GET https://storage.fake/storage/v1/b/b1/defaultObjectAcl?alt=json&prettyPrint=false&userProject=billed", "    X-Goog-Api-Client: gl-go/GO gdcl/V gccl-invocation-id/UUID gccl-attempt-count/1 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID", "  ok [{\"Domain\":\"example.com\",\"Email\":\"a@example.com\",\"Entity\":\"user-a@example.com\",\"EntityID\":\"x1\",\"ProjectTeam\":{\"ProjectNumber\":\"123\",\"Team\":\"owners\"},\"Role\":\"OWNER\"},{\"Domain\":\"\",\"Email\":\"\",\"Entity\":\"allUsers\",\"EntityID\":\"\",\"ProjectTeam\":null,\"Role\":\"READER\"}]", "  PUT https://storage.fake/storage/v1/b/b1/defaultObjectAcl/allAuthenticatedUsers?alt=json&prettyPrint=false&userProject=billed", "    X-Goog-Api-Client: gl-go/GO gdcl/V gccl-invocation-id/UUID gccl-attempt-count/1 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID", "    Content-Type: application/json", "    body {\"bucket\":\"b1\",\"entity\":\"allAuthenticatedUsers\",\"role\":\"READER\"}", "  ok", "  DELETE https://storage.fake/storage/v1/b/b1/defaultObjectAcl/allAuthenticatedUsers?alt=json&prettyPrint=false&userProject=billed", "    X-Goog-Api-Client: gl-go/GO gdcl/V gccl-invocation-id/UUID gccl-attempt-count/1 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID", "  ok"]
+}
+
+test "oracle: object acl list, set, delete" {
+  let f = new_reply_fake(os.net, [Reply{status: 200, headers: {"Content-Type": "application/json; charset=UTF-8"}, body: "{\"kind\":\"storage#bucketAccessControls\",\"items\":[{\"kind\":\"storage#bucketAccessControl\",\"entity\":\"user-a@example.com\",\"role\":\"OWNER\",\"email\":\"a@example.com\",\"entityId\":\"x1\",\"domain\":\"example.com\",\"projectTeam\":{\"projectNumber\":\"123\",\"team\":\"owners\"}},{\"kind\":\"storage#bucketAccessControl\",\"entity\":\"allUsers\",\"role\":\"READER\"}]}"}, Reply{status: 200, headers: {"Content-Type": "application/json; charset=UTF-8"}, body: "{\"kind\":\"storage#bucketAccessControl\",\"entity\":\"allUsers\",\"role\":\"READER\"}"}, Reply{status: 204, headers: {"Content-Type": "application/json; charset=UTF-8"}, body: ""}])
+  let c = fake_client(os)
+  let a = c.bucket("b1").object("dir/a b.txt").acl()
+  acl_lines(f, a.list())
+  unit_lines(f, a.set("group-g@example.com", ROLE_WRITER))
+  unit_lines(f, a.delete("group-g@example.com"))
+  expect(lines(f)) == ["  GET https://storage.fake/storage/v1/b/b1/o/dir%2Fa%20b.txt/acl?alt=json&prettyPrint=false", "    X-Goog-Api-Client: gl-go/GO gdcl/V gccl-invocation-id/UUID gccl-attempt-count/1 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID", "  ok [{\"Domain\":\"example.com\",\"Email\":\"a@example.com\",\"Entity\":\"user-a@example.com\",\"EntityID\":\"x1\",\"ProjectTeam\":{\"ProjectNumber\":\"123\",\"Team\":\"owners\"},\"Role\":\"OWNER\"},{\"Domain\":\"\",\"Email\":\"\",\"Entity\":\"allUsers\",\"EntityID\":\"\",\"ProjectTeam\":null,\"Role\":\"READER\"}]", "  PUT https://storage.fake/storage/v1/b/b1/o/dir%2Fa%20b.txt/acl/group-g%40example.com?alt=json&prettyPrint=false", "    X-Goog-Api-Client: gl-go/GO gdcl/V gccl-invocation-id/UUID gccl-attempt-count/1 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID", "    Content-Type: application/json", "    body {\"bucket\":\"b1\",\"entity\":\"group-g@example.com\",\"role\":\"WRITER\"}", "  ok", "  DELETE https://storage.fake/storage/v1/b/b1/o/dir%2Fa%20b.txt/acl/group-g%40example.com?alt=json&prettyPrint=false", "    X-Goog-Api-Client: gl-go/GO gdcl/V gccl-invocation-id/UUID gccl-attempt-count/1 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID", "  ok"]
+}
+
+test "oracle: object acl list, 404" {
+  let f = new_reply_fake(os.net, [Reply{status: 404, headers: {"Content-Type": "application/json; charset=UTF-8"}, body: "{\"error\":{\"code\":404,\"message\":\"No such object: b1/missing\",\"errors\":[{\"message\":\"No such object: b1/missing\",\"domain\":\"global\",\"reason\":\"notFound\"}]}}"}])
+  let c = fake_client(os)
+  acl_lines(f, c.bucket("b1").object("missing").acl().list())
+  expect(lines(f)) == ["  GET https://storage.fake/storage/v1/b/b1/o/missing/acl?alt=json&prettyPrint=false", "    X-Goog-Api-Client: gl-go/GO gdcl/V gccl-invocation-id/UUID gccl-attempt-count/1 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID", "  error googleapi: Error 404: No such object: b1/missing, notFound"]
+}
+
+test "oracle: hmac create" {
+  let f = new_reply_fake(os.net, [Reply{status: 200, headers: {"Content-Type": "application/json; charset=UTF-8"}, body: "{\"kind\":\"storage#hmacKey\",\"secret\":\"c2VjcmV0\",\"metadata\":{\"kind\":\"storage#hmacKeyMetadata\",\"accessId\":\"GOOG1\",\"etag\":\"e1\",\"id\":\"p1/GOOG1\",\"projectId\":\"p1\",\"serviceAccountEmail\":\"robot@example.com\",\"state\":\"ACTIVE\",\"timeCreated\":\"2026-01-02T03:04:05Z\"}}"}])
+  let c = fake_client(os)
+  hmac_lines(f, c.create_hmac_key("p1", "robot@example.com", HMACKeyOptions{user_project: "billed"}))
+  expect(lines(f)) == ["  POST https://storage.fake/storage/v1/projects/p1/hmacKeys?alt=json&prettyPrint=false&serviceAccountEmail=robot%40example.com&userProject=billed", "    X-Goog-Api-Client: gl-go/GO gdcl/V gccl-invocation-id/UUID gccl-attempt-count/1 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID", "  ok {\"AccessID\":\"GOOG1\",\"CreatedTime\":\"2026-01-02T03:04:05Z\",\"Etag\":\"e1\",\"ID\":\"p1/GOOG1\",\"ProjectID\":\"p1\",\"Secret\":\"c2VjcmV0\",\"ServiceAccountEmail\":\"robot@example.com\",\"State\":\"ACTIVE\",\"UpdatedTime\":\"0001-01-01T00:00:00Z\"}"]
+}
+
+test "oracle: hmac create, no project" {
+  let f = new_reply_fake(os.net, [])
+  let c = fake_client(os)
+  hmac_lines(f, c.create_hmac_key("", "robot@example.com"))
+  expect(lines(f)) == ["  error storage: expecting a non-blank projectID"]
+}
+
+test "oracle: hmac create, no email" {
+  let f = new_reply_fake(os.net, [])
+  let c = fake_client(os)
+  hmac_lines(f, c.create_hmac_key("p1", ""))
+  expect(lines(f)) == ["  error storage: expecting a non-blank service account email"]
+}
+
+test "oracle: hmac get" {
+  let f = new_reply_fake(os.net, [Reply{status: 200, headers: {"Content-Type": "application/json; charset=UTF-8"}, body: "{\"kind\":\"storage#hmacKeyMetadata\",\"accessId\":\"GOOG1\",\"etag\":\"e1\",\"id\":\"p1/GOOG1\",\"projectId\":\"p1\",\"serviceAccountEmail\":\"robot@example.com\",\"state\":\"ACTIVE\",\"timeCreated\":\"2026-01-02T03:04:05Z\",\"updated\":\"2026-01-03T00:00:00Z\"}"}])
+  let c = fake_client(os)
+  hmac_lines(f, c.hmac_key_handle("p1", "GOOG1").get(HMACKeyOptions{user_project: "billed"}))
+  expect(lines(f)) == ["  GET https://storage.fake/storage/v1/projects/p1/hmacKeys/GOOG1?alt=json&prettyPrint=false&userProject=billed", "    X-Goog-Api-Client: gl-go/GO gdcl/V gccl-invocation-id/UUID gccl-attempt-count/1 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID", "  ok {\"AccessID\":\"GOOG1\",\"CreatedTime\":\"2026-01-02T03:04:05Z\",\"Etag\":\"e1\",\"ID\":\"p1/GOOG1\",\"ProjectID\":\"p1\",\"Secret\":\"\",\"ServiceAccountEmail\":\"robot@example.com\",\"State\":\"ACTIVE\",\"UpdatedTime\":\"2026-01-03T00:00:00Z\"}"]
+}
+
+test "oracle: hmac get, no updated time" {
+  let f = new_reply_fake(os.net, [Reply{status: 200, headers: {"Content-Type": "application/json; charset=UTF-8"}, body: "{\"kind\":\"storage#hmacKeyMetadata\",\"accessId\":\"GOOG1\",\"etag\":\"e1\",\"id\":\"p1/GOOG1\",\"projectId\":\"p1\",\"serviceAccountEmail\":\"robot@example.com\",\"state\":\"ACTIVE\",\"timeCreated\":\"2026-01-02T03:04:05Z\"}"}])
+  let c = fake_client(os)
+  hmac_lines(f, c.hmac_key_handle("p1", "GOOG1").get())
+  expect(lines(f)) == ["  GET https://storage.fake/storage/v1/projects/p1/hmacKeys/GOOG1?alt=json&prettyPrint=false", "    X-Goog-Api-Client: gl-go/GO gdcl/V gccl-invocation-id/UUID gccl-attempt-count/1 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID", "  error field UpdatedTime: parsing time \"\" as \"2006-01-02T15:04:05Z07:00\": cannot parse \"\" as \"2006\""]
+}
+
+test "oracle: hmac update" {
+  let f = new_reply_fake(os.net, [Reply{status: 200, headers: {"Content-Type": "application/json; charset=UTF-8"}, body: "{\"kind\":\"storage#hmacKeyMetadata\",\"accessId\":\"GOOG1\",\"etag\":\"e1\",\"id\":\"p1/GOOG1\",\"projectId\":\"p1\",\"serviceAccountEmail\":\"robot@example.com\",\"state\":\"INACTIVE\",\"timeCreated\":\"2026-01-02T03:04:05Z\",\"updated\":\"2026-01-03T00:00:00Z\"}"}])
+  let c = fake_client(os)
+  hmac_lines(f, c.hmac_key_handle("p1", "GOOG1").update(HMACKeyAttrsToUpdate{state: HMAC_INACTIVE, etag: "e1"}))
+  expect(lines(f)) == ["  PUT https://storage.fake/storage/v1/projects/p1/hmacKeys/GOOG1?alt=json&prettyPrint=false", "    X-Goog-Api-Client: gl-go/GO gdcl/V gccl-invocation-id/UUID gccl-attempt-count/1 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID", "    Content-Type: application/json", "    body {\"etag\":\"e1\",\"state\":\"INACTIVE\"}", "  ok {\"AccessID\":\"GOOG1\",\"CreatedTime\":\"2026-01-02T03:04:05Z\",\"Etag\":\"e1\",\"ID\":\"p1/GOOG1\",\"ProjectID\":\"p1\",\"Secret\":\"\",\"ServiceAccountEmail\":\"robot@example.com\",\"State\":\"INACTIVE\",\"UpdatedTime\":\"2026-01-03T00:00:00Z\"}"]
+}
+
+test "oracle: hmac update, a bad state" {
+  let f = new_reply_fake(os.net, [])
+  let c = fake_client(os)
+  hmac_lines(f, c.hmac_key_handle("p1", "GOOG1").update(HMACKeyAttrsToUpdate{state: HMAC_DELETED}))
+  expect(lines(f)) == ["  error storage: invalid state \"DELETED\" for update, must be either \"ACTIVE\" or \"INACTIVE\""]
+}
+
+test "oracle: hmac update without an etag, 503 is not retried" {
+  let f = new_reply_fake(os.net, [Reply{status: 503, headers: {"Content-Type": "application/json; charset=UTF-8"}, body: "{\"error\":{\"code\":503,\"message\":\"Backend Error\",\"errors\":[{\"message\":\"Backend Error\",\"domain\":\"global\",\"reason\":\"backendError\"}]}}"}])
+  let c = fake_client(os)
+  hmac_lines(f, c.hmac_key_handle("p1", "GOOG1").update(HMACKeyAttrsToUpdate{state: HMAC_ACTIVE}))
+  expect(lines(f)) == ["  PUT https://storage.fake/storage/v1/projects/p1/hmacKeys/GOOG1?alt=json&prettyPrint=false", "    X-Goog-Api-Client: gl-go/GO gdcl/V gccl-invocation-id/UUID gccl-attempt-count/1 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID", "    Content-Type: application/json", "    body {\"state\":\"ACTIVE\"}", "  error googleapi: Error 503: Backend Error, backendError"]
+}
+
+test "oracle: hmac delete" {
+  let f = new_reply_fake(os.net, [Reply{status: 204, headers: {"Content-Type": "application/json; charset=UTF-8"}, body: ""}])
+  let c = fake_client(os)
+  unit_lines(f, c.hmac_key_handle("p1", "GOOG1").delete())
+  expect(lines(f)) == ["  DELETE https://storage.fake/storage/v1/projects/p1/hmacKeys/GOOG1?alt=json&prettyPrint=false", "    X-Goog-Api-Client: gl-go/GO gdcl/V gccl-invocation-id/UUID gccl-attempt-count/1 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID", "  ok"]
+}
+
+test "oracle: hmac list, two pages and options" {
+  let f = new_reply_fake(os.net, [Reply{status: 200, headers: {"Content-Type": "application/json; charset=UTF-8"}, body: "{\"kind\":\"storage#hmacKeysMetadata\",\"items\":[{\"kind\":\"storage#hmacKeyMetadata\",\"accessId\":\"GOOG1\",\"etag\":\"e1\",\"id\":\"p1/GOOG1\",\"projectId\":\"p1\",\"serviceAccountEmail\":\"robot@example.com\",\"state\":\"ACTIVE\",\"timeCreated\":\"2026-01-02T03:04:05Z\"},{\"kind\":\"storage#hmacKeyMetadata\",\"accessId\":\"GOOG2\",\"etag\":\"e1\",\"id\":\"p1/GOOG2\",\"projectId\":\"p1\",\"serviceAccountEmail\":\"robot@example.com\",\"state\":\"DELETED\",\"timeCreated\":\"2026-01-02T03:04:05Z\",\"updated\":\"2026-01-03T00:00:00Z\"}],\"nextPageToken\":\"t2\"}"}, Reply{status: 200, headers: {"Content-Type": "application/json; charset=UTF-8"}, body: "{\"kind\":\"storage#hmacKeysMetadata\",\"items\":[{\"kind\":\"storage#hmacKeyMetadata\",\"accessId\":\"GOOG3\",\"etag\":\"e1\",\"id\":\"p1/GOOG3\",\"projectId\":\"p1\",\"serviceAccountEmail\":\"robot@example.com\",\"state\":\"INACTIVE\",\"timeCreated\":\"2026-01-02T03:04:05Z\"}]}"}])
+  let c = fake_client(os)
+  keys_lines(f, c.list_hmac_keys("p1", HMACKeyOptions{for_service_account_email: "robot@example.com", show_deleted_keys: true, user_project: "billed"}))
+  expect(lines(f)) == ["  GET https://storage.fake/storage/v1/projects/p1/hmacKeys?alt=json&prettyPrint=false&serviceAccountEmail=robot%40example.com&showDeletedKeys=true&userProject=billed", "    X-Goog-Api-Client: gl-go/GO gdcl/V gccl-invocation-id/UUID gccl-attempt-count/1 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID", "  key {\"AccessID\":\"GOOG1\",\"CreatedTime\":\"2026-01-02T03:04:05Z\",\"Etag\":\"e1\",\"ID\":\"p1/GOOG1\",\"ProjectID\":\"p1\",\"Secret\":\"\",\"ServiceAccountEmail\":\"robot@example.com\",\"State\":\"ACTIVE\",\"UpdatedTime\":\"0001-01-01T00:00:00Z\"}", "  key {\"AccessID\":\"GOOG2\",\"CreatedTime\":\"2026-01-02T03:04:05Z\",\"Etag\":\"e1\",\"ID\":\"p1/GOOG2\",\"ProjectID\":\"p1\",\"Secret\":\"\",\"ServiceAccountEmail\":\"robot@example.com\",\"State\":\"DELETED\",\"UpdatedTime\":\"2026-01-03T00:00:00Z\"}", "  GET https://storage.fake/storage/v1/projects/p1/hmacKeys?alt=json&pageToken=t2&prettyPrint=false&serviceAccountEmail=robot%40example.com&showDeletedKeys=true&userProject=billed", "    X-Goog-Api-Client: gl-go/GO gdcl/V gccl-invocation-id/UUID gccl-attempt-count/1 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID", "  key {\"AccessID\":\"GOOG3\",\"CreatedTime\":\"2026-01-02T03:04:05Z\",\"Etag\":\"e1\",\"ID\":\"p1/GOOG3\",\"ProjectID\":\"p1\",\"Secret\":\"\",\"ServiceAccountEmail\":\"robot@example.com\",\"State\":\"INACTIVE\",\"UpdatedTime\":\"0001-01-01T00:00:00Z\"}", "  done"]
+}
+
+test "oracle: hmac list, an error" {
+  let f = new_reply_fake(os.net, [Reply{status: 403, headers: {"Content-Type": "application/json; charset=UTF-8"}, body: "{\"error\":{\"code\":403,\"message\":\"denied\"}}"}])
+  let c = fake_client(os)
+  keys_lines(f, c.list_hmac_keys("p1"))
+  expect(lines(f)) == ["  GET https://storage.fake/storage/v1/projects/p1/hmacKeys?alt=json&prettyPrint=false", "    X-Goog-Api-Client: gl-go/GO gdcl/V gccl-invocation-id/UUID gccl-attempt-count/1 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID", "  error googleapi: Error 403: denied"]
+}
+
+test "oracle: notification add" {
+  let f = new_reply_fake(os.net, [Reply{status: 200, headers: {"Content-Type": "application/json; charset=UTF-8"}, body: "{\"kind\":\"storage#notification\",\"id\":\"7\",\"topic\":\"//pubsub.googleapis.com/projects/tp/topics/t1\",\"event_types\":[\"OBJECT_FINALIZE\",\"OBJECT_DELETE\"],\"object_name_prefix\":\"logs/\",\"custom_attributes\":{\"a\":\"1\"},\"payload_format\":\"JSON_API_V1\",\"etag\":\"7\"}"}])
+  let c = fake_client(os)
+  notification_lines(f, c.bucket("b1").billed_to("billed").add_notification(Notification{topic_project_id: "tp", topic_id: "t1", event_types: [OBJECT_FINALIZE_EVENT, OBJECT_DELETE_EVENT], object_name_prefix: "logs/", custom_attributes: {"a": "1"}, payload_format: JSON_PAYLOAD}))
+  expect(lines(f)) == ["  POST https://storage.fake/storage/v1/b/b1/notificationConfigs?alt=json&prettyPrint=false&userProject=billed", "    X-Goog-Api-Client: gl-go/GO gdcl/V gccl-invocation-id/UUID gccl-attempt-count/1 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID", "    Content-Type: application/json", "    body {\"custom_attributes\":{\"a\":\"1\"},\"event_types\":[\"OBJECT_FINALIZE\",\"OBJECT_DELETE\"],\"object_name_prefix\":\"logs/\",\"payload_format\":\"JSON_API_V1\",\"topic\":\"//pubsub.googleapis.com/projects/tp/topics/t1\"}", "  ok {\"CustomAttributes\":{\"a\":\"1\"},\"EventTypes\":[\"OBJECT_FINALIZE\",\"OBJECT_DELETE\"],\"ID\":\"7\",\"ObjectNamePrefix\":\"logs/\",\"PayloadFormat\":\"JSON_API_V1\",\"TopicID\":\"t1\",\"TopicProjectID\":\"tp\"}"]
+}
+
+test "oracle: notification add, an id" {
+  let f = new_reply_fake(os.net, [])
+  let c = fake_client(os)
+  notification_lines(f, c.bucket("b1").add_notification(Notification{id: "1", topic_project_id: "tp", topic_id: "t1"}))
+  expect(lines(f)) == ["  error storage: AddNotification: ID must not be set"]
+}
+
+test "oracle: notification add, no topic project" {
+  let f = new_reply_fake(os.net, [])
+  let c = fake_client(os)
+  notification_lines(f, c.bucket("b1").add_notification(Notification{topic_id: "t1"}))
+  expect(lines(f)) == ["  error storage: AddNotification: missing TopicProjectID"]
+}
+
+test "oracle: notification add, no topic" {
+  let f = new_reply_fake(os.net, [])
+  let c = fake_client(os)
+  notification_lines(f, c.bucket("b1").add_notification(Notification{topic_project_id: "tp"}))
+  expect(lines(f)) == ["  error storage: AddNotification: missing TopicID"]
+}
+
+test "oracle: notification add, 503 is not retried" {
+  let f = new_reply_fake(os.net, [Reply{status: 503, headers: {"Content-Type": "application/json; charset=UTF-8"}, body: "{\"error\":{\"code\":503,\"message\":\"Backend Error\",\"errors\":[{\"message\":\"Backend Error\",\"domain\":\"global\",\"reason\":\"backendError\"}]}}"}])
+  let c = fake_client(os)
+  notification_lines(f, c.bucket("b1").retryer(Retry{backoff: FAST}).add_notification(Notification{topic_project_id: "tp", topic_id: "t1", payload_format: NO_PAYLOAD}))
+  expect(lines(f)) == ["  POST https://storage.fake/storage/v1/b/b1/notificationConfigs?alt=json&prettyPrint=false", "    X-Goog-Api-Client: gl-go/GO gdcl/V gccl-invocation-id/UUID gccl-attempt-count/1 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID", "    Content-Type: application/json", "    body {\"payload_format\":\"NONE\",\"topic\":\"//pubsub.googleapis.com/projects/tp/topics/t1\"}", "  error googleapi: Error 503: Backend Error, backendError"]
+}
+
+test "oracle: notifications list" {
+  let f = new_reply_fake(os.net, [Reply{status: 200, headers: {"Content-Type": "application/json; charset=UTF-8"}, body: "{\"kind\":\"storage#notifications\",\"items\":[{\"id\":\"7\",\"topic\":\"//pubsub.googleapis.com/projects/tp/topics/t1\",\"payload_format\":\"NONE\"},{\"id\":\"8\",\"topic\":\"projects/x/topics/y\",\"event_types\":[\"OBJECT_ARCHIVE\"]}]}"}])
+  let c = fake_client(os)
+  notes_lines(f, c.bucket("b1").notifications())
+  expect(lines(f)) == ["  GET https://storage.fake/storage/v1/b/b1/notificationConfigs?alt=json&prettyPrint=false", "    X-Goog-Api-Client: gl-go/GO gdcl/V gccl-invocation-id/UUID gccl-attempt-count/1 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID", "  notification 7 {\"CustomAttributes\":null,\"EventTypes\":null,\"ID\":\"7\",\"ObjectNamePrefix\":\"\",\"PayloadFormat\":\"NONE\",\"TopicID\":\"t1\",\"TopicProjectID\":\"tp\"}", "  notification 8 {\"CustomAttributes\":null,\"EventTypes\":[\"OBJECT_ARCHIVE\"],\"ID\":\"8\",\"ObjectNamePrefix\":\"\",\"PayloadFormat\":\"\",\"TopicID\":\"?\",\"TopicProjectID\":\"?\"}"]
+}
+
+test "oracle: notifications list, empty" {
+  let f = new_reply_fake(os.net, [Reply{status: 200, headers: {"Content-Type": "application/json; charset=UTF-8"}, body: "{\"kind\":\"storage#notifications\"}"}])
+  let c = fake_client(os)
+  notes_lines(f, c.bucket("b1").notifications())
+  expect(lines(f)) == ["  GET https://storage.fake/storage/v1/b/b1/notificationConfigs?alt=json&prettyPrint=false", "    X-Goog-Api-Client: gl-go/GO gdcl/V gccl-invocation-id/UUID gccl-attempt-count/1 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID"]
+}
+
+test "oracle: notification delete" {
+  let f = new_reply_fake(os.net, [Reply{status: 204, headers: {"Content-Type": "application/json; charset=UTF-8"}, body: ""}])
+  let c = fake_client(os)
+  unit_lines(f, c.bucket("b1").billed_to("billed").delete_notification("7"))
+  expect(lines(f)) == ["  DELETE https://storage.fake/storage/v1/b/b1/notificationConfigs/7?alt=json&prettyPrint=false&userProject=billed", "    X-Goog-Api-Client: gl-go/GO gdcl/V gccl-invocation-id/UUID gccl-attempt-count/1 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID", "  ok"]
+}
+
+test "oracle: iam policy, edited and set" {
+  let f = new_reply_fake(os.net, [Reply{status: 200, headers: {"Content-Type": "application/json; charset=UTF-8"}, body: "{\"kind\":\"storage#policy\",\"resourceId\":\"projects/_/buckets/b1\",\"version\":1,\"etag\":\"CAE=\",\"bindings\":[{\"role\":\"roles/storage.objectViewer\",\"members\":[\"allUsers\",\"user:a@example.com\"]},{\"role\":\"roles/storage.admin\",\"members\":[\"user:a@example.com\"],\"condition\":{\"title\":\"t\",\"expression\":\"request.time < timestamp(\\\"2027-01-01T00:00:00Z\\\")\"}}]}"}, Reply{status: 200, headers: {"Content-Type": "application/json; charset=UTF-8"}, body: "{\"kind\":\"storage#policy\",\"resourceId\":\"projects/_/buckets/b1\",\"version\":1,\"etag\":\"CAE=\",\"bindings\":[{\"role\":\"roles/storage.objectViewer\",\"members\":[\"allUsers\",\"user:a@example.com\"]},{\"role\":\"roles/storage.admin\",\"members\":[\"user:a@example.com\"],\"condition\":{\"title\":\"t\",\"expression\":\"request.time < timestamp(\\\"2027-01-01T00:00:00Z\\\")\"}}]}"}])
+  let c = fake_client(os)
+  iam_edit_lines(f, c.bucket("b1").billed_to("billed").iam())
+  expect(lines(f)) == ["  GET https://storage.fake/storage/v1/b/b1/iam?alt=json&optionsRequestedPolicyVersion=1&prettyPrint=false&userProject=billed", "    X-Goog-Api-Client: gl-go/GO gdcl/V gccl-invocation-id/UUID gccl-attempt-count/1 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID", "  role roles/storage.objectViewer members [\"allUsers\" \"user:a@example.com\"]", "  role roles/storage.admin members [\"user:a@example.com\"]", "  condition roles/storage.admin title=\"t\" expression=\"request.time < timestamp(\\\"2027-01-01T00:00:00Z\\\")\"", "  etag \"CAE=\" version 0", "  has true false", "  role roles/storage.objectViewer members [\"user:a@example.com\"]", "  role roles/viewer members [\"user:b@example.com\"]", "  etag \"CAE=\" version 0", "  PUT https://storage.fake/storage/v1/b/b1/iam?alt=json&prettyPrint=false&userProject=billed", "    X-Goog-Api-Client: gl-go/GO gdcl/V gccl-invocation-id/UUID gccl-attempt-count/1 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID", "    Content-Type: application/json", "    body {\"bindings\":[{\"members\":[\"user:a@example.com\"],\"role\":\"roles/storage.objectViewer\"},{\"members\":[\"user:b@example.com\"],\"role\":\"roles/viewer\"}],\"etag\":\"CAE=\"}", "  ok"]
+}
+
+test "oracle: iam policy v3" {
+  let f = new_reply_fake(os.net, [Reply{status: 200, headers: {"Content-Type": "application/json; charset=UTF-8"}, body: "{\"kind\":\"storage#policy\",\"resourceId\":\"projects/_/buckets/b1\",\"version\":1,\"etag\":\"CAE=\",\"bindings\":[{\"role\":\"roles/storage.objectViewer\",\"members\":[\"allUsers\",\"user:a@example.com\"]},{\"role\":\"roles/storage.admin\",\"members\":[\"user:a@example.com\"],\"condition\":{\"title\":\"t\",\"expression\":\"request.time < timestamp(\\\"2027-01-01T00:00:00Z\\\")\"}}]}"}, Reply{status: 200, headers: {"Content-Type": "application/json; charset=UTF-8"}, body: "{\"kind\":\"storage#policy\",\"resourceId\":\"projects/_/buckets/b1\",\"version\":1,\"etag\":\"CAE=\",\"bindings\":[{\"role\":\"roles/storage.objectViewer\",\"members\":[\"allUsers\",\"user:a@example.com\"]},{\"role\":\"roles/storage.admin\",\"members\":[\"user:a@example.com\"],\"condition\":{\"title\":\"t\",\"expression\":\"request.time < timestamp(\\\"2027-01-01T00:00:00Z\\\")\"}}]}"}])
+  let c = fake_client(os)
+  iam_v3_lines(f, c.bucket("b1").iam().v3())
+  expect(lines(f)) == ["  GET https://storage.fake/storage/v1/b/b1/iam?alt=json&optionsRequestedPolicyVersion=3&prettyPrint=false", "    X-Goog-Api-Client: gl-go/GO gdcl/V gccl-invocation-id/UUID gccl-attempt-count/1 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID", "  bindings 2", "  PUT https://storage.fake/storage/v1/b/b1/iam?alt=json&prettyPrint=false", "    X-Goog-Api-Client: gl-go/GO gdcl/V gccl-invocation-id/UUID gccl-attempt-count/1 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID", "    Content-Type: application/json", "    body {\"bindings\":[{\"members\":[\"allUsers\",\"user:a@example.com\"],\"role\":\"roles/storage.objectViewer\"},{\"condition\":{\"expression\":\"request.time < timestamp(\\\"2027-01-01T00:00:00Z\\\")\",\"title\":\"t\"},\"members\":[\"user:a@example.com\"],\"role\":\"roles/storage.admin\"}],\"etag\":\"CAE=\",\"version\":3}", "  ok"]
+}
+
+test "oracle: iam set without an etag, 503 is not retried" {
+  let f = new_reply_fake(os.net, [Reply{status: 503, headers: {"Content-Type": "application/json; charset=UTF-8"}, body: "{\"error\":{\"code\":503,\"message\":\"Backend Error\",\"errors\":[{\"message\":\"Backend Error\",\"domain\":\"global\",\"reason\":\"backendError\"}]}}"}])
+  let c = fake_client(os)
+  var p = Policy{}
+  p.add("allUsers", IAM_VIEWER)
+  unit_lines(f, c.bucket("b1").retryer(Retry{backoff: FAST}).iam().set_policy(p))
+  expect(lines(f)) == ["  PUT https://storage.fake/storage/v1/b/b1/iam?alt=json&prettyPrint=false", "    X-Goog-Api-Client: gl-go/GO gdcl/V gccl-invocation-id/UUID gccl-attempt-count/1 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID", "    Content-Type: application/json", "    body {\"bindings\":[{\"members\":[\"allUsers\"],\"role\":\"roles/viewer\"}]}", "  error googleapi: Error 503: Backend Error, backendError"]
+}
+
+test "oracle: iam test permissions" {
+  let f = new_reply_fake(os.net, [Reply{status: 200, headers: {"Content-Type": "application/json; charset=UTF-8"}, body: "{\"kind\":\"storage#testIamPermissionsResponse\",\"permissions\":[\"storage.objects.get\"]}"}])
+  let c = fake_client(os)
+  perms_lines(f, c.bucket("b1").iam().test_permissions(["storage.objects.get", "storage.objects.delete"]))
+  expect(lines(f)) == ["  GET https://storage.fake/storage/v1/b/b1/iam/testPermissions?alt=json&permissions=storage.objects.get&permissions=storage.objects.delete&prettyPrint=false", "    X-Goog-Api-Client: gl-go/GO gdcl/V gccl-invocation-id/UUID gccl-attempt-count/1 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID", "  ok [\"storage.objects.get\"]"]
+}
+
+test "oracle: iam policy, 404" {
+  let f = new_reply_fake(os.net, [Reply{status: 404, headers: {"Content-Type": "application/json; charset=UTF-8"}, body: "{\"error\":{\"code\":404,\"message\":\"The specified bucket does not exist.\",\"errors\":[{\"message\":\"The specified bucket does not exist.\",\"domain\":\"global\",\"reason\":\"notFound\"}]}}"}])
+  let c = fake_client(os)
+  policy_err_lines(f, c.bucket("b1").iam().policy())
+  expect(lines(f)) == ["  GET https://storage.fake/storage/v1/b/b1/iam?alt=json&optionsRequestedPolicyVersion=1&prettyPrint=false", "    X-Goog-Api-Client: gl-go/GO gdcl/V gccl-invocation-id/UUID gccl-attempt-count/1 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID", "  error googleapi: Error 404: The specified bucket does not exist., notFound"]
+}
+
+test "oracle: service account, 404" {
+  let f = new_reply_fake(os.net, [Reply{status: 404, headers: {"Content-Type": "application/json; charset=UTF-8"}, body: "{\"error\":{\"code\":404,\"message\":\"Project p9 not found.\"}}"}])
+  let c = fake_client(os)
+  str_lines(f, c.service_account("p9"))
+  expect(lines(f)) == ["  GET https://storage.fake/storage/v1/projects/p9/serviceAccount?alt=json&prettyPrint=false", "    X-Goog-Api-Client: gl-go/GO gdcl/V gccl-invocation-id/UUID gccl-attempt-count/1 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID", "  error googleapi: Error 404: Project p9 not found."]
+}
+
 test "oracle: copy" {
   let f = new_reply_fake(os.net, [Reply{status: 200, headers: {"Content-Type": "application/json; charset=UTF-8"}, body: rewrite_reply(true, "", 12, 12, obj_for("dst/b.txt", "hello, world"))}])
   let c = fake_client(os)

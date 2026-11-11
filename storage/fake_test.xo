@@ -104,7 +104,8 @@ fn sort_items(p: Str) -> Str {
 fn answer(f: Fake, req: http.Request) -> http.Response {
   let q = req.raw_query()
   var pairs: List[Str] = if q == "" { [] } else { q.split("&") }
-  pairs = pairs.map(sort_items).sort()
+  // Go's Values.Encode: by key, each key's values in their order
+  pairs = by_key(pairs.map(sort_items))
   note(f, "  ${req.method} ${req.url.scheme}://${req.url.host}${req.escaped_path()}${if pairs.is_empty() { "" } else { "?" + pairs.join("&") }}")
   if let Some(v) = header_of(req, "x-goog-api-client") {
     note(f, "    X-Goog-Api-Client: ${norm_api_client(v)}")
@@ -499,4 +500,169 @@ fn policy_rsa_lines(f: Fake, r: Result[PostPolicyV4, StorageErr], k: TestKey) {
     }
     Err(e) => policy_lines(f, Err(e))
   }
+}
+
+// Access (decision 0010 step 3): results printed as the oracle prints
+// them (Go's field names; a nil list or map as null).
+
+fn unit_lines(f: Fake, r: Result[(), StorageErr]) {
+  match r {
+    Ok(_) => result_lines(f, Ok(""))
+    Err(e) => result_lines(f, Err(e))
+  }
+}
+
+fn acl_lines(f: Fake, r: Result[List[ACLRule], StorageErr]) {
+  match r {
+    Ok(rs) => result_lines(f, Ok(canon(acl_json(rs))))
+    Err(e) => result_lines(f, Err(e))
+  }
+}
+
+fn hmac_json(k: HMACKey) -> Str {
+  canon(json.Value.Object([("AccessID", s(k.access_id)), ("CreatedTime", t(k.created_time)), ("Etag", s(k.etag)), ("ID", s(k.id)), ("ProjectID", s(k.project_id)), ("Secret", s(k.secret)), ("ServiceAccountEmail", s(k.service_account_email)), ("State", s(k.state)), ("UpdatedTime", t(k.updated_time))]))
+}
+
+fn hmac_lines(f: Fake, r: Result[HMACKey, StorageErr]) {
+  match r {
+    Ok(k) => result_lines(f, Ok(hmac_json(k)))
+    Err(e) => result_lines(f, Err(e))
+  }
+}
+
+fn keys_lines(f: Fake, it0: HMACKeysIterator[()]) {
+  var it = it0
+  while true {
+    match it.next() {
+      Ok(Some(k)) => note(f, "  key ${hmac_json(k)}")
+      Ok(None) => {
+        note(f, "  done")
+        return
+      }
+      Err(e) => {
+        result_lines(f, Err(e))
+        return
+      }
+    }
+  }
+}
+
+fn notification_json(n: Notification) -> Str {
+  let attrs = if n.custom_attributes.is_empty() { json.Value.Null } else { smap(n.custom_attributes) }
+  let events = if n.event_types.is_empty() { json.Value.Null } else { slist(n.event_types) }
+  canon(json.Value.Object([("CustomAttributes", attrs), ("EventTypes", events), ("ID", s(n.id)), ("ObjectNamePrefix", s(n.object_name_prefix)), ("PayloadFormat", s(n.payload_format)), ("TopicID", s(n.topic_id)), ("TopicProjectID", s(n.topic_project_id))]))
+}
+
+fn notification_lines(f: Fake, r: Result[Notification, StorageErr]) {
+  match r {
+    Ok(n) => result_lines(f, Ok(notification_json(n)))
+    Err(e) => result_lines(f, Err(e))
+  }
+}
+
+fn notes_lines(f: Fake, r: Result[Map[Str, Notification], StorageErr]) {
+  match r {
+    Ok(m) => {
+      for k in m.keys().sort() {
+        note(f, "  notification ${k} ${notification_json(m.get_or_fault(k, "a key"))}")
+      }
+    }
+    Err(e) => result_lines(f, Err(e))
+  }
+}
+
+/// Go's %q of a []string.
+fn go_list(xs: List[Str]) -> Str {
+  var q: List[Str] = []
+  for x in xs {
+    q.push(x.quote())
+  }
+  "[${q.join(" ")}]"
+}
+
+/// A policy as the oracle's showPolicy prints it (Go's v1 Policy keeps no
+/// version: 0).
+fn show_policy(f: Fake, p: Policy) {
+  for r in p.roles() {
+    note(f, "  role ${r} members ${go_list(p.members(r))}")
+  }
+  for b in p.bindings {
+    if let Some(c) = b.condition {
+      note(f, "  condition ${b.role} title=${c.title.quote()} expression=${c.expression.quote()}")
+    }
+  }
+  note(f, "  etag ${p.etag.quote()} version 0")
+}
+
+/// The oracle's "iam policy, edited and set".
+fn iam_edit_lines(f: Fake, h: IAMHandle[()]) {
+  var p = match h.policy() {
+    Ok(p) => p
+    Err(e) => {
+      result_lines(f, Err(e))
+      return
+    }
+  }
+  show_policy(f, p)
+  p.add("user:b@example.com", IAM_VIEWER)
+  p.add("user:a@example.com", "roles/storage.objectViewer")
+  p.remove("allUsers", "roles/storage.objectViewer")
+  p.remove("user:a@example.com", "roles/storage.admin")
+  p.remove("nobody", IAM_OWNER)
+  note(f, "  has ${p.has_role("user:b@example.com", IAM_VIEWER)} ${p.has_role("allUsers", "roles/storage.objectViewer")}")
+  show_policy(f, p)
+  unit_lines(f, h.set_policy(p))
+}
+
+/// The oracle's "iam policy v3".
+fn iam_v3_lines(f: Fake, h: IAMHandle[()]) {
+  match h.policy() {
+    Ok(p) => {
+      note(f, "  bindings ${p.bindings.len()}")
+      unit_lines(f, h.set_policy(p))
+    }
+    Err(e) => result_lines(f, Err(e))
+  }
+}
+
+fn perms_lines(f: Fake, r: Result[List[Str], StorageErr]) {
+  match r {
+    Ok(ps) => result_lines(f, Ok(canon(slist(ps))))
+    Err(e) => result_lines(f, Err(e))
+  }
+}
+
+fn policy_err_lines(f: Fake, r: Result[Policy, StorageErr]) {
+  match r {
+    Ok(_) => result_lines(f, Ok(""))
+    Err(e) => result_lines(f, Err(e))
+  }
+}
+
+fn str_lines(f: Fake, r: Result[Str, StorageErr]) {
+  match r {
+    Ok(x) => result_lines(f, Ok(x.quote()))
+    Err(e) => result_lines(f, Err(e))
+  }
+}
+
+/// k=v pairs sorted by key, a stable sort (the values of a key keep their
+/// order).
+fn by_key(pairs: List[Str]) -> List[Str] {
+  var keys: List[Str] = []
+  for p in pairs {
+    let k = p[0..(p.find("=") ?? p.len())]
+    if !keys.contains(k) {
+      keys.push(k)
+    }
+  }
+  var out: List[Str] = []
+  for k in keys.sort() {
+    for p in pairs {
+      if p[0..(p.find("=") ?? p.len())] == k {
+        out.push(p)
+      }
+    }
+  }
+  out
 }
