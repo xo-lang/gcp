@@ -77,8 +77,8 @@ pub struct CORS {
   pub response_headers: List[Str] = []
 }
 
-/// Go's BucketEncryption (its default key; the enforcement configs are
-/// step 4's).
+/// Go's BucketEncryption: the default key (the enforcement configs are
+/// BucketAttrs fields, as in Go).
 pub struct BucketEncryption {
   pub default_kms_key_name: Str = ""
 }
@@ -95,8 +95,7 @@ pub struct BucketWebsite {
   pub not_found_page: Str = ""
 }
 
-/// A bucket's attributes (Go's BucketAttrs, without its encryption
-/// enforcement configs).
+/// A bucket's attributes (Go's BucketAttrs).
 pub struct BucketAttrs {
   pub name: Str = ""
   pub acl: List[ACLRule] = []
@@ -133,6 +132,9 @@ pub struct BucketAttrs {
   pub autoclass: Autoclass? = None
   pub soft_delete_policy: SoftDeletePolicy? = None
   pub hierarchical_namespace: HierarchicalNamespace? = None
+  pub google_managed_encryption_enforcement_config: EncryptionEnforcementConfig? = None
+  pub customer_managed_encryption_enforcement_config: EncryptionEnforcementConfig? = None
+  pub customer_supplied_encryption_enforcement_config: EncryptionEnforcementConfig? = None
 }
 
 fn bucket_acl(items: List[raw.BucketAccessControl]) -> List[ACLRule] {
@@ -238,6 +240,27 @@ fn new_bucket(b: raw.Bucket) -> BucketAttrs ! StorageErr {
       Some(h) => Some(HierarchicalNamespace{enabled: h.enabled})
       None => None
     },
+    google_managed_encryption_enforcement_config: match b.encryption {
+      Some(e) => match e.google_managed_encryption_enforcement_config {
+        Some(c) => Some(to_enforcement(c.restriction_mode, c.effective_time))
+        None => None
+      }
+      None => None
+    },
+    customer_managed_encryption_enforcement_config: match b.encryption {
+      Some(e) => match e.customer_managed_encryption_enforcement_config {
+        Some(c) => Some(to_enforcement(c.restriction_mode, c.effective_time))
+        None => None
+      }
+      None => None
+    },
+    customer_supplied_encryption_enforcement_config: match b.encryption {
+      Some(e) => match e.customer_supplied_encryption_enforcement_config {
+        Some(c) => Some(to_enforcement(c.restriction_mode, c.effective_time))
+        None => None
+      }
+      None => None
+    },
   })
 }
 
@@ -303,10 +326,8 @@ fn create_body(name: Str, a: BucketAttrs?) -> json.Value {
   if !b.default_object_acl.is_empty() {
     f.push(("defaultObjectAcl", acl_value(b.default_object_acl)))
   }
-  if let Some(e) = b.encryption {
-    if e.default_kms_key_name != "" {
-      f.push(("encryption", json.Value.Object([("defaultKmsKeyName", json.Value.Str(e.default_kms_key_name))])))
-    }
+  if let Some(e) = encryption_value(b.encryption, b.google_managed_encryption_enforcement_config, b.customer_managed_encryption_enforcement_config, b.customer_supplied_encryption_enforcement_config) {
+    f.push(("encryption", e))
   }
   if b.uniform_bucket_level_access.enabled || b.bucket_policy_only.enabled || !(b.public_access_prevention is PublicAccessPrevention.Unknown) {
     var ic: List[(Str, json.Value)] = []
@@ -374,6 +395,11 @@ pub struct BucketAttrsToUpdate {
   pub autoclass: Autoclass? = None
   /// A duration of 0 turns soft delete off.
   pub soft_delete_policy: SoftDeletePolicy? = None
+  /// An encryption without a key removes the default key.
+  pub encryption: BucketEncryption? = None
+  pub google_managed_encryption_enforcement_config: EncryptionEnforcementConfig? = None
+  pub customer_managed_encryption_enforcement_config: EncryptionEnforcementConfig? = None
+  pub customer_supplied_encryption_enforcement_config: EncryptionEnforcementConfig? = None
   set_labels: Map[Str, Str] = {}
   delete_labels: List[Str] = []
 }
@@ -410,6 +436,9 @@ fn bucket_update_body(u: BucketAttrsToUpdate) -> json.Value {
   }
   if let Some(v) = u.default_event_based_hold {
     f.push(("defaultEventBasedHold", json.Value.Bool(v)))
+  }
+  if let Some(e) = encryption_value(u.encryption, u.google_managed_encryption_enforcement_config, u.customer_managed_encryption_enforcement_config, u.customer_supplied_encryption_enforcement_config) {
+    f.push(("encryption", e))
   }
   if u.uniform_bucket_level_access.is_some() || !(u.public_access_prevention is PublicAccessPrevention.Unknown) {
     var ic: List[(Str, json.Value)] = []
@@ -604,6 +633,8 @@ pub struct Query {
   pub include_trailing_delimiter: Bool = false
   pub include_folders_as_prefixes: Bool = false
   pub soft_deleted: Bool = false
+  /// Objects matching a filter on their contexts (Go's Filter).
+  pub filter: Str = ""
   /// The result fields (set_attr_selection), empty for all.
   fields: Str = ""
 }
@@ -660,7 +691,7 @@ pub fn (var it: ObjectIterator[fx]) next() -> ObjectAttrs? ! StorageErr uses (ne
     let q = it.q
     let tok = it.token
     let page = b.c.run(b.retry, true, fn(h: List[(Str, Str)]) -> raw.Objects ! gensupport.CallErr uses net.dial, clock, rand, fx {
-      b.c.svc.objects.list(b.name, raw.ObjectsListOptions{delimiter: Some(q.delimiter), end_offset: Some(q.end_offset), include_folders_as_prefixes: Some(q.include_folders_as_prefixes), include_trailing_delimiter: Some(q.include_trailing_delimiter), match_glob: Some(q.match_glob), page_token: Some(tok), prefix: Some(q.prefix), projection: Some("full"), soft_deleted: if q.soft_deleted { Some(true) } else { None }, start_offset: Some(q.start_offset), user_project: opt_str(b.user_project), versions: Some(q.versions), fields: if q.fields.is_empty() { [] } else { [q.fields] }, headers: h})
+      b.c.svc.objects.list(b.name, raw.ObjectsListOptions{delimiter: Some(q.delimiter), end_offset: Some(q.end_offset), filter: opt_str(q.filter), include_folders_as_prefixes: Some(q.include_folders_as_prefixes), include_trailing_delimiter: Some(q.include_trailing_delimiter), match_glob: Some(q.match_glob), page_token: Some(tok), prefix: Some(q.prefix), projection: Some("full"), soft_deleted: if q.soft_deleted { Some(true) } else { None }, start_offset: Some(q.start_offset), user_project: opt_str(b.user_project), versions: Some(q.versions), fields: if q.fields.is_empty() { [] } else { [q.fields] }, headers: h})
     })
     let p = match page {
       Ok(p) => p

@@ -134,6 +134,15 @@ which is 0009's.
   - An `ObjectRetention` with no time sends Go's zero time, as Go does.
   - A bucket listing stops at a bucket whose retention time does not
     parse (Go's iterator returns that error too).
+- The leftovers (encryption enforcement, object contexts, the listing
+  filter, 2026-11-11):
+  - Go's `ObjectContexts` with a nil map is a no-op in an update, and
+    with an empty map removes every context; Xo has no nil map, so an
+    empty `custom` removes them all and `None` leaves them (the nil-map
+    oracle case is not replayed).
+  - As in Go v1.70.0, a context payload marked `delete` is sent as `{}`
+    (Go names the key, not a field, in its NullFields), so it empties
+    the value rather than removing the key. Kept for byte equality.
 
 ## Consequences
 

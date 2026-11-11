@@ -7,6 +7,10 @@ touches. Release notes: [docs/releases](docs/releases).
 
 ## Unreleased
 
+- `storage`: the fields decision 0010's steps left out: the bucket
+  encryption enforcement configs (`EncryptionEnforcementConfig`), object
+  contexts (`ObjectContexts`, on attributes, updates and writes) and
+  `Query.filter`. 11 Go oracle cases.
 - `storage` (decision 0010 step 4): lifecycle rules, retention
   policies (`lock_retention_policy`), soft delete, autoclass, the
   hierarchical namespace, custom placement, object retention

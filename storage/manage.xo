@@ -333,3 +333,75 @@ pub fn (o: ObjectHandle[fx]) move(dst: MoveObjectDestination) -> ObjectAttrs ! S
   }) ?? e => return Err(object_err(e))
   Ok(new_object(got))
 }
+
+/// A bucket encryption enforcement's restriction mode (Go's
+/// RestrictionMode).
+pub const NOT_RESTRICTED: Str = "NotRestricted"
+pub const FULLY_RESTRICTED: Str = "FullyRestricted"
+
+/// Go's EncryptionEnforcementConfig: which objects of a kind of
+/// encryption the bucket accepts, and since when (read only).
+pub struct EncryptionEnforcementConfig {
+  pub restriction_mode: Str = ""
+  pub effective_time: Time? = None
+}
+
+fn to_enforcement(mode: Str, t: Str) -> EncryptionEnforcementConfig { EncryptionEnforcementConfig{restriction_mode: mode, effective_time: convert_time(t)} }
+
+/// Go's toRawBucketEncryption, as JSON: None when nothing is set; a
+/// BucketEncryption without a key sends the key as null.
+fn encryption_value(e: BucketEncryption?, gme: EncryptionEnforcementConfig?, cme: EncryptionEnforcementConfig?, cse: EncryptionEnforcementConfig?) -> json.Value? {
+  if e.is_none() && gme.is_none() && cme.is_none() && cse.is_none() {
+    return None
+  }
+  let mode = fn(c: EncryptionEnforcementConfig) -> json.Value { json.Value.Object(if c.restriction_mode.is_empty() { [] } else { [("restrictionMode", json.Value.Str(c.restriction_mode))] }) }
+  var f: List[(Str, json.Value)] = []
+  if let Some(c) = cme {
+    f.push(("customerManagedEncryptionEnforcementConfig", mode(c)))
+  }
+  if let Some(c) = cse {
+    f.push(("customerSuppliedEncryptionEnforcementConfig", mode(c)))
+  }
+  if let Some(x) = e {
+    f.push(("defaultKmsKeyName", if x.default_kms_key_name.is_empty() { json.Value.Null } else { json.Value.Str(x.default_kms_key_name) }))
+  }
+  if let Some(c) = gme {
+    f.push(("googleManagedEncryptionEnforcementConfig", mode(c)))
+  }
+  Some(json.Value.Object(f))
+}
+
+/// An object context's payload (Go's ObjectCustomContextPayload). As in
+/// Go, a payload marked delete is sent as {} (an empty value), not as a
+/// removal.
+pub struct ObjectCustomContextPayload {
+  pub value: Str = ""
+  pub delete: Bool = false
+  pub create_time: Time? = None
+  pub update_time: Time? = None
+}
+
+/// An object's contexts (Go's ObjectContexts).
+pub struct ObjectContexts {
+  pub custom: Map[Str, ObjectCustomContextPayload] = {}
+}
+
+fn to_object_contexts(c: raw.ObjectContexts?) -> ObjectContexts? {
+  let x = c ?? return None
+  var m: Map[Str, ObjectCustomContextPayload] = {}
+  for (k, v) in x.custom {
+    m[k] = ObjectCustomContextPayload{value: v.value, create_time: convert_time(v.create_time), update_time: convert_time(v.update_time)}
+  }
+  Some(ObjectContexts{custom: m})
+}
+
+/// Go's toRawObjectContexts, as JSON: each key's value, or {} for an
+/// empty or deleted one.
+fn contexts_value(c: ObjectContexts) -> json.Value {
+  var kv: List[(Str, json.Value)] = []
+  for k in c.custom.keys().sort() {
+    let v = c.custom.get_or_fault(k, "k is one of the keys")
+    kv.push((k, json.Value.Object(if v.delete || v.value.is_empty() { [] } else { [("value", json.Value.Str(v.value))] })))
+  }
+  json.Value.Object(if kv.is_empty() { [] } else { [("custom", json.Value.Object(kv))] })
+}

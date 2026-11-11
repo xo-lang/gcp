@@ -241,13 +241,29 @@ fn acl_json(rs: List[ACLRule]) -> json.Value {
 fn base64_std(x: Bytes) -> Str { base64.encode(x, base64.Base64.Std) }
 
 fn object_json(a: ObjectAttrs) -> Str {
-  canon(json.Value.Object([("ACL", acl_json(a.acl)), ("Bucket", s(a.bucket)), ("CRC32C", i(a.crc32c)), ("CacheControl", s(a.cache_control)), ("ComponentCount", i(a.component_count)), ("ContentDisposition", s(a.content_disposition)), ("ContentEncoding", s(a.content_encoding)), ("ContentLanguage", s(a.content_language)), ("ContentType", s(a.content_type)), ("Created", t(a.created)), ("CustomTime", t(a.custom_time)), ("CustomerKeySHA256", s(a.customer_key_sha256)), ("Deleted", t(a.deleted)), ("Etag", s(a.etag)), ("EventBasedHold", b(a.event_based_hold)), ("Finalized", t(a.finalized)), ("Generation", i(a.generation)), ("HardDeleteTime", t(a.hard_delete_time)), ("KMSKeyName", s(a.kms_key_name)), ("MD5", s(base64_std(a.md5))), ("MediaLink", s(a.media_link)), ("Metadata", smap(a.metadata)), ("Metageneration", i(a.metageneration)), ("Name", s(a.name)), ("Owner", s(a.owner)), ("Prefix", s(a.prefix)), ("RetentionExpirationTime", t(a.retention_expiration_time)), ("Size", i(a.size)), ("SoftDeleteTime", t(a.soft_delete_time)), ("Retention", match a.retention {
+  canon(json.Value.Object([("ACL", acl_json(a.acl)), ("Bucket", s(a.bucket)), ("CRC32C", i(a.crc32c)), ("CacheControl", s(a.cache_control)), ("ComponentCount", i(a.component_count)), ("ContentDisposition", s(a.content_disposition)), ("ContentEncoding", s(a.content_encoding)), ("ContentLanguage", s(a.content_language)), ("ContentType", s(a.content_type)), ("Created", t(a.created)), ("CustomTime", t(a.custom_time)), ("CustomerKeySHA256", s(a.customer_key_sha256)), ("Deleted", t(a.deleted)), ("Etag", s(a.etag)), ("EventBasedHold", b(a.event_based_hold)), ("Finalized", t(a.finalized)), ("Generation", i(a.generation)), ("HardDeleteTime", t(a.hard_delete_time)), ("KMSKeyName", s(a.kms_key_name)), ("MD5", s(base64_std(a.md5))), ("MediaLink", s(a.media_link)), ("Metadata", smap(a.metadata)), ("Metageneration", i(a.metageneration)), ("Name", s(a.name)), ("Owner", s(a.owner)), ("Prefix", s(a.prefix)), ("RetentionExpirationTime", t(a.retention_expiration_time)), ("Size", i(a.size)), ("SoftDeleteTime", t(a.soft_delete_time)), ("Contexts", match a.contexts {
+    Some(c) => {
+      var kv: List[(Str, json.Value)] = []
+      for (k, v) in c.custom {
+        kv.push((k, json.Value.Object([("CreateTime", t(v.create_time)), ("Delete", b(v.delete)), ("UpdateTime", t(v.update_time)), ("Value", s(v.value))])))
+      }
+      json.Value.Object([("Custom", if kv.is_empty() { json.Value.Null } else { json.Value.Object(kv) })])
+    }
+    None => json.Value.Null
+  }), ("Retention", match a.retention {
     Some(r) => json.Value.Object([("Mode", s(r.mode)), ("RetainUntil", t(r.retain_until))])
     None => json.Value.Null
   }), ("StorageClass", s(a.storage_class)), ("TemporaryHold", b(a.temporary_hold)), ("Updated", t(a.updated))]))
 }
 
 fn ubla_json(u: UniformBucketLevelAccess) -> json.Value { json.Value.Object([("Enabled", b(u.enabled)), ("LockedTime", t(u.locked_time))]) }
+
+fn enforcement_json(c: EncryptionEnforcementConfig?) -> json.Value {
+  match c {
+    Some(x) => json.Value.Object([("EffectiveTime", t(x.effective_time)), ("RestrictionMode", s(x.restriction_mode))])
+    None => json.Value.Null
+  }
+}
 
 fn bucket_json(a: BucketAttrs) -> Str {
   var cors: List[json.Value] = []
@@ -305,6 +321,9 @@ fn bucket_json(a: BucketAttrs) -> Str {
       Some(p) => json.Value.Object([("EffectiveTime", t(p.effective_time)), ("RetentionDuration", i(p.retention_duration.nanos()))])
       None => json.Value.Null
     }),
+    ("GoogleManagedEncryptionEnforcementConfig", enforcement_json(a.google_managed_encryption_enforcement_config)),
+    ("CustomerManagedEncryptionEnforcementConfig", enforcement_json(a.customer_managed_encryption_enforcement_config)),
+    ("CustomerSuppliedEncryptionEnforcementConfig", enforcement_json(a.customer_supplied_encryption_enforcement_config)),
     ("HierarchicalNamespace", match a.hierarchical_namespace {
       Some(h) => json.Value.Object([("Enabled", b(h.enabled))])
       None => json.Value.Null

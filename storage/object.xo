@@ -145,6 +145,7 @@ pub struct ObjectAttrs {
   pub hard_delete_time: Time? = None
   /// The object's own retention, if any.
   pub retention: ObjectRetention? = None
+  pub contexts: ObjectContexts? = None
 }
 
 /// Go's convertTime: an RFC 3339 time, None for "" or one that does not
@@ -208,6 +209,7 @@ fn new_object(o: raw.Object) -> ObjectAttrs {
     soft_delete_time: convert_time(o.soft_delete_time),
     hard_delete_time: convert_time(o.hard_delete_time),
     retention: to_object_retention(o.retention),
+    contexts: to_object_contexts(o.contexts),
   }
 }
 
@@ -230,6 +232,8 @@ pub struct ObjectAttrsToUpdate {
   pub predefined_acl: Str = ""
   /// An empty retention (no mode, no time) removes it.
   pub retention: ObjectRetention? = None
+  /// Sets or empties the keys given; no keys removes all contexts.
+  pub contexts: ObjectContexts? = None
 }
 
 fn format_time(t: Time) -> Str { t.format_rfc3339() }
@@ -279,6 +283,9 @@ fn update_body(bucket: Str, u: ObjectAttrsToUpdate) -> json.Value {
   }
   if let Some(v) = u.content_type {
     f.push(("contentType", if v.is_empty() { json.Value.Null } else { json.Value.Str(v) }))
+  }
+  if let Some(c) = u.contexts {
+    f.push(("contexts", if c.custom.is_empty() { json.Value.Null } else { contexts_value(c) }))
   }
   if let Some(t) = u.custom_time {
     f.push(("customTime", json.Value.Str(format_time(t))))
