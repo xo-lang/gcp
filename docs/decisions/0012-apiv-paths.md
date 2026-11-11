@@ -53,8 +53,9 @@ renamed `/apiv2` module can be required.
   github.com/xo-lang/gcp/storage/v1` becomes `.../storage/apiv1`
   (CHANGELOG). The old tags still resolve for code that pins them.
 - The hand-written `storage` and `bigquery` require `storage/apiv1` and
-  `bigquery/apiv2` once those are tagged; until then they resolve them
-  through `xo.work`.
+  `bigquery/apiv2` v0.1.0 (tagged 2026-11-11 on a5e2e72, with the 665
+  other new paths). A module outside the repository requires
+  `bigquery/apiv2` v0.1.0 with xo 0.48.2 and runs.
 - The coverage report (`codegen/cmd/coverage`) names the new paths.
 
 ## Alternatives
