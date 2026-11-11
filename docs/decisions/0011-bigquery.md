@@ -88,10 +88,9 @@ GAPIC subpackages, and OpenTelemetry tracing (`trace.go`).
   one question for the owner here.
 - **NUMERIC and BIGNUMERIC** are std/big's `BigRat` (on xo main since
   9125f8fb5, Go's `big.Rat`). It is not in xo 0.48.2, so step 2 needs
-  the next xo release. BigRat has no `FloatString`, which Go's
-  `NumericString` and `BigNumericString` use (9 and 38 digits); the port
-  writes that rounding over `num()` and `denom()` with Go's
-  round-half-away-from-zero, checked by step 2's oracle cases.
+  the next xo release. Go's `NumericString` and `BigNumericString`
+  (`FloatString` with 9 and 38 digits) are `float_text(9)` and
+  `float_text(38)`, and parsing is `big.parse_rat`.
 - **Civil times** are std/time values with the field type saying which
   part counts (Go's `civil.Date`, `civil.Time`, `civil.DateTime`), or
   three small types of the module's own; step 2's oracle cases decide.
