@@ -41,7 +41,7 @@ Every module is tagged v0.1.0 (the first release, with Xo 0.46.0). Get
 the API versions your program uses; each requires the root:
 
     xo get github.com/xo-lang/gcp@v0.1.0
-    xo get github.com/xo-lang/gcp/storage/v1@v0.1.0
+    xo get github.com/xo-lang/gcp/storage/apiv1@v0.1.0
 
 Requires Xo 0.45.0 or later. Release notes:
 [docs/releases/v0.1.0.md](docs/releases/v0.1.0.md).
@@ -49,8 +49,9 @@ Requires Xo 0.45.0 or later. Release notes:
 ## Layout
 
 - `auth`, `gensupport`, `googleapi`, `option`: the hand-written core.
-- `<api>/<version>`: one generated module per API version, at Go's
-  package path (`storage/v1`).
+- `<api>/apiv<version>`: one generated module per API version, at Go's
+  package path with the version as `apivN` (`storage/apiv1` is Go's
+  `storage/v1`; [decision 0012](docs/decisions/0012-apiv-paths.md)).
 - `codegen`: the generator (`codegen/cmd/gen`) and the tool that derives
   its rows from Go's module (`codegen/gorows`).
 - `scripts/gate.sh`: tests, type-checks, `xo fmt`, and regeneration;

@@ -4,6 +4,14 @@
 // path, package name and version and the document's path. Nothing in a
 // row is written by hand.
 //
+// A row's dir is the module's directory and path element here, Go's
+// package path (go_dir) with its API version element named apivN as
+// cloud.google.com/go names its GAPIC packages (bigquery/v2 is
+// bigquery/apiv2, merchantapi/accounts_v1beta is
+// merchantapi/accounts_apiv1beta): a path ending in /v2 would read as a
+// semver major version to Xo (XO1301), and an API version is not one
+// (gcp decision 0012).
+//
 // A package whose document lists calls its Go code lacks was not
 // regenerated from that document (google-api-go-generator failed on it,
 // and the old code stayed). Its row then names the newest OLDER release
@@ -79,13 +87,33 @@ func main() {
 	for _, r := range rows {
 		fmt.Println()
 		fmt.Println("[[service]]")
-		fmt.Printf("dir = %q\n", r.dir)
+		fmt.Printf("dir = %q\n", xoDir(r.dir))
+		fmt.Printf("go_dir = %q\n", r.dir)
 		fmt.Printf("package = %q\n", r.pkg)
 		fmt.Printf("doc = %q\n", r.doc)
 		if r.docVersion != "" {
 			fmt.Printf("doc_version = %q\n", r.docVersion)
 		}
 	}
+}
+
+var apiVersion = regexp.MustCompile(`(^|_)v[0-9]`)
+
+// xoDir is a Go package path with its last element's API version
+// prefixed "api": v2 is apiv2, v1beta1 apiv1beta1, accounts_v1beta
+// accounts_apiv1beta.
+func xoDir(goDir string) string {
+	i := strings.LastIndex(goDir, "/")
+	last := goDir[i+1:]
+	loc := apiVersion.FindStringIndex(last)
+	if loc == nil {
+		panic("gorows: no API version element in " + goDir)
+	}
+	at := loc[0]
+	if last[at] == '_' {
+		at++
+	}
+	return goDir[:i+1] + last[:at] + "api" + last[at:]
 }
 
 var doExecutes = regexp.MustCompile(`// Do executes the "([^"]+)" call\.`)

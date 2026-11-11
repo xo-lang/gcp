@@ -7,6 +7,23 @@ touches. Release notes: [docs/releases](docs/releases).
 
 ## Unreleased
 
+- **Breaking** (decision 0012): every generated module's API version is
+  now an `apivN` path element, one generator rule for all 667, so Xo
+  does not read `/v2` as a semver major (XO1301 made the 91 modules at
+  `/v2` and above impossible to require). Rename your `use` and
+  `xo get` paths:
+
+  | Old (Go's package path) | New |
+  | --- | --- |
+  | `github.com/xo-lang/gcp/storage/v1` | `github.com/xo-lang/gcp/storage/apiv1` |
+  | `github.com/xo-lang/gcp/bigquery/v2` | `github.com/xo-lang/gcp/bigquery/apiv2` |
+  | `github.com/xo-lang/gcp/<api>/v1beta1` | `github.com/xo-lang/gcp/<api>/apiv1beta1` |
+  | `github.com/xo-lang/gcp/<api>/v1.4` | `github.com/xo-lang/gcp/<api>/apiv1.4` |
+  | `github.com/xo-lang/gcp/merchantapi/accounts_v1beta` | `github.com/xo-lang/gcp/merchantapi/accounts_apiv1beta` |
+
+  `codegen/services.toml` gains `go_dir` (Go's path) beside `dir` (the
+  module); generated files other than `xo.mod` are unchanged. The old
+  paths keep their v0.1.0 tags.
 - `bigquery` (decision 0011 step 1): a hand-written client over
   `bigquery/v2`: `new_client`, datasets, tables, routines and models
   (metadata, create, update with an etag, delete, listings), access

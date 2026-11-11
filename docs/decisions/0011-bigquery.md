@@ -11,7 +11,7 @@ ranks `cloud.google.com/go/bigquery` third (1,924 importers), after
 credentials ([0009](0009-credentials.md)) and Cloud Storage
 ([0010](0010-storage.md)), both done. Go's client is REST by default:
 every call goes through `google.golang.org/api/bigquery/v2`, which this
-repo already generates and Go-verifies (`bigquery/v2`).
+repo already generates and Go-verifies (`bigquery/apiv2`, [0012](0012-apiv-paths.md)).
 
 bigquery v1.86.2 (Apache-2.0, Copyright Google LLC) has 13,388 lines in
 its root package that are not tests:
@@ -50,7 +50,7 @@ report calls for, now that std has `std/grpc` and `std/protobuf`.
 ## Decision
 
 Port the REST client as a module `github.com/xo-lang/gcp/bigquery` at
-`bigquery/` (Go's package path; the generated `bigquery/v2` stays its
+`bigquery/` (Go's package path; the generated `bigquery/apiv2` stays its
 own module, required with the root module's `auth`, `option` and
 `gensupport`), in four steps. Each step is checked against a Go program
 that runs bigquery v1.86.2 against a local fake only. No real Google
@@ -111,15 +111,14 @@ GAPIC subpackages, and OpenTelemetry tracing (`trace.go`).
 - **Not in step 1:** `ExternalDataConfig` (step 4),
   `MaterializedViewDefinition.MaxStaleness` and the INTERVAL value it
   holds (step 2), and `Model.TrainingRuns`, which hands back the
-  generated API's own types (a caller uses `bigquery/v2` directly).
+  generated API's own types (a caller uses `bigquery/apiv2` directly).
 - **`SchemaFromJSON`'s decode error** is std/json's text (`at $:
   expected array`), not encoding/json's.
-- **`bigquery/v2` resolves through the workspace only.** `require
-  github.com/xo-lang/gcp/bigquery/v2 v0.1.0` fails with XO1301 (a path
-  ending in `/v2` takes only v2.x.y versions), though the tag exists;
-  the same holds for every generated module whose API version is `/v2`
-  or above (91 of them). `bigquery/xo.mod` requires the root module
-  only until that is settled (Follow-ups).
+- **`bigquery/v2` resolved through the workspace only.** `require
+  github.com/xo-lang/gcp/bigquery/v2 v0.1.0` failed with XO1301 (a path
+  ending in `/v2` takes only v2.x.y versions), as for every generated
+  module whose API version is `/v2` or above (91 of them). Settled by
+  [0012](0012-apiv-paths.md): the module is `bigquery/apiv2`.
 
 The step's 44 cases run Go's client against a fake that records each
 request; `bigquery/govec_test.xo` is generated from that output.
@@ -128,7 +127,7 @@ request; `bigquery/govec_test.xo` is generated from that output.
 
 - Every step is Go-vectored, as 0009 and 0010 were; each records its
   departures here as it lands.
-- `bigquery/v2` gains a hand-written caller; its generated surface does
+- `bigquery/apiv2` gains a hand-written caller; its generated surface does
   not change.
 - NOTICE gains cloud.google.com/go/bigquery (Apache-2.0).
 
@@ -139,11 +138,6 @@ request; `bigquery/govec_test.xo` is generated from that output.
   (`InferSchema`, struct loading and saving). When it lands, the port
   gains Go's struct mapping without changing the traits.
 
-- **`/vN` API modules and XO1301.** Google's API versions (`/v2`,
-  `/v3`) are not semver majors, but Xo's rule reads them as such: either
-  the generated modules are tagged `vN.x.y` under their path, or Xo
-  exempts them, or the paths change. An owner decision; until then the
-  hand-written modules resolve them through `xo.work`.
 
 ## Alternatives
 

@@ -38,7 +38,8 @@ hand-writes, and verify against Go itself, byte for byte.
   - a root module `github.com/xo-lang/gcp` holding the hand-written core:
     `auth` (cloud.google.com/go/auth's credentials and token sources),
     `gensupport`, `googleapi` and `option` (google.golang.org/api's);
-  - one module per API version at Go's package path
+  - one module per API version at Go's package path (renamed
+    `<api>/apivN` by [0012](0012-apiv-paths.md))
     (`storage/v1`, `compute/v1`, `drive/v3`), generated, each requiring
     the root.
 - Module paths without `/vN` major suffixes, as in the AWS and Azure

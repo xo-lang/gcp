@@ -48,13 +48,13 @@ cd "$work/app"
 printf 'module example.com/app\nedition preview\n' > xo.mod
 cat > main.xo <<'XO'
 use github.com/xo-lang/gcp/gensupport
-use github.com/xo-lang/gcp/storage/v1 as storage
+use github.com/xo-lang/gcp/storage/apiv1 as storage
 
 fn main(os: Os) {
   os.stdio.println("${gensupport.VERSION} ${storage.API_ID}")
 }
 XO
-"$xo" get github.com/xo-lang/gcp@"$v" github.com/xo-lang/gcp/storage/v1@"$v" > "$work/get.out" 2>&1 || { echo "check-release: FAIL xo get"; tail -5 "$work/get.out"; exit 1; }
+"$xo" get github.com/xo-lang/gcp@"$v" github.com/xo-lang/gcp/storage/apiv1@"$v" > "$work/get.out" 2>&1 || { echo "check-release: FAIL xo get"; tail -5 "$work/get.out"; exit 1; }
 "$xo" check --workspace=off . > "$work/app.out" 2>&1 || { echo "check-release: FAIL app"; tail -5 "$work/app.out"; exit 1; }
 echo "check-release: an app got the root and storage/v1 at $v and checks"
 [ $fails -eq 0 ]

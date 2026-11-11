@@ -16,8 +16,8 @@ bigquery, spanner, firestore, pubsub, auth, ...).
   [0007](../decisions/0007-grpc-deferred.md) defers gRPC clients until
   Xo's std has gRPC.
 - For 124 of those modules, the same service's REST surface is already
-  Go-verified here through google.golang.org/api (`secretmanager/v1`,
-  `pubsub/v1`, `spanner/v1`, ...). The other 72 have no discovery
+  Go-verified here through google.golang.org/api (`secretmanager/apiv1`,
+  `pubsub/apiv1`, `spanner/apiv1`, ...). The other 72 have no discovery
   document of their own.
 - Hand-written clients (19 modules with hand-written code; lines below
   count non-test, non-generated `.go` files of the latest version):
@@ -45,9 +45,9 @@ bigquery, spanner, firestore, pubsub, auth, ...).
    Go-verified here); gRPC is opt-in (`NewGRPCClient`). Its 25,570
    hand-written lines (object readers and resumable writers, retries,
    ACLs, signed URLs, post policies, HMAC keys, notifications) can be
-   ported over our `storage/v1` without gRPC.
+   ported over our `storage/apiv1` without gRPC.
 3. **`cloud.google.com/go/bigquery`** (1,924 importers): REST by default
-   over `bigquery/v2` (Go-verified here); the Storage Read and Write
+   over `bigquery/apiv2` (Go-verified here); the Storage Read and Write
    APIs are gRPC and would wait.
 4. **The gRPC clients**: pubsub (3,528 importers), firestore (3,233),
    datastore (1,577), spanner (1,455), longrunning (1,249), logging
@@ -72,7 +72,7 @@ Imported by: pkg.go.dev's "Imported by" count for the package
 - Transport: a hand-written client imports `google.golang.org/api/<api>`
   (REST) or `google.golang.org/grpc`.
 - "REST surface Go-verified": this repo has a module under the same
-  first path element (`secretmanager/v1` for `secretmanager`).
+  first path element (`secretmanager/apiv1` for `secretmanager`).
 
 ## Modules
 
@@ -114,7 +114,7 @@ Imported by: pkg.go.dev's "Imported by" count for the package
 | batch | v1.24.1 | 2 |  |  | not ported (gRPC, decision 0007); the REST surface `batch/...` is Go-verified |
 | beyondcorp | v1.11.1 | 10 |  |  | not ported (gRPC, decision 0007); the REST surface `beyondcorp/...` is Go-verified |
 | biglake | v1.6.1 | 6 |  |  | not ported (gRPC, decision 0007); the REST surface `biglake/...` is Go-verified |
-| bigquery | v1.86.2 | 19 | 18217 | 1,924 | in progress (`bigquery`, decision 0011 step 1 of 4: client and metadata, Go-vectored) over our bigquery/v2 |
+| bigquery | v1.86.2 | 19 | 18217 | 1,924 | in progress (`bigquery`, decision 0011 step 1 of 4: client and metadata, Go-vectored) over our bigquery/apiv2 |
 | bigquery/v2 | v2.0.0-20261111025851-991cd5c14cdb | 3 | 593 |  | not ported (gRPC, decision 0007); the REST surface `bigquery/...` is Go-verified |
 | bigtable | v1.58.0 | 2 | 10198 | 843 | not ported (gRPC, decision 0007) |
 | billing | v1.28.1 | 6 |  |  | not ported (gRPC, decision 0007) |
@@ -257,7 +257,7 @@ Imported by: pkg.go.dev's "Imported by" count for the package
 | spanner | v1.96.1 | 5 | 37498 | 1,455 | not ported (gRPC, decision 0007); the REST surface `spanner/...` is Go-verified |
 | speech | v1.38.1 | 6 |  |  | not ported (gRPC, decision 0007); the REST surface `speech/...` is Go-verified |
 | sql | v0.7.0 | 4 |  |  | not ported (gRPC, decision 0007); the REST surface `sql/...` is Go-verified |
-| storage | v1.70.0 | 2 | 25570 | 8,371 | not ported; its REST transport sits on our storage/v1 (Go-verified) |
+| storage | v1.70.0 | 2 | 25570 | 8,371 | not ported; its REST transport sits on our storage/apiv1 (Go-verified) |
 | storagebatchoperations | v1.3.1 | 2 |  |  | not ported (gRPC, decision 0007); the REST surface `storagebatchoperations/...` is Go-verified |
 | storageinsights | v1.10.1 | 2 |  |  | not ported (gRPC, decision 0007) |
 | storagetransfer | v1.21.1 | 2 |  |  | not ported (gRPC, decision 0007); the REST surface `storagetransfer/...` is Go-verified |
