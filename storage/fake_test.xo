@@ -79,10 +79,21 @@ fn canon(v: json.Value) -> Str {
   }
 }
 
+/// The fields inside an escaped fields=...items(...) pair, sorted: Go's
+/// SetAttrSelection writes them in a map's order, which differs per run.
+fn sort_items(p: Str) -> Str {
+  let i = p.find("items%28") ?? return p
+  if !p.starts_with("fields=") || !p.ends_with("%29") {
+    return p
+  }
+  let fs = p[i + 8..p.len() - 3].split("%2C").sort()
+  p[0..i + 8] + fs.join("%2C") + "%29"
+}
+
 fn answer(f: Fake, req: http.Request) -> http.Response {
   let q = req.raw_query()
   var pairs: List[Str] = if q == "" { [] } else { q.split("&") }
-  pairs = pairs.sort()
+  pairs = pairs.map(sort_items).sort()
   note(f, "  ${req.method} ${req.url.scheme}://${req.url.host}${req.escaped_path()}${if pairs.is_empty() { "" } else { "?" + pairs.join("&") }}")
   if let Some(v) = header_of(req, "x-goog-api-client") {
     note(f, "    X-Goog-Api-Client: ${norm_api_client(v)}")

@@ -88,6 +88,8 @@ which is 0009's.
   - Names that clash in Xo: `If` is `if_`, `BucketHandle.Name` is
     `bucket_name`, `UserProject` is `billed_to` (a field has the name).
   - Iterators' `next` gives `None` at the end (Go's iterator.Done).
+  - `set_attr_selection` keeps the caller's order (Go writes a map's,
+    which differs per run); the oracle's comparison sorts the list.
   - Go's check that an object name is valid UTF-8 has no case: an Xo
     `Str` always is. Its oracle case is not replayed.
 
