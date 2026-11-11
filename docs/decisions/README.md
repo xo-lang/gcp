@@ -14,4 +14,4 @@ deleted.
 - [0007](0007-grpc-deferred.md): gRPC and the GAPIC clients wait for a std gRPC decision (Accepted, 2026-11-07)
 - [0008](0008-license-and-hygiene.md): license and attribution for the BSD-3-Clause and Apache-2.0 sources, the trademark notice, the Azure repository's hygiene, local until approved (Accepted, 2026-11-07)
 - [0009](0009-credentials.md): cloud.google.com/go/auth credentials in three Go-vectored steps (cache and metadata server, service account and authorized user files, Application Default Credentials); external accounts and impersonation later (Accepted, 2026-11-11)
-- [0010](0010-storage.md): cloud.google.com/go/storage's REST client in four Go-vectored steps (client and metadata, reader/writer/copy, access and keys, bucket management); gRPC, metrics and parallel composite uploads later (Proposed, 2026-11-11)
+- [0010](0010-storage.md): cloud.google.com/go/storage's REST client in four Go-vectored steps (client and metadata, reader/writer/copy, access and keys, bucket management); gRPC, metrics and parallel composite uploads later (Accepted, 2026-11-11)
