@@ -106,6 +106,22 @@ that reads its key from elsewhere needs no `fs`.
   do.
 - The port of `cloud.google.com/go/storage` (the second gap) can follow
   on top of these credentials.
+- Step 1's departures from Go (2026-11-11):
+  - Go's async refresh hands out a stale token while a goroutine fetches
+    the next one. Xo has no detached goroutine; the refresh needs a task
+    that outlives the call. std's `task.Group.spawn_background` (core
+    7.1) gives that when the caller hands the provider a group that lives
+    as long as the program: `CachedOptions.tasks` (programs pass
+    `os.tasks`). Without one, the cache refreshes before returning (Go's
+    DisableAsyncRefresh). A library that wants Go's default without a
+    group would need a std group owned by the program's main scope that
+    any code can reach, which Xo does not have and should not
+    (structured concurrency).
+  - A metadata token body that is not JSON matches only Go's prefix
+    (`credentials: invalid token JSON from metadata: `): the rest is
+    encoding/json's own text (`unexpected EOF`), and std/json's differ.
+    Matching them would need a table of encoding/json's messages in
+    std/json (a std change), or here.
 - `auth` grows from 45 lines to an estimated 2,000 (Go's step 1 to 3
   sources are about 2,300 lines without tests).
 

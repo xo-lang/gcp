@@ -2,6 +2,8 @@
 // cloud.google.com/go/auth v0.24.4's cachedTokenProvider (Apache-2.0,
 // Copyright Google LLC; NOTICE.md), decision 0009 step 1.
 
+use std/task
+
 /// How long before its expiry a cached token is refreshed (Go's
 /// defaultExpiryDelta).
 pub const DEFAULT_EXPIRY_DELTA: Duration = 225s
@@ -11,48 +13,125 @@ pub struct CachedOptions {
   /// How long before expiry a token is refreshed; 0s for
   /// DEFAULT_EXPIRY_DELTA (Go's ExpireEarly).
   pub expire_early: Duration = 0s
+  /// Where a stale token's refresh runs in the background (Go's default
+  /// async mode): a stale token is handed out while one refresh runs. None
+  /// refreshes before returning (Go's DisableAsyncRefresh). Programs pass
+  /// `os.tasks`.
+  pub tasks: task.Group? = None
 }
 
-/// A provider that keeps the last token until it is within
-/// `expire_early` of its expiry (Go's NewCachedTokenProvider with
-/// DisableAsyncRefresh: Go's default async mode, which hands out the
-/// stale token while one refresh runs in the background, needs a task that
-/// outlives the call and is not ported).
+struct CacheState {
+  token: Token? = None
+  /// A background refresh is running (Go's isRefreshRunning).
+  running: Bool = false
+  /// The last background refresh failed: no more until a blocking fetch
+  /// (Go's isRefreshErr).
+  refresh_err: Bool = false
+}
+
+/// A provider that keeps the last token until it is within `early` of
+/// its expiry (Go's cachedTokenProvider).
 pub struct CachedTokenProvider[fx: Effects] {
   inner: TokenProvider[fx]
   clock: Clock
   early: Duration
-  last: Mutex[Token?]
+  tasks: task.Group?
+  state: Mutex[CacheState]
 }
 
 /// `p` behind a cache (Go's auth.NewCachedTokenProvider).
 pub fn cached[fx: Effects](p: TokenProvider[fx], clock: Clock, opts: CachedOptions = CachedOptions{}) -> CachedTokenProvider[fx] {
   let early = if opts.expire_early > 0s { opts.expire_early } else { DEFAULT_EXPIRY_DELTA }
-  CachedTokenProvider{inner: p, clock: clock, early: early, last: Mutex[Token?].new(None)}
+  CachedTokenProvider{inner: p, clock: clock, early: early, tasks: opts.tasks, state: Mutex[CacheState].new(CacheState{})}
 }
 
-/// Whether `t` can be handed out at `now` (Go's tokenState == fresh): a
-/// value, and no expiry or one more than `early` away.
-pub fn fresh(t: Token, now: Time, early: Duration) -> Bool {
-  if t.value.reveal() == "" {
-    return false
+/// Go's tokenState.
+pub enum TokenState {
+  Fresh
+  /// Usable, but within `early` of its expiry.
+  Stale
+  /// None, empty, or expired.
+  Invalid
+}
+
+/// The state of `t` at `now` (Go's tokenState: Go compares with
+/// now.After, so a token exactly `early` before expiry is still fresh).
+pub fn state_of(t: Token?, now: Time, early: Duration) -> TokenState {
+  let tok = t ?? return TokenState.Invalid
+  if tok.value.reveal() == "" {
+    return TokenState.Invalid
   }
-  let exp = t.expiry ?? return true
-  now.unix_millis() <= exp.unix_millis() - early.millis()
+  let exp = tok.expiry ?? return TokenState.Fresh
+  let n = now.unix_millis()
+  if n > exp.unix_millis() {
+    return TokenState.Invalid
+  }
+  if n > exp.unix_millis() - early.millis() {
+    return TokenState.Stale
+  }
+  TokenState.Fresh
 }
 
-/// The cached token while fresh, else a new one from the provider; a
-/// failed refresh keeps the old token for the next call (Go's
-/// tokenBlocking).
+/// Whether `t` can be handed out at `now` without a refresh.
+pub fn fresh(t: Token, now: Time, early: Duration) -> Bool {
+  state_of(Some(t), now, early) is TokenState.Fresh
+}
+
+/// The cached token while fresh. With `tasks`, a stale token is returned
+/// and one background refresh started (its failure is dropped, as Go's);
+/// otherwise, and for no or an expired token, a new one is fetched before
+/// returning, and a failed fetch keeps the old token (Go's tokenBlocking).
 pub fn (c: CachedTokenProvider[fx]) token() -> Token ! AuthErr uses (net.dial, clock, rand, fx) {
-  c.last.with(fn(var last: Token?) -> Token ! AuthErr uses net.dial, clock, rand, fx {
-    if let Some(t) = last {
+  if let Some(g) = c.tasks {
+    let now = c.clock.now()
+    let st = c.state.with(fn(var s: CacheState) -> TokenState { state_of(s.token, now, c.early) })
+    match st {
+      Fresh => return Ok(c.state.with(fn(var s: CacheState) -> Token? { s.token }) ?? return c.blocking())
+      Stale => {
+        let (t, start) = c.state.with(fn(var s: CacheState) -> (Token?, Bool) {
+          let go = !s.running && !s.refresh_err
+          if go {
+            s.running = true
+          }
+          (s.token, go)
+        })
+        if start {
+          g.spawn_background(fn() uses net.dial, clock, rand, fx {
+            let r = c.inner.token()
+            c.state.with(fn(var s: CacheState) {
+              s.running = false
+              match r {
+                Ok(n) => s.token = Some(n)
+                Err(_) => s.refresh_err = true
+              }
+            })
+          })
+        }
+        return Ok(t ?? return c.blocking())
+      }
+      Invalid => {}
+    }
+  }
+  c.blocking()
+}
+
+fn (c: CachedTokenProvider[fx]) blocking() -> Token ! AuthErr uses (net.dial, clock, rand, fx) {
+  // the outcome is the closure's value, so clearing refresh_err is kept
+  // when the fetch fails
+  let r = c.state.with(fn(var s: CacheState) -> Result[Token, AuthErr] uses net.dial, clock, rand, fx {
+    s.refresh_err = false
+    if let Some(t) = s.token {
       if fresh(t, c.clock.now(), c.early) {
         return Ok(t)
       }
     }
-    let t = c.inner.token()?
-    last = Some(t)
-    Ok(t)
+    match c.inner.token() {
+      Ok(t) => {
+        s.token = Some(t)
+        Ok(t)
+      }
+      Err(e) => Err(e)
+    }
   })
+  r
 }

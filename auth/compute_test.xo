@@ -180,3 +180,76 @@ test "the default host is 169.254.169.254 and GCE_METADATA_HOST overrides it" {
   expect(metadata.new_client(os.env, os.net, os.clock, os.rand).host) == "metadata.fake"
   expect(metadata.host_set(os.env)) == true
 }
+
+test "md_stale_async: a stale token is handed out while one refresh runs" {
+  let release = Chan[()].new(1)
+  let calls = Atomic[Int].new(0)
+  os.net.handle("GET http://metadata.fake/{rest...}", fn(req: http.Request) -> http.Response {
+    let n = calls.add(1)
+    if n == 1 {
+      return http.Response{status: 200, headers: {}, body: SHORT.bytes()}
+    }
+    // the background refresh waits until the test has seen the stale token
+    let _ = release.recv()
+    http.Response{status: 200, headers: {}, body: TWO.bytes()}
+  })
+  let p = compute(md_client(os), os.clock, opts: CachedOptions{tasks: Some(os.tasks)})
+  expect((p.token() ?? e => fault(e.display())).value.reveal()) == "access-one"
+  // stale: returned at once, the refresh blocked in the handler
+  expect((p.token() ?? e => fault(e.display())).value.reveal()) == "access-one"
+  expect((p.token() ?? e => fault(e.display())).value.reveal()) == "access-one"
+  release.send(())
+  var got = "access-one"
+  var tries = 0
+  while got == "access-one" && tries < 1000 {
+    os.clock.sleep(1ms)
+    got = (p.token() ?? e => fault(e.display())).value.reveal()
+    tries = tries + 1
+  }
+  expect(got) == "access-two"
+  // one background refresh, though three calls saw the stale token
+  expect(calls.get()) == 2
+}
+
+/// Lets background tasks run: the deterministic scheduler switches at
+/// a sleep.
+fn settle(os: testing.TestOs) uses clock {
+  for _ in 0..20 {
+    os.clock.sleep(1ms)
+  }
+}
+
+test "a failed background refresh is dropped, none starts again until a blocking fetch" {
+  let calls = Atomic[Int].new(0)
+  os.net.handle("GET http://metadata.fake/{rest...}", fn(req: http.Request) -> http.Response {
+    let n = calls.add(1)
+    if n == 2 {
+      return http.Response{status: 403, headers: {}, body: b"denied"}
+    }
+    if n == 4 {
+      return http.Response{status: 200, headers: {}, body: TWO.bytes()}
+    }
+    http.Response{status: 200, headers: {}, body: SHORT.bytes()}
+  })
+  let p = compute(md_client(os), os.clock, opts: CachedOptions{tasks: Some(os.tasks)})
+  let _ = p.token() ?? e => fault(e.display())
+  // stale: one background refresh, which fails
+  let _ = p.token() ?? e => fault(e.display())
+  settle(os)
+  expect(calls.get()) == 2
+  // still stale, but no refresh starts after the failure
+  for _ in 0..3 {
+    expect((p.token() ?? e => fault(e.display())).value.reveal()) == "access-one"
+    settle(os)
+  }
+  expect(calls.get()) == 2
+  // expired: a blocking fetch (call 3), which clears the failure
+  os.clock.advance(201s)
+  expect((p.token() ?? e => fault(e.display())).value.reveal()) == "access-one"
+  expect(calls.get()) == 3
+  // stale again: the background refresh runs again (call 4)
+  let _ = p.token() ?? e => fault(e.display())
+  settle(os)
+  expect(calls.get()) == 4
+  expect((p.token() ?? e => fault(e.display())).value.reveal()) == "access-two"
+}

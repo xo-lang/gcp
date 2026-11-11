@@ -8,7 +8,8 @@ touches. Release notes: [docs/releases](docs/releases).
 ## Unreleased
 
 - `auth`: the token cache (`cached`, Go's cachedTokenProvider with a
-  225 second early refresh, blocking mode) and the metadata server's
+  225 second early refresh; Go's async refresh when given a task group,
+  `CachedOptions.tasks`) and the metadata server's
   tokens (`compute`, `ComputeProvider`); decision 0009 step 1, checked
   against Go's auth v0.24.4 over a fake metadata server. `AuthErr`
   now displays Go's error text as is (no `auth: ` prefix added).
