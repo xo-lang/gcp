@@ -122,6 +122,17 @@ that reads its key from elsewhere needs no `fs`.
     encoding/json's own text (`unexpected EOF`), and std/json's differ.
     Matching them would need a table of encoding/json's messages in
     std/json (a std change), or here.
+- Step 2's departures from Go (2026-11-11):
+  - A private key that does not parse gives Go's prefix (`failed to
+    parse private key. Tried PKCS8, PKCS1, and EC formats. Errors: [`)
+    and std/crypto's reason, not Go's three encoding/asn1 errors; a
+    credential file that is not JSON gives std/json's text, as in step 1.
+  - A JWT bearer grant response's `id_token` does not move the token's
+    expiry (Go reads its `exp`): Google returns one only for ID token
+    requests, which are a later step.
+  - Go caches an authorized_user's tokens twice (New3LOTokenProvider's
+    cache inside fileCredentials'); here once, with the same refresh
+    rule.
 - `auth` grows from 45 lines to an estimated 2,000 (Go's step 1 to 3
   sources are about 2,300 lines without tests).
 

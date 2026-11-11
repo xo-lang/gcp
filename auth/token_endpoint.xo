@@ -1,0 +1,204 @@
+// The OAuth 2.0 token endpoint grants Google's credentials use, as
+// cloud.google.com/go/auth v0.24.4 (Apache-2.0, Copyright Google LLC;
+// NOTICE.md): the JWT bearer grant of a service account (auth.go's
+// tokenProvider2LO) and the refresh token grant of a user's credentials
+// (threelegged.go's tokenProvider3LO), decision 0009 step 2.
+
+use std/http
+use std/json
+use std/mime
+use std/url
+
+/// Google's token endpoint.
+pub const GOOGLE_TOKEN_URL: Str = "https://oauth2.googleapis.com/token"
+/// The JWT bearer grant type (RFC 7523).
+pub const JWT_BEARER_GRANT: Str = "urn:ietf:params:oauth:grant-type:jwt-bearer"
+
+struct TokenJson {
+  access_token: Str = ""
+  token_type: Str = ""
+  refresh_token: Str = ""
+  expires_in: Int = 0
+  error as "error": Str = ""
+  error_description: Str = ""
+  error_uri: Str = ""
+} derive Json
+
+fn expiry_after(now: Time, secs: Int) -> Time? {
+  if secs > 0 { Some(Time.from_unix_millis(now.unix_millis() + secs * 1000)) } else { None }
+}
+
+fn post_form(c: http.Client, u: Str, v: url.Values) -> http.Response ! http.ClientErr uses net.dial {
+  let req = http.new_request("POST", u, {}, v.encode().bytes()).with_header("Content-Type", "application/x-www-form-urlencoded")
+  c.send(req)
+}
+
+/// Go's auth.Error text: the OAuth error code, description and URI when
+/// the server gave a code, else the status and body.
+pub fn token_error(status: Int, body: Str, code: Str = "", description: Str = "", uri: Str = "") -> AuthErr {
+  if code != "" {
+    var s = "auth: ${q(code)}"
+    if description != "" {
+      s = "${s} ${q(description)}"
+    }
+    if uri != "" {
+      s = "${s} ${q(uri)}"
+    }
+    return AuthErr{msg: s, status: status}
+  }
+  AuthErr{msg: "auth: cannot fetch token: ${status}\nResponse: ${body}", status: status}
+}
+
+/// Go's Options2LO, for a service account key.
+pub struct Options2LO {
+  pub email: Str
+  /// The key's PEM text (`private_key` in the file).
+  pub private_key: Str
+  pub private_key_id: Str = ""
+  pub scopes: List[Str] = []
+  pub token_url: Str = GOOGLE_TOKEN_URL
+  /// The user to act as (domain-wide delegation), the JWT's `sub`.
+  pub subject: Str = ""
+  /// The JWT's `aud` in place of the token URL.
+  pub audience: Str = ""
+}
+
+/// A service account's tokens from the JWT bearer grant (Go's
+/// tokenProvider2LO; the key is parsed per token, as Go's).
+pub struct TwoLegged {
+  opts: Options2LO
+  http: http.Client
+  clock: Clock
+  rand: Rand
+}
+
+/// Go's New2LOTokenProvider, with its option checks.
+pub fn two_legged(net: Net, clock: Clock, rand: Rand, opts: Options2LO) -> TwoLegged ! AuthErr {
+  if opts.email == "" {
+    return Err(AuthErr{msg: "auth: email must be provided"})
+  }
+  if opts.private_key == "" {
+    return Err(AuthErr{msg: "auth: private key must be provided"})
+  }
+  if opts.token_url == "" {
+    return Err(AuthErr{msg: "auth: token URL must be provided"})
+  }
+  Ok(TwoLegged{opts: opts, http: http.client(net), clock: clock, rand: rand})
+}
+
+pub fn (p: TwoLegged) token() -> Token ! AuthErr uses (net.dial, clock, rand) {
+  let key = parse_key(p.opts.private_key)?
+  let aud = if p.opts.audience != "" { p.opts.audience } else { p.opts.token_url }
+  let claims = Claims{iss: p.opts.email, scope: p.opts.scopes.join(" "), aud: aud, sub: p.opts.subject}
+  let jws = encode_jws(p.rand, key, p.opts.private_key_id, claims, p.clock.now())?
+  var v = url.values()
+  v.set("grant_type", JWT_BEARER_GRANT)
+  v.set("assertion", jws)
+  let resp = post_form(p.http, p.opts.token_url, v) ?? e => return Err(AuthErr{msg: "auth: cannot fetch token: ${e.display()}"})
+  let body = resp.body.to_str_lossy()
+  if resp.status < 200 || resp.status >= 300 {
+    return Err(token_error(resp.status, body))
+  }
+  let t = json.decode_str[TokenJson](body) ?? e => return Err(AuthErr{msg: "auth: cannot fetch token: ${e.msg}"})
+  Ok(Token{value: Secret.new(t.access_token), token_type: t.token_type, expiry: expiry_after(p.clock.now(), t.expires_in)})
+}
+
+/// Go's Options3LO for a refresh token (the client id and secret go in
+/// the form, Go's StyleInParams).
+pub struct Options3LO {
+  pub client_id: Str
+  pub client_secret: Str
+  pub refresh_token: Str
+  pub token_url: Str = GOOGLE_TOKEN_URL
+}
+
+/// A user's tokens from the refresh token grant (Go's tokenProvider3LO):
+/// a new refresh token in a response replaces the old.
+pub struct RefreshToken {
+  opts: Options3LO
+  current: Mutex[Str]
+  http: http.Client
+  clock: Clock
+}
+
+/// Go's New3LOTokenProvider checks for a refresh token.
+pub fn refresh_token(net: Net, clock: Clock, opts: Options3LO) -> RefreshToken ! AuthErr {
+  if opts.client_id == "" {
+    return Err(AuthErr{msg: "auth: client ID must be provided"})
+  }
+  if opts.client_secret == "" {
+    return Err(AuthErr{msg: "auth: client secret must be provided"})
+  }
+  if opts.token_url == "" {
+    return Err(AuthErr{msg: "auth: token URL must be provided"})
+  }
+  if opts.refresh_token == "" {
+    return Err(AuthErr{msg: "auth: refresh token must be provided"})
+  }
+  Ok(RefreshToken{opts: opts, current: Mutex[Str].new(opts.refresh_token), http: http.client(net), clock: clock})
+}
+
+pub fn (p: RefreshToken) token() -> Token ! AuthErr uses (net.dial, clock) {
+  let r = p.current.with(fn(var rt: Str) -> Result[Token, AuthErr] uses net.dial, clock {
+    if rt == "" {
+      return Err(AuthErr{msg: "auth: token expired and refresh token is not set"})
+    }
+    var v = url.values()
+    v.set("grant_type", "refresh_token")
+    v.set("refresh_token", rt)
+    v.set("client_id", p.opts.client_id)
+    v.set("client_secret", p.opts.client_secret)
+    let (t, next) = fetch_token(p.http, p.clock, p.opts.token_url, v)
+    // Go keeps a new refresh token only from a successful response
+    if t.is_ok() && next != "" {
+      rt = next
+    }
+    t
+  })
+  r
+}
+
+/// Go's fetchToken: the token and any refresh token in the response.
+fn fetch_token(c: http.Client, clock: Clock, u: Str, v: url.Values) -> (Result[Token, AuthErr], Str) uses (net.dial, clock) {
+  let resp = match post_form(c, u, v) {
+    Ok(r) => r
+    Err(e) => return (Err(AuthErr{msg: e.display()}), "")
+  }
+  let body = resp.body.to_str_lossy()
+  let failed = resp.status < 200 || resp.status > 299
+  let ctype = match mime.parse_media_type(resp.header("Content-Type") ?? "") {
+    Ok(m) => m.kind
+    Err(_) => ""
+  }
+  var tok = TokenJson{}
+  if ctype == "application/x-www-form-urlencoded" || ctype == "text/plain" {
+    let vals = match url.parse_query(body) {
+      Ok(x) => x
+      Err(e) => {
+        if failed {
+          return (Err(token_error(resp.status, body)), "")
+        }
+        return (Err(AuthErr{msg: "auth: cannot parse response: ${e.display()}"}), "")
+      }
+    }
+    let g = fn(k: Str) -> Str { vals.get(k) ?? "" }
+    tok = TokenJson{access_token: g("access_token"), token_type: g("token_type"), refresh_token: g("refresh_token"), expires_in: Int.parse(g("expires_in")) ?? 0, error: g("error"), error_description: g("error_description"), error_uri: g("error_uri")}
+  } else {
+    tok = match json.decode_str[TokenJson](body) {
+      Ok(x) => x
+      Err(e) => {
+        if failed {
+          return (Err(token_error(resp.status, body)), "")
+        }
+        return (Err(AuthErr{msg: "auth: cannot parse json: ${e.msg}"}), "")
+      }
+    }
+  }
+  if failed || tok.error != "" {
+    return (Err(token_error(resp.status, body, tok.error, tok.error_description, tok.error_uri)), tok.refresh_token)
+  }
+  if tok.access_token == "" {
+    return (Err(AuthErr{msg: "auth: server response missing access_token"}), tok.refresh_token)
+  }
+  (Ok(Token{value: Secret.new(tok.access_token), token_type: tok.token_type, expiry: expiry_after(clock.now(), tok.expires_in)}), tok.refresh_token)
+}

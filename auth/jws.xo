@@ -1,0 +1,70 @@
+// JWTs signed for Google's token endpoints, as cloud.google.com/go/auth
+// v0.24.4's internal/jwt (Apache-2.0, Copyright Google LLC; NOTICE.md):
+// the header and claims are written in Go's field order, so a token
+// signed at the same second is the same bytes (decision 0009 step 2).
+
+use std/base64
+use std/crypto
+use std/json
+
+/// Go's jwt.Claims.
+pub struct Claims {
+  pub iss: Str
+  /// Space separated; left out when empty.
+  pub scope: Str = ""
+  /// Unix seconds; 0 for an hour after the default iat.
+  pub exp: Int = 0
+  /// Unix seconds; 0 for now minus 10 seconds (Go's clock skew allowance).
+  pub iat: Int = 0
+  pub aud: Str = ""
+  /// Left out when empty.
+  pub sub: Str = ""
+}
+
+fn q(s: Str) -> Str {
+  json.encode(s).to_str_lossy()
+}
+
+/// The claims' JSON (Go's Claims.encode before base64): iat and exp
+/// defaulted from `now`, and Go's error when exp is before iat.
+pub fn claims_json(c: Claims, now: Time) -> Str ! AuthErr {
+  let base = now.unix() - 10
+  let iat = if c.iat == 0 { base } else { c.iat }
+  let exp = if c.exp == 0 { base + 3600 } else { c.exp }
+  if exp < iat {
+    return Err(AuthErr{msg: "jwt: invalid Exp = ${exp}; must be later than Iat = ${iat}"})
+  }
+  var s = "{\"iss\":${q(c.iss)}"
+  if c.scope != "" {
+    s = "${s},\"scope\":${q(c.scope)}"
+  }
+  s = "${s},\"exp\":${exp},\"iat\":${iat},\"aud\":${q(c.aud)}"
+  if c.sub != "" {
+    s = "${s},\"sub\":${q(c.sub)}"
+  }
+  Ok("${s}}")
+}
+
+/// Go's jwt.Header JSON for RS256 (`kid` is written even when empty).
+pub fn header_json(kid: Str) -> Str {
+  "{\"alg\":\"RS256\",\"typ\":\"JWT\",\"kid\":${q(kid)}}"
+}
+
+/// `header.claims.signature`, each base64url without padding, signed with
+/// SHA-256 (Go's jwt.EncodeJWS).
+pub fn encode_jws(r: Rand, key: crypto.PrivateKey, kid: Str, c: Claims, now: Time) -> Str ! AuthErr uses rand {
+  let head = base64.encode(header_json(kid).bytes(), base64.Base64.RawUrl)
+  let body = base64.encode(claims_json(c, now)?.bytes(), base64.Base64.RawUrl)
+  let ss = "${head}.${body}"
+  let sig = crypto.sign(r, key, crypto.Hash.Sha256, ss.bytes()) ?? e => return Err(AuthErr{msg: e.display()})
+  Ok("${ss}.${base64.encode(sig, base64.Base64.RawUrl)}")
+}
+
+/// A service account's private key from its PEM text, or the DER when it
+/// has no PEM block (Go's internal.ParseKey). Go's error lists each
+/// parser's encoding/asn1 error; this one gives std/crypto's.
+pub fn parse_key(pem: Str) -> crypto.PrivateKey ! AuthErr {
+  let blocks = crypto.pem_decode(pem)
+  let der = if blocks.len() > 0 { blocks[0].bytes } else { pem.bytes() }
+  crypto.parse_private_key(der) ?? e => Err(AuthErr{msg: "failed to parse private key. Tried PKCS8, PKCS1, and EC formats. Errors: [${e.display()}]"})
+}
