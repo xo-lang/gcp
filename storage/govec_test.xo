@@ -274,3 +274,161 @@ test "oracle: service account" {
   str_result(f, c.service_account("my-project"))
   expect(lines(f)) == ["  GET https://storage.fake/storage/v1/projects/my-project/serviceAccount?alt=json&prettyPrint=false", "    X-Goog-Api-Client: gl-go/GO gdcl/V gccl-invocation-id/UUID gccl-attempt-count/1 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID", "  ok \"svc@example.com\""]
 }
+
+test "oracle: read" {
+  let f = new_reply_fake(os.net, [Reply{status: 200, headers: {"Cache-Control": "no-cache", "Content-Length": "12", "Content-Type": "text/plain", "Last-Modified": "Tue, 14 Nov 2023 22:13:20 GMT", "X-Goog-Generation": "1700000000000000", "X-Goog-Hash": "crc32c=aZmkHw==,md5=XrY7u+Ae7tCTyyK7j1rNww==", "X-Goog-Meta-Owner": "ada", "X-Goog-Metageneration": "3", "X-Goog-Stored-Content-Length": "12"}, body: "hello, world"}])
+  var c = fake_client(os)
+  read_lines(f, c.bucket("b1").object("dir/a b.txt").new_reader())
+  expect(lines(f)) == ["  GET https://storage.fake/b1/dir%2Fa%20b.txt", "    X-Goog-Api-Client: gccl-invocation-id/UUID gccl-attempt-count/1 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID", "  attrs size=12 start=0 gen=1700000000000000 metagen=3 crc32c=1771676703 type=\"text/plain\" encoding=\"\" cache=\"no-cache\" modified=2023-11-14T22:13:20Z decompressed=false remain=12", "  metadata Owner=ada", "  read \"hello, world\"", "  remain 0"]
+}
+
+test "oracle: read, bad crc" {
+  let f = new_reply_fake(os.net, [Reply{status: 200, headers: {"Cache-Control": "no-cache", "Content-Length": "12", "Content-Type": "text/plain", "Last-Modified": "Tue, 14 Nov 2023 22:13:20 GMT", "X-Goog-Generation": "1700000000000000", "X-Goog-Hash": "crc32c=AAAAAA==", "X-Goog-Meta-Owner": "ada", "X-Goog-Metageneration": "3", "X-Goog-Stored-Content-Length": "12"}, body: "hello, world"}])
+  var c = fake_client(os)
+  read_lines(f, c.bucket("b1").object("a").new_reader())
+  expect(lines(f)) == ["  GET https://storage.fake/b1/a", "    X-Goog-Api-Client: gccl-invocation-id/UUID gccl-attempt-count/1 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID", "  attrs size=12 start=0 gen=1700000000000000 metagen=3 crc32c=0 type=\"text/plain\" encoding=\"\" cache=\"no-cache\" modified=2023-11-14T22:13:20Z decompressed=false remain=12", "  metadata Owner=ada", "  read \"hello, world\"", "  read error storage: bad CRC on read: got 1771676703, want 0", "  close error storage: bad CRC on read: got 1771676703, want 0", "  remain 0"]
+}
+
+test "oracle: read, a range" {
+  let f = new_reply_fake(os.net, [Reply{status: 206, headers: {"Cache-Control": "no-cache", "Content-Length": "4", "Content-Range": "bytes 2-5/12", "Content-Type": "text/plain", "Last-Modified": "Tue, 14 Nov 2023 22:13:20 GMT", "X-Goog-Generation": "1700000000000000", "X-Goog-Hash": "crc32c=aZmkHw==,md5=XrY7u+Ae7tCTyyK7j1rNww==", "X-Goog-Meta-Owner": "ada", "X-Goog-Metageneration": "3", "X-Goog-Stored-Content-Length": "12"}, body: "llo,"}])
+  var c = fake_client(os)
+  read_lines(f, c.bucket("b1").object("a").new_range_reader(2, 4))
+  expect(lines(f)) == ["  GET https://storage.fake/b1/a", "    X-Goog-Api-Client: gccl-invocation-id/UUID gccl-attempt-count/1 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID", "    Range: bytes=2-5", "  attrs size=12 start=2 gen=1700000000000000 metagen=3 crc32c=1771676703 type=\"text/plain\" encoding=\"\" cache=\"no-cache\" modified=2023-11-14T22:13:20Z decompressed=false remain=4", "  metadata Owner=ada", "  read \"llo,\"", "  remain 0"]
+}
+
+test "oracle: read, from an offset to the end" {
+  let f = new_reply_fake(os.net, [Reply{status: 206, headers: {"Cache-Control": "no-cache", "Content-Length": "5", "Content-Range": "bytes 7-11/12", "Content-Type": "text/plain", "Last-Modified": "Tue, 14 Nov 2023 22:13:20 GMT", "X-Goog-Generation": "1700000000000000", "X-Goog-Hash": "crc32c=aZmkHw==,md5=XrY7u+Ae7tCTyyK7j1rNww==", "X-Goog-Meta-Owner": "ada", "X-Goog-Metageneration": "3", "X-Goog-Stored-Content-Length": "12"}, body: "world"}])
+  var c = fake_client(os)
+  read_lines(f, c.bucket("b1").object("a").new_range_reader(7, -1))
+  expect(lines(f)) == ["  GET https://storage.fake/b1/a", "    X-Goog-Api-Client: gccl-invocation-id/UUID gccl-attempt-count/1 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID", "    Range: bytes=7-", "  attrs size=12 start=7 gen=1700000000000000 metagen=3 crc32c=1771676703 type=\"text/plain\" encoding=\"\" cache=\"no-cache\" modified=2023-11-14T22:13:20Z decompressed=false remain=5", "  metadata Owner=ada", "  read \"world\"", "  remain 0"]
+}
+
+test "oracle: read, the last bytes" {
+  let f = new_reply_fake(os.net, [Reply{status: 206, headers: {"Cache-Control": "no-cache", "Content-Length": "3", "Content-Range": "bytes 9-11/12", "Content-Type": "text/plain", "Last-Modified": "Tue, 14 Nov 2023 22:13:20 GMT", "X-Goog-Generation": "1700000000000000", "X-Goog-Hash": "crc32c=aZmkHw==,md5=XrY7u+Ae7tCTyyK7j1rNww==", "X-Goog-Meta-Owner": "ada", "X-Goog-Metageneration": "3", "X-Goog-Stored-Content-Length": "12"}, body: "rld"}])
+  var c = fake_client(os)
+  read_lines(f, c.bucket("b1").object("a").new_range_reader(-3, -1))
+  expect(lines(f)) == ["  GET https://storage.fake/b1/a", "    X-Goog-Api-Client: gccl-invocation-id/UUID gccl-attempt-count/1 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID", "    Range: bytes=-3", "  attrs size=12 start=9 gen=1700000000000000 metagen=3 crc32c=1771676703 type=\"text/plain\" encoding=\"\" cache=\"no-cache\" modified=2023-11-14T22:13:20Z decompressed=false remain=3", "  metadata Owner=ada", "  read \"rld\"", "  remain 0"]
+}
+
+test "oracle: read, a negative offset with a length" {
+  let f = new_reply_fake(os.net, [])
+  var c = fake_client(os)
+  read_lines(f, c.bucket("b1").object("a").new_range_reader(-3, 2))
+  expect(lines(f)) == ["  error storage: invalid offset -3 < 0 requires negative length"]
+}
+
+test "oracle: read, length zero is a HEAD" {
+  let f = new_reply_fake(os.net, [Reply{status: 200, headers: {"Cache-Control": "no-cache", "Content-Length": "12", "Content-Type": "text/plain", "Last-Modified": "Tue, 14 Nov 2023 22:13:20 GMT", "X-Goog-Generation": "1700000000000000", "X-Goog-Hash": "crc32c=aZmkHw==,md5=XrY7u+Ae7tCTyyK7j1rNww==", "X-Goog-Meta-Owner": "ada", "X-Goog-Metageneration": "3", "X-Goog-Stored-Content-Length": "12"}, body: ""}])
+  var c = fake_client(os)
+  read_lines(f, c.bucket("b1").object("a").new_range_reader(0, 0))
+  expect(lines(f)) == ["  HEAD https://storage.fake/b1/a", "    X-Goog-Api-Client: gccl-invocation-id/UUID gccl-attempt-count/1 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID", "  attrs size=12 start=0 gen=1700000000000000 metagen=3 crc32c=1771676703 type=\"text/plain\" encoding=\"\" cache=\"no-cache\" modified=2023-11-14T22:13:20Z decompressed=false remain=0", "  metadata Owner=ada", "  read \"\"", "  remain 0"]
+}
+
+test "oracle: read, a range the server did not honor" {
+  let f = new_reply_fake(os.net, [Reply{status: 200, headers: {"Cache-Control": "no-cache", "Content-Length": "12", "Content-Type": "text/plain", "Last-Modified": "Tue, 14 Nov 2023 22:13:20 GMT", "X-Goog-Generation": "1700000000000000", "X-Goog-Hash": "crc32c=aZmkHw==,md5=XrY7u+Ae7tCTyyK7j1rNww==", "X-Goog-Meta-Owner": "ada", "X-Goog-Metageneration": "3", "X-Goog-Stored-Content-Length": "12"}, body: "hello, world"}])
+  var c = fake_client(os)
+  read_lines(f, c.bucket("b1").object("a").new_range_reader(2, 4))
+  expect(lines(f)) == ["  GET https://storage.fake/b1/a", "    X-Goog-Api-Client: gccl-invocation-id/UUID gccl-attempt-count/1 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID", "    Range: bytes=2-5", "  error storage: partial request not satisfied"]
+}
+
+test "oracle: read, not found" {
+  let f = new_reply_fake(os.net, [Reply{status: 404, headers: {"Content-Type": "application/xml"}, body: "<Error><Code>NoSuchKey</Code></Error>"}])
+  var c = fake_client(os)
+  read_lines(f, c.bucket("b1").object("missing").new_reader())
+  expect(lines(f)) == ["  GET https://storage.fake/b1/missing", "    X-Goog-Api-Client: gccl-invocation-id/UUID gccl-attempt-count/1 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID", "  error storage: object doesn't exist", "  is ErrObjectNotExist"]
+}
+
+test "oracle: read, 403" {
+  let f = new_reply_fake(os.net, [Reply{status: 403, headers: {"Content-Type": "application/xml"}, body: "<Error><Code>AccessDenied</Code></Error>"}])
+  var c = fake_client(os)
+  read_lines(f, c.bucket("b1").object("a").new_reader())
+  expect(lines(f)) == ["  GET https://storage.fake/b1/a", "    X-Goog-Api-Client: gccl-invocation-id/UUID gccl-attempt-count/1 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID", "  error googleapi: got HTTP response code 403 with body: <Error><Code>AccessDenied</Code></Error>"]
+}
+
+test "oracle: read, 503 then the object" {
+  let f = new_reply_fake(os.net, [Reply{status: 503, headers: {"Content-Type": "text/plain"}, body: "busy"}, Reply{status: 200, headers: {"Cache-Control": "no-cache", "Content-Length": "12", "Content-Type": "text/plain", "Last-Modified": "Tue, 14 Nov 2023 22:13:20 GMT", "X-Goog-Generation": "1700000000000000", "X-Goog-Hash": "crc32c=aZmkHw==,md5=XrY7u+Ae7tCTyyK7j1rNww==", "X-Goog-Meta-Owner": "ada", "X-Goog-Metageneration": "3", "X-Goog-Stored-Content-Length": "12"}, body: "hello, world"}])
+  var c = fake_client(os)
+  read_lines(f, c.bucket("b1").object("a").retryer(Retry{backoff: FAST}).new_reader())
+  expect(lines(f)) == ["  GET https://storage.fake/b1/a", "    X-Goog-Api-Client: gccl-invocation-id/UUID gccl-attempt-count/1 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID", "  GET https://storage.fake/b1/a", "    X-Goog-Api-Client: gccl-invocation-id/UUID gccl-attempt-count/2 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID", "  attrs size=12 start=0 gen=1700000000000000 metagen=3 crc32c=1771676703 type=\"text/plain\" encoding=\"\" cache=\"no-cache\" modified=2023-11-14T22:13:20Z decompressed=false remain=12", "  metadata Owner=ada", "  read \"hello, world\"", "  remain 0"]
+}
+
+test "oracle: read, generation, conditions and user project" {
+  let f = new_reply_fake(os.net, [Reply{status: 200, headers: {"Cache-Control": "no-cache", "Content-Length": "12", "Content-Type": "text/plain", "Last-Modified": "Tue, 14 Nov 2023 22:13:20 GMT", "X-Goog-Generation": "1700000000000000", "X-Goog-Hash": "crc32c=aZmkHw==,md5=XrY7u+Ae7tCTyyK7j1rNww==", "X-Goog-Meta-Owner": "ada", "X-Goog-Metageneration": "3", "X-Goog-Stored-Content-Length": "12"}, body: "hello, world"}])
+  var c = fake_client(os)
+  read_lines(f, c.bucket("b1").billed_to("billed").object("a").generation(7).if_(Conditions{generation_match: 7, metageneration_match: 3}).new_reader())
+  expect(lines(f)) == ["  GET https://storage.fake/b1/a?generation=7", "    X-Goog-Api-Client: gccl-invocation-id/UUID gccl-attempt-count/1 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID", "    X-Goog-User-Project: billed", "    X-Goog-If-Generation-Match: 7", "    X-Goog-If-Metageneration-Match: 3", "  attrs size=12 start=0 gen=7 metagen=3 crc32c=1771676703 type=\"text/plain\" encoding=\"\" cache=\"no-cache\" modified=2023-11-14T22:13:20Z decompressed=false remain=12", "  metadata Owner=ada", "  read \"hello, world\"", "  remain 0"]
+}
+
+test "oracle: read, does not exist condition" {
+  let f = new_reply_fake(os.net, [Reply{status: 412, headers: {"Content-Type": "text/plain"}, body: ""}])
+  var c = fake_client(os)
+  read_lines(f, c.bucket("b1").object("a").if_(Conditions{does_not_exist: true}).new_reader())
+  expect(lines(f)) == ["  GET https://storage.fake/b1/a", "    X-Goog-Api-Client: gccl-invocation-id/UUID gccl-attempt-count/1 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID", "    X-Goog-If-Generation-Match: 0", "  error googleapi: got HTTP response code 412 with body: "]
+}
+
+test "oracle: read, conditions that conflict" {
+  let f = new_reply_fake(os.net, [])
+  var c = fake_client(os)
+  read_lines(f, c.bucket("b1").object("a").if_(Conditions{generation_match: 1, generation_not_match: 2}).new_reader())
+  expect(lines(f)) == ["  error storage: NewRangeReader: multiple conditions specified for generation"]
+}
+
+test "oracle: read, cut short then reopened" {
+  let f = new_reply_fake(os.net, [Reply{status: 200, headers: {"Cache-Control": "no-cache", "Content-Length": "12", "Content-Type": "text/plain", "Last-Modified": "Tue, 14 Nov 2023 22:13:20 GMT", "X-Goog-Generation": "1700000000000000", "X-Goog-Hash": "crc32c=aZmkHw==,md5=XrY7u+Ae7tCTyyK7j1rNww==", "X-Goog-Meta-Owner": "ada", "X-Goog-Metageneration": "3", "X-Goog-Stored-Content-Length": "12"}, body: "hello, world"}, Reply{status: 206, headers: {"Cache-Control": "no-cache", "Content-Length": "7", "Content-Range": "bytes 5-11/12", "Content-Type": "text/plain", "Last-Modified": "Tue, 14 Nov 2023 22:13:20 GMT", "X-Goog-Generation": "1700000000000000", "X-Goog-Hash": "crc32c=aZmkHw==,md5=XrY7u+Ae7tCTyyK7j1rNww==", "X-Goog-Meta-Owner": "ada", "X-Goog-Metageneration": "3", "X-Goog-Stored-Content-Length": "12"}, body: ", world"}])
+  var c = fake_client(os)
+  c.cuts = Some(Mutex[List[Int]].new([5, -1]))
+  read_lines(f, c.bucket("b1").object("a").retryer(Retry{backoff: FAST}).new_reader())
+  expect(lines(f)) == ["  GET https://storage.fake/b1/a", "    X-Goog-Api-Client: gccl-invocation-id/UUID gccl-attempt-count/1 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID", "  attrs size=12 start=0 gen=1700000000000000 metagen=3 crc32c=1771676703 type=\"text/plain\" encoding=\"\" cache=\"no-cache\" modified=2023-11-14T22:13:20Z decompressed=false remain=12", "  metadata Owner=ada", "  GET https://storage.fake/b1/a?generation=1700000000000000", "    X-Goog-Api-Client: gccl-invocation-id/UUID gccl-attempt-count/1 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID", "    Range: bytes=5-", "  read \"hello, world\"", "  remain 0"]
+}
+
+test "oracle: read, a range cut short then reopened" {
+  let f = new_reply_fake(os.net, [Reply{status: 206, headers: {"Cache-Control": "no-cache", "Content-Length": "8", "Content-Range": "bytes 2-9/12", "Content-Type": "text/plain", "Last-Modified": "Tue, 14 Nov 2023 22:13:20 GMT", "X-Goog-Generation": "1700000000000000", "X-Goog-Hash": "crc32c=aZmkHw==,md5=XrY7u+Ae7tCTyyK7j1rNww==", "X-Goog-Meta-Owner": "ada", "X-Goog-Metageneration": "3", "X-Goog-Stored-Content-Length": "12"}, body: "llo, wor"}, Reply{status: 206, headers: {"Cache-Control": "no-cache", "Content-Length": "5", "Content-Range": "bytes 5-9/12", "Content-Type": "text/plain", "Last-Modified": "Tue, 14 Nov 2023 22:13:20 GMT", "X-Goog-Generation": "1700000000000000", "X-Goog-Hash": "crc32c=aZmkHw==,md5=XrY7u+Ae7tCTyyK7j1rNww==", "X-Goog-Meta-Owner": "ada", "X-Goog-Metageneration": "3", "X-Goog-Stored-Content-Length": "12"}, body: ", wor"}])
+  var c = fake_client(os)
+  c.cuts = Some(Mutex[List[Int]].new([3, -1]))
+  read_lines(f, c.bucket("b1").object("a").retryer(Retry{backoff: FAST}).new_range_reader(2, 8))
+  expect(lines(f)) == ["  GET https://storage.fake/b1/a", "    X-Goog-Api-Client: gccl-invocation-id/UUID gccl-attempt-count/1 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID", "    Range: bytes=2-9", "  attrs size=12 start=2 gen=1700000000000000 metagen=3 crc32c=1771676703 type=\"text/plain\" encoding=\"\" cache=\"no-cache\" modified=2023-11-14T22:13:20Z decompressed=false remain=8", "  metadata Owner=ada", "  GET https://storage.fake/b1/a?generation=1700000000000000", "    X-Goog-Api-Client: gccl-invocation-id/UUID gccl-attempt-count/1 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID", "    Range: bytes=5-9", "  read \"llo, wor\"", "  remain 0"]
+}
+
+test "oracle: read, the last bytes cut short then reopened" {
+  let f = new_reply_fake(os.net, [Reply{status: 206, headers: {"Cache-Control": "no-cache", "Content-Length": "5", "Content-Range": "bytes 7-11/12", "Content-Type": "text/plain", "Last-Modified": "Tue, 14 Nov 2023 22:13:20 GMT", "X-Goog-Generation": "1700000000000000", "X-Goog-Hash": "crc32c=aZmkHw==,md5=XrY7u+Ae7tCTyyK7j1rNww==", "X-Goog-Meta-Owner": "ada", "X-Goog-Metageneration": "3", "X-Goog-Stored-Content-Length": "12"}, body: "world"}, Reply{status: 206, headers: {"Cache-Control": "no-cache", "Content-Length": "3", "Content-Range": "bytes 9-11/12", "Content-Type": "text/plain", "Last-Modified": "Tue, 14 Nov 2023 22:13:20 GMT", "X-Goog-Generation": "1700000000000000", "X-Goog-Hash": "crc32c=aZmkHw==,md5=XrY7u+Ae7tCTyyK7j1rNww==", "X-Goog-Meta-Owner": "ada", "X-Goog-Metageneration": "3", "X-Goog-Stored-Content-Length": "12"}, body: "rld"}])
+  var c = fake_client(os)
+  c.cuts = Some(Mutex[List[Int]].new([2, -1]))
+  read_lines(f, c.bucket("b1").object("a").retryer(Retry{backoff: FAST}).new_range_reader(-5, -1))
+  expect(lines(f)) == ["  GET https://storage.fake/b1/a", "    X-Goog-Api-Client: gccl-invocation-id/UUID gccl-attempt-count/1 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID", "    Range: bytes=-5", "  attrs size=12 start=7 gen=1700000000000000 metagen=3 crc32c=1771676703 type=\"text/plain\" encoding=\"\" cache=\"no-cache\" modified=2023-11-14T22:13:20Z decompressed=false remain=5", "  metadata Owner=ada", "  GET https://storage.fake/b1/a?generation=1700000000000000", "    X-Goog-Api-Client: gccl-invocation-id/UUID gccl-attempt-count/1 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID", "    Range: bytes=-3", "  read \"world\"", "  remain 0"]
+}
+
+test "oracle: read, cut short and the reopen fails" {
+  let f = new_reply_fake(os.net, [Reply{status: 200, headers: {"Cache-Control": "no-cache", "Content-Length": "12", "Content-Type": "text/plain", "Last-Modified": "Tue, 14 Nov 2023 22:13:20 GMT", "X-Goog-Generation": "1700000000000000", "X-Goog-Hash": "crc32c=aZmkHw==,md5=XrY7u+Ae7tCTyyK7j1rNww==", "X-Goog-Meta-Owner": "ada", "X-Goog-Metageneration": "3", "X-Goog-Stored-Content-Length": "12"}, body: "hello, world"}, Reply{status: 404, headers: {"Content-Type": "text/plain"}, body: ""}])
+  var c = fake_client(os)
+  c.cuts = Some(Mutex[List[Int]].new([5]))
+  read_lines(f, c.bucket("b1").object("a").retryer(Retry{backoff: FAST}).new_reader())
+  expect(lines(f)) == ["  GET https://storage.fake/b1/a", "    X-Goog-Api-Client: gccl-invocation-id/UUID gccl-attempt-count/1 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID", "  attrs size=12 start=0 gen=1700000000000000 metagen=3 crc32c=1771676703 type=\"text/plain\" encoding=\"\" cache=\"no-cache\" modified=2023-11-14T22:13:20Z decompressed=false remain=12", "  metadata Owner=ada", "  GET https://storage.fake/b1/a?generation=1700000000000000", "    X-Goog-Api-Client: gccl-invocation-id/UUID gccl-attempt-count/1 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID", "    Range: bytes=5-", "  read \"hello\"", "  read error storage: object doesn't exist", "  close error storage: object doesn't exist", "  remain 7"]
+}
+
+test "oracle: read, served decompressed" {
+  let f = new_reply_fake(os.net, [Reply{status: 200, headers: {"Cache-Control": "no-cache", "Content-Length": "12", "Content-Type": "text/plain", "Last-Modified": "Tue, 14 Nov 2023 22:13:20 GMT", "X-Goog-Generation": "1700000000000000", "X-Goog-Hash": "crc32c=AAAAAA==", "X-Goog-Meta-Owner": "ada", "X-Goog-Metageneration": "3", "X-Goog-Stored-Content-Encoding": "gzip", "X-Goog-Stored-Content-Length": "12"}, body: "hello, world"}])
+  var c = fake_client(os)
+  read_lines(f, c.bucket("b1").object("a").new_reader())
+  expect(lines(f)) == ["  GET https://storage.fake/b1/a", "    X-Goog-Api-Client: gccl-invocation-id/UUID gccl-attempt-count/1 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID", "  attrs size=12 start=0 gen=1700000000000000 metagen=3 crc32c=0 type=\"text/plain\" encoding=\"\" cache=\"no-cache\" modified=2023-11-14T22:13:20Z decompressed=true remain=-1", "  metadata Owner=ada", "  read \"hello, world\"", "  remain -1"]
+}
+
+test "oracle: read, compressed as stored" {
+  let f = new_reply_fake(os.net, [Reply{status: 200, headers: {"Cache-Control": "no-cache", "Content-Encoding": "gzip", "Content-Length": "12", "Content-Type": "text/plain", "Last-Modified": "Tue, 14 Nov 2023 22:13:20 GMT", "X-Goog-Generation": "1700000000000000", "X-Goog-Hash": "crc32c=aZmkHw==,md5=XrY7u+Ae7tCTyyK7j1rNww==", "X-Goog-Meta-Owner": "ada", "X-Goog-Metageneration": "3", "X-Goog-Stored-Content-Encoding": "gzip", "X-Goog-Stored-Content-Length": "12"}, body: "hello, world"}])
+  var c = fake_client(os)
+  read_lines(f, c.bucket("b1").object("a").with_read_compressed(true).new_reader())
+  expect(lines(f)) == ["  GET https://storage.fake/b1/a", "    X-Goog-Api-Client: gccl-invocation-id/UUID gccl-attempt-count/1 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID", "    Accept-Encoding: gzip", "  attrs size=12 start=0 gen=1700000000000000 metagen=3 crc32c=1771676703 type=\"text/plain\" encoding=\"gzip\" cache=\"no-cache\" modified=2023-11-14T22:13:20Z decompressed=false remain=12", "  metadata Owner=ada", "  read \"hello, world\"", "  remain 0"]
+}
+
+test "oracle: read, a bad Content-Range" {
+  let f = new_reply_fake(os.net, [Reply{status: 206, headers: {"Cache-Control": "no-cache", "Content-Length": "12", "Content-Range": "2-5", "Content-Type": "text/plain", "Last-Modified": "Tue, 14 Nov 2023 22:13:20 GMT", "X-Goog-Generation": "1700000000000000", "X-Goog-Hash": "crc32c=aZmkHw==,md5=XrY7u+Ae7tCTyyK7j1rNww==", "X-Goog-Meta-Owner": "ada", "X-Goog-Metageneration": "3", "X-Goog-Stored-Content-Length": "12"}, body: "llo,"}])
+  var c = fake_client(os)
+  read_lines(f, c.bucket("b1").object("a").new_range_reader(2, 4))
+  expect(lines(f)) == ["  GET https://storage.fake/b1/a", "    X-Goog-Api-Client: gccl-invocation-id/UUID gccl-attempt-count/1 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID", "    Range: bytes=2-5", "  error storage: invalid Content-Range \"2-5\""]
+}
+
+test "oracle: read, an empty object name" {
+  let f = new_reply_fake(os.net, [])
+  var c = fake_client(os)
+  read_lines(f, c.bucket("b1").object("").new_reader())
+  expect(lines(f)) == ["  error storage: object name is empty"]
+}

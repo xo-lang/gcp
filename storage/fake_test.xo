@@ -7,10 +7,18 @@ use std/base64
 use std/http
 use std/json
 use std/testing
+use std/time
 use github.com/xo-lang/gcp/option
 
+/// A reply: its status, headers (Content-Type JSON when empty) and body.
+struct Reply {
+  status: Int
+  headers: Map[Str, Str] = {}
+  body: Str = ""
+}
+
 struct Fake {
-  replies: Mutex[List[(Int, Str)]]
+  replies: Mutex[List[Reply]]
   log: Mutex[List[Str]]
 }
 
@@ -107,26 +115,40 @@ fn answer(f: Fake, req: http.Request) -> http.Response {
   if let Some(v) = header_of(req, "if-none-match") {
     note(f, "    If-None-Match: ${v}")
   }
-  if let Some(v) = header_of(req, "content-type") {
-    note(f, "    Content-Type: ${v}")
+  for h in ["Content-Type", "Range", "X-Goog-If-Generation-Match", "X-Goog-If-Metageneration-Match", "X-Goog-Encryption-Algorithm"] {
+    if let Some(v) = header_of(req, h) {
+      note(f, "    ${h}: ${v}")
+    }
+  }
+  if header_of(req, "accept-encoding") == Some("gzip") {
+    note(f, "    Accept-Encoding: gzip")
   }
   if !req.body.is_empty() {
     note(f, "    body ${canon_text(req.body.to_str_lossy())}")
   }
-  let r = f.replies.with(fn(var rs: List[(Int, Str)]) -> (Int, Str) {
-    let x = rs.get(0) ?? (200, "{}")
+  let r = f.replies.with(fn(var rs: List[Reply]) -> Reply {
+    let x = rs.get(0) ?? Reply{status: 200, body: "{}"}
     if !rs.is_empty() {
       rs = rs[1..rs.len()]
     }
     x
   })
-  http.Response{status: r.0, headers: {"Content-Type": "application/json; charset=UTF-8"}, body: r.1.bytes()}
+  let hs: Map[Str, Str] = if r.headers.is_empty() { {"Content-Type": "application/json; charset=UTF-8"} } else { r.headers }
+  http.Response{status: r.status, headers: hs, body: r.body.bytes()}
 }
 
 fn new_fake(net: testing.FakeNet, replies: List[(Int, Str)]) -> Fake {
-  let f = Fake{replies: Mutex[List[(Int, Str)]].new(replies), log: Mutex[List[Str]].new([])}
+  var rs: List[Reply] = []
+  for (st, b) in replies {
+    rs.push(Reply{status: st, body: b})
+  }
+  new_reply_fake(net, rs)
+}
+
+fn new_reply_fake(net: testing.FakeNet, replies: List[Reply]) -> Fake {
+  let f = Fake{replies: Mutex[List[Reply]].new(replies), log: Mutex[List[Str]].new([])}
   let h = fn(req: http.Request) -> http.Response { answer(f, req) }
-  for m in ["GET", "PUT", "POST", "DELETE", "PATCH"] {
+  for m in ["GET", "PUT", "POST", "DELETE", "PATCH", "HEAD"] {
     net.handle("${m} https://storage.fake/{rest...}", h)
   }
   f
@@ -247,4 +269,47 @@ fn result_lines(f: Fake, r: Result[Str, StorageErr]) {
       }
     }
   }
+}
+
+/// A reader's attributes and what reading it to the end gives, as the
+/// oracle prints them.
+fn read_lines(f: Fake, r0: Result[Reader[()], StorageErr]) {
+  var r = match r0 {
+    Ok(r) => r
+    Err(e) => {
+      result_lines(f, Err(e))
+      return
+    }
+  }
+  let a = r.attrs
+  let lm = match a.last_modified {
+    Some(t) => time.RFC3339_LAYOUT.format(t, time.utc())
+    None => "0001-01-01T00:00:00Z"
+  }
+  note(f, "  attrs size=${a.size} start=${a.start_offset} gen=${a.generation} metagen=${a.metageneration} crc32c=${a.crc32c} type=${a.content_type.quote()} encoding=${a.content_encoding.quote()} cache=${a.cache_control.quote()} modified=${lm} decompressed=${a.decompressed} remain=${r.remaining()}")
+  let md = r.object_metadata()
+  for k in md.keys().sort() {
+    note(f, "  metadata ${k}=${md.get(k) ?? ""}")
+  }
+  var got = b""
+  var err: StorageErr? = None
+  while true {
+    match r.read() {
+      Ok(Some(d)) => got = got + d
+      Ok(None) => break
+      Err(e) => {
+        err = Some(e)
+        break
+      }
+    }
+  }
+  note(f, "  read ${got.to_str_lossy().quote()}")
+  if let Some(e) = err {
+    note(f, "  read error ${e.display()}")
+  }
+  match r.close() {
+    Err(e) => note(f, "  close error ${e.display()}")
+    Ok(_) => {}
+  }
+  note(f, "  remain ${r.remaining()}")
 }

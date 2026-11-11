@@ -26,9 +26,9 @@ pub const EMULATOR_HOST_ENV: Str = "STORAGE_EMULATOR_HOST"
 
 /// Why a storage call gave no result.
 pub enum StorageErr {
-  /// The object does not exist (Go's ErrObjectNotExist wrapping the
-  /// service's 404).
-  ObjectNotExist(e: gensupport.CallErr)
+  /// The object does not exist (Go's ErrObjectNotExist, wrapping the
+  /// service's 404 for a JSON call; a read's 404 carries none).
+  ObjectNotExist(e: gensupport.CallErr?)
   /// The bucket does not exist (Go's ErrBucketNotExist wrapping the
   /// service's 404).
   BucketNotExist(e: gensupport.CallErr)
@@ -40,15 +40,23 @@ pub enum StorageErr {
   Invalid(msg: Str)
   /// The retries ran out (Retry.max_attempts).
   RetryFailed(attempts: Int, last: gensupport.CallErr)
+  /// A read's CRC32C (Castagnoli) is not the one the service sent.
+  Checksum(got: Int, want: Int)
 }
 
 pub fn (e: StorageErr) display() -> Str {
   match e {
-    ObjectNotExist(c) => "storage: object doesn't exist: ${c.display()}"
+    ObjectNotExist(c) => {
+      match c {
+        Some(x) => "storage: object doesn't exist: ${x.display()}"
+        None => "storage: object doesn't exist"
+      }
+    }
     BucketNotExist(c) => "storage: bucket doesn't exist: ${c.display()}"
     Call(c) => c.display()
     Invalid(m) => m
     RetryFailed(n, c) => "storage: retry failed after ${n} attempts; last error: ${c.display()}"
+    Checksum(got, want) => "storage: bad CRC on read: got ${got}, want ${want}"
   }
 }
 
@@ -61,11 +69,12 @@ pub fn (e: StorageErr) is_bucket_not_exist() -> Bool { e is StorageErr.BucketNot
 /// The service's HTTP status when the error is its answer, else 0.
 pub fn (e: StorageErr) code() -> Int {
   let c = match e {
-    ObjectNotExist(c) => c
+    ObjectNotExist(oc) => oc ?? return 404
     BucketNotExist(c) => c
     Call(c) => c
     RetryFailed(_, c) => c
     Invalid(_) => return 0
+    Checksum(_, _) => return 0
   }
   match c {
     gensupport.CallErr.Api(a) => a.code
@@ -144,6 +153,30 @@ pub struct Client[fx: Effects] {
   clock: Clock
   rand: Rand
   retry: Retry
+  /// The XML API's base, where reads go: the endpoint's scheme and host
+  /// (Go's xmlHost and scheme).
+  read_base: Str
+  /// Tests only: each read body opened takes the next value and is cut
+  /// short after that many bytes (-1: not cut), as a dropped connection.
+  cuts: Mutex[List[Int]]? = None
+}
+
+/// The next body's cut (Client.cuts), -1 for none.
+fn (c: Client[fx]) next_cut() -> Int {
+  let m = c.cuts ?? return -1
+  m.with(fn(var l: List[Int]) -> Int {
+    let x = l.get(0) ?? return -1
+    l = l[1..l.len()]
+    x
+  })
+}
+
+/// The scheme and host of an endpoint URL, with a slash.
+fn host_base(ep: Str) -> Str {
+  let i = ep.find("://") ?? return "https://storage.googleapis.com/"
+  let rest = ep[i + 3..ep.len()]
+  let j = rest.find("/") ?? rest.len()
+  "${ep[0..i + 3]}${rest[0..j]}/"
 }
 
 /// The client (Go's NewClient over HTTP): its endpoint is the options'
@@ -159,7 +192,7 @@ pub fn new_client[fx: Effects](net: Net, clock: Clock, rand: Rand, opts: ClientO
     o.without_authentication = true
   }
   let ep = if o.endpoint == "" { raw.BASE_PATH } else { o.endpoint }
-  Client{svc: raw.new_service(net, o), core: gensupport.new_core(net, o, ep), clock: clock, rand: rand, retry: opts.retry}
+  Client{svc: raw.new_service(net, o), core: gensupport.new_core(net, o, ep), clock: clock, rand: rand, retry: opts.retry, read_base: host_base(ep)}
 }
 
 /// The handle of the bucket called name (no request is made).
@@ -196,7 +229,7 @@ fn object_err(e: RunErr) -> StorageErr {
       match c {
         gensupport.CallErr.Api(a) => {
           if a.code == 404 {
-            return StorageErr.ObjectNotExist(c)
+            return StorageErr.ObjectNotExist(Some(c))
           }
         }
         _ => {}

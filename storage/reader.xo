@@ -1,0 +1,399 @@
+// Reading an object over the XML API, as cloud.google.com/go/storage
+// v1.70.0's reader.go and http_client.go (newRangeReaderXML,
+// readerReopen, parseReadResponse, httpReader; Apache-2.0, Copyright
+// Google LLC; NOTICE.md): ranges and negative offsets, conditions as
+// x-goog-if-* headers, the generation the first response names, CRC32C
+// checks, decompressive transcoding, and the reopen of a body cut short
+// at the bytes already read.
+
+use std/crc32
+use std/base64
+use std/http
+use std/time
+use github.com/xo-lang/gcp/auth
+use github.com/xo-lang/gcp/googleapi
+use github.com/xo-lang/gcp/gensupport
+
+/// What a read learned of the object (Go's ReaderObjectAttrs).
+pub struct ReaderObjectAttrs {
+  /// The whole object's size, even for a range.
+  pub size: Int = 0
+  /// The first byte of a range, 0 for the whole object.
+  pub start_offset: Int = 0
+  pub content_type: Str = ""
+  pub content_encoding: Str = ""
+  pub cache_control: Str = ""
+  pub last_modified: Time? = None
+  pub generation: Int = 0
+  pub metageneration: Int = 0
+  /// The CRC32C the service sent, 0 when none.
+  pub crc32c: Int = 0
+  /// The content was stored gzip-compressed and served decompressed.
+  pub decompressed: Bool = false
+}
+
+/// A response body as the reader reads it: the stream, at most max
+/// bytes a read (a stream may give more: the rest waits in `pending`),
+/// cut short after `cut` bytes when a test asks (Client.cuts).
+struct Body {
+  s: http.ClientStream? = None
+  pending: Bytes = b""
+  cut: Int = -1
+  n: Int = 0
+}
+
+fn (var b: Body) read(max: Int) -> Bytes? ! http.ClientErr uses net.dial {
+  let s = b.s ?? return Ok(None)
+  if b.cut >= 0 && b.n >= b.cut {
+    return Err(http.ClientErr.Protocol("unexpected EOF"))
+  }
+  let want = if b.cut >= 0 && b.cut - b.n < max { b.cut - b.n } else { max }
+  var d = b.pending
+  if d.is_empty() {
+    d = match s.read(want)? {
+      Some(x) => x
+      None => return Ok(None)
+    }
+  }
+  if d.len() > want {
+    b.pending = d[want..d.len()]
+    d = d[0..want]
+  } else {
+    b.pending = b""
+  }
+  b.n += d.len()
+  Ok(Some(d))
+}
+
+fn (b: Body) close() {
+  if let Some(s) = b.s {
+    s.close()
+  }
+}
+
+/// What a read asked for (Go's newRangeReaderParams).
+struct ReadParams {
+  bucket: Str
+  object: Str
+  gen: Int
+  offset: Int
+  length: Int
+  conds: Conditions?
+  read_compressed: Bool
+  user_project: Str
+  retry: Retry
+}
+
+/// Reads an object (Go's Reader): `read` until None, then `close`, which
+/// gives the error a read met (a bad CRC among them).
+pub struct Reader[fx: Effects] {
+  pub attrs: ReaderObjectAttrs
+  metadata: Map[Str, Str]
+  c: Client[fx]
+  p: ReadParams
+  body: Body
+  left: Int
+  seen: Int = 0
+  check_crc: Bool
+  want_crc: Int
+  got_crc: Int = 0
+  err: StorageErr? = None
+}
+
+/// A reader of the whole object (Go's NewReader).
+pub fn (o: ObjectHandle[fx]) new_reader() -> Reader[fx] ! StorageErr uses (net.dial, clock, rand, fx) { o.new_range_reader(0, -1) }
+
+/// A reader of length bytes from offset (Go's NewRangeReader): length -1
+/// reads to the end, a negative offset (with length -1) the last -offset
+/// bytes, and length 0 only the attributes (a HEAD).
+pub fn (o: ObjectHandle[fx]) new_range_reader(offset: Int, length: Int) -> Reader[fx] ! StorageErr uses (net.dial, clock, rand, fx) {
+  o.validate()?
+  if offset < 0 && length >= 0 {
+    return Err(StorageErr.Invalid("storage: invalid offset ${offset} < 0 requires negative length"))
+  }
+  if let Some(c) = o.conds {
+    c.validate("NewRangeReader")?
+  }
+  var p = ReadParams{bucket: o.bucket, object: o.object, gen: o.gen, offset: offset, length: length, conds: o.conds, read_compressed: o.read_compressed, user_project: o.user_project, retry: o.retry}
+  let (res, body) = reopen(o.c, p, 0)?
+  if p.gen < 0 {
+    p.gen = gen_of(res)
+  }
+  parse_read_response(o.c, p, res, body)
+}
+
+/// The handle reading the stored bytes, gzip as stored (Go's
+/// ReadCompressed).
+pub fn (o: ObjectHandle[fx]) with_read_compressed(on: Bool) -> ObjectHandle[fx] {
+  var h = o
+  h.read_compressed = on
+  h
+}
+
+fn gen_of(res: http.ResponseHead) -> Int {
+  match res.headers.get("X-Goog-Generation") {
+    Some(g) => Int.parse(g) ?? -1
+    None => -1
+  }
+}
+
+/// Go's decompressiveTranscoding.
+fn decompressive(res: http.ResponseHead) -> Bool {
+  (res.headers.get("Content-Encoding") ?? "") == "gzip" || (res.headers.get("X-Goog-Stored-Content-Encoding") ?? "") == "gzip"
+}
+
+/// Go's uncompressedByServer.
+fn uncompressed_by_server(res: http.ResponseHead) -> Bool {
+  (res.headers.get("X-Goog-Stored-Content-Encoding") ?? "") == "gzip" && (res.headers.get("Content-Encoding") ?? "") != "gzip"
+}
+
+/// Go's parseCRC32c: crc32c=... in X-Goog-Hash ("a=x,b=y").
+fn parse_crc(res: http.ResponseHead) -> Int? {
+  let h = res.headers.get("X-Goog-Hash") ?? return None
+  for v in h.split(",") {
+    let t = v.trim()
+    if t.starts_with("crc32c=") {
+      let b = base64.decode(t[7..t.len()], base64.Base64.Std).ok() ?? continue
+      if b.len() == 4 {
+        return Some((Int(b[0]) << 24) | (Int(b[1]) << 16) | (Int(b[2]) << 8) | Int(b[3]))
+      }
+    }
+  }
+  None
+}
+
+/// The x-goog-api-client of an XML read: storage's tokens only (Go sets
+/// them from the call's context, without gensupport's).
+fn xml_headers(h: List[(Str, Str)]) -> List[(Str, Str)] {
+  var out: List[(Str, Str)] = []
+  for (k, v) in h {
+    if k == "x-goog-api-client" {
+      let i = v.find(" gccl-invocation-id/") ?? 0
+      out.push((k, v[i..v.len()].trim()))
+    } else {
+      out.push((k, v))
+    }
+  }
+  out
+}
+
+/// Go's readerReopen: the request for the bytes after `seen`, retried as
+/// a read is; answers the response's head and its body.
+fn reopen[fx: Effects](c: Client[fx], p: ReadParams, seen: Int) -> (http.ResponseHead, Body) ! StorageErr uses (net.dial, clock, rand, fx) {
+  let start = p.offset + seen
+  var hs: List[(Str, Str)] = []
+  if !p.user_project.is_empty() {
+    hs.push(("X-Goog-User-Project", p.user_project))
+  }
+  if p.read_compressed {
+    hs.push(("Accept-Encoding", "gzip"))
+  }
+  if p.length < 0 && start < 0 {
+    hs.push(("Range", "bytes=${start}"))
+  } else if p.length < 0 && start > 0 {
+    hs.push(("Range", "bytes=${start}-"))
+  } else if p.length > 0 {
+    hs.push(("Range", "bytes=${start}-${p.offset + p.length - 1}"))
+  }
+  if let Some(cd) = p.conds {
+    if cd.metageneration_match != 0 {
+      hs.push(("x-goog-if-metageneration-match", "${cd.metageneration_match}"))
+    }
+    if cd.generation_match != 0 {
+      hs.push(("x-goog-if-generation-match", "${cd.generation_match}"))
+    } else if cd.does_not_exist {
+      hs.push(("x-goog-if-generation-match", "0"))
+    }
+  }
+  let base = googleapi.resolve_relative(c.read_base, "${p.bucket}/${path_escape_go(p.object)}")
+  let target = if p.gen >= 0 { "${base}?generation=${p.gen}" } else { base }
+  let method = if p.length == 0 { "HEAD" } else { "GET" }
+  let got = c.run(p.retry, true, fn(h: List[(Str, Str)]) -> (http.ResponseHead, Body) ! gensupport.CallErr uses net.dial, clock, rand, fx {
+    var req = http.new_request(method, target, {}, b"")
+    req = req.with_header("User-Agent", c.core.client.user_agent)
+    for (k, v) in hs + xml_headers(h) {
+      req = req.with_header(k, v)
+    }
+    if c.core.client.quota_project != "" {
+      req = req.with_header("X-Goog-User-Project", c.core.client.quota_project)
+    }
+    if !c.core.client.without_authentication {
+      let tp = c.core.client.credentials ?? return Err(gensupport.CallErr.NoCredentials)
+      let t = tp.token() ?? e => return Err(gensupport.CallErr.Auth(e))
+      req = req.with_header("Authorization", auth.authorization(t))
+    }
+    let s = c.core.client.http.open(req) ?? e => return Err(gensupport.CallErr.Http(e))
+    let head = s.head()
+    if head.status < 200 || head.status > 299 {
+      let b = if head.status == 404 { b"" } else { s.read_all(1048576).ok() ?? b"" }
+      s.close()
+      return Err(gensupport.CallErr.Api(googleapi.ApiErr{code: head.status, body: b.to_str_lossy(), header: head.headers}))
+    }
+    if !decompressive(head) && start > 0 && p.length != 0 && head.status != 206 {
+      s.close()
+      return Err(gensupport.CallErr.Decode("storage: partial request not satisfied"))
+    }
+    var body = Body{s: Some(s), cut: c.next_cut()}
+    // a decompressed body comes whole: skip what was read
+    if decompressive(head) && seen > 0 {
+      var left = seen
+      while left > 0 {
+        let d = body.read(left) ?? e => return Err(gensupport.CallErr.Http(e))
+        match d {
+          Some(x) => left -= x.len()
+          None => left = 0
+        }
+      }
+    }
+    Ok((head, body))
+  })
+  match got {
+    Ok(v) => Ok(v)
+    Err(RunErr.Last(gensupport.CallErr.Api(a))) => {
+      if a.code == 404 {
+        Err(StorageErr.ObjectNotExist(None))
+      } else {
+        Err(StorageErr.Call(gensupport.CallErr.Api(a)))
+      }
+    }
+    Err(e) => Err(call_err(e))
+  }
+}
+
+/// Go's parseReadResponse.
+fn parse_read_response[fx: Effects](c: Client[fx], p: ReadParams, res: http.ResponseHead, body0: Body) -> Reader[fx] ! StorageErr {
+  var body = body0
+  var size = 0
+  var start = 0
+  let cl = Int.parse((res.headers.get("Content-Length") ?? "-1")) ?? -1
+  if res.status == 206 {
+    let cr = (res.headers.get("Content-Range") ?? "").trim()
+    if !cr.starts_with("bytes ") || !cr.contains("/") {
+      body.close()
+      return Err(StorageErr.Call(gensupport.CallErr.Decode("storage: invalid Content-Range ${cr.quote()}")))
+    }
+    let slash = cr.rfind("/") ?? 0
+    size = Int.parse(cr[slash + 1..cr.len()]) ?? {
+      body.close()
+      return Err(StorageErr.Call(gensupport.CallErr.Decode("storage: invalid Content-Range ${cr.quote()}")))
+    }
+    if let Some(dash) = cr.find("-") {
+      start = Int.parse(cr[6..dash]) ?? {
+        body.close()
+        return Err(StorageErr.Call(gensupport.CallErr.Decode("storage: invalid Content-Range ${cr.quote()}")))
+      }
+    }
+  } else {
+    size = cl
+  }
+  let crc = parse_crc(res)
+  let check = crc.is_some() && !(p.length == 0 || res.status == 206 || uncompressed_by_server(res))
+  var remain = cl
+  if p.length == 0 {
+    remain = 0
+    body.close()
+    body = Body{}
+  }
+  let metagen = Int.parse((res.headers.get("X-Goog-Metageneration") ?? "0")) ?? 0
+  let lm = match res.headers.get("Last-Modified") {
+    Some(v) => time.RFC1123_LAYOUT.parse(v, time.utc()).ok()
+    None => None
+  }
+  var md: Map[Str, Str] = {}
+  for (k, v) in res.headers {
+    if k.starts_with("X-Goog-Meta-") {
+      md[k[12..k.len()]] = v
+    }
+  }
+  let attrs = ReaderObjectAttrs{size: size, content_type: res.headers.get("Content-Type") ?? "", content_encoding: res.headers.get("Content-Encoding") ?? "", cache_control: res.headers.get("Cache-Control") ?? "", last_modified: lm, start_offset: start, generation: p.gen, metageneration: metagen, crc32c: crc ?? 0, decompressed: uncompressed_by_server(res)}
+  Ok(Reader{attrs: attrs, metadata: md, c: c, p: p, body: body, left: remain, check_crc: check, want_crc: crc ?? 0})
+}
+
+/// The object's custom metadata (Go's Metadata), from X-Goog-Meta-*.
+pub fn (r: Reader[fx]) object_metadata() -> Map[Str, Str] { r.metadata }
+
+/// The bytes left to read, -1 when unknown (served decompressed).
+pub fn (r: Reader[fx]) remaining() -> Int {
+  if r.attrs.decompressed { -1 } else { r.left }
+}
+
+/// The next bytes, at most max; None at the end. A body cut short is read
+/// again from where it stopped (Go's httpReader.Read); at the end the
+/// CRC32C is checked. An error stays: close gives it too.
+pub fn (var r: Reader[fx]) read(max: Int = 32768) -> Bytes? ! StorageErr uses (net.dial, clock, rand, fx) {
+  if let Some(e) = r.err {
+    return Err(e)
+  }
+  while true {
+    var b = r.body
+    let got = b.read(max)
+    r.body = b
+    match got {
+      Ok(Some(d)) => {
+        r.seen += d.len()
+        r.left -= d.len()
+        if r.check_crc {
+          r.got_crc = crc32.update(r.got_crc, d, crc32.Poly.Castagnoli)
+        }
+        return Ok(Some(d))
+      }
+      Ok(None) => {
+        if r.check_crc && r.got_crc != r.want_crc {
+          let e = StorageErr.Checksum(got: r.got_crc, want: r.want_crc)
+          r.err = Some(e)
+          return Err(e)
+        }
+        return Ok(None)
+      }
+      Err(_) => {
+        r.body.close()
+        match reopen(r.c, r.p, r.seen) {
+          Ok((_, b)) => r.body = b
+          Err(e) => {
+            r.err = Some(e)
+            return Err(e)
+          }
+        }
+      }
+    }
+  }
+  Ok(None)
+}
+
+/// The rest of the object.
+pub fn (var r: Reader[fx]) read_all() -> Bytes ! StorageErr uses (net.dial, clock, rand, fx) {
+  var out = b""
+  while true {
+    match r.read()? {
+      Some(d) => out = out + d
+      None => break
+    }
+  }
+  Ok(out)
+}
+
+/// Releases the connection; the error a read met, if any (Go's Close).
+pub fn (r: Reader[fx]) close() -> () ! StorageErr {
+  r.body.close()
+  match r.err {
+    Some(e) => Err(e)
+    None => Ok(())
+  }
+}
+
+/// Go's url.PathEscape: every byte but unreserved characters and
+/// `$&+,:;=@` as %XX.
+fn path_escape_go(s: Str) -> Str {
+  var out = ""
+  let bs = s.bytes()
+  for i in 0..bs.len() {
+    let c = bs[i]
+    let ok = (c >= 0x41 && c <= 0x5A) || (c >= 0x61 && c <= 0x7A) || (c >= 0x30 && c <= 0x39) || c == 0x2D || c == 0x2E || c == 0x5F || c == 0x7E || c == 0x24 || c == 0x26 || c == 0x2B || c == 0x2C || c == 0x3A || c == 0x3B || c == 0x3D || c == 0x40
+    if ok {
+      out = out + s[i..i + 1]
+    } else {
+      out = out + "%" + "0123456789ABCDEF"[Int(c) >> 4..(Int(c) >> 4) + 1] + "0123456789ABCDEF"[Int(c) & 15..(Int(c) & 15) + 1]
+    }
+  }
+  out
+}
