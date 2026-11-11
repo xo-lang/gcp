@@ -71,15 +71,17 @@ fn (w: Writer[fx]) validate() -> () ! StorageErr {
   Ok(())
 }
 
-/// The object's metadata in the upload (toRawObject), with crc32c and
-/// md5Hash as Go adds them.
-fn (w: Writer[fx]) body(crc: Str) -> json.Value {
-  let a = w.attrs
+/// An object's attributes as an upload, copy or compose sends them
+/// (toRawObject: fields left empty are left out, a bucket "" too), with
+/// crc32c and md5Hash as Go adds them.
+fn attrs_json(bucket: Str, a: ObjectAttrs, crc: Str) -> json.Value {
   var f: List[(Str, json.Value)] = []
   if !a.acl.is_empty() {
     f.push(("acl", acl_value(a.acl)))
   }
-  f.push(("bucket", json.Value.Str(w.o.bucket)))
+  if bucket != "" {
+    f.push(("bucket", json.Value.Str(bucket)))
+  }
   if a.cache_control != "" {
     f.push(("cacheControl", json.Value.Str(a.cache_control)))
   }
@@ -189,7 +191,7 @@ fn (w: Writer[fx]) upload() -> ObjectAttrs ! StorageErr uses (net.dial, clock, r
   q.set("alt", "json")
   q.set("prettyPrint", "false")
   // Go's json.Encoder: the JSON and a newline
-  let body = json_bytes(w.body(crc)) + b"\n"
+  let body = json_bytes(attrs_json(o.bucket, w.attrs, crc)) + b"\n"
   let target = googleapi.expand(googleapi.resolve_relative(c.core.base_path, "b/{bucket}/o"), {"bucket": o.bucket})
   let mu = googleapi.expand(googleapi.resolve_relative(c.core.base_path, "/upload/storage/v1/b/{bucket}/o"), {"bucket": o.bucket})
   let media = gensupport.Media{data: w.data, content_type: w.attrs.content_type, force_empty_content_type: w.force_empty_content_type, chunk_size: cs}

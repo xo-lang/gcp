@@ -275,6 +275,130 @@ test "oracle: service account" {
   expect(lines(f)) == ["  GET https://storage.fake/storage/v1/projects/my-project/serviceAccount?alt=json&prettyPrint=false", "    X-Goog-Api-Client: gl-go/GO gdcl/V gccl-invocation-id/UUID gccl-attempt-count/1 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID", "  ok \"svc@example.com\""]
 }
 
+test "oracle: copy" {
+  let f = new_reply_fake(os.net, [Reply{status: 200, headers: {"Content-Type": "application/json; charset=UTF-8"}, body: rewrite_reply(true, "", 12, 12, obj_for("dst/b.txt", "hello, world"))}])
+  let c = fake_client(os)
+  var cp = c.bucket("b2").object("dst/b.txt").copier_from(c.bucket("b1").object("src/a.txt"))
+  ran_lines(f, cp.run())
+  expect(lines(f)) == ["  POST https://storage.fake/storage/v1/b/b1/o/src%2Fa.txt/rewriteTo/b/b2/o/dst%2Fb.txt?alt=json&prettyPrint=false&projection=full", "    X-Goog-Api-Client: gl-go/GO gdcl/V gccl-invocation-id/UUID gccl-attempt-count/1 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID", "    Content-Type: application/json", "    body {}", "  ok name=dst/b.txt bucket=b1 gen=1700000000000001 size=12 type=\"text/plain\""]
+}
+
+test "oracle: copy, two calls with a rewrite token, progress" {
+  let f = new_reply_fake(os.net, [Reply{status: 200, headers: {"Content-Type": "application/json; charset=UTF-8"}, body: rewrite_reply(false, "tok1", 6, 12, "")}, Reply{status: 200, headers: {"Content-Type": "application/json; charset=UTF-8"}, body: rewrite_reply(true, "", 12, 12, obj_for("b", "hello, world"))}])
+  let c = fake_client(os)
+  var cp = c.bucket("b1").object("b").copier_from(c.bucket("b1").object("a"))
+  cp.progress = Some(fn(d: Int, t: Int) { note(f, "  progress ${d}/${t}") })
+  ran_lines(f, cp.run())
+  note(f, "  token ${cp.rewrite_token.quote()}")
+  expect(lines(f)) == ["  POST https://storage.fake/storage/v1/b/b1/o/a/rewriteTo/b/b1/o/b?alt=json&prettyPrint=false&projection=full", "    X-Goog-Api-Client: gl-go/GO gdcl/V gccl-invocation-id/UUID gccl-attempt-count/1 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID", "    Content-Type: application/json", "    body {}", "  progress 6/12", "  POST https://storage.fake/storage/v1/b/b1/o/a/rewriteTo/b/b1/o/b?alt=json&prettyPrint=false&projection=full&rewriteToken=tok1", "    X-Goog-Api-Client: gl-go/GO gdcl/V gccl-invocation-id/UUID gccl-attempt-count/1 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID", "    Content-Type: application/json", "    body {}", "  progress 12/12", "  ok name=b bucket=b1 gen=1700000000000001 size=12 type=\"text/plain\"", "  token \"\""]
+}
+
+test "oracle: copy, attributes, conditions, source generation, KMS key, ACL, user project" {
+  let f = new_reply_fake(os.net, [Reply{status: 200, headers: {"Content-Type": "application/json; charset=UTF-8"}, body: rewrite_reply(true, "", 12, 12, obj_for("b", "hello, world"))}])
+  let c = fake_client(os)
+  let src = c.bucket("b1").billed_to("srcbilled").object("a").generation(9).if_(Conditions{generation_match: 9, metageneration_not_match: 2})
+  var cp = c.bucket("b1").object("b").if_(Conditions{does_not_exist: true}).copier_from(src)
+  cp.attrs.content_type = "text/csv"
+  cp.attrs.metadata = {"k": "v"}
+  cp.destination_kms_key_name = "projects/p/locations/l/keyRings/r/cryptoKeys/k"
+  cp.predefined_acl = "private"
+  ran_lines(f, cp.run())
+  expect(lines(f)) == ["  POST https://storage.fake/storage/v1/b/b1/o/a/rewriteTo/b/b1/o/b?alt=json&destinationKmsKeyName=projects%2Fp%2Flocations%2Fl%2FkeyRings%2Fr%2FcryptoKeys%2Fk&destinationPredefinedAcl=private&ifGenerationMatch=0&ifSourceGenerationMatch=9&ifSourceMetagenerationNotMatch=2&prettyPrint=false&projection=full&sourceGeneration=9&userProject=srcbilled", "    X-Goog-Api-Client: gl-go/GO gdcl/V gccl-invocation-id/UUID gccl-attempt-count/1 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID", "    Content-Type: application/json", "    body {\"contentType\":\"text/csv\",\"metadata\":{\"k\":\"v\"}}", "  ok name=b bucket=b1 gen=1700000000000001 size=12 type=\"text/plain\""]
+}
+
+test "oracle: copy, 503 without a destination precondition is not retried" {
+  let f = new_reply_fake(os.net, [Reply{status: 503, headers: {"Content-Type": "application/json; charset=UTF-8"}, body: "{\"error\":{\"code\":503,\"message\":\"busy\"}}"}])
+  let c = fake_client(os)
+  var cp = c.bucket("b1").object("b").retryer(Retry{backoff: FAST}).copier_from(c.bucket("b1").object("a"))
+  ran_lines(f, cp.run())
+  expect(lines(f)) == ["  POST https://storage.fake/storage/v1/b/b1/o/a/rewriteTo/b/b1/o/b?alt=json&prettyPrint=false&projection=full", "    X-Goog-Api-Client: gl-go/GO gdcl/V gccl-invocation-id/UUID gccl-attempt-count/1 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID", "    Content-Type: application/json", "    body {}", "  error googleapi: Error 503: busy"]
+}
+
+test "oracle: copy, 503 with a destination precondition is retried" {
+  let f = new_reply_fake(os.net, [Reply{status: 503, headers: {"Content-Type": "application/json; charset=UTF-8"}, body: "{\"error\":{\"code\":503,\"message\":\"busy\"}}"}, Reply{status: 200, headers: {"Content-Type": "application/json; charset=UTF-8"}, body: rewrite_reply(true, "", 12, 12, obj_for("b", "hello, world"))}])
+  let c = fake_client(os)
+  var cp = c.bucket("b1").object("b").if_(Conditions{generation_match: 3}).retryer(Retry{backoff: FAST}).copier_from(c.bucket("b1").object("a"))
+  ran_lines(f, cp.run())
+  expect(lines(f)) == ["  POST https://storage.fake/storage/v1/b/b1/o/a/rewriteTo/b/b1/o/b?alt=json&ifGenerationMatch=3&prettyPrint=false&projection=full", "    X-Goog-Api-Client: gl-go/GO gdcl/V gccl-invocation-id/UUID gccl-attempt-count/1 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID", "    Content-Type: application/json", "    body {}", "  POST https://storage.fake/storage/v1/b/b1/o/a/rewriteTo/b/b1/o/b?alt=json&ifGenerationMatch=3&prettyPrint=false&projection=full", "    X-Goog-Api-Client: gl-go/GO gdcl/V gccl-invocation-id/UUID gccl-attempt-count/2 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID", "    Content-Type: application/json", "    body {}", "  ok name=b bucket=b1 gen=1700000000000001 size=12 type=\"text/plain\""]
+}
+
+test "oracle: copy, the source not found" {
+  let f = new_reply_fake(os.net, [Reply{status: 404, headers: {"Content-Type": "application/json; charset=UTF-8"}, body: NOT_FOUND}])
+  let c = fake_client(os)
+  var cp = c.bucket("b1").object("b").copier_from(c.bucket("b1").object("missing"))
+  ran_lines(f, cp.run())
+  expect(lines(f)) == ["  POST https://storage.fake/storage/v1/b/b1/o/missing/rewriteTo/b/b1/o/b?alt=json&prettyPrint=false&projection=full", "    X-Goog-Api-Client: gl-go/GO gdcl/V gccl-invocation-id/UUID gccl-attempt-count/1 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID", "    Content-Type: application/json", "    body {}", "  error storage: object doesn't exist: googleapi: Error 404: No such object: b1/missing, notFound", "  is ErrObjectNotExist"]
+}
+
+test "oracle: copy, a destination generation" {
+  let f = new_reply_fake(os.net, [])
+  let c = fake_client(os)
+  var cp = c.bucket("b1").object("b").generation(4).copier_from(c.bucket("b1").object("a"))
+  ran_lines(f, cp.run())
+  expect(lines(f)) == ["  error storage: generation cannot be specified on copy destination, got 4"]
+}
+
+test "oracle: copy, an empty source name" {
+  let f = new_reply_fake(os.net, [])
+  let c = fake_client(os)
+  var cp = c.bucket("b1").object("b").copier_from(c.bucket("b1").object(""))
+  ran_lines(f, cp.run())
+  expect(lines(f)) == ["  error storage: object name is empty"]
+}
+
+test "oracle: compose" {
+  let f = new_reply_fake(os.net, [Reply{status: 200, headers: {"Content-Type": "application/json; charset=UTF-8"}, body: obj_for("all", "hello, world")}])
+  let c = fake_client(os)
+  let b = c.bucket("b1")
+  var cm = b.object("all").composer_from([b.object("p1"), b.object("p2").generation(5), b.object("p3").if_(Conditions{generation_match: 7})])
+  cm.attrs.content_type = "text/plain"
+  ran_lines(f, cm.run())
+  expect(lines(f)) == ["  POST https://storage.fake/storage/v1/b/b1/o/all/compose?alt=json&prettyPrint=false", "    X-Goog-Api-Client: gl-go/GO gdcl/V gccl-invocation-id/UUID gccl-attempt-count/1 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID", "    Content-Type: application/json", "    body {\"destination\":{\"bucket\":\"b1\",\"contentType\":\"text/plain\"},\"sourceObjects\":[{\"name\":\"p1\"},{\"generation\":\"5\",\"name\":\"p2\"},{\"name\":\"p3\",\"objectPreconditions\":{\"ifGenerationMatch\":\"7\"}}]}", "  ok name=all bucket=b1 gen=1700000000000001 size=12 type=\"text/plain\""]
+}
+
+test "oracle: compose, conditions, ACL, CRC32C, delete sources, user project" {
+  let f = new_reply_fake(os.net, [Reply{status: 200, headers: {"Content-Type": "application/json; charset=UTF-8"}, body: obj_for("all", "hello, world")}])
+  let c = fake_client(os)
+  let b = c.bucket("b1").billed_to("billed")
+  var cm = b.object("all").if_(Conditions{does_not_exist: true}).composer_from([b.object("p1"), b.object("p2")])
+  cm.predefined_acl = "private"
+  cm.send_crc32c = true
+  cm.attrs.crc32c = 1771676703
+  cm.delete_source_objects = true
+  ran_lines(f, cm.run())
+  expect(lines(f)) == ["  POST https://storage.fake/storage/v1/b/b1/o/all/compose?alt=json&destinationPredefinedAcl=private&ifGenerationMatch=0&prettyPrint=false&userProject=billed", "    X-Goog-Api-Client: gl-go/GO gdcl/V gccl-invocation-id/UUID gccl-attempt-count/1 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID", "    Content-Type: application/json", "    body {\"deleteSourceObjects\":true,\"destination\":{\"bucket\":\"b1\",\"crc32c\":\"aZmkHw==\"},\"sourceObjects\":[{\"name\":\"p1\"},{\"name\":\"p2\"}]}", "  ok name=all bucket=b1 gen=1700000000000001 size=12 type=\"text/plain\""]
+}
+
+test "oracle: compose, a source in another bucket" {
+  let f = new_reply_fake(os.net, [])
+  let c = fake_client(os)
+  ran_lines(f, c.bucket("b1").object("all").composer_from([c.bucket("b2").object("p1")]).run())
+  expect(lines(f)) == ["  error storage: all source objects must be in bucket \"b1\", found \"b2\""]
+}
+
+test "oracle: compose, no sources" {
+  let f = new_reply_fake(os.net, [])
+  let c = fake_client(os)
+  ran_lines(f, c.bucket("b1").object("all").composer_from([]).run())
+  expect(lines(f)) == ["  error storage: at least one source object must be specified"]
+}
+
+test "oracle: compose, a source condition it cannot send" {
+  let f = new_reply_fake(os.net, [])
+  let c = fake_client(os)
+  let b = c.bucket("b1")
+  ran_lines(f, b.object("all").composer_from([b.object("p1").if_(Conditions{generation_not_match: 2})]).run())
+  expect(lines(f)) == ["  error storage: ComposeFrom source: ifGenerationNotMatch not supported"]
+}
+
+test "oracle: compose, 404" {
+  let f = new_reply_fake(os.net, [Reply{status: 404, headers: {"Content-Type": "application/json; charset=UTF-8"}, body: NOT_FOUND}])
+  let c = fake_client(os)
+  let b = c.bucket("b1")
+  ran_lines(f, b.object("all").composer_from([b.object("p1")]).run())
+  expect(lines(f)) == ["  POST https://storage.fake/storage/v1/b/b1/o/all/compose?alt=json&prettyPrint=false", "    X-Goog-Api-Client: gl-go/GO gdcl/V gccl-invocation-id/UUID gccl-attempt-count/1 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID", "    Content-Type: application/json", "    body {\"destination\":{\"bucket\":\"b1\"},\"sourceObjects\":[{\"name\":\"p1\"}]}", "  error storage: object doesn't exist: googleapi: Error 404: No such object: b1/missing, notFound", "  is ErrObjectNotExist"]
+}
+
 test "oracle: read" {
   let f = new_reply_fake(os.net, [Reply{status: 200, headers: {"Cache-Control": "no-cache", "Content-Length": "12", "Content-Type": "text/plain", "Last-Modified": "Tue, 14 Nov 2023 22:13:20 GMT", "X-Goog-Generation": "1700000000000000", "X-Goog-Hash": "crc32c=aZmkHw==,md5=XrY7u+Ae7tCTyyK7j1rNww==", "X-Goog-Meta-Owner": "ada", "X-Goog-Metageneration": "3", "X-Goog-Stored-Content-Length": "12"}, body: "hello, world"}])
   var c = fake_client(os)

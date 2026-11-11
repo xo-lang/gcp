@@ -1,0 +1,209 @@
+// Copying and composing objects, as cloud.google.com/go/storage v1.70.0's
+// copy.go and http_client.go (RewriteObject, ComposeObject; Apache-2.0,
+// Copyright Google LLC; NOTICE.md).
+
+use std/json
+use github.com/xo-lang/gcp/gensupport
+use github.com/xo-lang/gcp/googleapi
+use github.com/xo-lang/gcp/storage/v1 as raw
+use std/url
+
+/// Copies an object (Go's Copier): set its fields, then `run`, which
+/// rewrites until the service is done.
+pub struct Copier[fx: Effects] {
+  dst: ObjectHandle[fx]
+  src: ObjectHandle[fx]
+  /// The destination's attributes to set (Go's embedded ObjectAttrs);
+  /// left empty, the source's are copied.
+  pub attrs: ObjectAttrs = ObjectAttrs{}
+  pub predefined_acl: Str = ""
+  /// The token of a rewrite to resume, and after each call the service's
+  /// (Go's RewriteToken).
+  pub rewrite_token: Str = ""
+  pub destination_kms_key_name: Str = ""
+  /// Called after each call with the bytes copied so far and the total
+  /// (Go's ProgressFunc).
+  pub progress: (fn(Int, Int))? = None
+  /// The bytes the service copies per call, 0 for its own choice (Go's
+  /// maxBytesRewrittenPerCall, which only tests set).
+  pub max_bytes_per_call: Int = 0
+}
+
+/// A copier from src to this object (Go's CopierFrom).
+pub fn (dst: ObjectHandle[fx]) copier_from(src: ObjectHandle[fx]) -> Copier[fx] { Copier{dst: dst, src: src} }
+
+/// Go's rewriteResponse.
+struct Rewritten {
+  done as "done": Bool = false
+  written as "totalBytesRewritten": Str = "0"
+  size as "objectSize": Str = "0"
+  token as "rewriteToken": Str = ""
+  resource as "resource": raw.Object? = None
+} derive Json
+
+/// Copies the object (Go's Copier.Run) and gives the destination's
+/// attributes. It is retried by the Idempotent policy only with a
+/// destination generation_match or does_not_exist condition.
+pub fn (var cp: Copier[fx]) run() -> ObjectAttrs ! StorageErr uses (net.dial, clock, rand, fx) {
+  cp.src.validate()?
+  cp.dst.validate()?
+  if cp.dst.gen != -1 {
+    return Err(StorageErr.Invalid("storage: generation cannot be specified on copy destination, got ${cp.dst.gen}"))
+  }
+  let dp = cond_params("Copy destination", -1, cp.dst.conds)?
+  let sp = cond_params("Copy source", cp.src.gen, cp.src.conds)?
+  let idempotent = match cp.dst.conds {
+    Some(c) => c.generation_match != 0 || c.does_not_exist
+    None => false
+  }
+  let user_project = if cp.dst.user_project != "" { cp.dst.user_project } else { cp.src.user_project }
+  let c = cp.dst.c
+  let body = json_bytes(attrs_json("", cp.attrs, "")) + b"\n"
+  let target = googleapi.expand(googleapi.resolve_relative(c.core.base_path, "b/{sourceBucket}/o/{sourceObject}/rewriteTo/b/{destinationBucket}/o/{destinationObject}"), {"sourceBucket": cp.src.bucket, "sourceObject": cp.src.object, "destinationBucket": cp.dst.bucket, "destinationObject": cp.dst.object})
+  while true {
+    var q = url.values()
+    if cp.destination_kms_key_name != "" {
+      q.set("destinationKmsKeyName", cp.destination_kms_key_name)
+    }
+    if cp.predefined_acl != "" {
+      q.set("destinationPredefinedAcl", cp.predefined_acl)
+    }
+    set_conds(q, "", dp)
+    set_conds(q, "Source", sp)
+    if cp.max_bytes_per_call != 0 {
+      q.set("maxBytesRewrittenPerCall", "${cp.max_bytes_per_call}")
+    }
+    q.set("projection", "full")
+    if cp.rewrite_token != "" {
+      q.set("rewriteToken", cp.rewrite_token)
+    }
+    if let Some(g) = sp.generation {
+      q.set("sourceGeneration", "${g}")
+    }
+    if user_project != "" {
+      q.set("userProject", user_project)
+    }
+    q.set("alt", "json")
+    q.set("prettyPrint", "false")
+    let res = c.run(cp.dst.retry, idempotent, fn(h: List[(Str, Str)]) -> Rewritten ! gensupport.CallErr uses net.dial, clock, rand, fx {
+      let hs: List[(Str, Str)] = [("Content-Type", "application/json")] + h
+      let resp = c.core.client.send(gensupport.Request{method: "POST", url: target, query: q, headers: hs, body: body})?
+      gensupport.check(resp)?
+      gensupport.decode[Rewritten](resp)
+    }) ?? e => return Err(object_err(e))
+    cp.rewrite_token = res.token
+    if let Some(p) = cp.progress {
+      p(Int.parse(res.written) ?? 0, Int.parse(res.size) ?? 0)
+    }
+    if res.done {
+      return Ok(new_object(res.resource ?? raw.Object{}))
+    }
+  }
+  fault("unreachable")
+}
+
+/// Sets the generation conditions as query parameters, with `infix`
+/// after "if" ("Source" for a rewrite's source).
+fn set_conds(var q: url.Values, infix: Str, p: CondParams) {
+  if let Some(v) = p.if_generation_match {
+    q.set("if${infix}GenerationMatch", "${v}")
+  }
+  if let Some(v) = p.if_generation_not_match {
+    q.set("if${infix}GenerationNotMatch", "${v}")
+  }
+  if let Some(v) = p.if_metageneration_match {
+    q.set("if${infix}MetagenerationMatch", "${v}")
+  }
+  if let Some(v) = p.if_metageneration_not_match {
+    q.set("if${infix}MetagenerationNotMatch", "${v}")
+  }
+}
+
+/// Composes objects of one bucket into this one (Go's Composer): set its
+/// fields, then `run`.
+pub struct Composer[fx: Effects] {
+  dst: ObjectHandle[fx]
+  srcs: List[ObjectHandle[fx]]
+  /// The destination's attributes (Go's embedded ObjectAttrs).
+  pub attrs: ObjectAttrs = ObjectAttrs{}
+  pub predefined_acl: Str = ""
+  /// Send attrs.crc32c (Go's SendCRC32C).
+  pub send_crc32c: Bool = false
+  /// Delete the sources once composed (Go's DeleteSourceObjects).
+  pub delete_source_objects: Bool = false
+}
+
+/// A composer of srcs into this object (Go's ComposerFrom).
+pub fn (dst: ObjectHandle[fx]) composer_from(srcs: List[ObjectHandle[fx]]) -> Composer[fx] { Composer{dst: dst, srcs: srcs} }
+
+/// Composes the sources (Go's Composer.Run) and gives the result's
+/// attributes. It is retried by the Idempotent policy only with a
+/// destination generation_match or does_not_exist condition.
+pub fn (cm: Composer[fx]) run() -> ObjectAttrs ! StorageErr uses (net.dial, clock, rand, fx) {
+  cm.dst.validate()?
+  if cm.dst.gen != -1 {
+    return Err(StorageErr.Invalid("storage: generation cannot be specified on compose destination, got ${cm.dst.gen}"))
+  }
+  if cm.srcs.is_empty() {
+    return Err(StorageErr.Invalid("storage: at least one source object must be specified"))
+  }
+  for s in cm.srcs {
+    s.validate()?
+    if s.bucket != cm.dst.bucket {
+      return Err(StorageErr.Invalid("storage: all source objects must be in bucket ${cm.dst.bucket.quote()}, found ${s.bucket.quote()}"))
+    }
+  }
+  var sources: List[json.Value] = []
+  for s in cm.srcs {
+    var f: List[(Str, json.Value)] = []
+    if s.gen >= 0 {
+      f.push(("generation", json.Value.Str("${s.gen}")))
+    }
+    f.push(("name", json.Value.Str(s.object)))
+    if let Some(c) = s.conds {
+      c.validate("ComposeFrom source")?
+      if c.generation_match != 0 || c.does_not_exist {
+        f.push(("objectPreconditions", json.Value.Object([("ifGenerationMatch", json.Value.Str("${c.generation_match}"))])))
+      } else if c.generation_not_match != 0 {
+        return Err(StorageErr.Invalid("storage: ComposeFrom source: ifGenerationNotMatch not supported"))
+      }
+      if c.metageneration_match != 0 {
+        return Err(StorageErr.Invalid("storage: ComposeFrom source: ifMetagenerationMatch not supported"))
+      } else if c.metageneration_not_match != 0 {
+        return Err(StorageErr.Invalid("storage: ComposeFrom source: ifMetagenerationNotMatch not supported"))
+      }
+    }
+    sources.push(json.Value.Object(f))
+  }
+  let dp = cond_params("ComposeFrom destination", -1, cm.dst.conds)?
+  var top: List[(Str, json.Value)] = []
+  if cm.delete_source_objects {
+    top.push(("deleteSourceObjects", json.Value.Bool(true)))
+  }
+  top.push(("destination", attrs_json(cm.dst.bucket, cm.attrs, if cm.send_crc32c { gensupport.crc32c_of(cm.attrs.crc32c) } else { "" })))
+  top.push(("sourceObjects", json.Value.List(sources)))
+  let body = json_bytes(json.Value.Object(top)) + b"\n"
+  var q = url.values()
+  if cm.predefined_acl != "" {
+    q.set("destinationPredefinedAcl", cm.predefined_acl)
+  }
+  set_conds(q, "", dp)
+  if cm.dst.user_project != "" {
+    q.set("userProject", cm.dst.user_project)
+  }
+  q.set("alt", "json")
+  q.set("prettyPrint", "false")
+  let idempotent = match cm.dst.conds {
+    Some(c) => c.generation_match != 0 || c.does_not_exist
+    None => false
+  }
+  let c = cm.dst.c
+  let target = googleapi.expand(googleapi.resolve_relative(c.core.base_path, "b/{destinationBucket}/o/{destinationObject}/compose"), {"destinationBucket": cm.dst.bucket, "destinationObject": cm.dst.object})
+  let got = c.run(cm.dst.retry, idempotent, fn(h: List[(Str, Str)]) -> raw.Object ! gensupport.CallErr uses net.dial, clock, rand, fx {
+    let hs: List[(Str, Str)] = [("Content-Type", "application/json")] + h
+    let resp = c.core.client.send(gensupport.Request{method: "POST", url: target, query: q, headers: hs, body: body})?
+    gensupport.check(resp)?
+    gensupport.decode[raw.Object](resp)
+  }) ?? e => return Err(object_err(e))
+  Ok(new_object(got))
+}
