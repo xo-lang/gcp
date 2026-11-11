@@ -1,6 +1,8 @@
 # 0011: BigQuery (cloud.google.com/go/bigquery)
 
-Status: Proposed (2026-11-11, at the Xo Lead's request; for the owner).
+Status: Accepted (2026-11-11, by the owner: rows through hand-written
+`ValueLoader`/`ValueSaver` traits now; `derive BigQuery` is a later std
+item, see Follow-ups).
 
 ## Context
 
@@ -45,7 +47,7 @@ its managed writer, and the GAPIC clients `analyticshub`, `biglake`,
 GAPIC subpackages do; they are left to the GAPIC decision the coverage
 report calls for, now that std has `std/grpc` and `std/protobuf`.
 
-## Decision (proposed)
+## Decision
 
 Port the REST client as a module `github.com/xo-lang/gcp/bigquery` at
 `bigquery/` (Go's package path; the generated `bigquery/v2` stays its
@@ -76,16 +78,16 @@ Not ported now, each with a record of its own later: the Storage Read
 API path (`EnableStorageReadClient`, Arrow), the managed writer, the
 GAPIC subpackages, and OpenTelemetry tracing (`trace.go`).
 
-## Departures to decide with the owner
+## Departures
 
 - **No reflection.** Go loads rows into structs and infers schemas from
   them through `reflect` (183 uses, most in `value.go`, `schema.go` and `params.go`).
   Xo has none. Rows are `List[Value]` and `Map[Str, Value]` as in Go,
   and a user type loads or saves through the `ValueLoader`/`ValueSaver`
-  traits, written by hand. A `derive BigQuery` (as std has `derive
-  SqlRow`) would restore Go's struct mapping and `InferSchema`; that is
-  a std request to the Xo Lead, not part of this port. This is the
-  one question for the owner here.
+  traits, written by hand (the owner's choice, 2026-11-11). A `derive
+  BigQuery` (as std has `derive SqlRow`) would restore Go's struct
+  mapping and `InferSchema`; it is a later std item (Follow-ups), not
+  part of this port.
 - **NUMERIC and BIGNUMERIC** are std/big's `BigRat` (on xo main since
   9125f8fb5, Go's `big.Rat`). It is not in xo 0.48.2, so step 2 needs
   the next xo release. Go's `NumericString` and `BigNumericString`
@@ -102,6 +104,13 @@ GAPIC subpackages, and OpenTelemetry tracing (`trace.go`).
 - `bigquery/v2` gains a hand-written caller; its generated surface does
   not change.
 - NOTICE gains cloud.google.com/go/bigquery (Apache-2.0).
+
+## Follow-ups
+
+- **`derive BigQuery`** (std, later): derives `ValueLoader`,
+  `ValueSaver` and a schema for a struct, as Go's reflection does
+  (`InferSchema`, struct loading and saving). When it lands, the port
+  gains Go's struct mapping without changing the traits.
 
 ## Alternatives
 
