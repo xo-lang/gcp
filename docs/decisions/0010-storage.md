@@ -81,6 +81,16 @@ which is 0009's.
 - No real Google project, bucket, credential or network is used by a test
   or an oracle.
 
+- Step 1's departures from Go (2026-11-11):
+  - The emulator host is `ClientOptions.emulator_host` (read with
+    `emulator_host(env)`): `new_client` takes no `Env`.
+  - A time the service leaves out is `None`, not Go's zero time.
+  - Names that clash in Xo: `If` is `if_`, `BucketHandle.Name` is
+    `bucket_name`, `UserProject` is `billed_to` (a field has the name).
+  - Iterators' `next` gives `None` at the end (Go's iterator.Done).
+  - Go's check that an object name is valid UTF-8 has no case: an Xo
+    `Str` always is. Its oracle case is not replayed.
+
 ## Consequences
 
 - A Go program's storage calls port almost line for line, using the most

@@ -14,6 +14,10 @@ This project ports code, behavior and tests from the following works:
   v0.10.0, Copyright Google LLC, under the Apache License, Version 2.0
   (below): credentials, token sources and the token cache (`auth`), and
   the metadata server client (`compute/metadata`).
+- cloud.google.com/go/storage v1.70.0, Copyright Google LLC, under the
+  Apache License, Version 2.0 (below): the Cloud Storage client
+  (`storage`: handles, attributes, conditions, listings, errors and
+  retries).
 
 Google Cloud and its product names are trademarks of Google LLC. This
 project is not affiliated with or endorsed by Google.

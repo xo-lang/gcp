@@ -1,0 +1,276 @@
+// Cloud Storage's REST client, as cloud.google.com/go/storage v1.70.0
+// (Apache-2.0, Copyright Google LLC; NOTICE.md), decision 0010: the
+// client, its errors, conditions and the retry rules of invoke.go. Calls
+// go over the generated storage/v1 service; an update's body, which sends
+// empty values and nulls on purpose, is written here.
+
+use std/http
+use std/json
+use std/uuid
+use github.com/xo-lang/gcp/gensupport
+use github.com/xo-lang/gcp/option
+use github.com/xo-lang/gcp/storage/v1 as raw
+
+/// This module's version, in x-goog-api-client (Go's internal.Version).
+pub const VERSION: Str = "0.1.0"
+
+/// The full-control scope (Go's ScopeFullControl).
+pub const SCOPE_FULL_CONTROL: Str = "https://www.googleapis.com/auth/devstorage.full_control"
+/// The read-only scope (Go's ScopeReadOnly).
+pub const SCOPE_READ_ONLY: Str = "https://www.googleapis.com/auth/devstorage.read_only"
+/// The read-write scope (Go's ScopeReadWrite).
+pub const SCOPE_READ_WRITE: Str = "https://www.googleapis.com/auth/devstorage.read_write"
+
+/// The variable naming an emulator's host (Go reads it in NewClient).
+pub const EMULATOR_HOST_ENV: Str = "STORAGE_EMULATOR_HOST"
+
+/// Why a storage call gave no result.
+pub enum StorageErr {
+  /// The object does not exist (Go's ErrObjectNotExist wrapping the
+  /// service's 404).
+  ObjectNotExist(e: gensupport.CallErr)
+  /// The bucket does not exist (Go's ErrBucketNotExist wrapping the
+  /// service's 404).
+  BucketNotExist(e: gensupport.CallErr)
+  /// The call failed (the transport, the credentials, or the service's
+  /// answer).
+  Call(e: gensupport.CallErr)
+  /// The arguments were refused before any request (Go's errors with
+  /// their texts: an empty name, conflicting conditions).
+  Invalid(msg: Str)
+  /// The retries ran out (Retry.max_attempts).
+  RetryFailed(attempts: Int, last: gensupport.CallErr)
+}
+
+pub fn (e: StorageErr) display() -> Str {
+  match e {
+    ObjectNotExist(c) => "storage: object doesn't exist: ${c.display()}"
+    BucketNotExist(c) => "storage: bucket doesn't exist: ${c.display()}"
+    Call(c) => c.display()
+    Invalid(m) => m
+    RetryFailed(n, c) => "storage: retry failed after ${n} attempts; last error: ${c.display()}"
+  }
+}
+
+/// Go's errors.Is(err, ErrObjectNotExist).
+pub fn (e: StorageErr) is_object_not_exist() -> Bool { e is StorageErr.ObjectNotExist(..) }
+
+/// Go's errors.Is(err, ErrBucketNotExist).
+pub fn (e: StorageErr) is_bucket_not_exist() -> Bool { e is StorageErr.BucketNotExist(..) }
+
+/// The service's HTTP status when the error is its answer, else 0.
+pub fn (e: StorageErr) code() -> Int {
+  let c = match e {
+    ObjectNotExist(c) => c
+    BucketNotExist(c) => c
+    Call(c) => c
+    RetryFailed(_, c) => c
+    Invalid(_) => return 0
+  }
+  match c {
+    gensupport.CallErr.Api(a) => a.code
+    _ => 0
+  }
+}
+
+/// When a call is retried (Go's RetryPolicy).
+pub enum RetryPolicy {
+  /// Only calls that are idempotent (the default): reads, and writes made
+  /// safe by a precondition.
+  Idempotent
+  /// Every call.
+  Always
+  /// None.
+  Never
+}
+
+/// The pause between attempts (gax-go's Backoff): a random time up to
+/// the current bound, which starts at initial and grows by multiplier up
+/// to max.
+pub struct Backoff {
+  pub initial: Duration = 1s
+  pub max: Duration = 30s
+  pub multiplier: Float = 2.0
+}
+
+/// How calls are retried (Go's Retryer options: WithBackoff, WithPolicy,
+/// WithMaxAttempts). A call is retried on 408, 429 and 5xx and on a
+/// connection that failed (Go's ShouldRetry).
+pub struct Retry {
+  pub policy: RetryPolicy = RetryPolicy.Idempotent
+  pub backoff: Backoff = Backoff{}
+  /// The attempts in all, None for no limit.
+  pub max_attempts: Int? = None
+}
+
+/// Go's ShouldRetry over this client's errors.
+pub fn should_retry(e: gensupport.CallErr) -> Bool {
+  match e {
+    gensupport.CallErr.Api(a) => a.code == 408 || a.code == 429 || (a.code >= 500 && a.code < 600)
+    gensupport.CallErr.Http(h) => {
+      match h {
+        http.ClientErr.Connect(_) => true
+        http.ClientErr.Timeout => true
+        http.ClientErr.Protocol(m) => m.contains("unexpected EOF") || m.contains("connection reset") || m.contains("broken pipe")
+        http.ClientErr.InvalidUrl(_) => false
+        http.ClientErr.Canceled => false
+      }
+    }
+    _ => false
+  }
+}
+
+/// What NewClient takes beyond the service options.
+pub struct ClientOptions[fx: Effects] {
+  /// The service options: credentials (credentials.client_options),
+  /// endpoint, user agent, quota project.
+  pub service: option.ClientOptions[fx] = option.ClientOptions{}
+  /// An emulator's host, as STORAGE_EMULATOR_HOST holds it ("host:port"
+  /// or a URL): requests go to its /storage/v1/ without credentials.
+  /// emulator_host(env) reads the variable.
+  pub emulator_host: Str = ""
+  /// The client's retries; a handle's `retryer` replaces them.
+  pub retry: Retry = Retry{}
+}
+
+/// STORAGE_EMULATOR_HOST's value, "" when unset.
+pub fn emulator_host(env: Env) -> Str uses env { env.get(EMULATOR_HOST_ENV) ?? "" }
+
+/// A Cloud Storage client (Go's Client). A value: copies share nothing
+/// but the capabilities.
+pub struct Client[fx: Effects] {
+  svc: raw.Service[fx]
+  core: gensupport.Core[fx]
+  clock: Clock
+  rand: Rand
+  retry: Retry
+}
+
+/// The client (Go's NewClient over HTTP): its endpoint is the options'
+/// endpoint, else the emulator's, else https://storage.googleapis.com/storage/v1/.
+pub fn new_client[fx: Effects](net: Net, clock: Clock, rand: Rand, opts: ClientOptions[fx] = ClientOptions{}) -> Client[fx] {
+  var o = opts.service
+  if opts.emulator_host != "" {
+    let h = opts.emulator_host
+    let base = if h.contains("://") { h.trim_suffix("/") } else { "http://${h}" }
+    if o.endpoint == "" {
+      o.endpoint = "${base}/storage/v1/"
+    }
+    o.without_authentication = true
+  }
+  let ep = if o.endpoint == "" { raw.BASE_PATH } else { o.endpoint }
+  Client{svc: raw.new_service(net, o), core: gensupport.new_core(net, o, ep), clock: clock, rand: rand, retry: opts.retry}
+}
+
+/// The handle of the bucket called name (no request is made).
+pub fn (c: Client[fx]) bucket(name: Str) -> BucketHandle[fx] {
+  BucketHandle{c: c, name: name, retry: c.retry}
+}
+
+/// The email of the project's Cloud Storage service account (Go's
+/// ServiceAccount).
+pub fn (c: Client[fx]) service_account(project: Str) -> Str ! StorageErr uses (net.dial, clock, rand, fx) {
+  let sa = c.run(c.retry, true, fn(h: List[(Str, Str)]) -> raw.ServiceAccount ! gensupport.CallErr uses net.dial, clock, rand, fx {
+    c.svc.projects.service_account.get(project, raw.ProjectsServiceAccountGetOptions{headers: h})
+  }) ?? e => return Err(call_err(e))
+  Ok(sa.email_address)
+}
+
+/// What run gives back: the call's error, or that the retries ran out.
+enum RunErr {
+  Last(e: gensupport.CallErr)
+  Exhausted(attempts: Int, e: gensupport.CallErr)
+}
+
+fn call_err(e: RunErr) -> StorageErr {
+  match e {
+    Last(c) => StorageErr.Call(c)
+    Exhausted(n, c) => StorageErr.RetryFailed(attempts: n, last: c)
+  }
+}
+
+/// The error of an object call: a 404 is ObjectNotExist (formatObjectErr).
+fn object_err(e: RunErr) -> StorageErr {
+  match e {
+    Last(c) => {
+      match c {
+        gensupport.CallErr.Api(a) => {
+          if a.code == 404 {
+            return StorageErr.ObjectNotExist(c)
+          }
+        }
+        _ => {}
+      }
+      StorageErr.Call(c)
+    }
+    Exhausted(n, c) => StorageErr.RetryFailed(attempts: n, last: c)
+  }
+}
+
+/// The error of a bucket read: a 404 is BucketNotExist (formatBucketError).
+fn bucket_err(e: RunErr) -> StorageErr {
+  match e {
+    Last(c) => {
+      match c {
+        gensupport.CallErr.Api(a) => {
+          if a.code == 404 {
+            return StorageErr.BucketNotExist(c)
+          }
+        }
+        _ => {}
+      }
+      StorageErr.Call(c)
+    }
+    Exhausted(n, c) => StorageErr.RetryFailed(attempts: n, last: c)
+  }
+}
+
+/// The headers of one attempt (setInvocationHeaders): the invocation id
+/// and attempt count in x-goog-api-client after gensupport's own, and the
+/// idempotency token, the same for every attempt of a call.
+fn attempt_headers(id: Str, attempt: Int) -> List[(Str, Str)] {
+  [("x-goog-api-client", "gl-xo/preview gdcl/${gensupport.VERSION} gccl-invocation-id/${id} gccl-attempt-count/${attempt} gl-xo/preview gccl/${VERSION}"), ("x-goog-gcs-idempotency-token", id)]
+}
+
+/// Go's run: calls f with each attempt's headers until it succeeds, its
+/// error is not retried (the policy, idempotent, should_retry), or
+/// max_attempts is reached, pausing by the backoff between attempts.
+fn (c: Client[fx]) run[T](retry: Retry, idempotent: Bool, f: fn(List[(Str, Str)]) -> T ! gensupport.CallErr uses (net.dial, clock, rand, fx)) -> T ! RunErr uses (net.dial, clock, rand, fx) {
+  let id = uuid.v4(c.rand).display()
+  var attempt = 1
+  let retries = match retry.policy {
+    RetryPolicy.Never => false
+    RetryPolicy.Idempotent => idempotent
+    RetryPolicy.Always => true
+  }
+  if !retries {
+    return f(attempt_headers(id, attempt)) ?? e => Err(RunErr.Last(e))
+  }
+  var bound = if retry.backoff.initial > 0s { retry.backoff.initial } else { 1s }
+  let max = if retry.backoff.max > 0s { retry.backoff.max } else { 30s }
+  let mult = if retry.backoff.multiplier > 1.0 { retry.backoff.multiplier } else { 2.0 }
+  while true {
+    let e = match f(attempt_headers(id, attempt)) {
+      Ok(v) => return Ok(v)
+      Err(e) => e
+    }
+    if let Some(n) = retry.max_attempts {
+      if attempt >= n {
+        return Err(RunErr.Exhausted(attempts: n, e: e))
+      }
+    }
+    if !should_retry(e) {
+      return Err(RunErr.Last(e))
+    }
+    attempt += 1
+    // gax: a pause of 1 + rand(bound) nanoseconds, then the bound grows
+    let ns = bound.nanos()
+    c.clock.sleep(Duration.from_nanos(1 + c.rand.int(0, ns)))
+    let next = Duration.from_nanos(Int(Float(ns) * mult))
+    bound = if next > max { max } else { next }
+  }
+  fault("unreachable")
+}
+
+/// A JSON value's body for a hand-built request.
+fn json_bytes(v: json.Value) -> Bytes { v.encode().bytes() }

@@ -1,0 +1,670 @@
+// Buckets: handles, attributes, conditions, the metadata calls and the
+// listings, as cloud.google.com/go/storage v1.70.0's bucket.go and
+// http_client.go (Apache-2.0, Copyright Google LLC; NOTICE.md). Lifecycle,
+// retention, autoclass, soft delete and the other bucket management of
+// decision 0010 step 4 are not here yet.
+
+use std/json
+use github.com/xo-lang/gcp/gensupport
+use github.com/xo-lang/gcp/googleapi
+use github.com/xo-lang/gcp/storage/v1 as raw
+use std/url
+
+/// Preconditions on a bucket's metageneration (Go's BucketConditions): 0
+/// means unset; at most one.
+pub struct BucketConditions {
+  pub metageneration_match: Int = 0
+  pub metageneration_not_match: Int = 0
+}
+
+fn bucket_cond_params(method: Str, conds: BucketConditions?) -> (Int?, Int?) ! StorageErr {
+  let c = conds ?? return Ok((None, None))
+  if c == (BucketConditions{}) {
+    return Err(StorageErr.Invalid("storage: ${method}: empty conditions"))
+  }
+  if c.metageneration_match != 0 && c.metageneration_not_match != 0 {
+    return Err(StorageErr.Invalid("storage: ${method}: multiple conditions specified for metageneration"))
+  }
+  if c.metageneration_match != 0 {
+    return Ok((Some(c.metageneration_match), None))
+  }
+  Ok((None, Some(c.metageneration_not_match)))
+}
+
+/// Who may make objects public (Go's PublicAccessPrevention).
+pub enum PublicAccessPrevention {
+  Unknown
+  Inherited
+  Enforced
+}
+
+/// Go's PublicAccessPrevention.String.
+pub fn (p: PublicAccessPrevention) display() -> Str {
+  match p {
+    Unknown => ""
+    Inherited => "inherited"
+    Enforced => "enforced"
+  }
+}
+
+/// A bucket's turbo replication (Go's RPO).
+pub enum RPO {
+  Unknown
+  Default
+  AsyncTurbo
+}
+
+pub fn (r: RPO) display() -> Str {
+  match r {
+    Unknown => ""
+    Default => "DEFAULT"
+    AsyncTurbo => "ASYNC_TURBO"
+  }
+}
+
+/// Uniform bucket-level access, and its old name (Go's
+/// UniformBucketLevelAccess and BucketPolicyOnly).
+pub struct UniformBucketLevelAccess {
+  pub enabled: Bool = false
+  pub locked_time: Time? = None
+}
+
+/// A CORS rule (Go's CORS): max_age to the second.
+pub struct CORS {
+  pub max_age: Duration = 0s
+  pub methods: List[Str] = []
+  pub origins: List[Str] = []
+  pub response_headers: List[Str] = []
+}
+
+/// Go's BucketEncryption (its default key; the enforcement configs are
+/// step 4's).
+pub struct BucketEncryption {
+  pub default_kms_key_name: Str = ""
+}
+
+/// Go's BucketLogging.
+pub struct BucketLogging {
+  pub log_bucket: Str = ""
+  pub log_object_prefix: Str = ""
+}
+
+/// Go's BucketWebsite.
+pub struct BucketWebsite {
+  pub main_page_suffix: Str = ""
+  pub not_found_page: Str = ""
+}
+
+/// A bucket's attributes (Go's BucketAttrs, without step 4's fields).
+pub struct BucketAttrs {
+  pub name: Str = ""
+  pub acl: List[ACLRule] = []
+  pub bucket_policy_only: UniformBucketLevelAccess = UniformBucketLevelAccess{}
+  pub uniform_bucket_level_access: UniformBucketLevelAccess = UniformBucketLevelAccess{}
+  pub public_access_prevention: PublicAccessPrevention = PublicAccessPrevention.Unknown
+  pub default_object_acl: List[ACLRule] = []
+  pub default_event_based_hold: Bool = false
+  pub predefined_acl: Str = ""
+  pub predefined_default_object_acl: Str = ""
+  pub location: Str = ""
+  pub meta_generation: Int = 0
+  pub storage_class: Str = ""
+  pub created: Time? = None
+  pub updated: Time? = None
+  pub versioning_enabled: Bool = false
+  pub labels: Map[Str, Str] = {}
+  pub requester_pays: Bool = false
+  pub cors: List[CORS] = []
+  pub encryption: BucketEncryption? = None
+  pub logging: BucketLogging? = None
+  pub website: BucketWebsite? = None
+  pub etag: Str = ""
+  pub location_type: Str = ""
+  pub project_number: Int = 0
+  pub rpo: RPO = RPO.Unknown
+  pub owner_entity: Str = ""
+}
+
+fn bucket_acl(items: List[raw.BucketAccessControl]) -> List[ACLRule] {
+  var out: List[ACLRule] = []
+  for a in items {
+    let pt = match a.project_team {
+      Some(t) => Some(ProjectTeam{project_number: t.project_number, team: t.team})
+      None => None
+    }
+    out.push(ACLRule{entity: a.entity, entity_id: a.entity_id, role: a.role, domain: a.domain, email: a.email, project_team: pt})
+  }
+  out
+}
+
+fn ubla(enabled: Bool, locked: Str) -> UniformBucketLevelAccess {
+  if !enabled {
+    return UniformBucketLevelAccess{}
+  }
+  UniformBucketLevelAccess{enabled: true, locked_time: convert_time(locked)}
+}
+
+/// Go's newBucket.
+fn new_bucket(b: raw.Bucket) -> BucketAttrs {
+  var bpo = UniformBucketLevelAccess{}
+  var u = UniformBucketLevelAccess{}
+  var pap = PublicAccessPrevention.Unknown
+  if let Some(ic) = b.iam_configuration {
+    if let Some(x) = ic.bucket_policy_only {
+      bpo = ubla(x.enabled, x.locked_time)
+    }
+    if let Some(x) = ic.uniform_bucket_level_access {
+      u = ubla(x.enabled, x.locked_time)
+    }
+    pap = if ic.public_access_prevention == "inherited" || ic.public_access_prevention == "unspecified" {
+      PublicAccessPrevention.Inherited
+    } else if ic.public_access_prevention == "enforced" {
+      PublicAccessPrevention.Enforced
+    } else {
+      PublicAccessPrevention.Unknown
+    }
+  }
+  var cors: List[CORS] = []
+  for c in b.cors {
+    cors.push(CORS{max_age: Duration.from_secs_int(c.max_age_seconds), methods: c.method, origins: c.origin, response_headers: c.response_header})
+  }
+  BucketAttrs{
+    name: b.name,
+    location: b.location,
+    meta_generation: b.metageneration,
+    default_event_based_hold: b.default_event_based_hold,
+    storage_class: b.storage_class,
+    created: convert_time(b.time_created),
+    updated: convert_time(b.updated),
+    versioning_enabled: match b.versioning {
+      Some(v) => v.enabled
+      None => false
+    },
+    acl: bucket_acl(b.acl),
+    default_object_acl: object_acl(b.default_object_acl),
+    labels: b.labels,
+    requester_pays: match b.billing {
+      Some(x) => x.requester_pays
+      None => false
+    },
+    cors: cors,
+    encryption: match b.encryption {
+      Some(e) => Some(BucketEncryption{default_kms_key_name: e.default_kms_key_name})
+      None => None
+    },
+    logging: match b.logging {
+      Some(l) => Some(BucketLogging{log_bucket: l.log_bucket, log_object_prefix: l.log_object_prefix})
+      None => None
+    },
+    website: match b.website {
+      Some(w) => Some(BucketWebsite{main_page_suffix: w.main_page_suffix, not_found_page: w.not_found_page})
+      None => None
+    },
+    bucket_policy_only: bpo,
+    uniform_bucket_level_access: u,
+    public_access_prevention: pap,
+    etag: b.etag,
+    location_type: b.location_type,
+    project_number: b.project_number,
+    rpo: if b.rpo == "DEFAULT" { RPO.Default } else if b.rpo == "ASYNC_TURBO" { RPO.AsyncTurbo } else { RPO.Unknown },
+    owner_entity: match b.owner {
+      Some(o) => o.entity
+      None => ""
+    },
+  }
+}
+
+fn str_list(xs: List[Str]) -> json.Value {
+  var out: List[json.Value] = []
+  for x in xs {
+    out.push(json.Value.Str(x))
+  }
+  json.Value.List(out)
+}
+
+fn labels_value(m: Map[Str, Str]) -> json.Value {
+  var kv: List[(Str, json.Value)] = []
+  for k in m.keys().sort() {
+    kv.push((k, json.Value.Str(m.get_or_fault(k, "k is one of the keys"))))
+  }
+  json.Value.Object(kv)
+}
+
+fn cors_value(cs: List[CORS]) -> json.Value {
+  var out: List[json.Value] = []
+  for c in cs {
+    var f: List[(Str, json.Value)] = []
+    let secs = c.max_age.nanos() / 1000000000
+    if secs != 0 {
+      f.push(("maxAgeSeconds", json.Value.Int(secs)))
+    }
+    if !c.methods.is_empty() {
+      f.push(("method", str_list(c.methods)))
+    }
+    if !c.origins.is_empty() {
+      f.push(("origin", str_list(c.origins)))
+    }
+    if !c.response_headers.is_empty() {
+      f.push(("responseHeader", str_list(c.response_headers)))
+    }
+    out.push(json.Value.Object(f))
+  }
+  json.Value.List(out)
+}
+
+/// The body of a bucket insert (BucketAttrs.toRawBucket and CreateBucket):
+/// the fields set, with lifecycle {"rule": []} and location "US" when none
+/// is given, as Go sends them.
+fn create_body(name: Str, a: BucketAttrs?) -> json.Value {
+  let b = a ?? return json.Value.Object([("name", json.Value.Str(name))])
+  var f: List[(Str, json.Value)] = []
+  if !b.acl.is_empty() {
+    f.push(("acl", acl_value(b.acl)))
+  }
+  if b.requester_pays {
+    f.push(("billing", json.Value.Object([("requesterPays", json.Value.Bool(true))])))
+  }
+  if !b.cors.is_empty() {
+    f.push(("cors", cors_value(b.cors)))
+  }
+  if !b.default_object_acl.is_empty() {
+    f.push(("defaultObjectAcl", acl_value(b.default_object_acl)))
+  }
+  if let Some(e) = b.encryption {
+    if e.default_kms_key_name != "" {
+      f.push(("encryption", json.Value.Object([("defaultKmsKeyName", json.Value.Str(e.default_kms_key_name))])))
+    }
+  }
+  if b.uniform_bucket_level_access.enabled || b.bucket_policy_only.enabled || !(b.public_access_prevention is PublicAccessPrevention.Unknown) {
+    var ic: List[(Str, json.Value)] = []
+    if !(b.public_access_prevention is PublicAccessPrevention.Unknown) {
+      ic.push(("publicAccessPrevention", json.Value.Str(b.public_access_prevention.display())))
+    }
+    if b.uniform_bucket_level_access.enabled || b.bucket_policy_only.enabled {
+      ic.push(("uniformBucketLevelAccess", json.Value.Object([("enabled", json.Value.Bool(true))])))
+    }
+    f.push(("iamConfiguration", json.Value.Object(ic)))
+  }
+  if !b.labels.is_empty() {
+    f.push(("labels", labels_value(b.labels)))
+  }
+  f.push(("lifecycle", json.Value.Object([("rule", json.Value.List([]))])))
+  f.push(("location", json.Value.Str(if b.location.is_empty() { "US" } else { b.location })))
+  if let Some(l) = b.logging {
+    f.push(("logging", json.Value.Object([("logBucket", json.Value.Str(l.log_bucket)), ("logObjectPrefix", json.Value.Str(l.log_object_prefix))])))
+  }
+  f.push(("name", json.Value.Str(name)))
+  if !(b.rpo is RPO.Unknown) {
+    f.push(("rpo", json.Value.Str(b.rpo.display())))
+  }
+  if !b.storage_class.is_empty() {
+    f.push(("storageClass", json.Value.Str(b.storage_class)))
+  }
+  if b.versioning_enabled {
+    f.push(("versioning", json.Value.Object([("enabled", json.Value.Bool(true))])))
+  }
+  if let Some(w) = b.website {
+    f.push(("website", json.Value.Object([("mainPageSuffix", json.Value.Str(w.main_page_suffix)), ("notFoundPage", json.Value.Str(w.not_found_page))])))
+  }
+  json.Value.Object(f)
+}
+
+/// The attributes a bucket update changes (Go's BucketAttrsToUpdate,
+/// without step 4's): None leaves one as it is.
+pub struct BucketAttrsToUpdate {
+  pub versioning_enabled: Bool? = None
+  pub requester_pays: Bool? = None
+  pub default_event_based_hold: Bool? = None
+  pub cors: List[CORS]? = None
+  pub uniform_bucket_level_access: Bool? = None
+  pub public_access_prevention: PublicAccessPrevention = PublicAccessPrevention.Unknown
+  pub storage_class: Str = ""
+  pub rpo: RPO = RPO.Unknown
+  /// An empty logging or website removes it.
+  pub logging: BucketLogging? = None
+  pub website: BucketWebsite? = None
+  pub predefined_acl: Str = ""
+  pub predefined_default_object_acl: Str = ""
+  set_labels: Map[Str, Str] = {}
+  delete_labels: List[Str] = []
+}
+
+/// u with the label name set to value (Go's SetLabel).
+pub fn (u: BucketAttrsToUpdate) set_label(name: Str, value: Str) -> BucketAttrsToUpdate {
+  var v = u
+  v.set_labels[name] = value
+  v.delete_labels = v.delete_labels.filter(fn(n: Str) -> Bool { n != name })
+  v
+}
+
+/// u with the label name removed (Go's DeleteLabel).
+pub fn (u: BucketAttrsToUpdate) delete_label(name: Str) -> BucketAttrsToUpdate {
+  var v = u
+  let _r = v.set_labels.remove(name)
+  if !v.delete_labels.contains(name) {
+    v.delete_labels.push(name)
+  }
+  v
+}
+
+/// The PATCH body of a bucket update (BucketAttrsToUpdate.toRawBucket).
+fn bucket_update_body(u: BucketAttrsToUpdate) -> json.Value {
+  var f: List[(Str, json.Value)] = []
+  if let Some(v) = u.requester_pays {
+    f.push(("billing", json.Value.Object([("requesterPays", json.Value.Bool(v))])))
+  }
+  if let Some(c) = u.cors {
+    f.push(("cors", cors_value(c)))
+  }
+  if let Some(v) = u.default_event_based_hold {
+    f.push(("defaultEventBasedHold", json.Value.Bool(v)))
+  }
+  if u.uniform_bucket_level_access.is_some() || !(u.public_access_prevention is PublicAccessPrevention.Unknown) {
+    var ic: List[(Str, json.Value)] = []
+    if !(u.public_access_prevention is PublicAccessPrevention.Unknown) {
+      ic.push(("publicAccessPrevention", json.Value.Str(u.public_access_prevention.display())))
+    }
+    if let Some(e) = u.uniform_bucket_level_access {
+      ic.push(("uniformBucketLevelAccess", json.Value.Object([("enabled", json.Value.Bool(e))])))
+    }
+    f.push(("iamConfiguration", json.Value.Object(ic)))
+  }
+  if !u.set_labels.is_empty() || !u.delete_labels.is_empty() {
+    var all: Map[Str, json.Value] = {}
+    for (k, v) in u.set_labels {
+      all[k] = json.Value.Str(v)
+    }
+    for k in u.delete_labels {
+      all[k] = json.Value.Null
+    }
+    var kv: List[(Str, json.Value)] = []
+    for k in all.keys().sort() {
+      kv.push((k, all.get_or_fault(k, "k is one of the keys")))
+    }
+    f.push(("labels", json.Value.Object(kv)))
+  }
+  if let Some(l) = u.logging {
+    f.push(("logging", if l == (BucketLogging{}) { json.Value.Null } else { json.Value.Object([("logBucket", json.Value.Str(l.log_bucket)), ("logObjectPrefix", json.Value.Str(l.log_object_prefix))]) }))
+  }
+  if !(u.rpo is RPO.Unknown) {
+    f.push(("rpo", json.Value.Str(u.rpo.display())))
+  }
+  if !u.storage_class.is_empty() {
+    f.push(("storageClass", json.Value.Str(u.storage_class)))
+  }
+  if let Some(v) = u.versioning_enabled {
+    f.push(("versioning", json.Value.Object([("enabled", json.Value.Bool(v))])))
+  }
+  if let Some(w) = u.website {
+    f.push(("website", if w == (BucketWebsite{}) { json.Value.Null } else { json.Value.Object([("mainPageSuffix", json.Value.Str(w.main_page_suffix)), ("notFoundPage", json.Value.Str(w.not_found_page))]) }))
+  }
+  json.Value.Object(f)
+}
+
+/// A bucket's handle (Go's BucketHandle). No request is made until a call.
+pub struct BucketHandle[fx: Effects] {
+  c: Client[fx]
+  name: Str
+  conds: BucketConditions? = None
+  user_project: Str = ""
+  retry: Retry
+}
+
+pub fn (b: BucketHandle[fx]) bucket_name() -> Str { b.name }
+
+/// The handle of the object called name in this bucket (Go's Object).
+pub fn (b: BucketHandle[fx]) object(name: Str) -> ObjectHandle[fx] {
+  ObjectHandle{c: b.c, bucket: b.name, object: name, user_project: b.user_project, retry: b.retry}
+}
+
+/// The handle with conds on its bucket calls (Go's If).
+pub fn (b: BucketHandle[fx]) if_(conds: BucketConditions) -> BucketHandle[fx] {
+  var h = b
+  h.conds = Some(conds)
+  h
+}
+
+/// The handle with a billing project for its calls and its objects' (Go's
+/// UserProject; Requester Pays).
+pub fn (b: BucketHandle[fx]) billed_to(project: Str) -> BucketHandle[fx] {
+  var h = b
+  h.user_project = project
+  h
+}
+
+/// The handle with its own retries, which its objects take (Go's Retryer).
+pub fn (b: BucketHandle[fx]) retryer(r: Retry) -> BucketHandle[fx] {
+  var h = b
+  h.retry = r
+  h
+}
+
+/// The bucket's attributes (Go's Attrs).
+pub fn (b: BucketHandle[fx]) attrs() -> BucketAttrs ! StorageErr uses (net.dial, clock, rand, fx) {
+  let (m, nm) = bucket_cond_params("httpStorageClient.GetBucket", b.conds)?
+  let got = b.c.run(b.retry, true, fn(h: List[(Str, Str)]) -> raw.Bucket ! gensupport.CallErr uses net.dial, clock, rand, fx {
+    b.c.svc.buckets.get(b.name, raw.BucketsGetOptions{if_metageneration_match: m, if_metageneration_not_match: nm, projection: Some("full"), user_project: opt_str(b.user_project), headers: h})
+  }) ?? e => return Err(bucket_err(e))
+  Ok(new_bucket(got))
+}
+
+/// Creates the bucket in project (Go's Create); attrs None for the
+/// service's defaults.
+pub fn (b: BucketHandle[fx]) create(project: Str, attrs: BucketAttrs? = None) -> () ! StorageErr uses (net.dial, clock, rand, fx) {
+  var q = url.values()
+  if let Some(a) = attrs {
+    if a.predefined_acl != "" {
+      q.set("predefinedAcl", a.predefined_acl)
+    }
+    if a.predefined_default_object_acl != "" {
+      q.set("predefinedDefaultObjectAcl", a.predefined_default_object_acl)
+    }
+  }
+  q.set("project", project)
+  if !b.user_project.is_empty() {
+    q.set("userProject", b.user_project)
+  }
+  q.set("alt", "json")
+  q.set("prettyPrint", "false")
+  let body = json_bytes(create_body(b.name, attrs))
+  let target = googleapi.resolve_relative(b.c.core.base_path, "b")
+  let _r = b.c.run(b.retry, true, fn(h: List[(Str, Str)]) -> raw.Bucket ! gensupport.CallErr uses net.dial, clock, rand, fx {
+    var hs: List[(Str, Str)] = [("Content-Type", "application/json")]
+    hs = hs + h
+    let resp = b.c.core.client.send(gensupport.Request{method: "POST", url: target, query: q, headers: hs, body: body})?
+    gensupport.check(resp)?
+    gensupport.decode[raw.Bucket](resp)
+  }) ?? e => return Err(call_err(e))
+  Ok(())
+}
+
+/// Updates the bucket's attributes and returns them (Go's Update). It is
+/// retried by the Idempotent policy only with a metageneration_match
+/// condition.
+pub fn (b: BucketHandle[fx]) update(u: BucketAttrsToUpdate) -> BucketAttrs ! StorageErr uses (net.dial, clock, rand, fx) {
+  let (m, nm) = bucket_cond_params("httpStorageClient.UpdateBucket", b.conds)?
+  let idempotent = match b.conds {
+    Some(c) => c.metageneration_match != 0
+    None => false
+  }
+  var q = url.values()
+  if let Some(v) = m {
+    q.set("ifMetagenerationMatch", "${v}")
+  }
+  if let Some(v) = nm {
+    q.set("ifMetagenerationNotMatch", "${v}")
+  }
+  if u.predefined_acl != "" {
+    q.set("predefinedAcl", u.predefined_acl)
+  }
+  if u.predefined_default_object_acl != "" {
+    q.set("predefinedDefaultObjectAcl", u.predefined_default_object_acl)
+  }
+  q.set("projection", "full")
+  if !b.user_project.is_empty() {
+    q.set("userProject", b.user_project)
+  }
+  q.set("alt", "json")
+  q.set("prettyPrint", "false")
+  let body = json_bytes(bucket_update_body(u))
+  let target = googleapi.expand(googleapi.resolve_relative(b.c.core.base_path, "b/{bucket}"), {"bucket": b.name})
+  let got = b.c.run(b.retry, idempotent, fn(h: List[(Str, Str)]) -> raw.Bucket ! gensupport.CallErr uses net.dial, clock, rand, fx {
+    var hs: List[(Str, Str)] = [("Content-Type", "application/json")]
+    hs = hs + h
+    let resp = b.c.core.client.send(gensupport.Request{method: "PATCH", url: target, query: q, headers: hs, body: body})?
+    gensupport.check(resp)?
+    gensupport.decode[raw.Bucket](resp)
+  }) ?? e => return Err(call_err(e))
+  Ok(new_bucket(got))
+}
+
+/// Deletes the bucket (Go's Delete). A 404 stays a Call error, as Go
+/// leaves it.
+pub fn (b: BucketHandle[fx]) delete() -> () ! StorageErr uses (net.dial, clock, rand, fx) {
+  let (m, nm) = bucket_cond_params("httpStorageClient.DeleteBucket", b.conds)?
+  b.c.run(b.retry, true, fn(h: List[(Str, Str)]) -> () ! gensupport.CallErr uses net.dial, clock, rand, fx {
+    b.c.svc.buckets.delete(b.name, raw.BucketsDeleteOptions{if_metageneration_match: m, if_metageneration_not_match: nm, user_project: opt_str(b.user_project), headers: h})
+  }) ?? e => return Err(call_err(e))
+  Ok(())
+}
+
+/// A listing's filter (Go's Query).
+pub struct Query {
+  pub delimiter: Str = ""
+  pub prefix: Str = ""
+  pub versions: Bool = false
+  pub start_offset: Str = ""
+  pub end_offset: Str = ""
+  pub match_glob: Str = ""
+  pub include_trailing_delimiter: Bool = false
+  pub include_folders_as_prefixes: Bool = false
+  pub soft_deleted: Bool = false
+  /// The result fields (set_attr_selection), empty for all.
+  fields: Str = ""
+}
+
+/// Go's attrToFieldMap: ObjectAttrs field names to the JSON API's.
+fn attr_field(name: Str) -> Str? {
+  let m: Map[Str, Str] = {"Bucket": "bucket", "Name": "name", "ContentType": "contentType", "ContentLanguage": "contentLanguage", "CacheControl": "cacheControl", "EventBasedHold": "eventBasedHold", "TemporaryHold": "temporaryHold", "RetentionExpirationTime": "retentionExpirationTime", "ACL": "acl", "Owner": "owner", "ContentEncoding": "contentEncoding", "ContentDisposition": "contentDisposition", "Size": "size", "MD5": "md5Hash", "CRC32C": "crc32c", "MediaLink": "mediaLink", "Metadata": "metadata", "Generation": "generation", "Metageneration": "metageneration", "StorageClass": "storageClass", "CustomerKeySHA256": "customerEncryption", "KMSKeyName": "kmsKeyName", "Created": "timeCreated", "Deleted": "timeDeleted", "Updated": "updated", "Etag": "etag", "CustomTime": "customTime", "ComponentCount": "componentCount", "Retention": "retention", "SoftDeleteTime": "softDeleteTime", "HardDeleteTime": "hardDeleteTime", "Finalized": "timeFinalized", "Contexts": "contexts"}
+  m.get(name)
+}
+
+/// q returning only the attributes named (ObjectAttrs field names, Go's
+/// SetAttrSelection), with the listing's own fields; an unknown name is an
+/// error.
+pub fn (q: Query) set_attr_selection(attrs: List[Str]) -> Query ! StorageErr {
+  var fs: List[Str] = []
+  for a in attrs {
+    let f = attr_field(a) ?? return Err(StorageErr.Invalid("storage: attr ${a} is not valid"))
+    fs.push(f)
+  }
+  var v = q
+  v.fields = if fs.is_empty() { "" } else { "nextPageToken,prefixes,items(${fs.join(",")})" }
+  Ok(v)
+}
+
+/// The objects of a listing, page by page (Go's ObjectIterator):
+/// `next` until None. A prefix of a delimited listing comes as attributes
+/// with only `prefix` set.
+pub struct ObjectIterator[fx: Effects] {
+  b: BucketHandle[fx]
+  q: Query
+  buf: List[ObjectAttrs] = []
+  at: Int = 0
+  token: Str = ""
+  done: Bool = false
+}
+
+/// The bucket's objects matching q (Go's Objects).
+pub fn (b: BucketHandle[fx]) objects(q: Query = Query{}) -> ObjectIterator[fx] { ObjectIterator{b: b, q: q} }
+
+/// The next object or prefix, None at the end. An error ends the listing.
+pub fn (var it: ObjectIterator[fx]) next() -> ObjectAttrs? ! StorageErr uses (net.dial, clock, rand, fx) {
+  while true {
+    if it.at < it.buf.len() {
+      let a = it.buf[it.at]
+      it.at += 1
+      return Ok(Some(a))
+    }
+    if it.done {
+      return Ok(None)
+    }
+    let b = it.b
+    let q = it.q
+    let tok = it.token
+    let page = b.c.run(b.retry, true, fn(h: List[(Str, Str)]) -> raw.Objects ! gensupport.CallErr uses net.dial, clock, rand, fx {
+      b.c.svc.objects.list(b.name, raw.ObjectsListOptions{delimiter: Some(q.delimiter), end_offset: Some(q.end_offset), include_folders_as_prefixes: Some(q.include_folders_as_prefixes), include_trailing_delimiter: Some(q.include_trailing_delimiter), match_glob: Some(q.match_glob), page_token: Some(tok), prefix: Some(q.prefix), projection: Some("full"), soft_deleted: if q.soft_deleted { Some(true) } else { None }, start_offset: Some(q.start_offset), user_project: opt_str(b.user_project), versions: Some(q.versions), fields: if q.fields.is_empty() { [] } else { [q.fields] }, headers: h})
+    })
+    let p = match page {
+      Ok(p) => p
+      Err(e) => {
+        it.done = true
+        return Err(bucket_err(e))
+      }
+    }
+    var buf: List[ObjectAttrs] = []
+    for o in p.items {
+      buf.push(new_object(o))
+    }
+    for pre in p.prefixes {
+      buf.push(ObjectAttrs{prefix: pre})
+    }
+    it.buf = buf
+    it.at = 0
+    it.token = p.next_page_token
+    it.done = p.next_page_token.is_empty()
+  }
+  Ok(None)
+}
+
+/// A project's buckets, page by page (Go's BucketIterator).
+pub struct BucketIterator[fx: Effects] {
+  c: Client[fx]
+  project: Str
+  /// Only buckets whose names start with it (Go's Prefix).
+  pub prefix: Str = ""
+  buf: List[BucketAttrs] = []
+  at: Int = 0
+  token: Str = ""
+  done: Bool = false
+}
+
+/// The project's buckets (Go's Buckets).
+pub fn (c: Client[fx]) buckets(project: Str, prefix: Str = "") -> BucketIterator[fx] { BucketIterator{c: c, project: project, prefix: prefix} }
+
+/// The next bucket, None at the end. An error ends the listing.
+pub fn (var it: BucketIterator[fx]) next() -> BucketAttrs? ! StorageErr uses (net.dial, clock, rand, fx) {
+  while true {
+    if it.at < it.buf.len() {
+      let a = it.buf[it.at]
+      it.at += 1
+      return Ok(Some(a))
+    }
+    if it.done {
+      return Ok(None)
+    }
+    let c = it.c
+    let project = it.project
+    let prefix = it.prefix
+    let tok = it.token
+    let page = c.run(c.retry, true, fn(h: List[(Str, Str)]) -> raw.Buckets ! gensupport.CallErr uses net.dial, clock, rand, fx {
+      c.svc.buckets.list(project, raw.BucketsListOptions{page_token: Some(tok), prefix: Some(prefix), projection: Some("full"), return_partial_success: Some(false), headers: h})
+    })
+    let p = match page {
+      Ok(p) => p
+      Err(e) => {
+        it.done = true
+        return Err(call_err(e))
+      }
+    }
+    var buf: List[BucketAttrs] = []
+    for b in p.items {
+      buf.push(new_bucket(b))
+    }
+    it.buf = buf
+    it.at = 0
+    it.token = p.next_page_token
+    it.done = p.next_page_token.is_empty()
+  }
+  Ok(None)
+}

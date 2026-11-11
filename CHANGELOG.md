@@ -7,6 +7,16 @@ touches. Release notes: [docs/releases](docs/releases).
 
 ## Unreleased
 
+- `storage` (new module `github.com/xo-lang/gcp/storage`, decision 0010
+  step 1): Go's Cloud Storage client over the JSON API: `new_client`
+  (endpoint, STORAGE_EMULATOR_HOST), bucket and object handles with
+  `attrs`, `update`, `delete`, bucket `create`, `Conditions` and
+  `BucketConditions` with Go's error texts, object and bucket listings
+  (`Query`, `set_attr_selection`), `ErrObjectNotExist` and
+  `ErrBucketNotExist` (`is_object_not_exist`, `is_bucket_not_exist`),
+  and Go's retries (policy, gax backoff, max attempts, invocation id
+  and idempotency token). 28 cases replay the Go oracle's requests and
+  results line for line over FakeNet.
 - `auth`: the token cache (`cached`, Go's cachedTokenProvider with a
   225 second early refresh; Go's async refresh when given a task group,
   `CachedOptions.tasks`) and the metadata server's

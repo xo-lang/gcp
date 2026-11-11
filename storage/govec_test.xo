@@ -1,0 +1,276 @@
+// Generated from the output of the Go oracle for decision 0010 step 1
+// (~/xo-lead/notes/aws-43/storagego: cloud.google.com/go/storage v1.70.0
+// against a fake JSON API, no network); do not edit. Each test makes the
+// same calls here over FakeNet and compares the requests and results
+// line for line. Not replayed: "object attrs, bad names" (an Xo Str is
+// always valid UTF-8, so its first call cannot be written).
+
+use std/json
+use std/time
+
+const OBJ_JSON: Str = "{\"kind\":\"storage#object\",\"id\":\"b1/dir/a.txt/1700000000000001\",\"selfLink\":\"https://www.googleapis.com/storage/v1/b/b1/o/dir%2Fa.txt\",\"mediaLink\":\"https://storage.googleapis.com/download/storage/v1/b/b1/o/dir%2Fa.txt?generation=1700000000000001&alt=media\",\"name\":\"dir/a.txt\",\"bucket\":\"b1\",\"generation\":\"1700000000000001\",\"metageneration\":\"3\",\"contentType\":\"text/plain\",\"contentEncoding\":\"gzip\",\"contentDisposition\":\"inline\",\"contentLanguage\":\"en\",\"cacheControl\":\"no-cache\",\"storageClass\":\"STANDARD\",\"size\":\"1234\",\"md5Hash\":\"XUFAKrxLKna5cZ2REBfFkg==\",\"crc32c\":\"yZRlqg==\",\"etag\":\"CIGAgICAgICAAhAD\",\"timeCreated\":\"2023-11-14T22:13:20.000Z\",\"updated\":\"2023-11-15T01:00:00.123Z\",\"timeStorageClassUpdated\":\"2023-11-14T22:13:20.000Z\",\"timeFinalized\":\"2023-11-14T22:13:20.000Z\",\"customTime\":\"2024-01-02T03:04:05.000Z\",\"metadata\":{\"k1\":\"v1\",\"k2\":\"v2\"},\"owner\":{\"entity\":\"user-owner\"},\"componentCount\":2,\"eventBasedHold\":true,\"temporaryHold\":false,\"retentionExpirationTime\":\"2025-01-01T00:00:00.000Z\",\"kmsKeyName\":\"projects/p/locations/l/keyRings/r/cryptoKeys/k\",\"acl\":[{\"entity\":\"allUsers\",\"role\":\"READER\",\"projectTeam\":{\"projectNumber\":\"123\",\"team\":\"owners\"}}]}"
+const BUCKET_JSON: Str = "{\"kind\":\"storage#bucket\",\"id\":\"b1\",\"selfLink\":\"https://www.googleapis.com/storage/v1/b/b1\",\"projectNumber\":\"123456\",\"name\":\"b1\",\"timeCreated\":\"2023-11-14T22:13:20.000Z\",\"updated\":\"2023-11-15T01:00:00.000Z\",\"metageneration\":\"7\",\"location\":\"US-EAST1\",\"locationType\":\"region\",\"storageClass\":\"NEARLINE\",\"etag\":\"CAc=\",\"defaultEventBasedHold\":true,\"versioning\":{\"enabled\":true},\"labels\":{\"env\":\"test\",\"team\":\"x\"},\"billing\":{\"requesterPays\":true},\"rpo\":\"DEFAULT\",\"iamConfiguration\":{\"bucketPolicyOnly\":{\"enabled\":true,\"lockedTime\":\"2024-02-01T00:00:00.000Z\"},\"uniformBucketLevelAccess\":{\"enabled\":true,\"lockedTime\":\"2024-02-01T00:00:00.000Z\"},\"publicAccessPrevention\":\"enforced\"},\"website\":{\"mainPageSuffix\":\"index.html\",\"notFoundPage\":\"404.html\"},\"logging\":{\"logBucket\":\"logs\",\"logObjectPrefix\":\"b1/\"},\"cors\":[{\"origin\":[\"https://a.test\"],\"method\":[\"GET\",\"PUT\"],\"responseHeader\":[\"Content-Type\"],\"maxAgeSeconds\":3600}],\"encryption\":{\"defaultKmsKeyName\":\"projects/p/locations/l/keyRings/r/cryptoKeys/k\"}}"
+const NOT_FOUND: Str = "{\"error\":{\"code\":404,\"message\":\"No such object: b1/missing\",\"errors\":[{\"message\":\"No such object: b1/missing\",\"domain\":\"global\",\"reason\":\"notFound\"}]}}"
+const BUCKET_NOT_FOUND: Str = "{\"error\":{\"code\":404,\"message\":\"The specified bucket does not exist.\",\"errors\":[{\"message\":\"The specified bucket does not exist.\",\"domain\":\"global\",\"reason\":\"notFound\"}]}}"
+const UNAVAILABLE: Str = "{\"error\":{\"code\":503,\"message\":\"Backend Error\",\"errors\":[{\"message\":\"Backend Error\",\"domain\":\"global\",\"reason\":\"backendError\"}]}}"
+const PRECONDITION_FAILED: Str = "{\"error\":{\"code\":412,\"message\":\"At least one of the pre-conditions you specified did not hold.\",\"errors\":[{\"message\":\"At least one of the pre-conditions you specified did not hold.\",\"domain\":\"global\",\"reason\":\"conditionNotMet\",\"locationType\":\"header\",\"location\":\"If-Match\"}]}}"
+
+fn obj(f: Fake, r: Result[ObjectAttrs, StorageErr]) {
+  result_lines(f, match r {
+    Ok(a) => Ok(object_json(a))
+    Err(e) => Err(e)
+  })
+}
+
+fn bkt(f: Fake, r: Result[BucketAttrs, StorageErr]) {
+  result_lines(f, match r {
+    Ok(a) => Ok(bucket_json(a))
+    Err(e) => Err(e)
+  })
+}
+
+fn unit(f: Fake, r: Result[(), StorageErr]) {
+  result_lines(f, match r {
+    Ok(_) => Ok("")
+    Err(e) => Err(e)
+  })
+}
+
+fn str_result(f: Fake, r: Result[Str, StorageErr]) {
+  result_lines(f, match r {
+    Ok(x) => Ok(json.Value.Str(x).encode())
+    Err(e) => Err(e)
+  })
+}
+
+fn objects(f: Fake, it0: ObjectIterator[()]) {
+  var it = it0
+  while true {
+    match it.next() {
+      Ok(Some(a)) => note(f, if a.prefix != "" { "  prefix ${a.prefix}" } else { "  object ${a.name} gen=${a.generation} size=${a.size}" })
+      Ok(None) => {
+        note(f, "  done")
+        break
+      }
+      Err(e) => {
+        note(f, "  error ${e.display()}")
+        break
+      }
+    }
+  }
+}
+
+fn buckets(f: Fake, it0: BucketIterator[()]) {
+  var it = it0
+  while true {
+    match it.next() {
+      Ok(Some(a)) => note(f, "  bucket ${a.name} location=${a.location} class=${a.storage_class}")
+      Ok(None) => {
+        note(f, "  done")
+        break
+      }
+      Err(e) => {
+        note(f, "  error ${e.display()}")
+        break
+      }
+    }
+  }
+}
+
+test "oracle: object attrs" {
+  let f = new_fake(os.net, [(200, OBJ_JSON)])
+  let c = fake_client(os)
+  obj(f, c.bucket("b1").object("dir/a.txt").attrs())
+  expect(lines(f)) == ["  GET https://storage.fake/storage/v1/b/b1/o/dir%2Fa.txt?alt=json&prettyPrint=false&projection=full", "    X-Goog-Api-Client: gl-go/GO gdcl/V gccl-invocation-id/UUID gccl-attempt-count/1 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID", "  ok {\"ACL\":[{\"Domain\":\"\",\"Email\":\"\",\"Entity\":\"allUsers\",\"EntityID\":\"\",\"ProjectTeam\":{\"ProjectNumber\":\"123\",\"Team\":\"owners\"},\"Role\":\"READER\"}],\"Bucket\":\"b1\",\"CRC32C\":3381945770,\"CacheControl\":\"no-cache\",\"ComponentCount\":2,\"ContentDisposition\":\"inline\",\"ContentEncoding\":\"gzip\",\"ContentLanguage\":\"en\",\"ContentType\":\"text/plain\",\"Created\":\"2023-11-14T22:13:20Z\",\"CustomTime\":\"2024-01-02T03:04:05Z\",\"CustomerKeySHA256\":\"\",\"Deleted\":\"0001-01-01T00:00:00Z\",\"Etag\":\"CIGAgICAgICAAhAD\",\"EventBasedHold\":true,\"Finalized\":\"2023-11-14T22:13:20Z\",\"Generation\":1700000000000001,\"HardDeleteTime\":\"0001-01-01T00:00:00Z\",\"KMSKeyName\":\"projects/p/locations/l/keyRings/r/cryptoKeys/k\",\"MD5\":\"XUFAKrxLKna5cZ2REBfFkg==\",\"MediaLink\":\"https://storage.googleapis.com/download/storage/v1/b/b1/o/dir%2Fa.txt?generation=1700000000000001&alt=media\",\"Metadata\":{\"k1\":\"v1\",\"k2\":\"v2\"},\"Metageneration\":3,\"Name\":\"dir/a.txt\",\"Owner\":\"user-owner\",\"Prefix\":\"\",\"RetentionExpirationTime\":\"2025-01-01T00:00:00Z\",\"Size\":1234,\"SoftDeleteTime\":\"0001-01-01T00:00:00Z\",\"StorageClass\":\"STANDARD\",\"TemporaryHold\":false,\"Updated\":\"2023-11-15T01:00:00.123Z\"}"]
+}
+
+test "oracle: object attrs, not found" {
+  let f = new_fake(os.net, [(404, NOT_FOUND)])
+  let c = fake_client(os)
+  obj(f, c.bucket("b1").object("missing").attrs())
+  expect(lines(f)) == ["  GET https://storage.fake/storage/v1/b/b1/o/missing?alt=json&prettyPrint=false&projection=full", "    X-Goog-Api-Client: gl-go/GO gdcl/V gccl-invocation-id/UUID gccl-attempt-count/1 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID", "  error storage: object doesn't exist: googleapi: Error 404: No such object: b1/missing, notFound", "  is ErrObjectNotExist"]
+}
+
+test "oracle: object attrs, generation and conditions, user project" {
+  let f = new_fake(os.net, [(200, OBJ_JSON)])
+  let c = fake_client(os)
+  obj(f, c.bucket("b1").billed_to("billed").object("dir/a.txt").generation(5).if_(Conditions{metageneration_match: 3, generation_not_match: 9}).attrs())
+  expect(lines(f)) == ["  GET https://storage.fake/storage/v1/b/b1/o/dir%2Fa.txt?alt=json&generation=5&ifGenerationNotMatch=9&ifMetagenerationMatch=3&prettyPrint=false&projection=full&userProject=billed", "    X-Goog-Api-Client: gl-go/GO gdcl/V gccl-invocation-id/UUID gccl-attempt-count/1 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID", "  ok {\"ACL\":[{\"Domain\":\"\",\"Email\":\"\",\"Entity\":\"allUsers\",\"EntityID\":\"\",\"ProjectTeam\":{\"ProjectNumber\":\"123\",\"Team\":\"owners\"},\"Role\":\"READER\"}],\"Bucket\":\"b1\",\"CRC32C\":3381945770,\"CacheControl\":\"no-cache\",\"ComponentCount\":2,\"ContentDisposition\":\"inline\",\"ContentEncoding\":\"gzip\",\"ContentLanguage\":\"en\",\"ContentType\":\"text/plain\",\"Created\":\"2023-11-14T22:13:20Z\",\"CustomTime\":\"2024-01-02T03:04:05Z\",\"CustomerKeySHA256\":\"\",\"Deleted\":\"0001-01-01T00:00:00Z\",\"Etag\":\"CIGAgICAgICAAhAD\",\"EventBasedHold\":true,\"Finalized\":\"2023-11-14T22:13:20Z\",\"Generation\":1700000000000001,\"HardDeleteTime\":\"0001-01-01T00:00:00Z\",\"KMSKeyName\":\"projects/p/locations/l/keyRings/r/cryptoKeys/k\",\"MD5\":\"XUFAKrxLKna5cZ2REBfFkg==\",\"MediaLink\":\"https://storage.googleapis.com/download/storage/v1/b/b1/o/dir%2Fa.txt?generation=1700000000000001&alt=media\",\"Metadata\":{\"k1\":\"v1\",\"k2\":\"v2\"},\"Metageneration\":3,\"Name\":\"dir/a.txt\",\"Owner\":\"user-owner\",\"Prefix\":\"\",\"RetentionExpirationTime\":\"2025-01-01T00:00:00Z\",\"Size\":1234,\"SoftDeleteTime\":\"0001-01-01T00:00:00Z\",\"StorageClass\":\"STANDARD\",\"TemporaryHold\":false,\"Updated\":\"2023-11-15T01:00:00.123Z\"}"]
+}
+
+test "oracle: object attrs, conditions that conflict" {
+  let f = new_fake(os.net, [])
+  let c = fake_client(os)
+  obj(f, c.bucket("b1").object("a").if_(Conditions{generation_match: 1, does_not_exist: true}).attrs())
+  expect(lines(f)) == ["  error storage: Attrs: multiple conditions specified for generation"]
+}
+
+test "oracle: object attrs, empty conditions" {
+  let f = new_fake(os.net, [])
+  let c = fake_client(os)
+  obj(f, c.bucket("b1").object("a").if_(Conditions{}).attrs())
+  expect(lines(f)) == ["  error storage: Attrs: empty conditions"]
+}
+
+test "oracle: object delete, does not exist condition" {
+  let f = new_fake(os.net, [(204, "")])
+  let c = fake_client(os)
+  unit(f, c.bucket("b1").object("a b/c?").if_(Conditions{does_not_exist: true}).delete())
+  expect(lines(f)) == ["  DELETE https://storage.fake/storage/v1/b/b1/o/a%20b%2Fc%3F?alt=json&ifGenerationMatch=0&prettyPrint=false", "    X-Goog-Api-Client: gl-go/GO gdcl/V gccl-invocation-id/UUID gccl-attempt-count/1 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID", "  ok"]
+}
+
+test "oracle: object delete, not found" {
+  let f = new_fake(os.net, [(404, NOT_FOUND)])
+  let c = fake_client(os)
+  unit(f, c.bucket("b1").object("missing").delete())
+  expect(lines(f)) == ["  DELETE https://storage.fake/storage/v1/b/b1/o/missing?alt=json&prettyPrint=false", "    X-Goog-Api-Client: gl-go/GO gdcl/V gccl-invocation-id/UUID gccl-attempt-count/1 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID", "  error storage: object doesn't exist: googleapi: Error 404: No such object: b1/missing, notFound", "  is ErrObjectNotExist"]
+}
+
+test "oracle: object update" {
+  let f = new_fake(os.net, [(200, OBJ_JSON)])
+  let c = fake_client(os)
+  obj(f, c.bucket("b1").object("dir/a.txt").if_(Conditions{metageneration_match: 3}).update(ObjectAttrsToUpdate{content_type: Some("application/json"), cache_control: Some(""), event_based_hold: Some(false), custom_time: Some(time.RFC3339_LAYOUT.parse("2024-01-02T03:04:05Z", time.utc()) ?? e => fault(e.display())), metadata: Some({"k1": "new", "k2": ""})}))
+  expect(lines(f)) == ["  PATCH https://storage.fake/storage/v1/b/b1/o/dir%2Fa.txt?alt=json&ifMetagenerationMatch=3&prettyPrint=false&projection=full", "    X-Goog-Api-Client: gl-go/GO gdcl/V gccl-invocation-id/UUID gccl-attempt-count/1 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID", "    Content-Type: application/json", "    body {\"bucket\":\"b1\",\"cacheControl\":\"\",\"contentType\":\"application/json\",\"customTime\":\"2024-01-02T03:04:05Z\",\"eventBasedHold\":false,\"metadata\":{\"k1\":\"new\",\"k2\":\"\"}}", "  ok {\"ACL\":[{\"Domain\":\"\",\"Email\":\"\",\"Entity\":\"allUsers\",\"EntityID\":\"\",\"ProjectTeam\":{\"ProjectNumber\":\"123\",\"Team\":\"owners\"},\"Role\":\"READER\"}],\"Bucket\":\"b1\",\"CRC32C\":3381945770,\"CacheControl\":\"no-cache\",\"ComponentCount\":2,\"ContentDisposition\":\"inline\",\"ContentEncoding\":\"gzip\",\"ContentLanguage\":\"en\",\"ContentType\":\"text/plain\",\"Created\":\"2023-11-14T22:13:20Z\",\"CustomTime\":\"2024-01-02T03:04:05Z\",\"CustomerKeySHA256\":\"\",\"Deleted\":\"0001-01-01T00:00:00Z\",\"Etag\":\"CIGAgICAgICAAhAD\",\"EventBasedHold\":true,\"Finalized\":\"2023-11-14T22:13:20Z\",\"Generation\":1700000000000001,\"HardDeleteTime\":\"0001-01-01T00:00:00Z\",\"KMSKeyName\":\"projects/p/locations/l/keyRings/r/cryptoKeys/k\",\"MD5\":\"XUFAKrxLKna5cZ2REBfFkg==\",\"MediaLink\":\"https://storage.googleapis.com/download/storage/v1/b/b1/o/dir%2Fa.txt?generation=1700000000000001&alt=media\",\"Metadata\":{\"k1\":\"v1\",\"k2\":\"v2\"},\"Metageneration\":3,\"Name\":\"dir/a.txt\",\"Owner\":\"user-owner\",\"Prefix\":\"\",\"RetentionExpirationTime\":\"2025-01-01T00:00:00Z\",\"Size\":1234,\"SoftDeleteTime\":\"0001-01-01T00:00:00Z\",\"StorageClass\":\"STANDARD\",\"TemporaryHold\":false,\"Updated\":\"2023-11-15T01:00:00.123Z\"}"]
+}
+
+test "oracle: object update, delete all metadata" {
+  let f = new_fake(os.net, [(200, OBJ_JSON)])
+  let c = fake_client(os)
+  obj(f, c.bucket("b1").object("dir/a.txt").update(ObjectAttrsToUpdate{metadata: Some({}), content_language: Some("")}))
+  expect(lines(f)) == ["  PATCH https://storage.fake/storage/v1/b/b1/o/dir%2Fa.txt?alt=json&prettyPrint=false&projection=full", "    X-Goog-Api-Client: gl-go/GO gdcl/V gccl-invocation-id/UUID gccl-attempt-count/1 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID", "    Content-Type: application/json", "    body {\"bucket\":\"b1\",\"contentLanguage\":null,\"metadata\":null}", "  ok {\"ACL\":[{\"Domain\":\"\",\"Email\":\"\",\"Entity\":\"allUsers\",\"EntityID\":\"\",\"ProjectTeam\":{\"ProjectNumber\":\"123\",\"Team\":\"owners\"},\"Role\":\"READER\"}],\"Bucket\":\"b1\",\"CRC32C\":3381945770,\"CacheControl\":\"no-cache\",\"ComponentCount\":2,\"ContentDisposition\":\"inline\",\"ContentEncoding\":\"gzip\",\"ContentLanguage\":\"en\",\"ContentType\":\"text/plain\",\"Created\":\"2023-11-14T22:13:20Z\",\"CustomTime\":\"2024-01-02T03:04:05Z\",\"CustomerKeySHA256\":\"\",\"Deleted\":\"0001-01-01T00:00:00Z\",\"Etag\":\"CIGAgICAgICAAhAD\",\"EventBasedHold\":true,\"Finalized\":\"2023-11-14T22:13:20Z\",\"Generation\":1700000000000001,\"HardDeleteTime\":\"0001-01-01T00:00:00Z\",\"KMSKeyName\":\"projects/p/locations/l/keyRings/r/cryptoKeys/k\",\"MD5\":\"XUFAKrxLKna5cZ2REBfFkg==\",\"MediaLink\":\"https://storage.googleapis.com/download/storage/v1/b/b1/o/dir%2Fa.txt?generation=1700000000000001&alt=media\",\"Metadata\":{\"k1\":\"v1\",\"k2\":\"v2\"},\"Metageneration\":3,\"Name\":\"dir/a.txt\",\"Owner\":\"user-owner\",\"Prefix\":\"\",\"RetentionExpirationTime\":\"2025-01-01T00:00:00Z\",\"Size\":1234,\"SoftDeleteTime\":\"0001-01-01T00:00:00Z\",\"StorageClass\":\"STANDARD\",\"TemporaryHold\":false,\"Updated\":\"2023-11-15T01:00:00.123Z\"}"]
+}
+
+test "oracle: object update, 503 without a precondition is not retried" {
+  let f = new_fake(os.net, [(503, UNAVAILABLE), (200, OBJ_JSON)])
+  let c = fake_client(os)
+  obj(f, c.bucket("b1").object("a").retryer(Retry{backoff: FAST}).update(ObjectAttrsToUpdate{content_type: Some("x/y")}))
+  expect(lines(f)) == ["  PATCH https://storage.fake/storage/v1/b/b1/o/a?alt=json&prettyPrint=false&projection=full", "    X-Goog-Api-Client: gl-go/GO gdcl/V gccl-invocation-id/UUID gccl-attempt-count/1 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID", "    Content-Type: application/json", "    body {\"bucket\":\"b1\",\"contentType\":\"x/y\"}", "  error googleapi: Error 503: Backend Error, backendError"]
+}
+
+test "oracle: object update, 503 with a precondition is retried" {
+  let f = new_fake(os.net, [(503, UNAVAILABLE), (200, OBJ_JSON)])
+  let c = fake_client(os)
+  obj(f, c.bucket("b1").object("a").if_(Conditions{metageneration_match: 3}).retryer(Retry{backoff: FAST}).update(ObjectAttrsToUpdate{content_type: Some("x/y")}))
+  expect(lines(f)) == ["  PATCH https://storage.fake/storage/v1/b/b1/o/a?alt=json&ifMetagenerationMatch=3&prettyPrint=false&projection=full", "    X-Goog-Api-Client: gl-go/GO gdcl/V gccl-invocation-id/UUID gccl-attempt-count/1 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID", "    Content-Type: application/json", "    body {\"bucket\":\"b1\",\"contentType\":\"x/y\"}", "  PATCH https://storage.fake/storage/v1/b/b1/o/a?alt=json&ifMetagenerationMatch=3&prettyPrint=false&projection=full", "    X-Goog-Api-Client: gl-go/GO gdcl/V gccl-invocation-id/UUID gccl-attempt-count/2 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID", "    Content-Type: application/json", "    body {\"bucket\":\"b1\",\"contentType\":\"x/y\"}", "  ok {\"ACL\":[{\"Domain\":\"\",\"Email\":\"\",\"Entity\":\"allUsers\",\"EntityID\":\"\",\"ProjectTeam\":{\"ProjectNumber\":\"123\",\"Team\":\"owners\"},\"Role\":\"READER\"}],\"Bucket\":\"b1\",\"CRC32C\":3381945770,\"CacheControl\":\"no-cache\",\"ComponentCount\":2,\"ContentDisposition\":\"inline\",\"ContentEncoding\":\"gzip\",\"ContentLanguage\":\"en\",\"ContentType\":\"text/plain\",\"Created\":\"2023-11-14T22:13:20Z\",\"CustomTime\":\"2024-01-02T03:04:05Z\",\"CustomerKeySHA256\":\"\",\"Deleted\":\"0001-01-01T00:00:00Z\",\"Etag\":\"CIGAgICAgICAAhAD\",\"EventBasedHold\":true,\"Finalized\":\"2023-11-14T22:13:20Z\",\"Generation\":1700000000000001,\"HardDeleteTime\":\"0001-01-01T00:00:00Z\",\"KMSKeyName\":\"projects/p/locations/l/keyRings/r/cryptoKeys/k\",\"MD5\":\"XUFAKrxLKna5cZ2REBfFkg==\",\"MediaLink\":\"https://storage.googleapis.com/download/storage/v1/b/b1/o/dir%2Fa.txt?generation=1700000000000001&alt=media\",\"Metadata\":{\"k1\":\"v1\",\"k2\":\"v2\"},\"Metageneration\":3,\"Name\":\"dir/a.txt\",\"Owner\":\"user-owner\",\"Prefix\":\"\",\"RetentionExpirationTime\":\"2025-01-01T00:00:00Z\",\"Size\":1234,\"SoftDeleteTime\":\"0001-01-01T00:00:00Z\",\"StorageClass\":\"STANDARD\",\"TemporaryHold\":false,\"Updated\":\"2023-11-15T01:00:00.123Z\"}"]
+}
+
+test "oracle: object attrs, retries 503 and 429, then 412 is final" {
+  let f = new_fake(os.net, [(503, UNAVAILABLE), (429, "{\"error\":{\"code\":429,\"message\":\"rate\"}}"), (412, PRECONDITION_FAILED)])
+  let c = fake_client(os)
+  obj(f, c.bucket("b1").object("a").retryer(Retry{backoff: FAST}).attrs())
+  expect(lines(f)) == ["  GET https://storage.fake/storage/v1/b/b1/o/a?alt=json&prettyPrint=false&projection=full", "    X-Goog-Api-Client: gl-go/GO gdcl/V gccl-invocation-id/UUID gccl-attempt-count/1 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID", "  GET https://storage.fake/storage/v1/b/b1/o/a?alt=json&prettyPrint=false&projection=full", "    X-Goog-Api-Client: gl-go/GO gdcl/V gccl-invocation-id/UUID gccl-attempt-count/2 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID", "  GET https://storage.fake/storage/v1/b/b1/o/a?alt=json&prettyPrint=false&projection=full", "    X-Goog-Api-Client: gl-go/GO gdcl/V gccl-invocation-id/UUID gccl-attempt-count/3 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID", "  error googleapi: Error 412: At least one of the pre-conditions you specified did not hold., conditionNotMet"]
+}
+
+test "oracle: object attrs, max attempts" {
+  let f = new_fake(os.net, [(503, UNAVAILABLE), (503, UNAVAILABLE), (503, UNAVAILABLE)])
+  let c = fake_client(os)
+  obj(f, c.bucket("b1").object("a").retryer(Retry{backoff: FAST, max_attempts: Some(2)}).attrs())
+  expect(lines(f)) == ["  GET https://storage.fake/storage/v1/b/b1/o/a?alt=json&prettyPrint=false&projection=full", "    X-Goog-Api-Client: gl-go/GO gdcl/V gccl-invocation-id/UUID gccl-attempt-count/1 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID", "  GET https://storage.fake/storage/v1/b/b1/o/a?alt=json&prettyPrint=false&projection=full", "    X-Goog-Api-Client: gl-go/GO gdcl/V gccl-invocation-id/UUID gccl-attempt-count/2 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID", "  error storage: retry failed after 2 attempts; last error: googleapi: Error 503: Backend Error, backendError"]
+}
+
+test "oracle: object attrs, retry never" {
+  let f = new_fake(os.net, [(503, UNAVAILABLE)])
+  let c = fake_client(os)
+  obj(f, c.bucket("b1").object("a").retryer(Retry{policy: RetryPolicy.Never}).attrs())
+  expect(lines(f)) == ["  GET https://storage.fake/storage/v1/b/b1/o/a?alt=json&prettyPrint=false&projection=full", "    X-Goog-Api-Client: gl-go/GO gdcl/V gccl-invocation-id/UUID gccl-attempt-count/1 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID", "  error googleapi: Error 503: Backend Error, backendError"]
+}
+
+test "oracle: object update, retry always" {
+  let f = new_fake(os.net, [(500, "{\"error\":{\"code\":500,\"message\":\"internal\"}}"), (200, OBJ_JSON)])
+  let c = fake_client(os)
+  obj(f, c.bucket("b1").object("a").retryer(Retry{backoff: FAST, policy: RetryPolicy.Always}).update(ObjectAttrsToUpdate{content_type: Some("x/y")}))
+  expect(lines(f)) == ["  PATCH https://storage.fake/storage/v1/b/b1/o/a?alt=json&prettyPrint=false&projection=full", "    X-Goog-Api-Client: gl-go/GO gdcl/V gccl-invocation-id/UUID gccl-attempt-count/1 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID", "    Content-Type: application/json", "    body {\"bucket\":\"b1\",\"contentType\":\"x/y\"}", "  PATCH https://storage.fake/storage/v1/b/b1/o/a?alt=json&prettyPrint=false&projection=full", "    X-Goog-Api-Client: gl-go/GO gdcl/V gccl-invocation-id/UUID gccl-attempt-count/2 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID", "    Content-Type: application/json", "    body {\"bucket\":\"b1\",\"contentType\":\"x/y\"}", "  ok {\"ACL\":[{\"Domain\":\"\",\"Email\":\"\",\"Entity\":\"allUsers\",\"EntityID\":\"\",\"ProjectTeam\":{\"ProjectNumber\":\"123\",\"Team\":\"owners\"},\"Role\":\"READER\"}],\"Bucket\":\"b1\",\"CRC32C\":3381945770,\"CacheControl\":\"no-cache\",\"ComponentCount\":2,\"ContentDisposition\":\"inline\",\"ContentEncoding\":\"gzip\",\"ContentLanguage\":\"en\",\"ContentType\":\"text/plain\",\"Created\":\"2023-11-14T22:13:20Z\",\"CustomTime\":\"2024-01-02T03:04:05Z\",\"CustomerKeySHA256\":\"\",\"Deleted\":\"0001-01-01T00:00:00Z\",\"Etag\":\"CIGAgICAgICAAhAD\",\"EventBasedHold\":true,\"Finalized\":\"2023-11-14T22:13:20Z\",\"Generation\":1700000000000001,\"HardDeleteTime\":\"0001-01-01T00:00:00Z\",\"KMSKeyName\":\"projects/p/locations/l/keyRings/r/cryptoKeys/k\",\"MD5\":\"XUFAKrxLKna5cZ2REBfFkg==\",\"MediaLink\":\"https://storage.googleapis.com/download/storage/v1/b/b1/o/dir%2Fa.txt?generation=1700000000000001&alt=media\",\"Metadata\":{\"k1\":\"v1\",\"k2\":\"v2\"},\"Metageneration\":3,\"Name\":\"dir/a.txt\",\"Owner\":\"user-owner\",\"Prefix\":\"\",\"RetentionExpirationTime\":\"2025-01-01T00:00:00Z\",\"Size\":1234,\"SoftDeleteTime\":\"0001-01-01T00:00:00Z\",\"StorageClass\":\"STANDARD\",\"TemporaryHold\":false,\"Updated\":\"2023-11-15T01:00:00.123Z\"}"]
+}
+
+test "oracle: bucket attrs" {
+  let f = new_fake(os.net, [(200, BUCKET_JSON)])
+  let c = fake_client(os)
+  bkt(f, c.bucket("b1").attrs())
+  expect(lines(f)) == ["  GET https://storage.fake/storage/v1/b/b1?alt=json&prettyPrint=false&projection=full", "    X-Goog-Api-Client: gl-go/GO gdcl/V gccl-invocation-id/UUID gccl-attempt-count/1 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID", "  ok {\"ACL\":null,\"BucketPolicyOnly\":{\"Enabled\":true,\"LockedTime\":\"2024-02-01T00:00:00Z\"},\"CORS\":[{\"MaxAge\":3600000000000,\"Methods\":[\"GET\",\"PUT\"],\"Origins\":[\"https://a.test\"],\"ResponseHeaders\":[\"Content-Type\"]}],\"Created\":\"2023-11-14T22:13:20Z\",\"DefaultEventBasedHold\":true,\"DefaultObjectACL\":null,\"Encryption\":{\"DefaultKMSKeyName\":\"projects/p/locations/l/keyRings/r/cryptoKeys/k\"},\"Etag\":\"CAc=\",\"Labels\":{\"env\":\"test\",\"team\":\"x\"},\"Location\":\"US-EAST1\",\"LocationType\":\"region\",\"Logging\":{\"LogBucket\":\"logs\",\"LogObjectPrefix\":\"b1/\"},\"MetaGeneration\":7,\"Name\":\"b1\",\"OwnerEntity\":\"\",\"PredefinedACL\":\"\",\"PredefinedDefaultObjectACL\":\"\",\"ProjectNumber\":123456,\"PublicAccessPrevention\":2,\"RPO\":1,\"RequesterPays\":true,\"StorageClass\":\"NEARLINE\",\"UniformBucketLevelAccess\":{\"Enabled\":true,\"LockedTime\":\"2024-02-01T00:00:00Z\"},\"Updated\":\"2023-11-15T01:00:00Z\",\"VersioningEnabled\":true,\"Website\":{\"MainPageSuffix\":\"index.html\",\"NotFoundPage\":\"404.html\"}}"]
+}
+
+test "oracle: bucket attrs, not found" {
+  let f = new_fake(os.net, [(404, BUCKET_NOT_FOUND)])
+  let c = fake_client(os)
+  bkt(f, c.bucket("nob").attrs())
+  expect(lines(f)) == ["  GET https://storage.fake/storage/v1/b/nob?alt=json&prettyPrint=false&projection=full", "    X-Goog-Api-Client: gl-go/GO gdcl/V gccl-invocation-id/UUID gccl-attempt-count/1 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID", "  error storage: bucket doesn't exist: googleapi: Error 404: The specified bucket does not exist., notFound", "  is ErrBucketNotExist"]
+}
+
+test "oracle: bucket attrs, metageneration conditions" {
+  let f = new_fake(os.net, [(200, BUCKET_JSON)])
+  let c = fake_client(os)
+  bkt(f, c.bucket("b1").if_(BucketConditions{metageneration_not_match: 6}).attrs())
+  bkt(f, c.bucket("b1").if_(BucketConditions{metageneration_match: 1, metageneration_not_match: 2}).attrs())
+  expect(lines(f)) == ["  GET https://storage.fake/storage/v1/b/b1?alt=json&ifMetagenerationNotMatch=6&prettyPrint=false&projection=full", "    X-Goog-Api-Client: gl-go/GO gdcl/V gccl-invocation-id/UUID gccl-attempt-count/1 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID", "  ok {\"ACL\":null,\"BucketPolicyOnly\":{\"Enabled\":true,\"LockedTime\":\"2024-02-01T00:00:00Z\"},\"CORS\":[{\"MaxAge\":3600000000000,\"Methods\":[\"GET\",\"PUT\"],\"Origins\":[\"https://a.test\"],\"ResponseHeaders\":[\"Content-Type\"]}],\"Created\":\"2023-11-14T22:13:20Z\",\"DefaultEventBasedHold\":true,\"DefaultObjectACL\":null,\"Encryption\":{\"DefaultKMSKeyName\":\"projects/p/locations/l/keyRings/r/cryptoKeys/k\"},\"Etag\":\"CAc=\",\"Labels\":{\"env\":\"test\",\"team\":\"x\"},\"Location\":\"US-EAST1\",\"LocationType\":\"region\",\"Logging\":{\"LogBucket\":\"logs\",\"LogObjectPrefix\":\"b1/\"},\"MetaGeneration\":7,\"Name\":\"b1\",\"OwnerEntity\":\"\",\"PredefinedACL\":\"\",\"PredefinedDefaultObjectACL\":\"\",\"ProjectNumber\":123456,\"PublicAccessPrevention\":2,\"RPO\":1,\"RequesterPays\":true,\"StorageClass\":\"NEARLINE\",\"UniformBucketLevelAccess\":{\"Enabled\":true,\"LockedTime\":\"2024-02-01T00:00:00Z\"},\"Updated\":\"2023-11-15T01:00:00Z\",\"VersioningEnabled\":true,\"Website\":{\"MainPageSuffix\":\"index.html\",\"NotFoundPage\":\"404.html\"}}", "  error storage: httpStorageClient.GetBucket: multiple conditions specified for metageneration"]
+}
+
+test "oracle: bucket create" {
+  let f = new_fake(os.net, [(200, BUCKET_JSON)])
+  let c = fake_client(os)
+  unit(f, c.bucket("b1").create("my-project", Some(BucketAttrs{location: "US-EAST1", storage_class: "NEARLINE", versioning_enabled: true, labels: {"env": "test"}, requester_pays: true, default_event_based_hold: true})))
+  expect(lines(f)) == ["  POST https://storage.fake/storage/v1/b?alt=json&prettyPrint=false&project=my-project", "    X-Goog-Api-Client: gl-go/GO gdcl/V gccl-invocation-id/UUID gccl-attempt-count/1 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID", "    Content-Type: application/json", "    body {\"billing\":{\"requesterPays\":true},\"labels\":{\"env\":\"test\"},\"lifecycle\":{\"rule\":[]},\"location\":\"US-EAST1\",\"name\":\"b1\",\"storageClass\":\"NEARLINE\",\"versioning\":{\"enabled\":true}}", "  ok"]
+}
+
+test "oracle: bucket create, no attrs" {
+  let f = new_fake(os.net, [(200, BUCKET_JSON)])
+  let c = fake_client(os)
+  unit(f, c.bucket("b2").create("my-project"))
+  expect(lines(f)) == ["  POST https://storage.fake/storage/v1/b?alt=json&prettyPrint=false&project=my-project", "    X-Goog-Api-Client: gl-go/GO gdcl/V gccl-invocation-id/UUID gccl-attempt-count/1 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID", "    Content-Type: application/json", "    body {\"name\":\"b2\"}", "  ok"]
+}
+
+test "oracle: bucket update" {
+  let f = new_fake(os.net, [(200, BUCKET_JSON)])
+  let c = fake_client(os)
+  bkt(f, c.bucket("b1").if_(BucketConditions{metageneration_match: 7}).update(BucketAttrsToUpdate{versioning_enabled: Some(false), requester_pays: Some(true), storage_class: "COLDLINE"}.set_label("env", "prod").delete_label("team")))
+  expect(lines(f)) == ["  PATCH https://storage.fake/storage/v1/b/b1?alt=json&ifMetagenerationMatch=7&prettyPrint=false&projection=full", "    X-Goog-Api-Client: gl-go/GO gdcl/V gccl-invocation-id/UUID gccl-attempt-count/1 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID", "    Content-Type: application/json", "    body {\"billing\":{\"requesterPays\":true},\"labels\":{\"env\":\"prod\",\"team\":null},\"storageClass\":\"COLDLINE\",\"versioning\":{\"enabled\":false}}", "  ok {\"ACL\":null,\"BucketPolicyOnly\":{\"Enabled\":true,\"LockedTime\":\"2024-02-01T00:00:00Z\"},\"CORS\":[{\"MaxAge\":3600000000000,\"Methods\":[\"GET\",\"PUT\"],\"Origins\":[\"https://a.test\"],\"ResponseHeaders\":[\"Content-Type\"]}],\"Created\":\"2023-11-14T22:13:20Z\",\"DefaultEventBasedHold\":true,\"DefaultObjectACL\":null,\"Encryption\":{\"DefaultKMSKeyName\":\"projects/p/locations/l/keyRings/r/cryptoKeys/k\"},\"Etag\":\"CAc=\",\"Labels\":{\"env\":\"test\",\"team\":\"x\"},\"Location\":\"US-EAST1\",\"LocationType\":\"region\",\"Logging\":{\"LogBucket\":\"logs\",\"LogObjectPrefix\":\"b1/\"},\"MetaGeneration\":7,\"Name\":\"b1\",\"OwnerEntity\":\"\",\"PredefinedACL\":\"\",\"PredefinedDefaultObjectACL\":\"\",\"ProjectNumber\":123456,\"PublicAccessPrevention\":2,\"RPO\":1,\"RequesterPays\":true,\"StorageClass\":\"NEARLINE\",\"UniformBucketLevelAccess\":{\"Enabled\":true,\"LockedTime\":\"2024-02-01T00:00:00Z\"},\"Updated\":\"2023-11-15T01:00:00Z\",\"VersioningEnabled\":true,\"Website\":{\"MainPageSuffix\":\"index.html\",\"NotFoundPage\":\"404.html\"}}"]
+}
+
+test "oracle: bucket delete" {
+  let f = new_fake(os.net, [(204, ""), (404, BUCKET_NOT_FOUND)])
+  let c = fake_client(os)
+  unit(f, c.bucket("b1").if_(BucketConditions{metageneration_match: 7}).delete())
+  unit(f, c.bucket("nob").delete())
+  expect(lines(f)) == ["  DELETE https://storage.fake/storage/v1/b/b1?alt=json&ifMetagenerationMatch=7&prettyPrint=false", "    X-Goog-Api-Client: gl-go/GO gdcl/V gccl-invocation-id/UUID gccl-attempt-count/1 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID", "  ok", "  DELETE https://storage.fake/storage/v1/b/nob?alt=json&prettyPrint=false", "    X-Goog-Api-Client: gl-go/GO gdcl/V gccl-invocation-id/UUID gccl-attempt-count/1 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID", "  error googleapi: Error 404: The specified bucket does not exist., notFound"]
+}
+
+test "oracle: objects, prefix, delimiter, versions, match glob, two pages" {
+  let f = new_fake(os.net, [(200, "{\"kind\":\"storage#objects\",\"nextPageToken\":\"tok1\",\"prefixes\":[\"dir/sub/\"],\"items\":[{\"name\":\"dir/a\",\"bucket\":\"b1\",\"generation\":\"1\",\"size\":\"3\"},{\"name\":\"dir/b\",\"bucket\":\"b1\",\"generation\":\"2\",\"size\":\"4\"}]}"), (200, "{\"kind\":\"storage#objects\",\"items\":[{\"name\":\"dir/c\",\"bucket\":\"b1\",\"generation\":\"3\",\"size\":\"5\"}]}")])
+  let c = fake_client(os)
+  objects(f, c.bucket("b1").objects(Query{prefix: "dir/", delimiter: "/", versions: true, match_glob: "**.txt", start_offset: "dir/a", end_offset: "dir/z", include_trailing_delimiter: true}))
+  expect(lines(f)) == ["  GET https://storage.fake/storage/v1/b/b1/o?alt=json&delimiter=%2F&endOffset=dir%2Fz&includeFoldersAsPrefixes=false&includeTrailingDelimiter=true&matchGlob=%2A%2A.txt&pageToken=&prefix=dir%2F&prettyPrint=false&projection=full&startOffset=dir%2Fa&versions=true", "    X-Goog-Api-Client: gl-go/GO gdcl/V gccl-invocation-id/UUID gccl-attempt-count/1 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID", "  object dir/a gen=1 size=3", "  object dir/b gen=2 size=4", "  prefix dir/sub/", "  GET https://storage.fake/storage/v1/b/b1/o?alt=json&delimiter=%2F&endOffset=dir%2Fz&includeFoldersAsPrefixes=false&includeTrailingDelimiter=true&matchGlob=%2A%2A.txt&pageToken=tok1&prefix=dir%2F&prettyPrint=false&projection=full&startOffset=dir%2Fa&versions=true", "    X-Goog-Api-Client: gl-go/GO gdcl/V gccl-invocation-id/UUID gccl-attempt-count/1 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID", "  object dir/c gen=3 size=5", "  done"]
+}
+
+test "oracle: objects, no query, an error page" {
+  let f = new_fake(os.net, [(404, BUCKET_NOT_FOUND)])
+  let c = fake_client(os)
+  objects(f, c.bucket("nob").objects())
+  expect(lines(f)) == ["  GET https://storage.fake/storage/v1/b/nob/o?alt=json&delimiter=&endOffset=&includeFoldersAsPrefixes=false&includeTrailingDelimiter=false&matchGlob=&pageToken=&prefix=&prettyPrint=false&projection=full&startOffset=&versions=false", "    X-Goog-Api-Client: gl-go/GO gdcl/V gccl-invocation-id/UUID gccl-attempt-count/1 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID", "  error storage: bucket doesn't exist: googleapi: Error 404: The specified bucket does not exist., notFound"]
+}
+
+test "oracle: objects, select attrs" {
+  let f = new_fake(os.net, [(200, "{\"items\":[{\"name\":\"x\",\"bucket\":\"b1\",\"generation\":\"1\",\"size\":\"2\"}]}")])
+  let c = fake_client(os)
+  objects(f, c.bucket("b1").objects(Query{}.set_attr_selection(["Name", "Size", "Generation"]) ?? e => fault(e.display())))
+  expect(lines(f)) == ["  GET https://storage.fake/storage/v1/b/b1/o?alt=json&delimiter=&endOffset=&fields=nextPageToken%2Cprefixes%2Citems%28name%2Csize%2Cgeneration%29&includeFoldersAsPrefixes=false&includeTrailingDelimiter=false&matchGlob=&pageToken=&prefix=&prettyPrint=false&projection=full&startOffset=&versions=false", "    X-Goog-Api-Client: gl-go/GO gdcl/V gccl-invocation-id/UUID gccl-attempt-count/1 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID", "  object x gen=1 size=2", "  done"]
+}
+
+test "oracle: buckets, prefix, two pages" {
+  let f = new_fake(os.net, [(200, "{\"kind\":\"storage#buckets\",\"nextPageToken\":\"p2\",\"items\":[{\"name\":\"b1\",\"location\":\"US\",\"storageClass\":\"STANDARD\"}]}"), (200, "{\"kind\":\"storage#buckets\",\"items\":[{\"name\":\"b2\",\"location\":\"EU\",\"storageClass\":\"ARCHIVE\"}]}")])
+  let c = fake_client(os)
+  buckets(f, c.buckets("my-project", prefix: "b"))
+  expect(lines(f)) == ["  GET https://storage.fake/storage/v1/b?alt=json&pageToken=&prefix=b&prettyPrint=false&project=my-project&projection=full&returnPartialSuccess=false", "    X-Goog-Api-Client: gl-go/GO gdcl/V gccl-invocation-id/UUID gccl-attempt-count/1 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID", "  bucket b1 location=US class=STANDARD", "  GET https://storage.fake/storage/v1/b?alt=json&pageToken=p2&prefix=b&prettyPrint=false&project=my-project&projection=full&returnPartialSuccess=false", "    X-Goog-Api-Client: gl-go/GO gdcl/V gccl-invocation-id/UUID gccl-attempt-count/1 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID", "  bucket b2 location=EU class=ARCHIVE", "  done"]
+}
+
+test "oracle: buckets, no project" {
+  let f = new_fake(os.net, [])
+  let c = fake_client(os)
+  buckets(f, c.buckets(""))
+  expect(lines(f)) == ["  GET https://storage.fake/storage/v1/b?alt=json&pageToken=&prefix=&prettyPrint=false&project=&projection=full&returnPartialSuccess=false", "    X-Goog-Api-Client: gl-go/GO gdcl/V gccl-invocation-id/UUID gccl-attempt-count/1 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID", "  done"]
+}
+
+test "oracle: service account" {
+  let f = new_fake(os.net, [(200, "{\"kind\":\"storage#serviceAccount\",\"email_address\":\"svc@gs-project-accounts.iam.gserviceaccount.com\"}")])
+  let c = fake_client(os)
+  str_result(f, c.service_account("my-project"))
+  expect(lines(f)) == ["  GET https://storage.fake/storage/v1/projects/my-project/serviceAccount?alt=json&prettyPrint=false", "    X-Goog-Api-Client: gl-go/GO gdcl/V gccl-invocation-id/UUID gccl-attempt-count/1 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID", "  ok \"svc@gs-project-accounts.iam.gserviceaccount.com\""]
+}

@@ -1,0 +1,62 @@
+// What the oracle's cases do not reach: the emulator's endpoint, the
+// credentials' header, and the backoff's pauses on the fake clock.
+
+use std/http
+use github.com/xo-lang/gcp/auth
+use github.com/xo-lang/gcp/option
+
+test "an emulator host: http, /storage/v1/, no credentials" {
+  let seen = Mutex[List[Str]].new([])
+  os.net.handle("GET http://localhost:9023/{rest...}", fn(req: http.Request) -> http.Response {
+    seen.with(fn(var l: List[Str]) { l.push("${req.method} ${req.escaped_path()} auth=${req.headers.get("Authorization") ?? "-"}") })
+    http.Response{status: 200, headers: {"Content-Type": "application/json"}, body: b"{\"name\":\"b\"}"}
+  })
+  for host in ["localhost:9023", "http://localhost:9023"] {
+    let c = new_client(os.net, os.clock, os.rand, ClientOptions{emulator_host: host})
+    let a = c.bucket("b").attrs() ?? e => fault(e.display())
+    expect(a.name) == "b"
+  }
+  expect(seen.with(fn(var l: List[Str]) -> List[Str] { l })) == ["GET /storage/v1/b/b auth=-", "GET /storage/v1/b/b auth=-"]
+}
+
+test "credentials: the token in Authorization" {
+  let seen = Mutex[Str].new("")
+  os.net.handle("GET https://storage.googleapis.com/{rest...}", fn(req: http.Request) -> http.Response {
+    seen.with(fn(var s: Str) { s = req.headers.get("Authorization") ?? "-" })
+    http.Response{status: 200, headers: {"Content-Type": "application/json"}, body: b"{\"name\":\"b\"}"}
+  })
+  let p = auth.StaticToken{value: auth.Token{value: Secret[Str].new("tok-1")}}
+  let c = new_client(os.net, os.clock, os.rand, ClientOptions{service: option.ClientOptions{credentials: Some(p)}})
+  let _a = c.bucket("b").attrs() ?? e => fault(e.display())
+  expect(seen.with(fn(var s: Str) -> Str { s })) == "Bearer tok-1"
+}
+
+test "no credentials and authentication on: the call fails" {
+  let c = new_client(os.net, os.clock, os.rand)
+  match c.bucket("b").attrs() {
+    Err(e) => expect(e.display()) == "google: no credentials: pass option.ClientOptions.credentials, or set without_authentication"
+    Ok(_) => expect(false) == true
+  }
+}
+
+test "backoff: pauses up to a bound that doubles to the maximum" {
+  let f = new_fake(os.net, [(503, UNAVAILABLE), (503, UNAVAILABLE), (503, UNAVAILABLE), (503, UNAVAILABLE), (200, OBJ_JSON)])
+  let c = fake_client(os)
+  let r = c.bucket("b1").object("a").retryer(Retry{backoff: Backoff{initial: 100ms, max: 250ms, multiplier: 2.0}}).attrs()
+  expect(r.is_ok()) == true
+  let ps = os.clock.sleeps()
+  expect(ps.len()) == 4
+  let bounds = [100ms, 200ms, 250ms, 250ms]
+  for (k, d) in ps.indexed() {
+    expect(d > 0s && d <= bounds[k]) == true
+  }
+  expect(lines(f).len() > 0) == true
+}
+
+test "an object name of . or .. is refused" {
+  let c = fake_client(os)
+  match c.bucket("b").object("..").attrs() {
+    Err(e) => expect(e.display()) == "storage: object name \"..\" is not valid"
+    Ok(_) => expect(false) == true
+  }
+}

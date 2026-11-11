@@ -1,0 +1,239 @@
+// The fake JSON API the oracle's cases run against here
+// (~/xo-lead/notes/aws-43/storagego, not in the repository): replies
+// served in order, every request noted as the oracle prints it, and the
+// results rendered as its JSON of Go's ObjectAttrs and BucketAttrs.
+
+use std/base64
+use std/http
+use std/json
+use std/testing
+use github.com/xo-lang/gcp/option
+
+struct Fake {
+  replies: Mutex[List[(Int, Str)]]
+  log: Mutex[List[Str]]
+}
+
+fn note(f: Fake, s: Str) {
+  f.log.with(fn(var l: List[Str]) { l.push(s) })
+}
+
+fn header_of(req: http.Request, name: Str) -> Str? {
+  for (k, v) in req.headers {
+    if k.to_lower() == name.to_lower() {
+      return Some(v)
+    }
+  }
+  None
+}
+
+/// Go's printed x-goog-api-client: the versions and the invocation id
+/// replaced.
+fn norm_api_client(v: Str) -> Str {
+  var out: List[Str] = []
+  for t in v.split(" ") {
+    out.push(if t.starts_with("gl-xo/") {
+      "gl-go/GO"
+    } else if t.starts_with("gdcl/") {
+      "gdcl/V"
+    } else if t.starts_with("gccl/") {
+      "gccl/V"
+    } else if t.starts_with("gccl-invocation-id/") {
+      "gccl-invocation-id/UUID"
+    } else {
+      t
+    })
+  }
+  out.join(" ")
+}
+
+/// A JSON text with object keys sorted, as the oracle prints bodies.
+fn canon_text(s: Str) -> Str {
+  match json.parse_value(s) {
+    Ok(v) => canon(v)
+    Err(_) => s
+  }
+}
+
+fn canon(v: json.Value) -> Str {
+  match v {
+    json.Value.Object(fs) => {
+      var ks: List[Str] = []
+      for (k, _) in fs {
+        ks.push(k)
+      }
+      var parts: List[Str] = []
+      for k in ks.sort() {
+        parts.push(json.Value.Str(k).encode() + ":" + canon(v.get(k) ?? json.Value.Null))
+      }
+      "{" + parts.join(",") + "}"
+    }
+    json.Value.List(xs) => {
+      var parts: List[Str] = []
+      for x in xs {
+        parts.push(canon(x))
+      }
+      "[" + parts.join(",") + "]"
+    }
+    _ => v.encode()
+  }
+}
+
+fn answer(f: Fake, req: http.Request) -> http.Response {
+  let q = req.raw_query()
+  var pairs: List[Str] = if q == "" { [] } else { q.split("&") }
+  pairs = pairs.sort()
+  note(f, "  ${req.method} ${req.url.scheme}://${req.url.host}${req.escaped_path()}${if pairs.is_empty() { "" } else { "?" + pairs.join("&") }}")
+  if let Some(v) = header_of(req, "x-goog-api-client") {
+    note(f, "    X-Goog-Api-Client: ${norm_api_client(v)}")
+  }
+  if header_of(req, "x-goog-gcs-idempotency-token").is_some() {
+    note(f, "    X-Goog-Gcs-Idempotency-Token: UUID")
+  }
+  if let Some(v) = header_of(req, "x-goog-user-project") {
+    note(f, "    X-Goog-User-Project: ${v}")
+  }
+  if let Some(v) = header_of(req, "if-none-match") {
+    note(f, "    If-None-Match: ${v}")
+  }
+  if let Some(v) = header_of(req, "content-type") {
+    note(f, "    Content-Type: ${v}")
+  }
+  if !req.body.is_empty() {
+    note(f, "    body ${canon_text(req.body.to_str_lossy())}")
+  }
+  let r = f.replies.with(fn(var rs: List[(Int, Str)]) -> (Int, Str) {
+    let x = rs.get(0) ?? (200, "{}")
+    if !rs.is_empty() {
+      rs = rs[1..rs.len()]
+    }
+    x
+  })
+  http.Response{status: r.0, headers: {"Content-Type": "application/json; charset=UTF-8"}, body: r.1.bytes()}
+}
+
+fn new_fake(net: testing.FakeNet, replies: List[(Int, Str)]) -> Fake {
+  let f = Fake{replies: Mutex[List[(Int, Str)]].new(replies), log: Mutex[List[Str]].new([])}
+  let h = fn(req: http.Request) -> http.Response { answer(f, req) }
+  for m in ["GET", "PUT", "POST", "DELETE", "PATCH"] {
+    net.handle("${m} https://storage.fake/{rest...}", h)
+  }
+  f
+}
+
+fn lines(f: Fake) -> List[Str] { f.log.with(fn(var l: List[Str]) -> List[Str] { l }) }
+
+/// The client of a case, as the oracle's: the fake endpoint, no
+/// credentials, the backoff a millisecond.
+fn fake_client(os: testing.TestOs) -> Client[()] {
+  new_client(os.net, os.clock, os.rand, ClientOptions{service: option.ClientOptions{endpoint: "https://storage.fake/storage/v1/", without_authentication: true}})
+}
+
+const FAST: Backoff = Backoff{initial: 1ms, max: 1ms, multiplier: 2.0}
+
+// Go's JSON of ObjectAttrs and BucketAttrs (field names, zero times),
+// keys sorted by canon.
+
+fn s(x: Str) -> json.Value { json.Value.Str(x) }
+
+fn i(x: Int) -> json.Value { json.Value.Int(x) }
+
+fn b(x: Bool) -> json.Value { json.Value.Bool(x) }
+
+fn t(x: Time?) -> json.Value {
+  match x {
+    Some(v) => s(v.format_rfc3339())
+    None => s("0001-01-01T00:00:00Z")
+  }
+}
+
+fn smap(m: Map[Str, Str]) -> json.Value {
+  if m.is_empty() {
+    return json.Value.Null
+  }
+  var kv: List[(Str, json.Value)] = []
+  for (k, v) in m {
+    kv.push((k, s(v)))
+  }
+  json.Value.Object(kv)
+}
+
+fn slist(xs: List[Str]) -> json.Value {
+  if xs.is_empty() {
+    return json.Value.Null
+  }
+  var out: List[json.Value] = []
+  for x in xs {
+    out.push(s(x))
+  }
+  json.Value.List(out)
+}
+
+fn acl_json(rs: List[ACLRule]) -> json.Value {
+  if rs.is_empty() {
+    return json.Value.Null
+  }
+  var out: List[json.Value] = []
+  for r in rs {
+    let pt = match r.project_team {
+      Some(p) => json.Value.Object([("ProjectNumber", s(p.project_number)), ("Team", s(p.team))])
+      None => json.Value.Null
+    }
+    out.push(json.Value.Object([("Domain", s(r.domain)), ("Email", s(r.email)), ("Entity", s(r.entity)), ("EntityID", s(r.entity_id)), ("ProjectTeam", pt), ("Role", s(r.role))]))
+  }
+  json.Value.List(out)
+}
+
+fn base64_std(x: Bytes) -> Str { base64.encode(x, base64.Base64.Std) }
+
+fn object_json(a: ObjectAttrs) -> Str {
+  canon(json.Value.Object([("ACL", acl_json(a.acl)), ("Bucket", s(a.bucket)), ("CRC32C", i(a.crc32c)), ("CacheControl", s(a.cache_control)), ("ComponentCount", i(a.component_count)), ("ContentDisposition", s(a.content_disposition)), ("ContentEncoding", s(a.content_encoding)), ("ContentLanguage", s(a.content_language)), ("ContentType", s(a.content_type)), ("Created", t(a.created)), ("CustomTime", t(a.custom_time)), ("CustomerKeySHA256", s(a.customer_key_sha256)), ("Deleted", t(a.deleted)), ("Etag", s(a.etag)), ("EventBasedHold", b(a.event_based_hold)), ("Finalized", t(a.finalized)), ("Generation", i(a.generation)), ("HardDeleteTime", t(a.hard_delete_time)), ("KMSKeyName", s(a.kms_key_name)), ("MD5", if a.md5.is_empty() { json.Value.Null } else { s(base64_std(a.md5)) }), ("MediaLink", s(a.media_link)), ("Metadata", smap(a.metadata)), ("Metageneration", i(a.metageneration)), ("Name", s(a.name)), ("Owner", s(a.owner)), ("Prefix", s(a.prefix)), ("RetentionExpirationTime", t(a.retention_expiration_time)), ("Size", i(a.size)), ("SoftDeleteTime", t(a.soft_delete_time)), ("StorageClass", s(a.storage_class)), ("TemporaryHold", b(a.temporary_hold)), ("Updated", t(a.updated))]))
+}
+
+fn ubla_json(u: UniformBucketLevelAccess) -> json.Value { json.Value.Object([("Enabled", b(u.enabled)), ("LockedTime", t(u.locked_time))]) }
+
+fn bucket_json(a: BucketAttrs) -> Str {
+  var cors: List[json.Value] = []
+  for c in a.cors {
+    cors.push(json.Value.Object([("MaxAge", i(c.max_age.nanos())), ("Methods", slist(c.methods)), ("Origins", slist(c.origins)), ("ResponseHeaders", slist(c.response_headers))]))
+  }
+  let enc = match a.encryption {
+    Some(e) => json.Value.Object([("DefaultKMSKeyName", s(e.default_kms_key_name))])
+    None => json.Value.Null
+  }
+  let logging = match a.logging {
+    Some(l) => json.Value.Object([("LogBucket", s(l.log_bucket)), ("LogObjectPrefix", s(l.log_object_prefix))])
+    None => json.Value.Null
+  }
+  let website = match a.website {
+    Some(w) => json.Value.Object([("MainPageSuffix", s(w.main_page_suffix)), ("NotFoundPage", s(w.not_found_page))])
+    None => json.Value.Null
+  }
+  let pap = match a.public_access_prevention {
+    PublicAccessPrevention.Unknown => 0
+    PublicAccessPrevention.Inherited => 1
+    PublicAccessPrevention.Enforced => 2
+  }
+  let rpo = match a.rpo {
+    RPO.Unknown => 0
+    RPO.Default => 1
+    RPO.AsyncTurbo => 2
+  }
+  canon(json.Value.Object([("ACL", acl_json(a.acl)), ("BucketPolicyOnly", ubla_json(a.bucket_policy_only)), ("CORS", if cors.is_empty() { json.Value.Null } else { json.Value.List(cors) }), ("Created", t(a.created)), ("DefaultEventBasedHold", b(a.default_event_based_hold)), ("DefaultObjectACL", acl_json(a.default_object_acl)), ("Encryption", enc), ("Etag", s(a.etag)), ("Labels", smap(a.labels)), ("Location", s(a.location)), ("LocationType", s(a.location_type)), ("Logging", logging), ("MetaGeneration", i(a.meta_generation)), ("Name", s(a.name)), ("OwnerEntity", s(a.owner_entity)), ("PredefinedACL", s(a.predefined_acl)), ("PredefinedDefaultObjectACL", s(a.predefined_default_object_acl)), ("ProjectNumber", i(a.project_number)), ("PublicAccessPrevention", i(pap)), ("RPO", i(rpo)), ("RequesterPays", b(a.requester_pays)), ("StorageClass", s(a.storage_class)), ("UniformBucketLevelAccess", ubla_json(a.uniform_bucket_level_access)), ("Updated", t(a.updated)), ("VersioningEnabled", b(a.versioning_enabled)), ("Website", website)]))
+}
+
+/// A result line as the oracle prints it, with the Is lines.
+fn result_lines(f: Fake, r: Result[Str, StorageErr]) {
+  match r {
+    Ok(x) => note(f, if x.is_empty() { "  ok" } else { "  ok ${x}" })
+    Err(e) => {
+      note(f, "  error ${e.display()}")
+      if e.is_object_not_exist() {
+        note(f, "  is ErrObjectNotExist")
+      }
+      if e.is_bucket_not_exist() {
+        note(f, "  is ErrBucketNotExist")
+      }
+    }
+  }
+}
