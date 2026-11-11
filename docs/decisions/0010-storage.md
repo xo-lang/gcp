@@ -108,6 +108,19 @@ which is 0009's.
     checksum. The generated `Objects.insert` does not yet add Go's
     automatic CRC32C (Go's generator special-cases that call); the
     `Writer` sends it itself.
+- Step 3's departures from Go so far (signing, 2026-11-11):
+  - `signed_url` and `generate_signed_post_policy_v4` take a `Clock`
+    and a `Rand` (Go reads the system clock and crypto/rand), and a URL
+    style's host does not read STORAGE_EMULATOR_HOST (pass `hostname`).
+  - The bucket's signer comes from `ClientOptions.credentials_json`
+    (Go reads its credentials' JSON); there is no GCE metadata lookup
+    of the email. An IAM signing failure is `StorageErr.Invalid` with
+    Go's text.
+  - Two of Go's texts list a map in its random order: a bad method's
+    error lists the methods sorted, and a policy's metadata conditions
+    are sorted by name.
+  - A bad private key's error is Xo's crypto text, not Go's asn1 text
+    (that oracle case is not replayed).
 
 ## Consequences
 

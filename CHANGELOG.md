@@ -7,6 +7,12 @@ touches. Release notes: [docs/releases](docs/releases).
 
 ## Unreleased
 
+- `storage` (decision 0010 step 3, signing): `signed_url` (V2 and V4)
+  and `generate_signed_post_policy_v4`, with an RSA key or a signer,
+  Go's URL styles, headers and query parameters, and the bucket's
+  `signed_url` and `generate_signed_post_policy_v4`, which take the
+  signer from `ClientOptions.credentials_json` or sign with the IAM
+  Credentials API. 35 Go oracle cases at a fixed time.
 - `storage` (decision 0010 step 2): `Reader` over the XML API (ranges,
   negative offsets, `read_compressed`, Go's CRC32C check, the reopen
   after a body cut short, `ObjectNotExist` and `Checksum` errors),
