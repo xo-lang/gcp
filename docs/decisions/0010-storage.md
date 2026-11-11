@@ -121,6 +121,12 @@ which is 0009's.
     are sorted by name.
   - A bad private key's error is Xo's crypto text, not Go's asn1 text
     (that oracle case is not replayed).
+  - Access (2026-11-11): Go's HMACKeyOption functions are one
+    `HMACKeyOptions` value; ACL roles and entities, HMAC states and IAM
+    roles are `Str` constants (`ROLE_READER`, `HMAC_ACTIVE`,
+    `IAM_VIEWER`); iam.Policy and Policy3 are one `Policy` (a v3 handle
+    sends version 3); a time the service leaves out of an HMAC key is
+    `None`, not Go's zero time.
 
 ## Consequences
 

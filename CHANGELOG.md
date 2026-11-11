@@ -7,6 +7,12 @@ touches. Release notes: [docs/releases](docs/releases).
 
 ## Unreleased
 
+- `storage` (decision 0010 step 3, access): bucket, default object and
+  object ACLs (`acl`, `default_object_acl`), HMAC keys
+  (`create_hmac_key`, `hmac_key_handle`, `list_hmac_keys`),
+  notifications (`add_notification`, `notifications`,
+  `delete_notification`) and IAM policies (`iam`, `v3`, `Policy` with
+  Go's Add and Remove order). 33 Go oracle cases.
 - `storage` (decision 0010 step 3, signing): `signed_url` (V2 and V4)
   and `generate_signed_post_policy_v4`, with an RSA key or a signer,
   Go's URL styles, headers and query parameters, and the bucket's

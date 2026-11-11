@@ -17,7 +17,11 @@ This project ports code, behavior and tests from the following works:
 - cloud.google.com/go/storage v1.70.0, Copyright Google LLC, under the
   Apache License, Version 2.0 (below): the Cloud Storage client
   (`storage`: handles, attributes, conditions, listings, errors,
-  retries, reads, writes, copies and composes).
+  retries, reads, writes, copies and composes, signed URLs and POST
+  policies, ACLs, HMAC keys, notifications and IAM policies).
+- cloud.google.com/go/iam v1.12.0, Copyright Google LLC, under the
+  Apache License, Version 2.0 (below): the IAM policy handle and its
+  Members, HasRole, Add, Remove and Roles (`storage`'s `Policy`).
 
 Google Cloud and its product names are trademarks of Google LLC. This
 project is not affiliated with or endorsed by Google.
