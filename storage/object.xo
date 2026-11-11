@@ -143,6 +143,8 @@ pub struct ObjectAttrs {
   pub component_count: Int = 0
   pub soft_delete_time: Time? = None
   pub hard_delete_time: Time? = None
+  /// The object's own retention, if any.
+  pub retention: ObjectRetention? = None
 }
 
 /// Go's convertTime: an RFC 3339 time, None for "" or one that does not
@@ -205,6 +207,7 @@ fn new_object(o: raw.Object) -> ObjectAttrs {
     component_count: o.component_count,
     soft_delete_time: convert_time(o.soft_delete_time),
     hard_delete_time: convert_time(o.hard_delete_time),
+    retention: to_object_retention(o.retention),
   }
 }
 
@@ -225,6 +228,8 @@ pub struct ObjectAttrsToUpdate {
   pub metadata: Map[Str, Str]? = None
   pub acl: List[ACLRule]? = None
   pub predefined_acl: Str = ""
+  /// An empty retention (no mode, no time) removes it.
+  pub retention: ObjectRetention? = None
 }
 
 fn format_time(t: Time) -> Str { t.format_rfc3339() }
@@ -292,6 +297,9 @@ fn update_body(bucket: Str, u: ObjectAttrsToUpdate) -> json.Value {
       f.push(("metadata", json.Value.Object(kv)))
     }
   }
+  if let Some(r) = u.retention {
+    f.push(("retention", if r.mode.is_empty() && r.retain_until.is_none() { json.Value.Null } else { object_retention_value(r) }))
+  }
   if let Some(v) = u.temporary_hold {
     f.push(("temporaryHold", json.Value.Bool(v)))
   }
@@ -310,6 +318,8 @@ pub struct ObjectHandle[fx: Effects] {
   user_project: Str = ""
   retry: Retry
   read_compressed: Bool = false
+  override_retention: Bool? = None
+  want_soft_deleted: Bool = false
 }
 
 pub fn (o: ObjectHandle[fx]) bucket_name() -> Str { o.bucket }
@@ -358,7 +368,7 @@ pub fn (o: ObjectHandle[fx]) attrs() -> ObjectAttrs ! StorageErr uses (net.dial,
   o.validate()?
   let p = cond_params("Attrs", o.gen, o.conds)?
   let got = o.c.run(o.retry, true, fn(h: List[(Str, Str)]) -> raw.Object ! gensupport.CallErr uses net.dial, clock, rand, fx {
-    o.c.svc.objects.get(o.bucket, o.object, raw.ObjectsGetOptions{generation: p.generation, if_generation_match: p.if_generation_match, if_generation_not_match: p.if_generation_not_match, if_metageneration_match: p.if_metageneration_match, if_metageneration_not_match: p.if_metageneration_not_match, projection: Some("full"), user_project: opt_str(o.user_project), headers: h})
+    o.c.svc.objects.get(o.bucket, o.object, raw.ObjectsGetOptions{generation: p.generation, if_generation_match: p.if_generation_match, if_generation_not_match: p.if_generation_not_match, if_metageneration_match: p.if_metageneration_match, if_metageneration_not_match: p.if_metageneration_not_match, projection: Some("full"), soft_deleted: if o.want_soft_deleted { Some(true) } else { None }, user_project: opt_str(o.user_project), headers: h})
   }) ?? e => return Err(object_err(e))
   Ok(new_object(got))
 }
@@ -388,6 +398,9 @@ pub fn (o: ObjectHandle[fx]) update(u: ObjectAttrsToUpdate) -> ObjectAttrs ! Sto
   }
   if let Some(v) = p.if_metageneration_not_match {
     q.set("ifMetagenerationNotMatch", "${v}")
+  }
+  if let Some(v) = o.override_retention {
+    q.set("overrideUnlockedRetention", "${v}")
   }
   if !u.predefined_acl.is_empty() {
     q.set("predefinedAcl", u.predefined_acl)

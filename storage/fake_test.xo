@@ -241,7 +241,10 @@ fn acl_json(rs: List[ACLRule]) -> json.Value {
 fn base64_std(x: Bytes) -> Str { base64.encode(x, base64.Base64.Std) }
 
 fn object_json(a: ObjectAttrs) -> Str {
-  canon(json.Value.Object([("ACL", acl_json(a.acl)), ("Bucket", s(a.bucket)), ("CRC32C", i(a.crc32c)), ("CacheControl", s(a.cache_control)), ("ComponentCount", i(a.component_count)), ("ContentDisposition", s(a.content_disposition)), ("ContentEncoding", s(a.content_encoding)), ("ContentLanguage", s(a.content_language)), ("ContentType", s(a.content_type)), ("Created", t(a.created)), ("CustomTime", t(a.custom_time)), ("CustomerKeySHA256", s(a.customer_key_sha256)), ("Deleted", t(a.deleted)), ("Etag", s(a.etag)), ("EventBasedHold", b(a.event_based_hold)), ("Finalized", t(a.finalized)), ("Generation", i(a.generation)), ("HardDeleteTime", t(a.hard_delete_time)), ("KMSKeyName", s(a.kms_key_name)), ("MD5", if a.md5.is_empty() { json.Value.Null } else { s(base64_std(a.md5)) }), ("MediaLink", s(a.media_link)), ("Metadata", smap(a.metadata)), ("Metageneration", i(a.metageneration)), ("Name", s(a.name)), ("Owner", s(a.owner)), ("Prefix", s(a.prefix)), ("RetentionExpirationTime", t(a.retention_expiration_time)), ("Size", i(a.size)), ("SoftDeleteTime", t(a.soft_delete_time)), ("StorageClass", s(a.storage_class)), ("TemporaryHold", b(a.temporary_hold)), ("Updated", t(a.updated))]))
+  canon(json.Value.Object([("ACL", acl_json(a.acl)), ("Bucket", s(a.bucket)), ("CRC32C", i(a.crc32c)), ("CacheControl", s(a.cache_control)), ("ComponentCount", i(a.component_count)), ("ContentDisposition", s(a.content_disposition)), ("ContentEncoding", s(a.content_encoding)), ("ContentLanguage", s(a.content_language)), ("ContentType", s(a.content_type)), ("Created", t(a.created)), ("CustomTime", t(a.custom_time)), ("CustomerKeySHA256", s(a.customer_key_sha256)), ("Deleted", t(a.deleted)), ("Etag", s(a.etag)), ("EventBasedHold", b(a.event_based_hold)), ("Finalized", t(a.finalized)), ("Generation", i(a.generation)), ("HardDeleteTime", t(a.hard_delete_time)), ("KMSKeyName", s(a.kms_key_name)), ("MD5", s(base64_std(a.md5))), ("MediaLink", s(a.media_link)), ("Metadata", smap(a.metadata)), ("Metageneration", i(a.metageneration)), ("Name", s(a.name)), ("Owner", s(a.owner)), ("Prefix", s(a.prefix)), ("RetentionExpirationTime", t(a.retention_expiration_time)), ("Size", i(a.size)), ("SoftDeleteTime", t(a.soft_delete_time)), ("Retention", match a.retention {
+    Some(r) => json.Value.Object([("Mode", s(r.mode)), ("RetainUntil", t(r.retain_until))])
+    None => json.Value.Null
+  }), ("StorageClass", s(a.storage_class)), ("TemporaryHold", b(a.temporary_hold)), ("Updated", t(a.updated))]))
 }
 
 fn ubla_json(u: UniformBucketLevelAccess) -> json.Value { json.Value.Object([("Enabled", b(u.enabled)), ("LockedTime", t(u.locked_time))]) }
@@ -273,7 +276,41 @@ fn bucket_json(a: BucketAttrs) -> Str {
     RPO.Default => 1
     RPO.AsyncTurbo => 2
   }
-  canon(json.Value.Object([("ACL", acl_json(a.acl)), ("BucketPolicyOnly", ubla_json(a.bucket_policy_only)), ("CORS", if cors.is_empty() { json.Value.Null } else { json.Value.List(cors) }), ("Created", t(a.created)), ("DefaultEventBasedHold", b(a.default_event_based_hold)), ("DefaultObjectACL", acl_json(a.default_object_acl)), ("Encryption", enc), ("Etag", s(a.etag)), ("Labels", smap(a.labels)), ("Location", s(a.location)), ("LocationType", s(a.location_type)), ("Logging", logging), ("MetaGeneration", i(a.meta_generation)), ("Name", s(a.name)), ("OwnerEntity", s(a.owner_entity)), ("PredefinedACL", s(a.predefined_acl)), ("PredefinedDefaultObjectACL", s(a.predefined_default_object_acl)), ("ProjectNumber", i(a.project_number)), ("PublicAccessPrevention", i(pap)), ("RPO", i(rpo)), ("RequesterPays", b(a.requester_pays)), ("StorageClass", s(a.storage_class)), ("UniformBucketLevelAccess", ubla_json(a.uniform_bucket_level_access)), ("Updated", t(a.updated)), ("VersioningEnabled", b(a.versioning_enabled)), ("Website", website)]))
+  var rules: List[json.Value] = []
+  for r in a.lifecycle.rules {
+    let c = r.condition
+    let live = match c.liveness {
+      Liveness.LiveAndArchived => 0
+      Liveness.Live => 1
+      Liveness.Archived => 2
+    }
+    rules.push(json.Value.Object([("Action", json.Value.Object([("StorageClass", s(r.action.storage_class)), ("Type", s(r.action.type_))])), ("Condition", json.Value.Object([("AgeInDays", i(c.age_in_days)), ("AllObjects", b(c.all_objects)), ("CreatedBefore", t(c.created_before)), ("CustomTimeBefore", t(c.custom_time_before)), ("DaysSinceCustomTime", i(c.days_since_custom_time)), ("DaysSinceNoncurrentTime", i(c.days_since_noncurrent_time)), ("Liveness", i(live)), ("MatchesPrefix", slist(c.matches_prefix)), ("MatchesStorageClasses", slist(c.matches_storage_classes)), ("MatchesSuffix", slist(c.matches_suffix)), ("NoncurrentTimeBefore", t(c.noncurrent_time_before)), ("NumNewerVersions", i(c.num_newer_versions))]))]))
+  }
+  let mgmt: List[(Str, json.Value)] = [
+    ("Lifecycle", json.Value.Object([("Rules", if rules.is_empty() { json.Value.Null } else { json.Value.List(rules) })])),
+    ("RetentionPolicy", match a.retention_policy {
+      Some(p) => json.Value.Object([("EffectiveTime", t(p.effective_time)), ("IsLocked", b(p.is_locked)), ("RetentionPeriod", i(p.retention_period.nanos()))])
+      None => json.Value.Null
+    }),
+    ("ObjectRetentionMode", s(a.object_retention_mode)),
+    ("CustomPlacementConfig", match a.custom_placement_config {
+      Some(p) => json.Value.Object([("DataLocations", slist(p.data_locations))])
+      None => json.Value.Null
+    }),
+    ("Autoclass", match a.autoclass {
+      Some(x) => json.Value.Object([("Enabled", b(x.enabled)), ("TerminalStorageClass", s(x.terminal_storage_class)), ("TerminalStorageClassUpdateTime", t(x.terminal_storage_class_update_time)), ("ToggleTime", t(x.toggle_time))])
+      None => json.Value.Null
+    }),
+    ("SoftDeletePolicy", match a.soft_delete_policy {
+      Some(p) => json.Value.Object([("EffectiveTime", t(p.effective_time)), ("RetentionDuration", i(p.retention_duration.nanos()))])
+      None => json.Value.Null
+    }),
+    ("HierarchicalNamespace", match a.hierarchical_namespace {
+      Some(h) => json.Value.Object([("Enabled", b(h.enabled))])
+      None => json.Value.Null
+    }),
+  ]
+  canon(json.Value.Object(mgmt + [("ACL", acl_json(a.acl)), ("BucketPolicyOnly", ubla_json(a.bucket_policy_only)), ("CORS", if cors.is_empty() { json.Value.Null } else { json.Value.List(cors) }), ("Created", t(a.created)), ("DefaultEventBasedHold", b(a.default_event_based_hold)), ("DefaultObjectACL", acl_json(a.default_object_acl)), ("Encryption", enc), ("Etag", s(a.etag)), ("Labels", smap(a.labels)), ("Location", s(a.location)), ("LocationType", s(a.location_type)), ("Logging", logging), ("MetaGeneration", i(a.meta_generation)), ("Name", s(a.name)), ("OwnerEntity", s(a.owner_entity)), ("PredefinedACL", s(a.predefined_acl)), ("PredefinedDefaultObjectACL", s(a.predefined_default_object_acl)), ("ProjectNumber", i(a.project_number)), ("PublicAccessPrevention", i(pap)), ("RPO", i(rpo)), ("RequesterPays", b(a.requester_pays)), ("StorageClass", s(a.storage_class)), ("UniformBucketLevelAccess", ubla_json(a.uniform_bucket_level_access)), ("Updated", t(a.updated)), ("VersioningEnabled", b(a.versioning_enabled)), ("Website", website)]))
 }
 
 /// A result line as the oracle prints it, with the Is lines.

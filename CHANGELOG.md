@@ -7,6 +7,11 @@ touches. Release notes: [docs/releases](docs/releases).
 
 ## Unreleased
 
+- `storage` (decision 0010 step 4): lifecycle rules, retention
+  policies (`lock_retention_policy`), soft delete, autoclass, the
+  hierarchical namespace, custom placement, object retention
+  (`set_object_retention`, `override_unlocked_retention`), soft-deleted
+  objects (`soft_deleted`, `restore`) and `move`. 20 Go oracle cases.
 - `storage` (decision 0010 step 3, access): bucket, default object and
   object ACLs (`acl`, `default_object_acl`), HMAC keys
   (`create_hmac_key`, `hmac_key_handle`, `list_hmac_keys`),

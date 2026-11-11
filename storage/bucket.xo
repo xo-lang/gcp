@@ -2,7 +2,7 @@
 // listings, as cloud.google.com/go/storage v1.70.0's bucket.go and
 // http_client.go (Apache-2.0, Copyright Google LLC; NOTICE.md). Lifecycle,
 // retention, autoclass, soft delete and the other bucket management of
-// decision 0010 step 4 are not here yet.
+// decision 0010 step 4 are in manage.xo.
 
 use std/json
 use github.com/xo-lang/gcp/gensupport
@@ -95,7 +95,8 @@ pub struct BucketWebsite {
   pub not_found_page: Str = ""
 }
 
-/// A bucket's attributes (Go's BucketAttrs, without step 4's fields).
+/// A bucket's attributes (Go's BucketAttrs, without its encryption
+/// enforcement configs).
 pub struct BucketAttrs {
   pub name: Str = ""
   pub acl: List[ACLRule] = []
@@ -123,6 +124,15 @@ pub struct BucketAttrs {
   pub project_number: Int = 0
   pub rpo: RPO = RPO.Unknown
   pub owner_entity: Str = ""
+  /// No rules is none; create always sends it.
+  pub lifecycle: Lifecycle = Lifecycle{}
+  pub retention_policy: RetentionPolicy? = None
+  /// "Enabled" when objects may have their own retention (read only).
+  pub object_retention_mode: Str = ""
+  pub custom_placement_config: CustomPlacementConfig? = None
+  pub autoclass: Autoclass? = None
+  pub soft_delete_policy: SoftDeletePolicy? = None
+  pub hierarchical_namespace: HierarchicalNamespace? = None
 }
 
 fn bucket_acl(items: List[raw.BucketAccessControl]) -> List[ACLRule] {
@@ -145,7 +155,8 @@ fn ubla(enabled: Bool, locked: Str) -> UniformBucketLevelAccess {
 }
 
 /// Go's newBucket.
-fn new_bucket(b: raw.Bucket) -> BucketAttrs {
+fn new_bucket(b: raw.Bucket) -> BucketAttrs ! StorageErr {
+  let rp = to_retention_policy(b.retention_policy)?
   var bpo = UniformBucketLevelAccess{}
   var u = UniformBucketLevelAccess{}
   var pap = PublicAccessPrevention.Unknown
@@ -168,7 +179,7 @@ fn new_bucket(b: raw.Bucket) -> BucketAttrs {
   for c in b.cors {
     cors.push(CORS{max_age: Duration.from_secs_int(c.max_age_seconds), methods: c.method, origins: c.origin, response_headers: c.response_header})
   }
-  BucketAttrs{
+  Ok(BucketAttrs{
     name: b.name,
     location: b.location,
     meta_generation: b.metageneration,
@@ -211,7 +222,23 @@ fn new_bucket(b: raw.Bucket) -> BucketAttrs {
       Some(o) => o.entity
       None => ""
     },
-  }
+    lifecycle: to_lifecycle(b.lifecycle),
+    retention_policy: rp,
+    object_retention_mode: match b.object_retention {
+      Some(r) => r.mode
+      None => ""
+    },
+    custom_placement_config: match b.custom_placement_config {
+      Some(c) => Some(CustomPlacementConfig{data_locations: c.data_locations})
+      None => None
+    },
+    autoclass: to_autoclass(b.autoclass),
+    soft_delete_policy: to_soft_delete(b.soft_delete_policy),
+    hierarchical_namespace: match b.hierarchical_namespace {
+      Some(h) => Some(HierarchicalNamespace{enabled: h.enabled})
+      None => None
+    },
+  })
 }
 
 fn str_list(xs: List[Str]) -> json.Value {
@@ -261,11 +288,17 @@ fn create_body(name: Str, a: BucketAttrs?) -> json.Value {
   if !b.acl.is_empty() {
     f.push(("acl", acl_value(b.acl)))
   }
+  if let Some(a) = b.autoclass {
+    f.push(("autoclass", autoclass_value(a, false)))
+  }
   if b.requester_pays {
     f.push(("billing", json.Value.Object([("requesterPays", json.Value.Bool(true))])))
   }
   if !b.cors.is_empty() {
     f.push(("cors", cors_value(b.cors)))
+  }
+  if let Some(c) = b.custom_placement_config {
+    f.push(("customPlacementConfig", placement_value(c)))
   }
   if !b.default_object_acl.is_empty() {
     f.push(("defaultObjectAcl", acl_value(b.default_object_acl)))
@@ -285,17 +318,26 @@ fn create_body(name: Str, a: BucketAttrs?) -> json.Value {
     }
     f.push(("iamConfiguration", json.Value.Object(ic)))
   }
+  if let Some(h) = b.hierarchical_namespace {
+    f.push(("hierarchicalNamespace", hns_value(h)))
+  }
   if !b.labels.is_empty() {
     f.push(("labels", labels_value(b.labels)))
   }
-  f.push(("lifecycle", json.Value.Object([("rule", json.Value.List([]))])))
+  f.push(("lifecycle", lifecycle_value(b.lifecycle)))
   f.push(("location", json.Value.Str(if b.location.is_empty() { "US" } else { b.location })))
   if let Some(l) = b.logging {
     f.push(("logging", json.Value.Object([("logBucket", json.Value.Str(l.log_bucket)), ("logObjectPrefix", json.Value.Str(l.log_object_prefix))])))
   }
   f.push(("name", json.Value.Str(name)))
+  if let Some(rp) = b.retention_policy {
+    f.push(("retentionPolicy", retention_value(rp)))
+  }
   if !(b.rpo is RPO.Unknown) {
     f.push(("rpo", json.Value.Str(b.rpo.display())))
+  }
+  if let Some(p) = b.soft_delete_policy {
+    f.push(("softDeletePolicy", soft_delete_value(p)))
   }
   if !b.storage_class.is_empty() {
     f.push(("storageClass", json.Value.Str(b.storage_class)))
@@ -309,8 +351,8 @@ fn create_body(name: Str, a: BucketAttrs?) -> json.Value {
   json.Value.Object(f)
 }
 
-/// The attributes a bucket update changes (Go's BucketAttrsToUpdate,
-/// without step 4's): None leaves one as it is.
+/// The attributes a bucket update changes (Go's BucketAttrsToUpdate): None
+/// leaves one as it is.
 pub struct BucketAttrsToUpdate {
   pub versioning_enabled: Bool? = None
   pub requester_pays: Bool? = None
@@ -325,6 +367,13 @@ pub struct BucketAttrsToUpdate {
   pub website: BucketWebsite? = None
   pub predefined_acl: Str = ""
   pub predefined_default_object_acl: Str = ""
+  /// Replaces the rules; no rules removes them all.
+  pub lifecycle: Lifecycle? = None
+  /// A period of 0 removes the policy.
+  pub retention_policy: RetentionPolicy? = None
+  pub autoclass: Autoclass? = None
+  /// A duration of 0 turns soft delete off.
+  pub soft_delete_policy: SoftDeletePolicy? = None
   set_labels: Map[Str, Str] = {}
   delete_labels: List[Str] = []
 }
@@ -350,6 +399,9 @@ pub fn (u: BucketAttrsToUpdate) delete_label(name: Str) -> BucketAttrsToUpdate {
 /// The PATCH body of a bucket update (BucketAttrsToUpdate.toRawBucket).
 fn bucket_update_body(u: BucketAttrsToUpdate) -> json.Value {
   var f: List[(Str, json.Value)] = []
+  if let Some(a) = u.autoclass {
+    f.push(("autoclass", autoclass_value(a, true)))
+  }
   if let Some(v) = u.requester_pays {
     f.push(("billing", json.Value.Object([("requesterPays", json.Value.Bool(v))])))
   }
@@ -383,11 +435,20 @@ fn bucket_update_body(u: BucketAttrsToUpdate) -> json.Value {
     }
     f.push(("labels", json.Value.Object(kv)))
   }
+  if let Some(l) = u.lifecycle {
+    f.push(("lifecycle", lifecycle_value(l)))
+  }
   if let Some(l) = u.logging {
     f.push(("logging", if l == (BucketLogging{}) { json.Value.Null } else { json.Value.Object([("logBucket", json.Value.Str(l.log_bucket)), ("logObjectPrefix", json.Value.Str(l.log_object_prefix))]) }))
   }
+  if let Some(rp) = u.retention_policy {
+    f.push(("retentionPolicy", if secs_of(rp.retention_period) == 0 { json.Value.Null } else { retention_value(rp) }))
+  }
   if !(u.rpo is RPO.Unknown) {
     f.push(("rpo", json.Value.Str(u.rpo.display())))
+  }
+  if let Some(p) = u.soft_delete_policy {
+    f.push(("softDeletePolicy", soft_delete_value(p)))
   }
   if !u.storage_class.is_empty() {
     f.push(("storageClass", json.Value.Str(u.storage_class)))
@@ -408,6 +469,7 @@ pub struct BucketHandle[fx: Effects] {
   conds: BucketConditions? = None
   user_project: Str = ""
   retry: Retry
+  enable_object_retention: Bool? = None
 }
 
 pub fn (b: BucketHandle[fx]) bucket_name() -> Str { b.name }
@@ -445,7 +507,7 @@ pub fn (b: BucketHandle[fx]) attrs() -> BucketAttrs ! StorageErr uses (net.dial,
   let got = b.c.run(b.retry, true, fn(h: List[(Str, Str)]) -> raw.Bucket ! gensupport.CallErr uses net.dial, clock, rand, fx {
     b.c.svc.buckets.get(b.name, raw.BucketsGetOptions{if_metageneration_match: m, if_metageneration_not_match: nm, projection: Some("full"), user_project: opt_str(b.user_project), headers: h})
   }) ?? e => return Err(bucket_err(e))
-  Ok(new_bucket(got))
+  new_bucket(got)
 }
 
 /// Creates the bucket in project (Go's Create); attrs None for the
@@ -459,6 +521,9 @@ pub fn (b: BucketHandle[fx]) create(project: Str, attrs: BucketAttrs? = None) ->
     if a.predefined_default_object_acl != "" {
       q.set("predefinedDefaultObjectAcl", a.predefined_default_object_acl)
     }
+  }
+  if let Some(e) = b.enable_object_retention {
+    q.set("enableObjectRetention", "${e}")
   }
   q.set("project", project)
   if !b.user_project.is_empty() {
@@ -515,7 +580,7 @@ pub fn (b: BucketHandle[fx]) update(u: BucketAttrsToUpdate) -> BucketAttrs ! Sto
     gensupport.check(resp)?
     gensupport.decode[raw.Bucket](resp)
   }) ?? e => return Err(call_err(e))
-  Ok(new_bucket(got))
+  new_bucket(got)
 }
 
 /// Deletes the bucket (Go's Delete). A 404 stays a Call error, as Go
@@ -661,7 +726,7 @@ pub fn (var it: BucketIterator[fx]) next() -> BucketAttrs? ! StorageErr uses (ne
     }
     var buf: List[BucketAttrs] = []
     for b in p.items {
-      buf.push(new_bucket(b))
+      buf.push(new_bucket(b) ?? e => return Err(e))
     }
     it.buf = buf
     it.at = 0

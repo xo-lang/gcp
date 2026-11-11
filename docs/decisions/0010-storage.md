@@ -127,6 +127,13 @@ which is 0009's.
     `IAM_VIEWER`); iam.Policy and Policy3 are one `Policy` (a v3 handle
     sends version 3); a time the service leaves out of an HMAC key is
     `None`, not Go's zero time.
+- Step 4's departures from Go (2026-11-11):
+  - Lifecycle dates, retention, autoclass and soft delete times are
+    `Time?` (None for Go's zero time); `LifecycleAction.type_` is Go's
+    Type (`type` is a keyword).
+  - An `ObjectRetention` with no time sends Go's zero time, as Go does.
+  - A bucket listing stops at a bucket whose retention time does not
+    parse (Go's iterator returns that error too).
 
 ## Consequences
 

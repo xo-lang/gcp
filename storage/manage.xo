@@ -1,0 +1,335 @@
+// Bucket and object management, as cloud.google.com/go/storage v1.70.0's
+// bucket.go, storage.go and http_client.go (Apache-2.0, Copyright Google
+// LLC; NOTICE.md): lifecycle rules, retention policies, soft delete,
+// autoclass, the hierarchical namespace, custom placement, object
+// retention, and restoring and moving objects (decision 0010 step 4).
+
+use std/json
+use std/time
+use std/timego
+use github.com/xo-lang/gcp/gensupport
+use github.com/xo-lang/gcp/storage/v1 as raw
+
+/// A lifecycle action's type (Go's DeleteAction and the others).
+pub const DELETE_ACTION: Str = "Delete"
+pub const SET_STORAGE_CLASS_ACTION: Str = "SetStorageClass"
+pub const ABORT_INCOMPLETE_MPU_ACTION: Str = "AbortIncompleteMultipartUpload"
+
+/// Which objects a lifecycle condition matches by liveness (Go's
+/// Liveness).
+pub enum Liveness {
+  LiveAndArchived
+  Live
+  Archived
+}
+
+/// Go's LifecycleAction: its type and, for SetStorageClass, the class.
+pub struct LifecycleAction {
+  pub type_: Str = ""
+  pub storage_class: Str = ""
+}
+
+/// Go's LifecycleCondition. Dates are days (Go's rfc3339Date); None is
+/// unset. all_objects matches every object (an age of 0).
+pub struct LifecycleCondition {
+  pub all_objects: Bool = false
+  pub age_in_days: Int = 0
+  pub created_before: Time? = None
+  pub custom_time_before: Time? = None
+  pub days_since_custom_time: Int = 0
+  pub days_since_noncurrent_time: Int = 0
+  pub liveness: Liveness = Liveness.LiveAndArchived
+  pub matches_prefix: List[Str] = []
+  pub matches_storage_classes: List[Str] = []
+  pub matches_suffix: List[Str] = []
+  pub noncurrent_time_before: Time? = None
+  pub num_newer_versions: Int = 0
+}
+
+/// Go's LifecycleRule.
+pub struct LifecycleRule {
+  pub action: LifecycleAction = LifecycleAction{}
+  pub condition: LifecycleCondition = LifecycleCondition{}
+}
+
+/// Go's Lifecycle.
+pub struct Lifecycle {
+  pub rules: List[LifecycleRule] = []
+}
+
+/// Go's RetentionPolicy: the period is sent in whole seconds.
+pub struct RetentionPolicy {
+  pub retention_period: Duration = Duration.from_nanos(0)
+  pub effective_time: Time? = None
+  pub is_locked: Bool = false
+}
+
+/// Go's CustomPlacementConfig.
+pub struct CustomPlacementConfig {
+  pub data_locations: List[Str] = []
+}
+
+/// Go's Autoclass.
+pub struct Autoclass {
+  pub enabled: Bool = false
+  pub toggle_time: Time? = None
+  pub terminal_storage_class: Str = ""
+  pub terminal_storage_class_update_time: Time? = None
+}
+
+/// Go's SoftDeletePolicy: a duration of 0 turns soft delete off.
+pub struct SoftDeletePolicy {
+  pub effective_time: Time? = None
+  pub retention_duration: Duration = Duration.from_nanos(0)
+}
+
+/// Go's HierarchicalNamespace.
+pub struct HierarchicalNamespace {
+  pub enabled: Bool = false
+}
+
+/// An object's retention (Go's ObjectRetention): its mode ("Locked" or
+/// "Unlocked") and the time it is kept until.
+pub struct ObjectRetention {
+  pub mode: Str = ""
+  pub retain_until: Time? = None
+}
+
+fn date_of(s: Str) -> Time? {
+  if s.is_empty() {
+    return None
+  }
+  timego.parse(s, timego.DATE_ONLY, time.utc()).ok()
+}
+
+fn date_text(t: Time) -> Str { timego.format(t, time.utc(), timego.DATE_ONLY) }
+
+fn secs_of(d: Duration) -> Int { d.nanos() / 1000000000 }
+
+/// Go's toLifecycle.
+fn to_lifecycle(rl: raw.BucketLifecycle?) -> Lifecycle {
+  let l = rl ?? return Lifecycle{}
+  var rules: List[LifecycleRule] = []
+  for rr in l.rule {
+    let a = rr.action ?? raw.BucketLifecycleRuleAction{}
+    let c = rr.condition ?? raw.BucketLifecycleRuleCondition{}
+    var cond = LifecycleCondition{
+      days_since_custom_time: c.days_since_custom_time,
+      days_since_noncurrent_time: c.days_since_noncurrent_time,
+      matches_prefix: c.matches_prefix,
+      matches_storage_classes: c.matches_storage_class,
+      matches_suffix: c.matches_suffix,
+      num_newer_versions: c.num_newer_versions,
+      created_before: date_of(c.created_before),
+      custom_time_before: date_of(c.custom_time_before),
+      noncurrent_time_before: date_of(c.noncurrent_time_before),
+    }
+    if let Some(age) = c.age {
+      cond.age_in_days = age
+      cond.all_objects = age == 0
+    }
+    cond.liveness = match c.is_live {
+      None => Liveness.LiveAndArchived
+      Some(true) => Liveness.Live
+      Some(false) => Liveness.Archived
+    }
+    rules.push(LifecycleRule{action: LifecycleAction{type_: a.type_, storage_class: a.storage_class}, condition: cond})
+  }
+  Lifecycle{rules: rules}
+}
+
+fn str_values(xs: List[Str]) -> json.Value { json.Value.List(xs.map(fn(x: Str) -> json.Value { json.Value.Str(x) })) }
+
+/// Go's toRawLifecycle, as JSON: no rules is {"rule": []}.
+fn lifecycle_value(l: Lifecycle) -> json.Value {
+  var rules: List[json.Value] = []
+  for r in l.rules {
+    var a: List[(Str, json.Value)] = []
+    if r.action.storage_class != "" {
+      a.push(("storageClass", json.Value.Str(r.action.storage_class)))
+    }
+    if r.action.type_ != "" {
+      a.push(("type", json.Value.Str(r.action.type_)))
+    }
+    let c = r.condition
+    var f: List[(Str, json.Value)] = []
+    if c.all_objects {
+      f.push(("age", json.Value.Int(0)))
+    } else if c.age_in_days > 0 {
+      f.push(("age", json.Value.Int(c.age_in_days)))
+    }
+    if let Some(t) = c.created_before {
+      f.push(("createdBefore", json.Value.Str(date_text(t))))
+    }
+    if let Some(t) = c.custom_time_before {
+      f.push(("customTimeBefore", json.Value.Str(date_text(t))))
+    }
+    if c.days_since_custom_time != 0 {
+      f.push(("daysSinceCustomTime", json.Value.Int(c.days_since_custom_time)))
+    }
+    if c.days_since_noncurrent_time != 0 {
+      f.push(("daysSinceNoncurrentTime", json.Value.Int(c.days_since_noncurrent_time)))
+    }
+    match c.liveness {
+      Liveness.LiveAndArchived => {}
+      Liveness.Live => f.push(("isLive", json.Value.Bool(true)))
+      Liveness.Archived => f.push(("isLive", json.Value.Bool(false)))
+    }
+    if !c.matches_prefix.is_empty() {
+      f.push(("matchesPrefix", str_values(c.matches_prefix)))
+    }
+    if !c.matches_storage_classes.is_empty() {
+      f.push(("matchesStorageClass", str_values(c.matches_storage_classes)))
+    }
+    if !c.matches_suffix.is_empty() {
+      f.push(("matchesSuffix", str_values(c.matches_suffix)))
+    }
+    if let Some(t) = c.noncurrent_time_before {
+      f.push(("noncurrentTimeBefore", json.Value.Str(date_text(t))))
+    }
+    if c.num_newer_versions != 0 {
+      f.push(("numNewerVersions", json.Value.Int(c.num_newer_versions)))
+    }
+    rules.push(json.Value.Object([("action", json.Value.Object(a)), ("condition", json.Value.Object(f))]))
+  }
+  json.Value.Object([("rule", json.Value.List(rules))])
+}
+
+/// Go's toRetentionPolicy: None without an effective time, an error for
+/// one that does not parse.
+fn to_retention_policy(rp: raw.BucketRetentionPolicy?) -> RetentionPolicy? ! StorageErr {
+  let p = rp ?? return Ok(None)
+  if p.effective_time.is_empty() {
+    return Ok(None)
+  }
+  let t = timego.parse(p.effective_time, timego.RFC3339, time.utc()) ?? e => return Err(StorageErr.Invalid(timego.go_text(e)))
+  Ok(Some(RetentionPolicy{retention_period: Duration.from_secs_int(p.retention_period), effective_time: Some(t), is_locked: p.is_locked}))
+}
+
+fn retention_value(rp: RetentionPolicy) -> json.Value { json.Value.Object([("retentionPeriod", json.Value.Str("${secs_of(rp.retention_period)}"))]) }
+
+/// Go's toAutoclassFromRaw: None without a toggle time.
+fn to_autoclass(a: raw.BucketAutoclass?) -> Autoclass? {
+  let x = a ?? return None
+  if x.toggle_time.is_empty() {
+    return None
+  }
+  Some(Autoclass{enabled: x.enabled, terminal_storage_class: x.terminal_storage_class, toggle_time: convert_time(x.toggle_time), terminal_storage_class_update_time: convert_time(x.terminal_storage_class_update_time)})
+}
+
+/// An autoclass as create sends it (enabled left out when false) or as
+/// update does (always sent).
+fn autoclass_value(a: Autoclass, force: Bool) -> json.Value {
+  var f: List[(Str, json.Value)] = []
+  if a.enabled || force {
+    f.push(("enabled", json.Value.Bool(a.enabled)))
+  }
+  if a.terminal_storage_class != "" {
+    f.push(("terminalStorageClass", json.Value.Str(a.terminal_storage_class)))
+  }
+  json.Value.Object(f)
+}
+
+fn to_soft_delete(p: raw.BucketSoftDeletePolicy?) -> SoftDeletePolicy? {
+  let x = p ?? return None
+  Some(SoftDeletePolicy{retention_duration: Duration.from_secs_int(x.retention_duration_seconds), effective_time: convert_time(x.effective_time)})
+}
+
+fn soft_delete_value(p: SoftDeletePolicy) -> json.Value { json.Value.Object([("retentionDurationSeconds", json.Value.Str("${secs_of(p.retention_duration)}"))]) }
+
+fn hns_value(h: HierarchicalNamespace) -> json.Value { json.Value.Object(if h.enabled { [("enabled", json.Value.Bool(true))] } else { [] }) }
+
+fn placement_value(c: CustomPlacementConfig) -> json.Value { json.Value.Object(if c.data_locations.is_empty() { [] } else { [("dataLocations", str_values(c.data_locations))] }) }
+
+fn to_object_retention(r: raw.ObjectRetention?) -> ObjectRetention? {
+  let x = r ?? return None
+  Some(ObjectRetention{mode: x.mode, retain_until: convert_time(x.retain_until_time)})
+}
+
+/// Go's toRawObjectRetention, as JSON: an unset time is Go's zero time.
+fn object_retention_value(r: ObjectRetention) -> json.Value {
+  var f: List[(Str, json.Value)] = []
+  if r.mode != "" {
+    f.push(("mode", json.Value.Str(r.mode)))
+  }
+  f.push(("retainUntilTime", json.Value.Str(match r.retain_until {
+    Some(t) => format_time(t)
+    None => "0001-01-01T00:00:00Z"
+  })))
+  json.Value.Object(f)
+}
+
+/// The handle whose create enables (or not) object retention (Go's
+/// SetObjectRetention).
+pub fn (b: BucketHandle[fx]) set_object_retention(enable: Bool) -> BucketHandle[fx] {
+  var h = b
+  h.enable_object_retention = Some(enable)
+  h
+}
+
+/// Locks the bucket's retention policy (Go's LockRetentionPolicy): it
+/// sends the metageneration_match condition, 0 without one. As Go, the
+/// billing project is not sent.
+pub fn (b: BucketHandle[fx]) lock_retention_policy() -> () ! StorageErr uses (net.dial, clock, rand, fx) {
+  let m = match b.conds {
+    Some(c) => c.metageneration_match
+    None => 0
+  }
+  let _r = b.c.run(b.retry, true, fn(h: List[(Str, Str)]) -> raw.Bucket ! gensupport.CallErr uses net.dial, clock, rand, fx {
+    b.c.svc.buckets.lock_retention_policy(b.name, m, raw.BucketsLockRetentionPolicyOptions{headers: h})
+  }) ?? e => return Err(call_err(e))
+  Ok(())
+}
+
+/// The handle whose update may shorten or remove an unlocked retention
+/// (Go's OverrideUnlockedRetention).
+pub fn (o: ObjectHandle[fx]) override_unlocked_retention(over: Bool) -> ObjectHandle[fx] {
+  var h = o
+  h.override_retention = Some(over)
+  h
+}
+
+/// The handle of a soft-deleted object, for attrs (Go's SoftDeleted); set
+/// its generation.
+pub fn (o: ObjectHandle[fx]) soft_deleted() -> ObjectHandle[fx] {
+  var h = o
+  h.want_soft_deleted = true
+  h
+}
+
+/// Go's RestoreOptions.
+pub struct RestoreOptions {
+  /// Copy the soft-deleted object's ACL.
+  pub copy_source_acl: Bool = false
+}
+
+/// Restores the soft-deleted object of the handle's generation (Go's
+/// Restore; generation 0 without one) and gives its attributes.
+pub fn (o: ObjectHandle[fx]) restore(opts: RestoreOptions = RestoreOptions{}) -> ObjectAttrs ! StorageErr uses (net.dial, clock, rand, fx) {
+  o.validate()?
+  let p = cond_params("RestoreObject", -1, o.conds)?
+  let gen = if o.gen == -1 { 0 } else { o.gen }
+  let got = o.c.run(o.retry, true, fn(h: List[(Str, Str)]) -> raw.Object ! gensupport.CallErr uses net.dial, clock, rand, fx {
+    o.c.svc.objects.restore(o.bucket, o.object, gen, raw.ObjectsRestoreOptions{copy_source_acl: if opts.copy_source_acl { Some(true) } else { None }, if_generation_match: p.if_generation_match, if_generation_not_match: p.if_generation_not_match, if_metageneration_match: p.if_metageneration_match, if_metageneration_not_match: p.if_metageneration_not_match, user_project: opt_str(o.user_project), headers: h})
+  }) ?? e => return Err(object_err(e))
+  Ok(new_object(got))
+}
+
+/// Where a move puts the object (Go's MoveObjectDestination): its name
+/// in the same bucket, and conditions on it.
+pub struct MoveObjectDestination {
+  pub object: Str
+  pub conditions: Conditions? = None
+}
+
+/// Moves the object within its bucket (Go's Move) and gives the moved
+/// object's attributes. The handle's conditions apply to the source.
+pub fn (o: ObjectHandle[fx]) move(dst: MoveObjectDestination) -> ObjectAttrs ! StorageErr uses (net.dial, clock, rand, fx) {
+  o.validate()?
+  let dp = cond_params("MoveObjectDestination", -1, dst.conditions)?
+  let sp = cond_params("MoveObjectSource", -1, o.conds)?
+  let got = o.c.run(o.retry, true, fn(h: List[(Str, Str)]) -> raw.Object ! gensupport.CallErr uses net.dial, clock, rand, fx {
+    o.c.svc.objects.move(o.bucket, o.object, dst.object, raw.ObjectsMoveOptions{if_generation_match: dp.if_generation_match, if_generation_not_match: dp.if_generation_not_match, if_metageneration_match: dp.if_metageneration_match, if_metageneration_not_match: dp.if_metageneration_not_match, if_source_generation_match: sp.if_generation_match, if_source_generation_not_match: sp.if_generation_not_match, if_source_metageneration_match: sp.if_metageneration_match, if_source_metageneration_not_match: sp.if_metageneration_not_match, user_project: opt_str(o.user_project), headers: h})
+  }) ?? e => return Err(object_err(e))
+  Ok(new_object(got))
+}
