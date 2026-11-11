@@ -84,11 +84,14 @@ GAPIC subpackages, and OpenTelemetry tracing (`trace.go`).
   and a user type loads or saves through the `ValueLoader`/`ValueSaver`
   traits, written by hand. A `derive BigQuery` (as std has `derive
   SqlRow`) would restore Go's struct mapping and `InferSchema`; that is
-  a std request to the Xo Lead, not part of this port.
-- **NUMERIC and BIGNUMERIC.** Go uses `big.Rat`; std has `big.BigInt`
-  but no rational type. The port adds a small `Numeric` (a `BigInt`
-  numerator and a power of ten), with Go's `NumericString` and
-  `BigNumericString` texts, unless std gains a `Rat` first.
+  a std request to the Xo Lead, not part of this port. This is the
+  one question for the owner here.
+- **NUMERIC and BIGNUMERIC** are std/big's `BigRat` (on xo main since
+  9125f8fb5, Go's `big.Rat`). It is not in xo 0.48.2, so step 2 needs
+  the next xo release. BigRat has no `FloatString`, which Go's
+  `NumericString` and `BigNumericString` use (9 and 38 digits); the port
+  writes that rounding over `num()` and `denom()` with Go's
+  round-half-away-from-zero, checked by step 2's oracle cases.
 - **Civil times** are std/time values with the field type saying which
   part counts (Go's `civil.Date`, `civil.Time`, `civil.DateTime`), or
   three small types of the module's own; step 2's oracle cases decide.
