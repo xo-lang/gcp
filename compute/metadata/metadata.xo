@@ -5,6 +5,7 @@
 // 169.254.169.254, retried as Go's metadataRetryer (decision 0009 step 1).
 
 use std/http
+use std/task
 
 /// The metadata server's address when GCE_METADATA_HOST is unset.
 pub const METADATA_IP: Str = "169.254.169.254"
@@ -53,7 +54,8 @@ pub struct Client {
 /// The client for the host env names (Go's metadata.NewClient).
 pub fn new_client(env: Env, net: Net, clock: Clock, rand: Rand) -> Client uses env {
   let h = env.get(METADATA_HOST_ENV) ?? ""
-  Client{http: http.client(net), host: if h == "" { METADATA_IP } else { h }, clock: clock, rand: rand}
+  // Go's default client: a five second limit per request
+  Client{http: http.client(net, 5s), host: if h == "" { METADATA_IP } else { h }, clock: clock, rand: rand}
 }
 
 /// Whether env names a metadata host, which Go's OnGCE trusts without a
@@ -135,5 +137,54 @@ pub fn (c: Client) universe_domain() -> Str ! MetadataErr uses (net.dial, clock,
     Ok(v) => Ok(v)
     Err(MetadataErr.NotDefined(_)) => Ok("googleapis.com")
     Err(e) => Err(e)
+  }
+}
+
+/// Whether the DMI product name says Google (Go's Linux
+/// systemInfoSuggestsGCE; the file is absent on other systems, which Go
+/// does not read, so the answer there is false as Go's).
+pub fn system_info_suggests_gce(fs: Fs) -> Bool uses fs.read {
+  let b = fs.read("/sys/class/dmi/id/product_name") ?? _ => return false
+  let name = b.to_str_lossy().trim()
+  name == "Google" || name == "Google Compute Engine"
+}
+
+/// Go's metadataRequestStrategy: the metadata IP answers with
+/// `Metadata-Flavor: Google`.
+fn probe_http(net: Net) -> Bool uses net.dial {
+  let req = http.new_request("GET", "http://${METADATA_IP}").with_header("User-Agent", USER_AGENT)
+  match http.client(net, 5s).send(req) {
+    Ok(r) => (r.header("Metadata-Flavor") ?? "") == "Google"
+    Err(_) => false
+  }
+}
+
+/// Go's dnsRequestStrategy: metadata.google.internal resolves to the
+/// metadata IP.
+fn probe_dns(net: Net) -> Bool uses net.dial {
+  let addrs = net.lookup_host("metadata.google.internal.") ?? _ => return false
+  addrs.contains(METADATA_IP)
+}
+
+/// Whether this program runs on Google Cloud (Go's OnGCEWithContext):
+/// true when GCE_METADATA_HOST is set; else the HTTP and DNS probes race
+/// and the first answer is the result, or, when the DMI product name says
+/// Google, a first false waits up to five seconds for the other probe.
+/// Go memoizes the answer per process; a caller keeps it.
+pub fn on_gce(env: Env, fs: Fs, net: Net, clock: Clock) -> Bool uses (env, fs.read, net.dial, clock) {
+  if host_set(env) {
+    return true
+  }
+  let try_harder = system_info_suggests_gce(fs)
+  scope s {
+    let ch = Chan[Bool].new(2)
+    s.spawn_background(fn() uses net.dial { ch.send(probe_http(net)) })
+    s.spawn_background(fn() uses net.dial { ch.send(probe_dns(net)) })
+    let first = ch.recv() ?? false
+    if first || !try_harder {
+      first
+    } else {
+      task.with_timeout(clock, 5s, fn() -> Bool { ch.recv() ?? false }) ?? _ => false
+    }
   }
 }

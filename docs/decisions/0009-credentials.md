@@ -133,6 +133,17 @@ that reads its key from elsewhere needs no `fs`.
   - Go caches an authorized_user's tokens twice (New3LOTokenProvider's
     cache inside fileCredentials'); here once, with the same refresh
     rule.
+- Step 3's departures from Go (2026-11-11):
+  - `on_gce` is not memoized per process (Go's sync.Once); a program
+    that asks often keeps the answer.
+  - Detected credentials reach a client through
+    `credentials.client_options(creds, env)`, not inside
+    `gensupport.new_client`: the client constructor takes only `Net`,
+    and detection needs `Env`, `Fs` and `Clock` too, which a program
+    passes once.
+  - An OAuth client file (`web` or `installed`) gives Go's "auth handler
+    must be specified" error; the three-legged flow with a handler is a
+    later step.
 - `auth` grows from 45 lines to an estimated 2,000 (Go's step 1 to 3
   sources are about 2,300 lines without tests).
 
