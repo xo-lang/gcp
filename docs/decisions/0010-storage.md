@@ -1,0 +1,97 @@
+# 0010: Cloud Storage (cloud.google.com/go/storage)
+
+Status: Proposed (2026-11-11, drafted at the Xo Lead's request for the
+owner's acceptance).
+
+## Context
+
+The [cloud.google.com/go coverage report](../reports/gcp-cloud-go-coverage.md)
+ranks `cloud.google.com/go/storage` second, after credentials
+([0009](0009-credentials.md), Accepted). It has more importers than any
+other module there (8,371). Go's default client is REST: `http_client.go`
+over `google.golang.org/api/storage/v1`, which this repo already has
+Go-verified (`storage/v1`). gRPC is opt-in (`NewGRPCClient`) and waits for
+the std gRPC decision ([0007](0007-grpc-deferred.md)).
+
+storage v1.70.0 (Apache-2.0, Copyright Google LLC) has 22,882 lines that
+are not tests. About 12,000 of them make up the REST client:
+
+- `storage.go`, `bucket.go`: `Client`, `BucketHandle`, `ObjectHandle`,
+  their attrs and the conversions to and from `raw.Object`/`raw.Bucket`,
+  conditions (generation and metageneration preconditions), listing
+  iterators, `Composer`, signed URLs (`SignedURL`, V2 and V4)
+- `http_client.go`: each call over `storage/v1`
+- `reader.go`: ranged reads, decompressive transcoding, CRC32C and MD5
+  checks, a reopen on a transient error mid-read
+- `writer.go`: one-shot and resumable uploads, chunk size, checksums
+- `copy.go`: `Copier` (rewrite with its token loop)
+- `acl.go`, `iam.go`, `hmac.go`, `notifications.go`, `post_policy_v4.go`
+- `invoke.go`, `option.go`: retries (`ShouldRetry`, idempotency by
+  precondition, backoff), `x-goog-api-client` and `x-goog-gcs-idempotency-token`
+
+The rest is gRPC (`grpc_*.go`, 7,500 lines), OpenTelemetry metrics and
+tracing (`metrics.go`, `trace.go`), the bucket metadata cache, and
+parallel composite uploads (`pcu.go`).
+
+## Decision (proposed)
+
+Port the REST client as a module `github.com/xo-lang/gcp/storage` at
+`storage/` (Go's package path; the generated `storage/v1` stays a module
+of its own, which it requires with the root module's `auth`, `option`
+and `gensupport`), in four steps. Each step is checked against a Go
+program that runs storage v1.70.0 against a local fake only:
+
+1. **Client, handles and metadata.** `new_client` (credentials through
+   0009's `detect_default`, `STORAGE_EMULATOR_HOST`, endpoints and the
+   universe domain), bucket and object attrs (get, update, delete,
+   create bucket), conditions, `objects`/`buckets` iterators with
+   prefixes, delimiters, versions and match globs, `ErrObjectNotExist`
+   and `ErrBucketNotExist`, and the retry rules of `invoke.go`.
+2. **Data.** `Reader` (ranges, negative offsets, transcoding, checksum
+   checks, the reopen), `Writer` (multipart and resumable over
+   gensupport's media upload, chunk size and retry deadline, CRC32C and
+   MD5), `Copier` and `Composer`.
+3. **Access and keys.** ACLs, IAM policies, HMAC keys, notifications,
+   `service_account`, signed URLs V2 and V4 and post policy V4 (signed
+   with a service account key, as 0009's credentials hold it).
+4. **The rest of bucket management.** Lifecycle, retention, soft delete,
+   autoclass, hierarchical namespace, object retention, restore and move.
+
+Not ported now, each with a record of its own later: the gRPC client,
+metrics and tracing, the bucket metadata cache, parallel composite
+uploads, and the experimental options.
+
+### Effects and capabilities
+
+Calls use `net` (and `clock` and `rand` for retries and the idempotency
+token). Signing a URL needs only the key bytes and a time, so it takes
+`clock` but no `net`. Nothing reads files except credential detection,
+which is 0009's.
+
+### Verification
+
+- Go vectors as for the generated modules ([0005](0005-verification.md))
+  and 0009: a Go program runs storage v1.70.0 with an `http.Client` whose
+  transport is a fake JSON API and upload endpoint. It prints each request
+  (method, URL with its query sorted, headers, body) and each result or
+  error text. The Xo tests replay the same cases over std/testing's
+  FakeNet.
+- Signed URLs and post policies use invented test keys and a fixed time,
+  so Go's output is compared byte for byte.
+- No real Google project, bucket, credential or network is used by a test
+  or an oracle.
+
+## Consequences
+
+- A Go program's storage calls port almost line for line, using the most
+  common Google Cloud client.
+- `storage/v1` stays the generated surface, and this module sits on top of
+  it as Go's does.
+- Step 1 can start at once. Steps 2 to 4 each add a module version and a
+  CHANGELOG entry.
+
+## Alternatives
+
+- **Generated `storage/v1` only:** a program then builds uploads, reads
+  and retries itself. That is what Go users avoid by using this client.
+- **Port the gRPC client too:** it waits for 0007.
