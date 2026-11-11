@@ -432,3 +432,139 @@ test "oracle: read, an empty object name" {
   read_lines(f, c.bucket("b1").object("").new_reader())
   expect(lines(f)) == ["  error storage: object name is empty"]
 }
+
+test "oracle: write, small: multipart with the auto checksum" {
+  let f = new_reply_fake(os.net, [Reply{status: 200, headers: {"Content-Type": "application/json; charset=UTF-8"}, body: obj_for("dir/a.txt", "hello, world")}])
+  let c = fake_client(os)
+  var w = c.bucket("b1").object("dir/a.txt").new_writer()
+  w.attrs.content_type = "text/plain"
+  w.attrs.cache_control = "no-cache"
+  w.attrs.metadata = {"owner": "ada"}
+  write_lines(f, w, "hello, world", 5)
+  expect(lines(f)) == ["  POST https://storage.fake/upload/storage/v1/b/b1/o?alt=json&name=dir%2Fa.txt&prettyPrint=false&projection=full&uploadType=multipart", "    X-Goog-Api-Client: gl-go/GO gccl/V", "    Content-Type: multipart/related; boundary=BOUNDARY", "    body --BOUNDARY\\r", "    body Content-Type: application/json\\r", "    body \\r", "    body {\"bucket\":\"b1\",\"cacheControl\":\"no-cache\",\"contentType\":\"text/plain\",\"crc32c\":\"aZmkHw==\",\"metadata\":{\"owner\":\"ada\"},\"name\":\"dir/a.txt\"}", "    body \\r", "    body --BOUNDARY\\r", "    body Content-Type: text/plain\\r", "    body \\r", "    body hello, world\\r", "    body --BOUNDARY--\\r", "    body ", "  ok name=dir/a.txt gen=1700000000000001 size=12 crc32c=1771676703"]
+}
+
+test "oracle: write, the content type sniffed" {
+  let f = new_reply_fake(os.net, [Reply{status: 200, headers: {"Content-Type": "application/json; charset=UTF-8"}, body: obj_for("a", "hello, world")}])
+  let c = fake_client(os)
+  var w = c.bucket("b1").object("a").new_writer()
+  write_lines(f, w, "hello, world", 100)
+  expect(lines(f)) == ["  POST https://storage.fake/upload/storage/v1/b/b1/o?alt=json&name=a&prettyPrint=false&projection=full&uploadType=multipart", "    X-Goog-Api-Client: gl-go/GO gccl/V", "    Content-Type: multipart/related; boundary=BOUNDARY", "    body --BOUNDARY\\r", "    body Content-Type: application/json\\r", "    body \\r", "    body {\"bucket\":\"b1\",\"crc32c\":\"aZmkHw==\",\"name\":\"a\"}", "    body \\r", "    body --BOUNDARY\\r", "    body Content-Type: text/plain; charset=utf-8\\r", "    body \\r", "    body hello, world\\r", "    body --BOUNDARY--\\r", "    body ", "  ok name=a gen=1700000000000001 size=12 crc32c=1771676703"]
+}
+
+test "oracle: write, chunk size 0: one request, the server's checksum checked" {
+  let f = new_reply_fake(os.net, [Reply{status: 200, headers: {"Content-Type": "application/json; charset=UTF-8"}, body: obj_for("a", "other")}])
+  let c = fake_client(os)
+  var w = c.bucket("b1").object("a").new_writer()
+  w.chunk_size = 0
+  w.attrs.content_type = "text/plain"
+  write_lines(f, w, "hello, world", 100)
+  expect(lines(f)) == ["  POST https://storage.fake/upload/storage/v1/b/b1/o?alt=json&name=a&prettyPrint=false&projection=full&uploadType=multipart", "    X-Goog-Api-Client: gl-go/GO gccl/V", "    Content-Type: multipart/related; boundary=BOUNDARY", "    body --BOUNDARY\\r", "    body Content-Type: application/json\\r", "    body \\r", "    body {\"bucket\":\"b1\",\"contentType\":\"text/plain\",\"name\":\"a\"}", "    body \\r", "    body --BOUNDARY\\r", "    body Content-Type: text/plain\\r", "    body \\r", "    body hello, world\\r", "    body --BOUNDARY--\\r", "    body ", "  close error storage: object checksum mismatch: computed \"aZmkHw==\", server \"uTja5A==\"; the bucket may contain corrupted object"]
+}
+
+test "oracle: write, chunk size 0 and a matching checksum" {
+  let f = new_reply_fake(os.net, [Reply{status: 200, headers: {"Content-Type": "application/json; charset=UTF-8"}, body: obj_for("a", "hello, world")}])
+  let c = fake_client(os)
+  var w = c.bucket("b1").object("a").new_writer()
+  w.chunk_size = 0
+  w.attrs.content_type = "text/plain"
+  write_lines(f, w, "hello, world", 100)
+  expect(lines(f)) == ["  POST https://storage.fake/upload/storage/v1/b/b1/o?alt=json&name=a&prettyPrint=false&projection=full&uploadType=multipart", "    X-Goog-Api-Client: gl-go/GO gccl/V", "    Content-Type: multipart/related; boundary=BOUNDARY", "    body --BOUNDARY\\r", "    body Content-Type: application/json\\r", "    body \\r", "    body {\"bucket\":\"b1\",\"contentType\":\"text/plain\",\"name\":\"a\"}", "    body \\r", "    body --BOUNDARY\\r", "    body Content-Type: text/plain\\r", "    body \\r", "    body hello, world\\r", "    body --BOUNDARY--\\r", "    body ", "  ok name=a gen=1700000000000001 size=12 crc32c=1771676703"]
+}
+
+test "oracle: write, SendCRC32C and MD5" {
+  let f = new_reply_fake(os.net, [Reply{status: 200, headers: {"Content-Type": "application/json; charset=UTF-8"}, body: obj_for("a", "hello, world")}])
+  let c = fake_client(os)
+  var w = c.bucket("b1").object("a").new_writer()
+  w.attrs.content_type = "text/plain"
+  w.send_crc32c = true
+  w.attrs.crc32c = 1771676703
+  w.attrs.md5 = b"0123456789abcdef"
+  write_lines(f, w, "hello, world", 100)
+  expect(lines(f)) == ["  POST https://storage.fake/upload/storage/v1/b/b1/o?alt=json&name=a&prettyPrint=false&projection=full&uploadType=multipart", "    X-Goog-Api-Client: gl-go/GO gccl/V", "    Content-Type: multipart/related; boundary=BOUNDARY", "    body --BOUNDARY\\r", "    body Content-Type: application/json\\r", "    body \\r", "    body {\"bucket\":\"b1\",\"contentType\":\"text/plain\",\"crc32c\":\"aZmkHw==\",\"md5Hash\":\"MDEyMzQ1Njc4OWFiY2RlZg==\",\"name\":\"a\"}", "    body \\r", "    body --BOUNDARY\\r", "    body Content-Type: text/plain\\r", "    body \\r", "    body hello, world\\r", "    body --BOUNDARY--\\r", "    body ", "  ok name=a gen=1700000000000001 size=12 crc32c=1771676703"]
+}
+
+test "oracle: write, auto checksum off" {
+  let f = new_reply_fake(os.net, [Reply{status: 200, headers: {"Content-Type": "application/json; charset=UTF-8"}, body: obj_for("a", "hello, world")}])
+  let c = fake_client(os)
+  var w = c.bucket("b1").object("a").new_writer()
+  w.attrs.content_type = "text/plain"
+  w.disable_auto_checksum = true
+  write_lines(f, w, "hello, world", 100)
+  expect(lines(f)) == ["  POST https://storage.fake/upload/storage/v1/b/b1/o?alt=json&name=a&prettyPrint=false&projection=full&uploadType=multipart", "    X-Goog-Api-Client: gl-go/GO gccl/V", "    Content-Type: multipart/related; boundary=BOUNDARY", "    body --BOUNDARY\\r", "    body Content-Type: application/json\\r", "    body \\r", "    body {\"bucket\":\"b1\",\"contentType\":\"text/plain\",\"name\":\"a\"}", "    body \\r", "    body --BOUNDARY\\r", "    body Content-Type: text/plain\\r", "    body \\r", "    body hello, world\\r", "    body --BOUNDARY--\\r", "    body ", "  ok name=a gen=1700000000000001 size=12 crc32c=1771676703"]
+}
+
+test "oracle: write, does not exist condition, user project, predefined ACL, KMS key" {
+  let f = new_reply_fake(os.net, [Reply{status: 200, headers: {"Content-Type": "application/json; charset=UTF-8"}, body: obj_for("a", "hello, world")}])
+  let c = fake_client(os)
+  var w = c.bucket("b1").billed_to("billed").object("a").if_(Conditions{does_not_exist: true}).new_writer()
+  w.attrs.content_type = "text/plain"
+  w.predefined_acl = "publicRead"
+  w.attrs.kms_key_name = "projects/p/locations/l/keyRings/r/cryptoKeys/k"
+  write_lines(f, w, "hello, world", 100)
+  expect(lines(f)) == ["  POST https://storage.fake/upload/storage/v1/b/b1/o?alt=json&ifGenerationMatch=0&kmsKeyName=projects%2Fp%2Flocations%2Fl%2FkeyRings%2Fr%2FcryptoKeys%2Fk&name=a&predefinedAcl=publicRead&prettyPrint=false&projection=full&uploadType=multipart&userProject=billed", "    X-Goog-Api-Client: gccl-invocation-id/UUID gccl-attempt-count/1 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID", "    Content-Type: multipart/related; boundary=BOUNDARY", "    body --BOUNDARY\\r", "    body Content-Type: application/json\\r", "    body \\r", "    body {\"bucket\":\"b1\",\"contentType\":\"text/plain\",\"crc32c\":\"aZmkHw==\",\"name\":\"a\"}", "    body \\r", "    body --BOUNDARY\\r", "    body Content-Type: text/plain\\r", "    body \\r", "    body hello, world\\r", "    body --BOUNDARY--\\r", "    body ", "  ok name=a gen=1700000000000001 size=12 crc32c=1771676703"]
+}
+
+test "oracle: write, 503 without a precondition is not retried" {
+  let f = new_reply_fake(os.net, [Reply{status: 503, headers: {"Content-Type": "application/json; charset=UTF-8"}, body: "{\"error\":{\"code\":503,\"message\":\"busy\"}}"}, Reply{status: 200, headers: {"Content-Type": "application/json; charset=UTF-8"}, body: obj_for("a", "hello, world")}])
+  let c = fake_client(os)
+  var w = c.bucket("b1").object("a").retryer(Retry{backoff: FAST}).new_writer()
+  w.attrs.content_type = "text/plain"
+  write_lines(f, w, "hello, world", 100)
+  expect(lines(f)) == ["  POST https://storage.fake/upload/storage/v1/b/b1/o?alt=json&name=a&prettyPrint=false&projection=full&uploadType=multipart", "    X-Goog-Api-Client: gl-go/GO gccl/V", "    Content-Type: multipart/related; boundary=BOUNDARY", "    body --BOUNDARY\\r", "    body Content-Type: application/json\\r", "    body \\r", "    body {\"bucket\":\"b1\",\"contentType\":\"text/plain\",\"crc32c\":\"aZmkHw==\",\"name\":\"a\"}", "    body \\r", "    body --BOUNDARY\\r", "    body Content-Type: text/plain\\r", "    body \\r", "    body hello, world\\r", "    body --BOUNDARY--\\r", "    body ", "  close error googleapi: Error 503: busy"]
+}
+
+test "oracle: write, 503 with a precondition is retried" {
+  let f = new_reply_fake(os.net, [Reply{status: 503, headers: {"Content-Type": "application/json; charset=UTF-8"}, body: "{\"error\":{\"code\":503,\"message\":\"busy\"}}"}, Reply{status: 200, headers: {"Content-Type": "application/json; charset=UTF-8"}, body: obj_for("a", "hello, world")}])
+  let c = fake_client(os)
+  var w = c.bucket("b1").object("a").if_(Conditions{generation_match: 5}).retryer(Retry{backoff: FAST}).new_writer()
+  w.attrs.content_type = "text/plain"
+  write_lines(f, w, "hello, world", 100)
+  expect(lines(f)) == ["  POST https://storage.fake/upload/storage/v1/b/b1/o?alt=json&ifGenerationMatch=5&name=a&prettyPrint=false&projection=full&uploadType=multipart", "    X-Goog-Api-Client: gccl-invocation-id/UUID gccl-attempt-count/1 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID", "    Content-Type: multipart/related; boundary=BOUNDARY", "    body --BOUNDARY\\r", "    body Content-Type: application/json\\r", "    body \\r", "    body {\"bucket\":\"b1\",\"contentType\":\"text/plain\",\"crc32c\":\"aZmkHw==\",\"name\":\"a\"}", "    body \\r", "    body --BOUNDARY\\r", "    body Content-Type: text/plain\\r", "    body \\r", "    body hello, world\\r", "    body --BOUNDARY--\\r", "    body ", "  POST https://storage.fake/upload/storage/v1/b/b1/o?alt=json&ifGenerationMatch=5&name=a&prettyPrint=false&projection=full&uploadType=multipart", "    X-Goog-Api-Client: gccl-invocation-id/UUID gccl-attempt-count/2 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID", "    Content-Type: multipart/related; boundary=BOUNDARY", "    body --BOUNDARY\\r", "    body Content-Type: application/json\\r", "    body \\r", "    body {\"bucket\":\"b1\",\"contentType\":\"text/plain\",\"crc32c\":\"aZmkHw==\",\"name\":\"a\"}", "    body \\r", "    body --BOUNDARY\\r", "    body Content-Type: text/plain\\r", "    body \\r", "    body hello, world\\r", "    body --BOUNDARY--\\r", "    body ", "  ok name=a gen=1700000000000001 size=12 crc32c=1771676703"]
+}
+
+test "oracle: write, 412" {
+  let f = new_reply_fake(os.net, [Reply{status: 412, headers: {"Content-Type": "application/json; charset=UTF-8"}, body: "{\"error\":{\"code\":412,\"message\":\"At least one of the pre-conditions you specified did not hold.\",\"errors\":[{\"message\":\"At least one of the pre-conditions you specified did not hold.\",\"reason\":\"conditionNotMet\"}]}}"}])
+  let c = fake_client(os)
+  var w = c.bucket("b1").object("a").if_(Conditions{does_not_exist: true}).new_writer()
+  w.attrs.content_type = "text/plain"
+  write_lines(f, w, "hello, world", 100)
+  expect(lines(f)) == ["  POST https://storage.fake/upload/storage/v1/b/b1/o?alt=json&ifGenerationMatch=0&name=a&prettyPrint=false&projection=full&uploadType=multipart", "    X-Goog-Api-Client: gccl-invocation-id/UUID gccl-attempt-count/1 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID", "    Content-Type: multipart/related; boundary=BOUNDARY", "    body --BOUNDARY\\r", "    body Content-Type: application/json\\r", "    body \\r", "    body {\"bucket\":\"b1\",\"contentType\":\"text/plain\",\"crc32c\":\"aZmkHw==\",\"name\":\"a\"}", "    body \\r", "    body --BOUNDARY\\r", "    body Content-Type: text/plain\\r", "    body \\r", "    body hello, world\\r", "    body --BOUNDARY--\\r", "    body ", "  close error googleapi: Error 412: At least one of the pre-conditions you specified did not hold., conditionNotMet"]
+}
+
+test "oracle: write, resumable in two chunks" {
+  let f = new_reply_fake(os.net, [Reply{status: 200, headers: {"Location": "https://storage.fake/upload/storage/v1/b/b1/o?uploadType=resumable&upload_id=U1"}, body: ""}, Reply{status: 200, headers: {"Range": "bytes=0-262143", "X-Http-Status-Code-Override": "308"}, body: ""}, Reply{status: 200, headers: {"Content-Type": "application/json; charset=UTF-8"}, body: obj_for("big", big(300000))}])
+  let c = fake_client(os)
+  var w = c.bucket("b1").object("big").new_writer()
+  w.attrs.content_type = "application/octet-stream"
+  w.chunk_size = 262144
+  write_lines(f, w, big(300000), 65536)
+  expect(lines(f)) == ["  POST https://storage.fake/upload/storage/v1/b/b1/o?alt=json&name=big&prettyPrint=false&projection=full&uploadType=resumable", "    X-Goog-Api-Client: gl-go/GO gccl/V", "    Content-Type: application/json", "    X-Upload-Content-Type: application/octet-stream", "    body {\"bucket\":\"b1\",\"contentType\":\"application/octet-stream\",\"name\":\"big\"}", "  POST https://storage.fake/upload/storage/v1/b/b1/o?uploadType=resumable&upload_id=U1", "    X-Goog-Api-Client: gl-go/GO gdcl/V gccl-invocation-id/UUID gccl-attempt-count/1", "    X-Goog-Gcs-Idempotency-Token: UUID", "    Content-Type: application/octet-stream", "    Content-Range: bytes 0-262143/*", "    body <262144 bytes> \"0123456789abcdef0123456789abcdef\"...\"0123456789abcdef0123456789abcdef\"", "  POST https://storage.fake/upload/storage/v1/b/b1/o?uploadType=resumable&upload_id=U1", "    X-Goog-Api-Client: gl-go/GO gdcl/V gccl-invocation-id/UUID gccl-attempt-count/1", "    X-Goog-Gcs-Idempotency-Token: UUID", "    Content-Type: application/octet-stream", "    Content-Range: bytes 262144-299999/300000", "    X-Goog-Hash: crc32c=W4TEbA==", "    body <37856 bytes> \"0123456789abcdef0123456789abcdef\"...\"0123456789abcdef0123456789abcdef\"", "  ok name=big gen=1700000000000001 size=300000 crc32c=1535427692"]
+}
+
+test "oracle: write, resumable, a chunk retried" {
+  let f = new_reply_fake(os.net, [Reply{status: 200, headers: {"Location": "https://storage.fake/upload/storage/v1/b/b1/o?uploadType=resumable&upload_id=U2"}, body: ""}, Reply{status: 503, headers: {"Content-Type": "application/json; charset=UTF-8"}, body: "{\"error\":{\"code\":503,\"message\":\"busy\"}}"}, Reply{status: 200, headers: {"Range": "bytes=0-262143", "X-Http-Status-Code-Override": "308"}, body: ""}, Reply{status: 200, headers: {"Content-Type": "application/json; charset=UTF-8"}, body: obj_for("big", big(300000))}])
+  let c = fake_client(os)
+  var w = c.bucket("b1").object("big").if_(Conditions{does_not_exist: true}).retryer(Retry{backoff: FAST}).new_writer()
+  w.attrs.content_type = "application/octet-stream"
+  w.chunk_size = 262144
+  write_lines(f, w, big(300000), 65536)
+  expect(lines(f)) == ["  POST https://storage.fake/upload/storage/v1/b/b1/o?alt=json&ifGenerationMatch=0&name=big&prettyPrint=false&projection=full&uploadType=resumable", "    X-Goog-Api-Client: gccl-invocation-id/UUID gccl-attempt-count/1 gl-go/GO gccl/V", "    X-Goog-Gcs-Idempotency-Token: UUID", "    Content-Type: application/json", "    X-Upload-Content-Type: application/octet-stream", "    body {\"bucket\":\"b1\",\"contentType\":\"application/octet-stream\",\"name\":\"big\"}", "  POST https://storage.fake/upload/storage/v1/b/b1/o?uploadType=resumable&upload_id=U2", "    X-Goog-Api-Client: gl-go/GO gdcl/V gccl-invocation-id/UUID gccl-attempt-count/1", "    X-Goog-Gcs-Idempotency-Token: UUID", "    Content-Type: application/octet-stream", "    Content-Range: bytes 0-262143/*", "    body <262144 bytes> \"0123456789abcdef0123456789abcdef\"...\"0123456789abcdef0123456789abcdef\"", "  POST https://storage.fake/upload/storage/v1/b/b1/o?uploadType=resumable&upload_id=U2", "    X-Goog-Api-Client: gl-go/GO gdcl/V gccl-invocation-id/UUID gccl-attempt-count/2", "    X-Goog-Gcs-Idempotency-Token: UUID", "    Content-Type: application/octet-stream", "    Content-Range: bytes 0-262143/*", "    body <262144 bytes> \"0123456789abcdef0123456789abcdef\"...\"0123456789abcdef0123456789abcdef\"", "  POST https://storage.fake/upload/storage/v1/b/b1/o?uploadType=resumable&upload_id=U2", "    X-Goog-Api-Client: gl-go/GO gdcl/V gccl-invocation-id/UUID gccl-attempt-count/1", "    X-Goog-Gcs-Idempotency-Token: UUID", "    Content-Type: application/octet-stream", "    Content-Range: bytes 262144-299999/300000", "    X-Goog-Hash: crc32c=W4TEbA==", "    body <37856 bytes> \"0123456789abcdef0123456789abcdef\"...\"0123456789abcdef0123456789abcdef\"", "  ok name=big gen=1700000000000001 size=300000 crc32c=1535427692"]
+}
+
+test "oracle: write, an empty object name" {
+  let f = new_reply_fake(os.net, [])
+  let c = fake_client(os)
+  var w = c.bucket("b1").object("").new_writer()
+  write_lines(f, w, "hello, world", 100)
+  expect(lines(f)) == ["  POST https://storage.fake/upload/storage/v1/b/b1/o?alt=json&name=&prettyPrint=false&projection=full&uploadType=multipart", "    X-Goog-Api-Client: gl-go/GO gccl/V", "    Content-Type: multipart/related; boundary=BOUNDARY", "    body --BOUNDARY\\r", "    body Content-Type: application/json\\r", "    body \\r", "    body {\"bucket\":\"b1\",\"crc32c\":\"aZmkHw==\"}", "    body \\r", "    body --BOUNDARY\\r", "    body Content-Type: text/plain; charset=utf-8\\r", "    body \\r", "    body hello, world\\r", "    body --BOUNDARY--\\r", "    body ", "  ok name= gen=0 size=0 crc32c=0"]
+}
+
+test "oracle: write, nothing written" {
+  let f = new_reply_fake(os.net, [Reply{status: 200, headers: {"Content-Type": "application/json; charset=UTF-8"}, body: obj_for("empty", "")}])
+  let c = fake_client(os)
+  var w = c.bucket("b1").object("empty").new_writer()
+  w.attrs.content_type = "text/plain"
+  write_lines(f, w, "", 100)
+  expect(lines(f)) == ["  POST https://storage.fake/upload/storage/v1/b/b1/o?alt=json&name=empty&prettyPrint=false&projection=full&uploadType=multipart", "    X-Goog-Api-Client: gl-go/GO gccl/V", "    Content-Type: multipart/related; boundary=BOUNDARY", "    body --BOUNDARY\\r", "    body Content-Type: application/json\\r", "    body \\r", "    body {\"bucket\":\"b1\",\"contentType\":\"text/plain\",\"crc32c\":\"AAAAAA==\",\"name\":\"empty\"}", "    body \\r", "    body --BOUNDARY\\r", "    body Content-Type: text/plain\\r", "    body \\r", "    body \\r", "    body --BOUNDARY--\\r", "    body ", "  ok name=empty gen=1700000000000001 size=0 crc32c=0"]
+}

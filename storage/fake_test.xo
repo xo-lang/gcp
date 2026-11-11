@@ -8,6 +8,7 @@ use std/http
 use std/json
 use std/testing
 use std/time
+use github.com/xo-lang/gcp/gensupport
 use github.com/xo-lang/gcp/option
 
 /// A reply: its status, headers (Content-Type JSON when empty) and body.
@@ -115,16 +116,31 @@ fn answer(f: Fake, req: http.Request) -> http.Response {
   if let Some(v) = header_of(req, "if-none-match") {
     note(f, "    If-None-Match: ${v}")
   }
-  for h in ["Content-Type", "Range", "X-Goog-If-Generation-Match", "X-Goog-If-Metageneration-Match", "X-Goog-Encryption-Algorithm"] {
+  let ct = header_of(req, "content-type") ?? ""
+  let boundary = match ct.find("boundary=") {
+    Some(i) => ct[i + 9..ct.len()]
+    None => ""
+  }
+  for h in ["Content-Type", "Range", "X-Goog-If-Generation-Match", "X-Goog-If-Metageneration-Match", "X-Goog-Encryption-Algorithm", "Content-Range", "X-Upload-Content-Type", "X-Goog-Hash"] {
     if let Some(v) = header_of(req, h) {
-      note(f, "    ${h}: ${v}")
+      note(f, "    ${h}: ${if boundary == "" { v } else { v.replace(boundary, "BOUNDARY") }}")
     }
   }
   if header_of(req, "accept-encoding") == Some("gzip") {
     note(f, "    Accept-Encoding: gzip")
   }
   if !req.body.is_empty() {
-    note(f, "    body ${canon_text(req.body.to_str_lossy())}")
+    var t = canon_text(req.body.to_str_lossy())
+    if boundary != "" {
+      t = t.replace(boundary, "BOUNDARY")
+    }
+    t = t.replace("\r", "\\r")
+    if t.len() > 1024 {
+      t = "<${t.len()} bytes> ${t[0..32].quote()}...${t[t.len() - 32..t.len()].quote()}"
+    }
+    for line in t.split("\n") {
+      note(f, "    body ${line}")
+    }
   }
   let r = f.replies.with(fn(var rs: List[Reply]) -> Reply {
     let x = rs.get(0) ?? Reply{status: 200, body: "{}"}
@@ -312,4 +328,34 @@ fn read_lines(f: Fake, r0: Result[Reader[()], StorageErr]) {
     Ok(_) => {}
   }
   note(f, "  remain ${r.remaining()}")
+}
+
+/// Writes data in pieces of at most piece bytes, closes, and notes the
+/// result as the oracle prints it.
+fn write_lines(f: Fake, w0: Writer[()], data: Str, piece: Int) {
+  var w = w0
+  var d = data.bytes()
+  while d.len() > 0 {
+    let n = if piece < d.len() { piece } else { d.len() }
+    match w.write(d[0..n]) {
+      Err(e) => {
+        note(f, "  write error ${e.display()}")
+        break
+      }
+      Ok(_) => {}
+    }
+    d = d[n..d.len()]
+  }
+  match w.close() {
+    Err(e) => note(f, "  close error ${e.display()}")
+    Ok(a) => note(f, "  ok name=${a.name} gen=${a.generation} size=${a.size} crc32c=${a.crc32c}")
+  }
+}
+
+/// n bytes of the oracle's repeating pattern.
+fn big(n: Int) -> Str { "0123456789abcdef".repeat(n / 16 + 1)[0..n] }
+
+/// The service's answer for an object of content s (the oracle's objFor).
+fn obj_for(name: Str, s: Str) -> Str {
+  "{\"kind\":\"storage#object\",\"name\":${name.quote()},\"bucket\":\"b1\",\"generation\":\"1700000000000001\",\"metageneration\":\"1\",\"size\":\"${s.len()}\",\"crc32c\":\"${gensupport.crc32c_text(s.bytes())}\",\"contentType\":\"text/plain\"}"
 }

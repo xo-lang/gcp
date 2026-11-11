@@ -1,0 +1,251 @@
+// Writing an object, as cloud.google.com/go/storage v1.70.0's writer.go
+// and http_client.go (OpenWriter, httpInternalWriter; Apache-2.0,
+// Copyright Google LLC; NOTICE.md): a multipart upload when the data fits
+// in one chunk, else a resumable session of chunks (gensupport's), with
+// the CRC32C sent and checked as Go does.
+
+use std/base64
+use std/crc32
+use std/json
+use std/mime
+use github.com/xo-lang/gcp/gensupport
+use github.com/xo-lang/gcp/googleapi
+use github.com/xo-lang/gcp/storage/v1 as raw
+use std/url
+
+/// Writes an object (Go's Writer): set its fields, `write` the data, then
+/// `close`, which uploads it and gives the object's attributes. The data
+/// is held until close (Go streams it through a pipe as it is written).
+pub struct Writer[fx: Effects] {
+  o: ObjectHandle[fx]
+  /// The attributes to write (Go's embedded ObjectAttrs): name and bucket
+  /// are the handle's; content type, cache control, metadata, ACL, storage
+  /// class, holds, custom time, KMS key, and the crc32c and md5 to send.
+  pub attrs: ObjectAttrs
+  /// A predefined ACL for the object (Go's ObjectAttrs.PredefinedACL).
+  pub predefined_acl: Str = ""
+  /// The chunk size of a resumable upload, rounded up to 256 KiB; data
+  /// smaller than it goes in one multipart request, and 0 sends any data
+  /// in one request whose CRC32C is checked against the service's.
+  pub chunk_size: Int = gensupport.DEFAULT_CHUNK_SIZE
+  /// Send attrs.crc32c (Go's SendCRC32C) instead of computing one.
+  pub send_crc32c: Bool = false
+  /// Send no CRC32C at all (Go's DisableAutoChecksum).
+  pub disable_auto_checksum: Bool = false
+  /// No media type at all, even for an empty content_type (Go's
+  /// ForceEmptyContentType); else an empty one is sniffed from the data.
+  pub force_empty_content_type: Bool = false
+  data: Bytes = b""
+  done: ObjectAttrs? = None
+  err: StorageErr? = None
+}
+
+/// A writer of the object (Go's NewWriter): nothing is sent until close.
+pub fn (o: ObjectHandle[fx]) new_writer() -> Writer[fx] { Writer{o: o, attrs: ObjectAttrs{name: o.object, bucket: o.bucket}} }
+
+/// Adds data to the object.
+pub fn (var w: Writer[fx]) write(data: Bytes) -> () ! StorageErr {
+  if let Some(e) = w.err {
+    return Err(e)
+  }
+  if w.done.is_some() {
+    return Err(StorageErr.Invalid("storage: Writer is closed"))
+  }
+  w.data = w.data + data
+  Ok(())
+}
+
+/// The written object's attributes, once close succeeded (Go's Attrs).
+pub fn (w: Writer[fx]) written() -> ObjectAttrs? { w.done }
+
+fn (w: Writer[fx]) validate() -> () ! StorageErr {
+  if w.attrs.name != w.o.object {
+    return Err(StorageErr.Invalid("storage: Writer.Name ${w.attrs.name.quote()} does not match object name ${w.o.object.quote()}"))
+  }
+  if w.chunk_size < 0 {
+    return Err(StorageErr.Invalid("storage: Writer.ChunkSize must be non-negative"))
+  }
+  if w.o.gen >= 0 {
+    return Err(StorageErr.Invalid("storage: generation supported on Writer for appendable objects only, got ${w.o.gen}"))
+  }
+  Ok(())
+}
+
+/// The object's metadata in the upload (toRawObject), with crc32c and
+/// md5Hash as Go adds them.
+fn (w: Writer[fx]) body(crc: Str) -> json.Value {
+  let a = w.attrs
+  var f: List[(Str, json.Value)] = []
+  if !a.acl.is_empty() {
+    f.push(("acl", acl_value(a.acl)))
+  }
+  f.push(("bucket", json.Value.Str(w.o.bucket)))
+  if a.cache_control != "" {
+    f.push(("cacheControl", json.Value.Str(a.cache_control)))
+  }
+  if a.content_disposition != "" {
+    f.push(("contentDisposition", json.Value.Str(a.content_disposition)))
+  }
+  if a.content_encoding != "" {
+    f.push(("contentEncoding", json.Value.Str(a.content_encoding)))
+  }
+  if a.content_language != "" {
+    f.push(("contentLanguage", json.Value.Str(a.content_language)))
+  }
+  if a.content_type != "" {
+    f.push(("contentType", json.Value.Str(a.content_type)))
+  }
+  if crc != "" {
+    f.push(("crc32c", json.Value.Str(crc)))
+  }
+  if let Some(t) = a.custom_time {
+    f.push(("customTime", json.Value.Str(format_time(t))))
+  }
+  if a.event_based_hold {
+    f.push(("eventBasedHold", json.Value.Bool(true)))
+  }
+  if !a.md5.is_empty() {
+    f.push(("md5Hash", json.Value.Str(base64.encode(a.md5, base64.Base64.Std))))
+  }
+  if !a.metadata.is_empty() {
+    var kv: List[(Str, json.Value)] = []
+    for k in a.metadata.keys().sort() {
+      kv.push((k, json.Value.Str(a.metadata.get_or_fault(k, "k is one of the keys"))))
+    }
+    f.push(("metadata", json.Value.Object(kv)))
+  }
+  if a.name != "" {
+    f.push(("name", json.Value.Str(a.name)))
+  }
+  if let Some(t) = a.retention_expiration_time {
+    f.push(("retentionExpirationTime", json.Value.Str(format_time(t))))
+  }
+  if a.storage_class != "" {
+    f.push(("storageClass", json.Value.Str(a.storage_class)))
+  }
+  if a.temporary_hold {
+    f.push(("temporaryHold", json.Value.Bool(true)))
+  }
+  json.Value.Object(f)
+}
+
+/// Uploads the data and gives the object's attributes (Go's Close, then
+/// Attrs). A write with conditions is retried by the Idempotent policy;
+/// a resumable upload's chunks are retried as gensupport retries them.
+pub fn (var w: Writer[fx]) close() -> ObjectAttrs ! StorageErr uses (net.dial, clock, rand, fx) {
+  if let Some(e) = w.err {
+    return Err(e)
+  }
+  if let Some(d) = w.done {
+    return Ok(d)
+  }
+  let r = w.upload()
+  match r {
+    Ok(a) => w.done = Some(a)
+    Err(e) => w.err = Some(e)
+  }
+  r
+}
+
+fn (w: Writer[fx]) upload() -> ObjectAttrs ! StorageErr uses (net.dial, clock, rand, fx) {
+  w.validate()?
+  let o = w.o
+  let p = cond_params("NewWriter", -1, o.conds)?
+  let c = o.c
+  let checksum_off = w.disable_auto_checksum || w.send_crc32c
+  let cs = if w.chunk_size % gensupport.MIN_CHUNK_SIZE != 0 { w.chunk_size + gensupport.MIN_CHUNK_SIZE - w.chunk_size % gensupport.MIN_CHUNK_SIZE } else { w.chunk_size }
+  let single = cs == 0 || w.data.len() < cs
+  let crc = if w.send_crc32c {
+    gensupport.crc32c_of(w.attrs.crc32c)
+  } else if !checksum_off && single && cs > 0 {
+    gensupport.crc32c_text(w.data)
+  } else {
+    ""
+  }
+  var q = url.values()
+  if let Some(v) = p.if_generation_match {
+    q.set("ifGenerationMatch", "${v}")
+  }
+  if let Some(v) = p.if_generation_not_match {
+    q.set("ifGenerationNotMatch", "${v}")
+  }
+  if let Some(v) = p.if_metageneration_match {
+    q.set("ifMetagenerationMatch", "${v}")
+  }
+  if let Some(v) = p.if_metageneration_not_match {
+    q.set("ifMetagenerationNotMatch", "${v}")
+  }
+  if w.attrs.kms_key_name != "" {
+    q.set("kmsKeyName", w.attrs.kms_key_name)
+  }
+  q.set("name", w.attrs.name)
+  if w.predefined_acl != "" {
+    q.set("predefinedAcl", w.predefined_acl)
+  }
+  q.set("projection", "full")
+  if !o.user_project.is_empty() {
+    q.set("userProject", o.user_project)
+  }
+  q.set("alt", "json")
+  q.set("prettyPrint", "false")
+  // Go's json.Encoder: the JSON and a newline
+  let body = json_bytes(w.body(crc)) + b"\n"
+  let target = googleapi.expand(googleapi.resolve_relative(c.core.base_path, "b/{bucket}/o"), {"bucket": o.bucket})
+  let mu = googleapi.expand(googleapi.resolve_relative(c.core.base_path, "/upload/storage/v1/b/{bucket}/o"), {"bucket": o.bucket})
+  let media = gensupport.Media{data: w.data, content_type: w.attrs.content_type, force_empty_content_type: w.force_empty_content_type, chunk_size: cs}
+  let data = w.data
+  let call = fn(h: List[(Str, Str)]) -> raw.Object ! gensupport.CallErr uses net.dial, clock, rand, fx {
+    let hs: List[(Str, Str)] = [("Content-Type", "application/json")] + xml_headers(h)
+    if single {
+      let resp = c.core.client.upload(c.clock, c.rand, gensupport.Request{method: "POST", url: target, query: q, headers: hs, body: body}, mu, media)?
+      gensupport.check(resp)?
+      return gensupport.decode[raw.Object](resp)
+    }
+    // the session: its start here (retried with the call), its chunks in
+    // gensupport (each retried on its own)
+    var sq = q
+    sq.set("uploadType", "resumable")
+    let mtype = media_type_of(media)
+    var shs = hs
+    if mtype != "" {
+      shs.push(("X-Upload-Content-Type", mtype))
+    }
+    let first = c.core.client.send(gensupport.Request{method: "POST", url: mu, query: sq, headers: shs, body: body})?
+    gensupport.check(first)?
+    let loc = first.header("Location") ?? ""
+    let resp = c.core.client.resumable(c.clock, c.rand, loc, mtype, data, cs, if checksum_off { "" } else { gensupport.crc32c_text(data) })?
+    gensupport.check(resp)?
+    gensupport.decode[raw.Object](resp)
+  }
+  let retries = match o.retry.policy {
+    RetryPolicy.Never => false
+    RetryPolicy.Idempotent => o.conds.is_some()
+    RetryPolicy.Always => true
+  }
+  let got = if retries {
+    o.c.run(o.retry, true, call) ?? e => return Err(call_err(e))
+  } else {
+    call([("x-goog-api-client", "gl-xo/preview gccl/${VERSION}")]) ?? e => return Err(StorageErr.Call(e))
+  }
+  let a = new_object(got)
+  if !checksum_off && cs == 0 {
+    let mine = crc32.update(0, data, crc32.Poly.Castagnoli)
+    if mine != a.crc32c {
+      return Err(StorageErr.Invalid("storage: object checksum mismatch: computed ${gensupport.crc32c_of(mine).quote()}, server ${gensupport.crc32c_of(a.crc32c).quote()}; the bucket may contain corrupted object"))
+    }
+  }
+  Ok(a)
+}
+
+/// The media type gensupport sends: the given one, none when forced
+/// empty, else sniffed from the first 512 bytes.
+fn media_type_of(m: gensupport.Media) -> Str {
+  if m.force_empty_content_type {
+    return ""
+  }
+  if m.content_type != "" {
+    return m.content_type
+  }
+  let n = if m.data.len() > 512 { 512 } else { m.data.len() }
+  mime.detect_content_type(m.data[0..n])
+}

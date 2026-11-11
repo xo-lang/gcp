@@ -4,6 +4,8 @@
 // multipart/related request, a larger one in a resumable session of
 // chunks, each chunk retried as Go retries it.
 
+use std/base64
+use std/crc32
 use std/http
 use std/mime
 use std/url
@@ -27,6 +29,24 @@ pub struct Media {
   /// (googleapi.ChunkSize); media smaller than it goes in one request,
   /// and 0 sends any media in one request.
   pub chunk_size: Int = DEFAULT_CHUNK_SIZE
+  /// The CRC32C of the whole media goes with the last chunk of a
+  /// resumable upload, as X-Goog-Hash (Go's googleapi.EnableAutoChecksum;
+  /// a multipart upload's caller puts it in the metadata).
+  pub auto_checksum: Bool = false
+}
+
+/// The CRC32C (Castagnoli) of data as the JSON API writes it: the
+/// big-endian bytes in standard base64 (Go's encodeUint32).
+pub fn crc32c_text(data: Bytes) -> Str { crc32c_of(crc32.update(0, data, crc32.Poly.Castagnoli)) }
+
+/// A CRC32C value as the JSON API writes it.
+pub fn crc32c_of(c: Int) -> Str {
+  var b = BytesBuilder.new()
+  b.write_byte(UInt8((c >> 24) & 255))
+  b.write_byte(UInt8((c >> 16) & 255))
+  b.write_byte(UInt8((c >> 8) & 255))
+  b.write_byte(UInt8(c & 255))
+  base64.encode(b.freeze(), base64.Base64.Std)
 }
 
 fn (m: Media) media_type() -> Str {
@@ -103,20 +123,22 @@ pub fn (c: Client[fx]) upload(clock: Clock, rand: Rand, req: Request, media_url:
   }
   check(first)?
   let loc = first.header("Location") ?? ""
-  c.resumable(clock, rand, loc, mtype, media.data, cs)
+  c.resumable(clock, rand, loc, mtype, media.data, cs, if media.auto_checksum { crc32c_text(media.data) } else { "" })
 }
 
-/// Go's ResumableUpload.Upload: each chunk (the last one shorter than
-/// `cs`, possibly empty) until the server stops answering
-/// `X-Http-Status-Code-Override: 308`.
-fn (c: Client[fx]) resumable(clock: Clock, rand: Rand, loc: Str, mtype: Str, data: Bytes, cs: Int) -> http.Response ! CallErr uses (net.dial, clock, rand, fx) {
+/// Go's ResumableUpload.Upload: each chunk of `data` to the session at
+/// `loc` (the last one shorter than `cs`, possibly empty) until the server
+/// stops answering `X-Http-Status-Code-Override: 308`; `checksum`, when
+/// not "", goes with the last chunk as `X-Goog-Hash: crc32c=...`.
+pub fn (c: Client[fx]) resumable(clock: Clock, rand: Rand, loc: Str, mtype: Str, data: Bytes, cs: Int, checksum: Str = "") -> http.Response ! CallErr uses (net.dial, clock, rand, fx) {
   var off = 0
   var end = if cs < data.len() { cs } else { data.len() }
-  var resp = c.chunk_with_retries(clock, rand, loc, mtype, data[0..end], 0, end < cs)?
+  var resp = c.chunk_with_retries(clock, rand, loc, mtype, data[0..end], 0, end < cs, if end < cs { checksum } else { "" })?
   while (resp.header("X-Http-Status-Code-Override") ?? "") == "308" {
     off = end
     end = if off + cs < data.len() { off + cs } else { data.len() }
-    resp = c.chunk_with_retries(clock, rand, loc, mtype, data[off..end], off, end - off < cs)?
+    let last = end - off < cs
+    resp = c.chunk_with_retries(clock, rand, loc, mtype, data[off..end], off, last, if last { checksum } else { "" })?
   }
   Ok(resp)
 }
@@ -138,7 +160,7 @@ fn should_retry(status: Int, err: CallErr?) -> Bool {
 /// Go's uploadChunkWithRetries: the chunk, again after a backoff pause
 /// (gax.Backoff from 100ms, doubling to 30s, a random pause up to it)
 /// while it should be retried, for at most 32 seconds.
-fn (c: Client[fx]) chunk_with_retries(clock: Clock, rand: Rand, loc: Str, mtype: Str, chunk: Bytes, off: Int, done: Bool) -> http.Response ! CallErr uses (net.dial, clock, rand, fx) {
+fn (c: Client[fx]) chunk_with_retries(clock: Clock, rand: Rand, loc: Str, mtype: Str, chunk: Bytes, off: Int, done: Bool, checksum: Str) -> http.Response ! CallErr uses (net.dial, clock, rand, fx) {
   let n = chunk.len()
   let range = if done {
     if n == 0 { "bytes */${off}" } else { "bytes ${off}-${off + n - 1}/${off + n}" }
@@ -159,7 +181,10 @@ fn (c: Client[fx]) chunk_with_retries(clock: Clock, rand: Rand, loc: Str, mtype:
       }
       clock.sleep(pause)
     }
-    let hs: List[(Str, Str)] = [("Content-Range", range), ("Content-Type", mtype), ("x-goog-api-client", "gl-xo/preview gdcl/${VERSION} gccl-invocation-id/${invocation} gccl-attempt-count/${attempts}"), ("X-Goog-Gcs-Idempotency-Token", invocation), ("X-GUploader-No-308", "yes")]
+    var hs: List[(Str, Str)] = [("Content-Range", range), ("Content-Type", mtype), ("x-goog-api-client", "gl-xo/preview gdcl/${VERSION} gccl-invocation-id/${invocation} gccl-attempt-count/${attempts}"), ("X-Goog-Gcs-Idempotency-Token", invocation), ("X-GUploader-No-308", "yes")]
+    if checksum != "" {
+      hs.push(("X-Goog-Hash", "crc32c=${checksum}"))
+    }
     last = c.send(Request{method: "POST", url: loc, query: url.values(), headers: hs, body: chunk})
     let status = match last {
       Ok(r) => r.status
