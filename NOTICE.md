@@ -20,9 +20,14 @@ This project ports code, behavior and tests from the following works:
   retries, reads, writes, copies and composes, signed URLs and POST
   policies, ACLs, HMAC keys, notifications and IAM policies, lifecycle,
   retention, soft delete, autoclass, restore and move).
+- cloud.google.com/go/bigquery v1.86.2, Copyright Google LLC, under the
+  Apache License, Version 2.0 (below): the BigQuery client (`bigquery`:
+  the client, datasets, tables, routines and models, access entries,
+  table IAM policies, schemas and their JSON form, errors and retries).
 - cloud.google.com/go/iam v1.12.0, Copyright Google LLC, under the
   Apache License, Version 2.0 (below): the IAM policy handle and its
-  Members, HasRole, Add, Remove and Roles (`storage`'s `Policy`).
+  Members, HasRole, Add, Remove and Roles (`storage`'s and `bigquery`'s
+  `Policy`).
 
 Google Cloud and its product names are trademarks of Google LLC. This
 project is not affiliated with or endorsed by Google.

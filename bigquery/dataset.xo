@@ -1,0 +1,606 @@
+// Datasets (dataset.go): the handle, its metadata, create, update with an
+// etag, delete, the listing, and the access entries.
+
+use std/json
+use github.com/xo-lang/gcp/gensupport
+use github.com/xo-lang/gcp/bigquery/v2 as raw
+
+/// A dataset (Go's Dataset): no request is made until a method is called.
+pub struct Dataset[fx: Effects] {
+  pub project_id: Str
+  pub dataset_id: Str
+  c: Client[fx]
+}
+
+/// A dataset's project and id, as an access entry names one (Go's
+/// *Dataset there; Dataset.ref gives it).
+pub struct DatasetRef {
+  pub project_id: Str
+  pub dataset_id: Str
+}
+
+/// A table's project, dataset and id, as an access entry or a foreign key
+/// names one (Go's *Table there; Table.ref gives it).
+pub struct TableRef {
+  pub project_id: Str
+  pub dataset_id: Str
+  pub table_id: Str
+}
+
+/// A routine's project, dataset and id, as an access entry names one
+/// (Go's *Routine there; Routine.ref gives it).
+pub struct RoutineRef {
+  pub project_id: Str
+  pub dataset_id: Str
+  pub routine_id: Str
+}
+
+/// The format of an identifier (Go's IdentifierFormat).
+pub enum IdentifierFormat {
+  /// `project.dataset.table` (Go's StandardSQLID).
+  StandardSql
+  /// `project:dataset.table` (Go's LegacySQLID).
+  LegacySql
+  /// `projects/p/datasets/d/tables/t` (Go's StorageAPIResourceID).
+  StorageApiResource
+}
+
+/// Go's ErrUnknownIdentifierFormat.
+pub const UNKNOWN_IDENTIFIER_FORMAT: Str = "unknown identifier format"
+
+/// The dataset of id in the client's project (Go's Dataset).
+pub fn (c: Client[fx]) dataset(id: Str) -> Dataset[fx] { c.dataset_in_project(c.project, id) }
+
+/// The dataset of id in project (Go's DatasetInProject).
+pub fn (c: Client[fx]) dataset_in_project(project: Str, id: Str) -> Dataset[fx] {
+  Dataset{project_id: project, dataset_id: id, c: c}
+}
+
+/// The dataset's project and id.
+pub fn (d: Dataset[fx]) ref() -> DatasetRef { DatasetRef{project_id: d.project_id, dataset_id: d.dataset_id} }
+
+/// The dataset's identifier (Go's Identifier): a project with a `-` is
+/// quoted in standard SQL; a storage API resource has none.
+pub fn (d: Dataset[fx]) identifier(f: IdentifierFormat) -> Str ! BqErr {
+  match f {
+    IdentifierFormat.LegacySql => Ok("${d.project_id}:${d.dataset_id}")
+    IdentifierFormat.StandardSql => Ok(if d.project_id.contains("-") { "`${d.project_id}`.${d.dataset_id}" } else { "${d.project_id}.${d.dataset_id}" })
+    IdentifierFormat.StorageApiResource => Err(BqErr.Invalid(UNKNOWN_IDENTIFIER_FORMAT))
+  }
+}
+
+/// A dataset's metadata (Go's DatasetMetadata).
+pub struct DatasetMetadata {
+  /// The user-friendly name.
+  pub name: Str = ""
+  pub description: Str = ""
+  /// The geo location; on create, the client's location when empty.
+  pub location: Str = ""
+  /// The default expiration of new tables (whole milliseconds).
+  pub default_table_expiration: Duration = 0s
+  pub labels: Map[Str, Str] = {}
+  pub access: List[AccessEntry] = []
+  pub default_encryption_config: EncryptionConfig? = None
+  /// The default partition expiration of new tables (whole milliseconds).
+  pub default_partition_expiration: Duration = 0s
+  pub default_collation: Str = ""
+  pub external_dataset_reference: ExternalDatasetReference? = None
+  /// The time travel window (whole hours).
+  pub max_time_travel: Duration = 0s
+  /// "" (logical, Go's LogicalStorageBillingModel) or "PHYSICAL".
+  pub storage_billing_model: Str = ""
+  /// Output only.
+  pub creation_time: Time? = None
+  /// Output only: when the dataset or any of its tables were modified.
+  pub last_modified_time: Time? = None
+  /// Output only: `project:dataset`.
+  pub full_id: Str = ""
+  /// Output only.
+  pub tags: List[DatasetTag] = []
+  pub is_case_insensitive: Bool = false
+  /// Output only: the etag an update can name.
+  pub etag: Str = ""
+}
+
+/// A tag of a dataset (Go's DatasetTag).
+pub struct DatasetTag {
+  pub tag_key: Str
+  pub tag_value: Str
+}
+
+/// Go's LogicalStorageBillingModel.
+pub const LOGICAL_STORAGE_BILLING_MODEL: Str = ""
+/// Go's PhysicalStorageBillingModel.
+pub const PHYSICAL_STORAGE_BILLING_MODEL: Str = "PHYSICAL"
+
+/// A dataset's default encryption, or a table's (Go's EncryptionConfig).
+pub struct EncryptionConfig {
+  /// The Cloud KMS key.
+  pub kms_key_name: Str = ""
+}
+
+/// A dataset backed by an external source (Go's ExternalDatasetReference).
+pub struct ExternalDatasetReference {
+  pub connection: Str = ""
+  pub external_source: Str = ""
+}
+
+/// A condition of an access binding (Go's Expr).
+pub struct Expr {
+  pub expression: Str = ""
+  pub title: Str = ""
+  pub description: Str = ""
+  pub location: Str = ""
+}
+
+/// A role of an access entry (Go's AccessRole).
+pub const OWNER_ROLE: Str = "OWNER"
+pub const READER_ROLE: Str = "READER"
+pub const WRITER_ROLE: Str = "WRITER"
+
+/// What an access entry grants to (Go's EntityType).
+pub enum EntityType {
+  /// A domain (Go's DomainEntity, 1).
+  Domain
+  /// A group's email (GroupEmailEntity, 2).
+  GroupEmail
+  /// A user's email (UserEmailEntity, 3).
+  UserEmail
+  /// A special group (SpecialGroupEntity, 4).
+  SpecialGroup
+  /// A view (ViewEntity, 5).
+  View
+  /// Another IAM member (IAMMemberEntity, 6).
+  IamMember
+  /// A routine (RoutineEntity, 7).
+  Routine
+  /// The resources of a dataset (DatasetEntity, 8).
+  Dataset
+}
+
+/// Go's number of the entity type.
+pub fn (e: EntityType) number() -> Int {
+  match e {
+    Domain => 1
+    GroupEmail => 2
+    UserEmail => 3
+    SpecialGroup => 4
+    View => 5
+    IamMember => 6
+    Routine => 7
+    Dataset => 8
+  }
+}
+
+/// An access permission of a dataset (Go's AccessEntry).
+pub struct AccessEntry {
+  pub role: Str = ""
+  pub entity_type: EntityType
+  /// The entity: an email, domain, special group or IAM member.
+  pub entity: Str = ""
+  /// The view granted access (entity_type View).
+  pub view: TableRef? = None
+  /// The routine granted access (entity_type Routine).
+  pub routine: RoutineRef? = None
+  /// The resources of a dataset granted access (entity_type Dataset).
+  pub dataset: DatasetAccessEntry? = None
+  pub condition: Expr? = None
+}
+
+/// The resources of a dataset an access entry grants (Go's
+/// DatasetAccessEntry).
+pub struct DatasetAccessEntry {
+  pub dataset: DatasetRef
+  /// The kinds of resources, e.g. "VIEWS".
+  pub target_types: List[Str] = []
+}
+
+fn expr_to_raw(e: Expr?) -> raw.Expr? {
+  let x = e ?? return None
+  Some(raw.Expr{expression: x.expression, title: x.title, description: x.description, location: x.location})
+}
+
+fn expr_of(e: raw.Expr?) -> Expr? {
+  let x = e ?? return None
+  Some(Expr{expression: x.expression, title: x.title, description: x.description, location: x.location})
+}
+
+fn access_to_raw(e: AccessEntry) -> raw.DatasetAccess {
+  var q = raw.DatasetAccess{role: e.role, condition: expr_to_raw(e.condition)}
+  match e.entity_type {
+    EntityType.Domain => { q.domain = e.entity }
+    EntityType.GroupEmail => { q.group_by_email = e.entity }
+    EntityType.UserEmail => { q.user_by_email = e.entity }
+    EntityType.SpecialGroup => { q.special_group = e.entity }
+    EntityType.View => {
+      q.view = match e.view {
+        Some(v) => Some(raw.TableReference{project_id: v.project_id, dataset_id: v.dataset_id, table_id: v.table_id})
+        None => None
+      }
+    }
+    EntityType.IamMember => { q.iam_member = e.entity }
+    EntityType.Routine => {
+      q.routine = match e.routine {
+        Some(r) => Some(raw.RoutineReference{project_id: r.project_id, dataset_id: r.dataset_id, routine_id: r.routine_id})
+        None => None
+      }
+    }
+    EntityType.Dataset => {
+      q.dataset = match e.dataset {
+        Some(d) => Some(raw.DatasetAccessEntry{dataset: Some(raw.DatasetReference{project_id: d.dataset.project_id, dataset_id: d.dataset.dataset_id}), target_types: d.target_types})
+        None => None
+      }
+    }
+  }
+  q
+}
+
+/// Go's bqToAccessEntry: the first non-empty member names the type.
+fn access_of(q: raw.DatasetAccess) -> AccessEntry ! BqErr {
+  var e = if q.domain != "" {
+    AccessEntry{role: q.role, entity_type: EntityType.Domain, entity: q.domain}
+  } else if q.group_by_email != "" {
+    AccessEntry{role: q.role, entity_type: EntityType.GroupEmail, entity: q.group_by_email}
+  } else if q.user_by_email != "" {
+    AccessEntry{role: q.role, entity_type: EntityType.UserEmail, entity: q.user_by_email}
+  } else if q.special_group != "" {
+    AccessEntry{role: q.role, entity_type: EntityType.SpecialGroup, entity: q.special_group}
+  } else if let Some(v) = q.view {
+    AccessEntry{role: q.role, entity_type: EntityType.View, view: Some(TableRef{project_id: v.project_id, dataset_id: v.dataset_id, table_id: v.table_id})}
+  } else if q.iam_member != "" {
+    AccessEntry{role: q.role, entity_type: EntityType.IamMember, entity: q.iam_member}
+  } else if let Some(r) = q.routine {
+    AccessEntry{role: q.role, entity_type: EntityType.Routine, routine: Some(RoutineRef{project_id: r.project_id, dataset_id: r.dataset_id, routine_id: r.routine_id})}
+  } else if let Some(d) = q.dataset {
+    let ref = d.dataset ?? raw.DatasetReference{}
+    AccessEntry{role: q.role, entity_type: EntityType.Dataset, dataset: Some(DatasetAccessEntry{dataset: DatasetRef{project_id: ref.project_id, dataset_id: ref.dataset_id}, target_types: d.target_types})}
+  } else {
+    return Err(BqErr.Invalid("bigquery: invalid access value"))
+  }
+  e.condition = expr_of(q.condition)
+  Ok(e)
+}
+
+fn encryption_to_raw(e: EncryptionConfig?) -> raw.EncryptionConfiguration? {
+  let x = e ?? return None
+  Some(raw.EncryptionConfiguration{kms_key_name: x.kms_key_name})
+}
+
+fn encryption_of(e: raw.EncryptionConfiguration?) -> EncryptionConfig? {
+  let x = e ?? return None
+  Some(EncryptionConfig{kms_key_name: x.kms_key_name})
+}
+
+fn external_ref_to_raw(e: ExternalDatasetReference?) -> raw.ExternalDatasetReference? {
+  let x = e ?? return None
+  Some(raw.ExternalDatasetReference{connection: x.connection, external_source: x.external_source})
+}
+
+fn external_ref_of(e: raw.ExternalDatasetReference?) -> ExternalDatasetReference? {
+  let x = e ?? return None
+  Some(ExternalDatasetReference{connection: x.connection, external_source: x.external_source})
+}
+
+/// Go's DatasetMetadata.toBQ.
+fn dataset_to_raw(md: DatasetMetadata) -> raw.Dataset {
+  var ds = raw.Dataset{friendly_name: md.name, description: md.description, location: md.location, default_table_expiration_ms: md.default_table_expiration.millis(), default_partition_expiration_ms: md.default_partition_expiration.millis(), default_collation: md.default_collation, max_time_travel_hours: md.max_time_travel.nanos() / 3600000000000, storage_billing_model: md.storage_billing_model, is_case_insensitive: md.is_case_insensitive, labels: md.labels, etag: md.etag, id: md.full_id}
+  if let Some(t) = md.creation_time {
+    ds.creation_time = t.unix_millis()
+  }
+  if let Some(t) = md.last_modified_time {
+    ds.last_modified_time = t.unix_millis()
+  }
+  ds.access = md.access.map(access_to_raw)
+  ds.default_encryption_configuration = encryption_to_raw(md.default_encryption_config)
+  ds.external_dataset_reference = external_ref_to_raw(md.external_dataset_reference)
+  ds
+}
+
+/// Go's bqToDatasetMetadata.
+fn dataset_of(d: raw.Dataset) -> DatasetMetadata ! BqErr {
+  var access: List[AccessEntry] = []
+  for a in d.access {
+    access.push(access_of(a)?)
+  }
+  var tags: List[DatasetTag] = []
+  for t in d.tags {
+    tags.push(DatasetTag{tag_key: t.tag_key, tag_value: t.tag_value})
+  }
+  Ok(DatasetMetadata{creation_time: millis_time(d.creation_time), last_modified_time: millis_time(d.last_modified_time), default_table_expiration: Duration.from_millis(d.default_table_expiration_ms), default_partition_expiration: Duration.from_millis(d.default_partition_expiration_ms), default_collation: d.default_collation, external_dataset_reference: external_ref_of(d.external_dataset_reference), max_time_travel: Duration.from_secs_int(d.max_time_travel_hours * 3600), storage_billing_model: d.storage_billing_model, default_encryption_config: encryption_of(d.default_encryption_configuration), description: d.description, name: d.friendly_name, full_id: d.id, location: d.location, labels: d.labels, is_case_insensitive: d.is_case_insensitive, etag: d.etag, access: access, tags: tags})
+}
+
+/// The options of a dataset call (Go's DatasetOption).
+pub struct DatasetOptions {
+  /// The IAM policy version of the access entries (Go's
+  /// WithAccessPolicyVersion).
+  pub access_policy_version: Int? = None
+  /// What metadata reads: one of the DATASET_VIEW constants (Go's
+  /// WithDatasetView).
+  pub dataset_view: Str? = None
+  /// What an update changes: one of the UPDATE_MODE constants (Go's
+  /// WithUpdateMode).
+  pub update_mode: Str? = None
+}
+
+/// Go's DatasetView values.
+pub const METADATA_DATASET_VIEW: Str = "METADATA"
+pub const ACL_DATASET_VIEW: Str = "ACL"
+pub const FULL_DATASET_VIEW: Str = "FULL"
+pub const UNSPECIFIED_DATASET_VIEW: Str = "DATASET_VIEW_UNSPECIFIED"
+
+/// Go's DatasetUpdateMode values.
+pub const METADATA_UPDATE_MODE: Str = "UPDATE_METADATA"
+pub const ACL_UPDATE_MODE: Str = "UPDATE_ACL"
+pub const FULL_UPDATE_MODE: Str = "UPDATE_FULL"
+pub const UNSPECIFIED_UPDATE_MODE: Str = "UPDATE_MODE_UNSPECIFIED"
+
+/// Creates the dataset (Go's Create and CreateWithOptions): md None is an
+/// empty one, and a dataset with no location takes the client's. Not
+/// retried.
+pub fn (d: Dataset[fx]) create(md: DatasetMetadata? = None, opts: DatasetOptions = DatasetOptions{}) -> () ! BqErr uses (net.dial, clock, rand, fx) {
+  var ds = match md {
+    Some(m) => dataset_to_raw(m)
+    None => raw.Dataset{}
+  }
+  ds.dataset_reference = Some(raw.DatasetReference{dataset_id: d.dataset_id})
+  if ds.location == "" {
+    ds.location = d.c.location
+  }
+  once(d.c.svc.datasets.insert(d.project_id, ds, raw.DatasetsInsertOptions{access_policy_version: opts.access_policy_version, headers: client_headers()}))?
+  Ok(())
+}
+
+/// The dataset's metadata (Go's Metadata and MetadataWithOptions).
+pub fn (d: Dataset[fx]) metadata(opts: DatasetOptions = DatasetOptions{}) -> DatasetMetadata ! BqErr uses (net.dial, clock, rand, fx) {
+  let ds = d.c.retry(DEFAULT_RETRY_REASONS, fn() -> raw.Dataset ! gensupport.CallErr uses net.dial, clock, rand, fx {
+    d.c.svc.datasets.get(d.project_id, d.dataset_id, raw.DatasetsGetOptions{access_policy_version: opts.access_policy_version, dataset_view: opts.dataset_view, headers: client_headers()})
+  })?
+  dataset_of(ds)
+}
+
+/// Deletes the dataset, which must be empty (Go's Delete).
+pub fn (d: Dataset[fx]) delete() -> () ! BqErr uses (net.dial, clock, rand, fx) { d.delete_internal(false) }
+
+/// Deletes the dataset and its tables (Go's DeleteWithContents).
+pub fn (d: Dataset[fx]) delete_with_contents() -> () ! BqErr uses (net.dial, clock, rand, fx) { d.delete_internal(true) }
+
+fn (d: Dataset[fx]) delete_internal(contents: Bool) -> () ! BqErr uses (net.dial, clock, rand, fx) {
+  d.c.retry(DEFAULT_RETRY_REASONS, fn() -> () ! gensupport.CallErr uses net.dial, clock, rand, fx {
+    d.c.svc.datasets.delete(d.project_id, d.dataset_id, raw.DatasetsDeleteOptions{delete_contents: Some(contents), headers: client_headers()})
+  })
+}
+
+/// The changes of a dataset update (Go's DatasetMetadataToUpdate): a
+/// field set to Some is sent, and a zero duration clears its setting.
+pub struct DatasetMetadataToUpdate {
+  pub description: Str? = None
+  pub name: Str? = None
+  pub default_table_expiration: Duration? = None
+  pub default_partition_expiration: Duration? = None
+  pub default_encryption_config: EncryptionConfig? = None
+  pub default_collation: Str? = None
+  pub external_dataset_reference: ExternalDatasetReference? = None
+  pub max_time_travel: Duration? = None
+  pub storage_billing_model: Str? = None
+  /// Replaces the access entries; Some([]) clears them.
+  pub access: List[AccessEntry]? = None
+  pub is_case_insensitive: Bool? = None
+  pub labels: LabelUpdater = LabelUpdater{}
+}
+
+/// Sets a label (Go's SetLabel).
+pub fn (var u: DatasetMetadataToUpdate) set_label(name: Str, value: Str) { u.labels.set_label(name, value) }
+
+/// Deletes a label (Go's DeleteLabel).
+pub fn (var u: DatasetMetadataToUpdate) delete_label(name: Str) { u.labels.delete_label(name) }
+
+/// Label changes (Go's labelUpdater).
+pub struct LabelUpdater {
+  set: Map[Str, Str]? = None
+  deleted: List[Str]? = None
+}
+
+pub fn (var u: LabelUpdater) set_label(name: Str, value: Str) {
+  var m = u.set ?? {}
+  m[name] = value
+  u.set = Some(m)
+}
+
+pub fn (var u: LabelUpdater) delete_label(name: Str) {
+  var l = u.deleted ?? []
+  if !l.contains(name) {
+    l.push(name)
+  }
+  u.deleted = Some(l)
+}
+
+/// The labels member of an update body, None when nothing changes (Go's
+/// update(): the set labels, each deleted one null).
+fn (u: LabelUpdater) body() -> json.Value? {
+  if u.set.is_none() && u.deleted.is_none() {
+    return None
+  }
+  var fs: List[(Str, json.Value)] = []
+  for (k, v) in u.set ?? {} {
+    fs.push((k, json.Value.Str(v)))
+  }
+  for k in u.deleted ?? [] {
+    fs.push((k, json.Value.Null))
+  }
+  Some(json.Value.Object(fs))
+}
+
+/// A JSON object's members, built in order.
+struct Body {
+  fs: List[(Str, json.Value)] = []
+}
+
+fn (var b: Body) put(k: Str, v: json.Value) { b.fs.push((k, v)) }
+
+fn (b: Body) value() -> json.Value { json.Value.Object(b.fs) }
+
+fn jstr(s: Str) -> json.Value { json.Value.Str(s) }
+
+/// An int64 the API sends as a string (Go's `json:",string"`).
+fn jint(n: Int) -> json.Value { json.Value.Str("${n}") }
+
+fn jlist(xs: List[Str]) -> json.Value { json.Value.List(xs.map(jstr)) }
+
+fn jmap(m: Map[Str, Str]) -> json.Value {
+  var fs: List[(Str, json.Value)] = []
+  for (k, v) in m {
+    fs.push((k, jstr(v)))
+  }
+  json.Value.Object(fs)
+}
+
+/// A generated model's JSON (its omitempty members).
+fn jraw[T: Json](v: T) -> json.Value { json.parse_value(json.encode_str(v)).ok() ?? json.Value.Null }
+
+/// Go's DatasetMetadataToUpdate.toBQ, as the JSON body it sends.
+fn dataset_update_body(u: DatasetMetadataToUpdate) -> json.Value {
+  var b = Body{}
+  if let Some(v) = u.description {
+    b.put("description", jstr(v))
+  }
+  if let Some(v) = u.name {
+    b.put("friendlyName", jstr(v))
+  }
+  if let Some(d) = u.default_table_expiration {
+    b.put("defaultTableExpirationMs", if d.nanos() == 0 { json.Value.Null } else { jint(d.millis()) })
+  }
+  if let Some(d) = u.default_partition_expiration {
+    b.put("defaultPartitionExpirationMs", if d.nanos() == 0 { json.Value.Null } else { jint(d.millis()) })
+  }
+  if let Some(v) = u.default_collation {
+    b.put("defaultCollation", jstr(v))
+  }
+  if let Some(r) = u.external_dataset_reference {
+    b.put("externalDatasetReference", jraw(raw.ExternalDatasetReference{connection: r.connection, external_source: r.external_source}))
+  }
+  if let Some(d) = u.max_time_travel {
+    let h = d.nanos() / 3600000000000
+    // Go nulls it only for a zero duration; under an hour sends 0, which
+    // omitempty drops
+    if d.nanos() == 0 {
+      b.put("maxTimeTravelHours", json.Value.Null)
+    } else if h != 0 {
+      b.put("maxTimeTravelHours", jint(h))
+    }
+  }
+  if let Some(v) = u.storage_billing_model {
+    b.put("storageBillingModel", jstr(v))
+  }
+  if let Some(e) = u.default_encryption_config {
+    // ForceSendFields KmsKeyName: sent even when empty
+    b.put("defaultEncryptionConfiguration", json.Value.Object([("kmsKeyName", jstr(e.kms_key_name))]))
+  }
+  if let Some(a) = u.access {
+    b.put("access", if a.is_empty() { json.Value.Null } else { json.Value.List(a.map(fn(e) { jraw(access_to_raw(e)) })) })
+  }
+  if let Some(v) = u.is_case_insensitive {
+    b.put("isCaseInsensitive", json.Value.Bool(v))
+  }
+  if let Some(l) = u.labels.body() {
+    b.put("labels", l)
+  }
+  b.value()
+}
+
+/// Updates the dataset's metadata and returns it (Go's Update and
+/// UpdateWithOptions): with an etag, only when it is the dataset's
+/// (If-Match). Retried as a read is.
+pub fn (d: Dataset[fx]) update(u: DatasetMetadataToUpdate, etag: Str, opts: DatasetOptions = DatasetOptions{}) -> DatasetMetadata ! BqErr uses (net.dial, clock, rand, fx) {
+  var q: List[(Str, Str)] = []
+  if let Some(v) = opts.access_policy_version {
+    q.push(("accessPolicyVersion", "${v}"))
+  }
+  if let Some(m) = opts.update_mode {
+    q.push(("updateMode", m))
+  }
+  let body = dataset_update_body(u)
+  let ds = d.c.retry(DEFAULT_RETRY_REASONS, fn() -> raw.Dataset ! gensupport.CallErr uses net.dial, clock, rand, fx {
+    d.c.send_json[raw.Dataset]("PATCH", "projects/{+projectId}/datasets/{+datasetId}", {"projectId": d.project_id, "datasetId": d.dataset_id}, q, etag, body)
+  })?
+  dataset_of(ds)
+}
+
+/// The datasets of a project (Go's DatasetIterator).
+pub struct DatasetIterator[fx: Effects] {
+  /// Whether hidden datasets are listed too (Go's ListHidden).
+  pub list_hidden: Bool = false
+  /// A label filter, e.g. `labels.env:prod` (Go's Filter).
+  pub filter: Str = ""
+  pub project_id: Str
+  c: Client[fx]
+  page: Pager[Dataset[fx]] = Pager{}
+}
+
+/// The datasets of the client's project (Go's Datasets).
+pub fn (c: Client[fx]) datasets() -> DatasetIterator[fx] { c.datasets_in_project(c.project) }
+
+/// The datasets of project (Go's DatasetsInProject).
+pub fn (c: Client[fx]) datasets_in_project(project: Str) -> DatasetIterator[fx] {
+  DatasetIterator{project_id: project, c: c}
+}
+
+/// The next dataset, None after the last (Go's Next and iterator.Done).
+pub fn (var it: DatasetIterator[fx]) next() -> Dataset[fx]? ! BqErr uses (net.dial, clock, rand, fx) {
+  while it.page.needs_fetch() {
+    let c = it.c
+    let project = it.project_id
+    let tok = it.page.token
+    let o = raw.DatasetsListOptions{all: Some(it.list_hidden), filter: if it.filter == "" { None } else { Some(it.filter) }, page_token: Some(tok), headers: client_headers()}
+    let r = c.retry(DEFAULT_RETRY_REASONS, fn() -> raw.DatasetList ! gensupport.CallErr uses net.dial, clock, rand, fx {
+      c.svc.datasets.list(project, o)
+    })
+    match r {
+      Ok(l) => {
+        var items: List[Dataset[fx]] = []
+        for x in l.datasets {
+          let ref = x.dataset_reference ?? raw.DatasetReference{}
+          items.push(Dataset{project_id: ref.project_id, dataset_id: ref.dataset_id, c: c})
+        }
+        it.page.fill(items, l.next_page_token)
+      }
+      Err(e) => {
+        it.page.fail(e)
+      }
+    }
+  }
+  it.page.take()
+}
+
+/// Go's iterator.PageInfo under Next: pages fetched with the previous
+/// page's token ("" first) until a page has none; an error stays.
+struct Pager[T] {
+  items: List[T] = []
+  token: Str = ""
+  started: Bool = false
+  done: Bool = false
+  err: BqErr? = None
+}
+
+fn (p: Pager[T]) needs_fetch() -> Bool {
+  p.err.is_none() && p.items.is_empty() && !p.done
+}
+
+fn (var p: Pager[T]) fill(items: List[T], next: Str) {
+  p.items = items
+  p.started = true
+  p.token = next
+  if next == "" {
+    p.done = true
+  }
+}
+
+fn (var p: Pager[T]) fail(e: BqErr) { p.err = Some(e) }
+
+fn (var p: Pager[T]) take() -> T? ! BqErr {
+  if let Some(e) = p.err {
+    return Err(e)
+  }
+  let x = p.items.get(0) ?? return Ok(None)
+  p.items = p.items[1..p.items.len()]
+  Ok(Some(x))
+}

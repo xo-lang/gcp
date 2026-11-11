@@ -1,0 +1,605 @@
+// Tables (table.go): the handle, its metadata, create, update with an
+// etag, delete and the listing. Not here yet: ExternalDataConfig (step 4)
+// and MaxStaleness, an INTERVAL value (step 2).
+
+use std/json
+use github.com/xo-lang/gcp/gensupport
+use github.com/xo-lang/gcp/bigquery/v2 as raw
+
+/// A table (Go's Table): no request is made until a method is called.
+pub struct Table[fx: Effects] {
+  pub project_id: Str
+  pub dataset_id: Str
+  pub table_id: Str
+  c: Client[fx]
+}
+
+/// The table of id in the dataset (Go's Table).
+pub fn (d: Dataset[fx]) table(id: Str) -> Table[fx] {
+  Table{project_id: d.project_id, dataset_id: d.dataset_id, table_id: id, c: d.c}
+}
+
+/// The table's project, dataset and id.
+pub fn (t: Table[fx]) ref() -> TableRef { TableRef{project_id: t.project_id, dataset_id: t.dataset_id, table_id: t.table_id} }
+
+/// The table's identifier (Go's Identifier).
+pub fn (t: Table[fx]) identifier(f: IdentifierFormat) -> Str ! BqErr {
+  match f {
+    IdentifierFormat.LegacySql => Ok("${t.project_id}:${t.dataset_id}.${t.table_id}")
+    IdentifierFormat.StorageApiResource => Ok("projects/${t.project_id}/datasets/${t.dataset_id}/tables/${t.table_id}")
+    IdentifierFormat.StandardSql => Ok("${t.project_id}.${t.dataset_id}.${t.table_id}")
+  }
+}
+
+/// `project:dataset.table` (Go's FullyQualifiedName).
+pub fn (t: Table[fx]) fully_qualified_name() -> Str { "${t.project_id}:${t.dataset_id}.${t.table_id}" }
+
+/// A table's type (Go's TableType).
+pub const REGULAR_TABLE: Str = "TABLE"
+pub const VIEW_TABLE: Str = "VIEW"
+pub const EXTERNAL_TABLE: Str = "EXTERNAL"
+pub const MATERIALIZED_VIEW_TABLE: Str = "MATERIALIZED_VIEW"
+pub const SNAPSHOT_TABLE: Str = "SNAPSHOT"
+
+/// A time partitioning's unit (Go's TimePartitioningType).
+pub const DAY_PARTITIONING_TYPE: Str = "DAY"
+pub const HOUR_PARTITIONING_TYPE: Str = "HOUR"
+pub const MONTH_PARTITIONING_TYPE: Str = "MONTH"
+pub const YEAR_PARTITIONING_TYPE: Str = "YEAR"
+
+/// A table's metadata (Go's TableMetadata).
+pub struct TableMetadata {
+  /// The user-friendly name.
+  pub name: Str = ""
+  /// Output only.
+  pub location: Str = ""
+  pub description: Str = ""
+  pub schema: Schema = []
+  pub materialized_view: MaterializedViewDefinition? = None
+  /// A view's query; a view has no schema.
+  pub view_query: Str = ""
+  pub use_legacy_sql: Bool = false
+  pub use_standard_sql: Bool = false
+  pub time_partitioning: TimePartitioning? = None
+  pub range_partitioning: RangePartitioning? = None
+  pub require_partition_filter: Bool = false
+  pub clustering: Clustering? = None
+  /// None: the dataset's default, if any.
+  pub expiration_time: Time? = None
+  pub labels: Map[Str, Str] = {}
+  pub encryption_config: EncryptionConfig? = None
+  /// Output only.
+  pub full_id: Str = ""
+  /// Output only: one of the TABLE constants.
+  pub type_: Str = ""
+  /// Output only.
+  pub creation_time: Time? = None
+  /// Output only.
+  pub last_modified_time: Time? = None
+  /// Output only.
+  pub num_bytes: Int = 0
+  /// Output only.
+  pub num_long_term_bytes: Int = 0
+  /// Output only.
+  pub num_rows: Int = 0
+  pub snapshot_definition: SnapshotDefinition? = None
+  pub clone_definition: CloneDefinition? = None
+  /// Output only.
+  pub streaming_buffer: StreamingBuffer? = None
+  /// Output only.
+  pub etag: Str = ""
+  pub default_collation: Str = ""
+  pub table_constraints: TableConstraints? = None
+  pub resource_tags: Map[Str, Str]? = None
+  pub big_lake_configuration: BigLakeConfiguration? = None
+}
+
+/// Go's TimePartitioning.
+pub struct TimePartitioning {
+  /// One of the PARTITIONING_TYPE constants; "" is DAY.
+  pub type_: Str = ""
+  /// How long a partition is kept (whole milliseconds), 0 for always.
+  pub expiration: Duration = 0s
+  /// The column, "" for the load time.
+  pub field: Str = ""
+  pub require_partition_filter: Bool = false
+}
+
+/// Go's RangePartitioning.
+pub struct RangePartitioning {
+  pub field: Str
+  pub range: RangePartitioningRange? = None
+}
+
+/// Go's RangePartitioningRange.
+pub struct RangePartitioningRange {
+  pub start: Int = 0
+  pub end: Int = 0
+  pub interval: Int = 0
+}
+
+/// Go's Clustering.
+pub struct Clustering {
+  pub fields: List[Str] = []
+}
+
+/// Go's MaterializedViewDefinition (without MaxStaleness, an INTERVAL,
+/// which comes with step 2's values).
+pub struct MaterializedViewDefinition {
+  pub enable_refresh: Bool = false
+  /// Output only.
+  pub last_refresh_time: Time? = None
+  pub query: Str = ""
+  pub refresh_interval: Duration = 0s
+  pub allow_non_incremental_definition: Bool = false
+}
+
+/// Go's SnapshotDefinition.
+pub struct SnapshotDefinition {
+  pub base_table_reference: TableRef? = None
+  pub snapshot_time: Time? = None
+}
+
+/// Go's CloneDefinition.
+pub struct CloneDefinition {
+  pub base_table_reference: TableRef? = None
+  pub clone_time: Time? = None
+}
+
+/// Go's StreamingBuffer.
+pub struct StreamingBuffer {
+  pub estimated_bytes: Int = 0
+  pub estimated_rows: Int = 0
+  pub oldest_entry_time: Time? = None
+}
+
+/// Go's TableConstraints.
+pub struct TableConstraints {
+  pub primary_key: PrimaryKey? = None
+  /// Some([]) on an update clears them.
+  pub foreign_keys: List[ForeignKey]? = None
+}
+
+/// Go's PrimaryKey.
+pub struct PrimaryKey {
+  pub columns: List[Str] = []
+}
+
+/// Go's ForeignKey.
+pub struct ForeignKey {
+  pub name: Str = ""
+  pub referenced_table: TableRef
+  pub column_references: List[ColumnReference] = []
+}
+
+/// Go's ColumnReference.
+pub struct ColumnReference {
+  pub referencing_column: Str
+  pub referenced_column: Str
+}
+
+/// Go's BigLakeConfiguration.
+pub struct BigLakeConfiguration {
+  pub connection_id: Str = ""
+  pub storage_uri: Str = ""
+  /// "FILE_FORMAT_UNSPECIFIED" or "PARQUET".
+  pub file_format: Str = ""
+  /// "TABLE_FORMAT_UNSPECIFIED" or "ICEBERG".
+  pub table_format: Str = ""
+}
+
+fn table_ref_raw(t: TableRef) -> raw.TableReference { raw.TableReference{project_id: t.project_id, dataset_id: t.dataset_id, table_id: t.table_id} }
+
+fn table_ref_of(t: raw.TableReference?) -> TableRef? {
+  let x = t ?? return None
+  Some(TableRef{project_id: x.project_id, dataset_id: x.dataset_id, table_id: x.table_id})
+}
+
+fn rfc3339_or_empty(t: Time?) -> Str {
+  match t {
+    Some(x) => x.format_rfc3339()
+    // Go formats the zero time
+    None => "0001-01-01T00:00:00Z"
+  }
+}
+
+fn partitioning_raw(p: TimePartitioning) -> raw.TimePartitioning {
+  raw.TimePartitioning{type_: if p.type_ == "" { "DAY" } else { p.type_ }, expiration_ms: p.expiration.millis(), field: p.field, require_partition_filter: p.require_partition_filter}
+}
+
+fn foreign_key_raw(fk: ForeignKey) -> raw.TableConstraintsForeignKeys {
+  raw.TableConstraintsForeignKeys{name: fk.name, referenced_table: Some(raw.TableConstraintsForeignKeysReferencedTable{dataset_id: fk.referenced_table.dataset_id, project_id: fk.referenced_table.project_id, table_id: fk.referenced_table.table_id}), column_references: fk.column_references.map(fn(c) { raw.TableConstraintsForeignKeysColumnReferences{referenced_column: c.referenced_column, referencing_column: c.referencing_column} })}
+}
+
+/// Sets member k of an object (adds it, or replaces it).
+fn jset(v: json.Value, k: Str, x: json.Value) -> json.Value {
+  match v {
+    json.Value.Object(fs) => {
+      var out: List[(Str, json.Value)] = []
+      var found = false
+      for (n, y) in fs {
+        if n == k {
+          out.push((n, x))
+          found = true
+        } else {
+          out.push((n, y))
+        }
+      }
+      if !found {
+        out.push((k, x))
+      }
+      json.Value.Object(out)
+    }
+    _ => json.Value.Object([(k, x)])
+  }
+}
+
+fn jget(v: json.Value, k: Str) -> json.Value { v.get(k) ?? json.Value.Object([]) }
+
+fn materialized_raw(m: MaterializedViewDefinition) -> json.Value {
+  var v = jraw(raw.MaterializedViewDefinition{enable_refresh: m.enable_refresh, query: m.query, last_refresh_time: match m.last_refresh_time {
+    Some(t) => t.unix_millis()
+    // Go's zero time in milliseconds
+    None => -62135596800000
+  }, refresh_interval_ms: m.refresh_interval.millis(), allow_non_incremental_definition: m.allow_non_incremental_definition})
+  // ForceSendFields EnableRefresh and AllowNonIncrementalDefinition
+  v = jset(v, "enableRefresh", json.Value.Bool(m.enable_refresh))
+  jset(v, "allowNonIncrementalDefinition", json.Value.Bool(m.allow_non_incremental_definition))
+}
+
+/// Go's TableMetadata.toBQ as the JSON body, with the table's reference.
+fn table_create_body(tm: TableMetadata?, ref: raw.TableReference) -> json.Value ! BqErr {
+  let m = tm ?? return Ok(jraw(raw.Table{table_reference: Some(ref)}))
+  if !m.schema.is_empty() && m.view_query != "" {
+    return Err(BqErr.Invalid("bigquery: provide Schema or ViewQuery, not both"))
+  }
+  var t = raw.Table{friendly_name: m.name, description: m.description, labels: m.labels, table_reference: Some(ref)}
+  if !m.schema.is_empty() {
+    t.schema = Some(schema_to_raw(m.schema))
+  }
+  var force_view = false
+  if m.view_query != "" {
+    if m.use_standard_sql && m.use_legacy_sql {
+      return Err(BqErr.Invalid("bigquery: cannot provide both UseStandardSQL and UseLegacySQL"))
+    }
+    t.view = Some(raw.ViewDefinition{query: m.view_query, use_legacy_sql: m.use_legacy_sql})
+    force_view = !m.use_legacy_sql
+  } else if m.use_legacy_sql || m.use_standard_sql {
+    return Err(BqErr.Invalid("bigquery: UseLegacy/StandardSQL requires ViewQuery"))
+  }
+  if let Some(p) = m.time_partitioning {
+    t.time_partitioning = Some(partitioning_raw(p))
+  }
+  t.clustering = match m.clustering {
+    Some(c) => Some(raw.Clustering{fields: c.fields})
+    None => None
+  }
+  t.require_partition_filter = m.require_partition_filter
+  t.snapshot_definition = match m.snapshot_definition {
+    Some(s) => Some(raw.SnapshotDefinition{base_table_reference: match s.base_table_reference {
+      Some(r) => Some(table_ref_raw(r))
+      None => None
+    }, snapshot_time: rfc3339_or_empty(s.snapshot_time)})
+    None => None
+  }
+  t.clone_definition = match m.clone_definition {
+    Some(s) => Some(raw.CloneDefinition{base_table_reference: match s.base_table_reference {
+      Some(r) => Some(table_ref_raw(r))
+      None => None
+    }, clone_time: rfc3339_or_empty(s.clone_time)})
+    None => None
+  }
+  t.biglake_configuration = match m.big_lake_configuration {
+    Some(b) => Some(raw.BigLakeConfiguration{connection_id: b.connection_id, storage_uri: b.storage_uri, file_format: b.file_format, table_format: b.table_format})
+    None => None
+  }
+  if let Some(e) = m.expiration_time {
+    t.expiration_time = time_millis(e)
+  }
+  t.encryption_configuration = encryption_to_raw(m.encryption_config)
+  t.id = m.full_id
+  t.type_ = m.type_
+  t.num_bytes = m.num_bytes
+  t.num_long_term_bytes = m.num_long_term_bytes
+  t.num_rows = m.num_rows
+  t.etag = m.etag
+  if let Some(c) = m.creation_time {
+    t.creation_time = c.unix_millis()
+  }
+  if let Some(c) = m.last_modified_time {
+    t.last_modified_time = c.unix_millis()
+  }
+  t.default_collation = m.default_collation
+  if let Some(tc) = m.table_constraints {
+    t.table_constraints = Some(raw.TableConstraints{primary_key: match tc.primary_key {
+      Some(pk) => Some(raw.TableConstraintsPrimaryKey{columns: pk.columns})
+      None => None
+    }, foreign_keys: (tc.foreign_keys ?? []).map(foreign_key_raw)})
+  }
+  if let Some(rt) = m.resource_tags {
+    t.resource_tags = rt
+  }
+  var v = jraw(t)
+  if force_view {
+    v = jset(v, "view", jset(jget(v, "view"), "useLegacySql", json.Value.Bool(false)))
+  }
+  if let Some(rp) = m.range_partitioning {
+    v = jset(v, "rangePartitioning", range_partitioning_json(rp))
+  }
+  if let Some(mv) = m.materialized_view {
+    v = jset(v, "materializedView", materialized_raw(mv))
+  }
+  if let Some(rt) = m.resource_tags {
+    // a non-nil map is sent even when empty
+    v = jset(v, "resourceTags", jmap(rt))
+  }
+  Ok(v)
+}
+
+/// Go's RangePartitioning.toBQ: the range's start, end and interval are
+/// forced, so a 0 is sent.
+fn range_partitioning_json(rp: RangePartitioning) -> json.Value {
+  var v = jraw(raw.RangePartitioning{field: rp.field})
+  if let Some(r) = rp.range {
+    v = jset(v, "range", json.Value.Object([("start", jint(r.start)), ("end", jint(r.end)), ("interval", jint(r.interval))]))
+  }
+  v
+}
+
+/// Creates the table (Go's Create): md None is an empty one. Retried as a
+/// read is.
+pub fn (t: Table[fx]) create(md: TableMetadata? = None) -> () ! BqErr uses (net.dial, clock, rand, fx) {
+  let body = table_create_body(md, raw.TableReference{project_id: t.project_id, dataset_id: t.dataset_id, table_id: t.table_id})?
+  t.c.retry(DEFAULT_RETRY_REASONS, fn() -> raw.Table ! gensupport.CallErr uses net.dial, clock, rand, fx {
+    t.c.send_json[raw.Table]("POST", "projects/{+projectId}/datasets/{+datasetId}/tables", {"projectId": t.project_id, "datasetId": t.dataset_id}, [], "", body)
+  })?
+  Ok(())
+}
+
+/// What a table's metadata read returns (Go's TableMetadataView).
+pub const BASIC_METADATA_VIEW: Str = "BASIC"
+pub const FULL_METADATA_VIEW: Str = "FULL"
+pub const STORAGE_STATS_METADATA_VIEW: Str = "STORAGE_STATS"
+
+/// The options of a table's metadata read (Go's TableMetadataOption).
+pub struct TableMetadataOptions {
+  /// One of the METADATA_VIEW constants (Go's WithMetadataView).
+  pub view: Str? = None
+}
+
+/// The table's metadata (Go's Metadata).
+pub fn (t: Table[fx]) metadata(opts: TableMetadataOptions = TableMetadataOptions{}) -> TableMetadata ! BqErr uses (net.dial, clock, rand, fx) {
+  let r = t.c.retry(DEFAULT_RETRY_REASONS, fn() -> raw.Table ! gensupport.CallErr uses net.dial, clock, rand, fx {
+    t.c.svc.tables.get(t.project_id, t.dataset_id, t.table_id, raw.TablesGetOptions{view: opts.view, headers: client_headers()})
+  })?
+  Ok(table_of(r))
+}
+
+/// Go's bqToTableMetadata.
+fn table_of(t: raw.Table) -> TableMetadata {
+  var md = TableMetadata{description: t.description, name: t.friendly_name, location: t.location, type_: t.type_, full_id: t.id, labels: t.labels, num_bytes: t.num_bytes, num_long_term_bytes: t.num_long_term_bytes, num_rows: t.num_rows, expiration_time: millis_time(t.expiration_time), creation_time: millis_time(t.creation_time), last_modified_time: millis_time(t.last_modified_time), etag: t.etag, default_collation: t.default_collation, encryption_config: encryption_of(t.encryption_configuration), require_partition_filter: t.require_partition_filter}
+  md.snapshot_definition = match t.snapshot_definition {
+    Some(s) => Some(SnapshotDefinition{base_table_reference: table_ref_of(s.base_table_reference), snapshot_time: Time.parse_rfc3339(s.snapshot_time)})
+    None => None
+  }
+  md.clone_definition = match t.clone_definition {
+    Some(s) => Some(CloneDefinition{base_table_reference: table_ref_of(s.base_table_reference), clone_time: Time.parse_rfc3339(s.clone_time)})
+    None => None
+  }
+  md.big_lake_configuration = match t.biglake_configuration {
+    Some(b) => Some(BigLakeConfiguration{connection_id: b.connection_id, storage_uri: b.storage_uri, file_format: b.file_format, table_format: b.table_format})
+    None => None
+  }
+  md.materialized_view = match t.materialized_view {
+    Some(m) => Some(MaterializedViewDefinition{enable_refresh: m.enable_refresh, query: m.query, last_refresh_time: millis_time(m.last_refresh_time), refresh_interval: Duration.from_millis(m.refresh_interval_ms), allow_non_incremental_definition: m.allow_non_incremental_definition})
+    None => None
+  }
+  md.schema = schema_of(t.schema)
+  if let Some(v) = t.view {
+    md.view_query = v.query
+    md.use_legacy_sql = v.use_legacy_sql
+  }
+  md.time_partitioning = match t.time_partitioning {
+    Some(p) => Some(TimePartitioning{type_: p.type_, expiration: Duration.from_millis(p.expiration_ms), field: p.field, require_partition_filter: p.require_partition_filter})
+    None => None
+  }
+  md.range_partitioning = match t.range_partitioning {
+    Some(p) => Some(RangePartitioning{field: p.field, range: match p.range {
+      Some(r) => Some(RangePartitioningRange{start: r.start, end: r.end, interval: r.interval})
+      None => None
+    }})
+    None => None
+  }
+  md.clustering = match t.clustering {
+    Some(c) => Some(Clustering{fields: c.fields})
+    None => None
+  }
+  md.streaming_buffer = match t.streaming_buffer {
+    Some(s) => Some(StreamingBuffer{estimated_bytes: s.estimated_bytes, estimated_rows: s.estimated_rows, oldest_entry_time: millis_time(s.oldest_entry_time)})
+    None => None
+  }
+  md.table_constraints = match t.table_constraints {
+    Some(tc) => {
+      var fks: List[ForeignKey] = []
+      for fk in tc.foreign_keys {
+        let rt = fk.referenced_table ?? raw.TableConstraintsForeignKeysReferencedTable{}
+        fks.push(ForeignKey{name: fk.name, referenced_table: TableRef{project_id: rt.project_id, dataset_id: rt.dataset_id, table_id: rt.table_id}, column_references: fk.column_references.map(fn(c) { ColumnReference{referencing_column: c.referencing_column, referenced_column: c.referenced_column} })})
+      }
+      Some(TableConstraints{primary_key: match tc.primary_key {
+        Some(pk) => Some(PrimaryKey{columns: pk.columns})
+        None => None
+      }, foreign_keys: Some(fks)})
+    }
+    None => None
+  }
+  md.resource_tags = if t.resource_tags.is_empty() { None } else { Some(t.resource_tags) }
+  md
+}
+
+/// Deletes the table (Go's Delete).
+pub fn (t: Table[fx]) delete() -> () ! BqErr uses (net.dial, clock, rand, fx) {
+  t.c.retry(DEFAULT_RETRY_REASONS, fn() -> () ! gensupport.CallErr uses net.dial, clock, rand, fx {
+    t.c.svc.tables.delete(t.project_id, t.dataset_id, t.table_id, raw.TablesDeleteOptions{headers: client_headers()})
+  })
+}
+
+/// A new expiration time of an update (Go's ExpirationTime, where
+/// NeverExpire clears it).
+pub enum Expiration {
+  At(t: Time)
+  /// Go's NeverExpire.
+  Never
+}
+
+/// The changes of a table update (Go's TableMetadataToUpdate).
+pub struct TableMetadataToUpdate {
+  pub description: Str? = None
+  pub name: Str? = None
+  /// The new schema (fields may only be added, or relaxed).
+  pub schema: Schema? = None
+  /// Some(Clustering{fields: []}) clears it.
+  pub clustering: Clustering? = None
+  pub encryption_config: EncryptionConfig? = None
+  pub expiration_time: Expiration? = None
+  pub view_query: Str? = None
+  pub use_legacy_sql: Bool? = None
+  pub materialized_view: MaterializedViewDefinition? = None
+  /// An expiration of 0 clears the partitions' expiration.
+  pub time_partitioning: TimePartitioning? = None
+  pub require_partition_filter: Bool? = None
+  pub default_collation: Str? = None
+  pub table_constraints: TableConstraints? = None
+  pub resource_tags: Map[Str, Str]? = None
+  pub big_lake_configuration: BigLakeConfiguration? = None
+  pub labels: LabelUpdater = LabelUpdater{}
+}
+
+/// Sets a label (Go's SetLabel).
+pub fn (var u: TableMetadataToUpdate) set_label(name: Str, value: Str) { u.labels.set_label(name, value) }
+
+/// Deletes a label (Go's DeleteLabel).
+pub fn (var u: TableMetadataToUpdate) delete_label(name: Str) { u.labels.delete_label(name) }
+
+/// Go's TableMetadataToUpdate.toBQ, as the JSON body it sends.
+fn table_update_body(u: TableMetadataToUpdate) -> json.Value {
+  var b = Body{}
+  if let Some(v) = u.description {
+    b.put("description", jstr(v))
+  }
+  if let Some(v) = u.name {
+    b.put("friendlyName", jstr(v))
+  }
+  if let Some(m) = u.materialized_view {
+    b.put("materializedView", materialized_raw(m))
+  }
+  if let Some(s) = u.schema {
+    // ForceSendFields Schema: an empty schema is sent as {}
+    b.put("schema", jraw(schema_to_raw(s)))
+  }
+  if let Some(e) = u.encryption_config {
+    b.put("encryptionConfiguration", jraw(raw.EncryptionConfiguration{kms_key_name: e.kms_key_name}))
+  }
+  if let Some(c) = u.clustering {
+    b.put("clustering", if c.fields.is_empty() { json.Value.Null } else { jraw(raw.Clustering{fields: c.fields}) })
+  }
+  match u.expiration_time {
+    Some(Expiration.Never) => b.put("expirationTime", json.Value.Null)
+    Some(Expiration.At(t)) => b.put("expirationTime", jint(time_millis(t)))
+    None => {}
+  }
+  if let Some(p) = u.time_partitioning {
+    var v = jraw(partitioning_raw(p))
+    // ForceSendFields RequirePartitionFilter; NullFields ExpirationMs at 0
+    v = jset(v, "requirePartitionFilter", json.Value.Bool(p.require_partition_filter))
+    if p.expiration.nanos() == 0 {
+      v = jset(v, "expirationMs", json.Value.Null)
+    }
+    b.put("timePartitioning", v)
+  }
+  if let Some(v) = u.require_partition_filter {
+    b.put("requirePartitionFilter", json.Value.Bool(v))
+  }
+  if u.view_query.is_some() || u.use_legacy_sql.is_some() {
+    var view = json.Value.Object([])
+    if let Some(q) = u.view_query {
+      view = jset(view, "query", jstr(q))
+    }
+    if let Some(l) = u.use_legacy_sql {
+      view = jset(view, "useLegacySql", json.Value.Bool(l))
+    }
+    b.put("view", view)
+  }
+  if let Some(v) = u.default_collation {
+    b.put("defaultCollation", jstr(v))
+  }
+  if let Some(tc) = u.table_constraints {
+    var v = json.Value.Object([])
+    if let Some(pk) = tc.primary_key {
+      v = jset(v, "primaryKey", json.Value.Object([("columns", jlist(pk.columns))]))
+    }
+    if let Some(fks) = tc.foreign_keys {
+      v = jset(v, "foreignKeys", json.Value.List(fks.map(fn(fk) { jraw(foreign_key_raw(fk)) })))
+    }
+    b.put("tableConstraints", v)
+  }
+  if let Some(rt) = u.resource_tags {
+    b.put("resourceTags", jmap(rt))
+  }
+  if let Some(bl) = u.big_lake_configuration {
+    b.put("biglakeConfiguration", jraw(raw.BigLakeConfiguration{connection_id: bl.connection_id, storage_uri: bl.storage_uri, file_format: bl.file_format, table_format: bl.table_format}))
+  }
+  if let Some(l) = u.labels.body() {
+    b.put("labels", l)
+  }
+  b.value()
+}
+
+/// The options of a table update (Go's TableUpdateOption).
+pub struct TableUpdateOptions {
+  /// Whether the schema is detected again (Go's WithAutoDetectSchema).
+  pub auto_detect_schema: Bool? = None
+}
+
+/// Updates the table's metadata and returns it (Go's Update): with an
+/// etag, only when it is the table's (If-Match). Retried as a read is.
+pub fn (t: Table[fx]) update(u: TableMetadataToUpdate, etag: Str, opts: TableUpdateOptions = TableUpdateOptions{}) -> TableMetadata ! BqErr uses (net.dial, clock, rand, fx) {
+  var q: List[(Str, Str)] = []
+  if let Some(a) = opts.auto_detect_schema {
+    q.push(("autodetect_schema", "${a}"))
+  }
+  let body = table_update_body(u)
+  let r = t.c.retry(DEFAULT_RETRY_REASONS, fn() -> raw.Table ! gensupport.CallErr uses net.dial, clock, rand, fx {
+    t.c.send_json[raw.Table]("PATCH", "projects/{+projectId}/datasets/{+datasetId}/tables/{+tableId}", {"projectId": t.project_id, "datasetId": t.dataset_id, "tableId": t.table_id}, q, etag, body)
+  })?
+  Ok(table_of(r))
+}
+
+/// The tables of a dataset (Go's TableIterator).
+pub struct TableIterator[fx: Effects] {
+  d: Dataset[fx]
+  page: Pager[Table[fx]] = Pager{}
+}
+
+/// The dataset's tables (Go's Tables).
+pub fn (d: Dataset[fx]) tables() -> TableIterator[fx] { TableIterator{d: d} }
+
+/// The next table, None after the last.
+pub fn (var it: TableIterator[fx]) next() -> Table[fx]? ! BqErr uses (net.dial, clock, rand, fx) {
+  while it.page.needs_fetch() {
+    let d = it.d
+    let o = raw.TablesListOptions{page_token: Some(it.page.token), headers: client_headers()}
+    match d.c.retry(DEFAULT_RETRY_REASONS, fn() -> raw.TableList ! gensupport.CallErr uses net.dial, clock, rand, fx { d.c.svc.tables.list(d.project_id, d.dataset_id, o) }) {
+      Ok(l) => {
+        var items: List[Table[fx]] = []
+        for x in l.tables {
+          if let Some(r) = x.table_reference {
+            items.push(Table{project_id: r.project_id, dataset_id: r.dataset_id, table_id: r.table_id, c: d.c})
+          }
+        }
+        it.page.fill(items, l.next_page_token)
+      }
+      Err(e) => it.page.fail(e)
+    }
+  }
+  it.page.take()
+}

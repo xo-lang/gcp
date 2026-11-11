@@ -114,7 +114,7 @@ Imported by: pkg.go.dev's "Imported by" count for the package
 | batch | v1.24.1 | 2 |  |  | not ported (gRPC, decision 0007); the REST surface `batch/...` is Go-verified |
 | beyondcorp | v1.11.1 | 10 |  |  | not ported (gRPC, decision 0007); the REST surface `beyondcorp/...` is Go-verified |
 | biglake | v1.6.1 | 6 |  |  | not ported (gRPC, decision 0007); the REST surface `biglake/...` is Go-verified |
-| bigquery | v1.86.2 | 19 | 18217 | 1,924 | not ported; its REST transport sits on our bigquery/v2 (Go-verified) |
+| bigquery | v1.86.2 | 19 | 18217 | 1,924 | in progress (`bigquery`, decision 0011 step 1 of 4: client and metadata, Go-vectored) over our bigquery/v2 |
 | bigquery/v2 | v2.0.0-20261111025851-991cd5c14cdb | 3 | 593 |  | not ported (gRPC, decision 0007); the REST surface `bigquery/...` is Go-verified |
 | bigtable | v1.58.0 | 2 | 10198 | 843 | not ported (gRPC, decision 0007) |
 | billing | v1.28.1 | 6 |  |  | not ported (gRPC, decision 0007) |

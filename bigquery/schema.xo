@@ -1,0 +1,143 @@
+// Schemas (schema.go): field schemas and their JSON form. Go's
+// InferSchema reads a struct by reflection; Xo has none (decision 0011:
+// a `derive BigQuery` is a std request).
+
+use std/json
+use github.com/xo-lang/gcp/bigquery/v2 as raw
+
+/// A field's type (Go's FieldType).
+pub const STRING_FIELD_TYPE: Str = "STRING"
+pub const BYTES_FIELD_TYPE: Str = "BYTES"
+pub const INTEGER_FIELD_TYPE: Str = "INTEGER"
+pub const FLOAT_FIELD_TYPE: Str = "FLOAT"
+pub const BOOLEAN_FIELD_TYPE: Str = "BOOLEAN"
+pub const TIMESTAMP_FIELD_TYPE: Str = "TIMESTAMP"
+pub const RECORD_FIELD_TYPE: Str = "RECORD"
+pub const DATE_FIELD_TYPE: Str = "DATE"
+pub const TIME_FIELD_TYPE: Str = "TIME"
+pub const DATE_TIME_FIELD_TYPE: Str = "DATETIME"
+pub const NUMERIC_FIELD_TYPE: Str = "NUMERIC"
+pub const GEOGRAPHY_FIELD_TYPE: Str = "GEOGRAPHY"
+pub const BIG_NUMERIC_FIELD_TYPE: Str = "BIGNUMERIC"
+pub const INTERVAL_FIELD_TYPE: Str = "INTERVAL"
+pub const JSON_FIELD_TYPE: Str = "JSON"
+pub const RANGE_FIELD_TYPE: Str = "RANGE"
+
+/// A NUMERIC or BIGNUMERIC field's rounding (Go's RoundingMode).
+pub const ROUND_HALF_AWAY_FROM_ZERO: Str = "ROUND_HALF_AWAY_FROM_ZERO"
+pub const ROUND_HALF_EVEN: Str = "ROUND_HALF_EVEN"
+
+/// The fields of a table or a record (Go's Schema).
+pub type Schema = List[FieldSchema]
+
+/// A field (Go's FieldSchema).
+pub struct FieldSchema {
+  pub name: Str
+  pub description: Str = ""
+  pub repeated: Bool = false
+  pub required: Bool = false
+  /// One of the FIELD_TYPE constants.
+  pub type_: Str
+  pub policy_tags: PolicyTagList? = None
+  /// A record's fields.
+  pub schema: Schema = []
+  pub max_length: Int = 0
+  pub precision: Int = 0
+  pub scale: Int = 0
+  pub default_value_expression: Str = ""
+  pub collation: Str = ""
+  /// A RANGE field's element type.
+  pub range_element_type: RangeElementType? = None
+  pub rounding_mode: Str = ""
+  /// A TIMESTAMP's precision, sent when above 0.
+  pub timestamp_precision: Int = 0
+}
+
+/// A RANGE field's element type (Go's RangeElementType).
+pub struct RangeElementType {
+  pub type_: Str
+}
+
+/// A field's policy tags (Go's PolicyTagList).
+pub struct PolicyTagList {
+  pub names: List[Str] = []
+}
+
+/// Go's FieldSchema.toBQ.
+fn field_to_raw(f: FieldSchema) -> raw.TableFieldSchema {
+  raw.TableFieldSchema{description: f.description, name: f.name, type_: f.type_, policy_tags: match f.policy_tags {
+    Some(p) => Some(raw.TableFieldSchemaPolicyTags{names: p.names})
+    None => None
+  }, max_length: f.max_length, precision: f.precision, scale: f.scale, default_value_expression: f.default_value_expression, collation: f.collation, range_element_type: match f.range_element_type {
+    Some(r) => Some(raw.TableFieldSchemaRangeElementType{type_: r.type_})
+    None => None
+  }, rounding_mode: f.rounding_mode, timestamp_precision: if f.timestamp_precision > 0 { Some(f.timestamp_precision) } else { None }, mode: if f.repeated { "REPEATED" } else if f.required { "REQUIRED" } else { "" }, fields: f.schema.map(field_to_raw)}
+}
+
+/// Go's bqToFieldSchema.
+fn field_of(t: raw.TableFieldSchema) -> FieldSchema {
+  FieldSchema{description: t.description, name: t.name, repeated: t.mode == "REPEATED", required: t.mode == "REQUIRED", type_: t.type_, policy_tags: match t.policy_tags {
+    Some(p) => Some(PolicyTagList{names: p.names})
+    None => None
+  }, max_length: t.max_length, precision: t.precision, scale: t.scale, default_value_expression: t.default_value_expression, collation: t.collation, range_element_type: match t.range_element_type {
+    Some(r) => Some(RangeElementType{type_: r.type_})
+    None => None
+  }, rounding_mode: t.rounding_mode, timestamp_precision: t.timestamp_precision ?? 0, schema: t.fields.map(field_of)}
+}
+
+fn schema_to_raw(s: Schema) -> raw.TableSchema { raw.TableSchema{fields: s.map(field_to_raw)} }
+
+fn schema_of(t: raw.TableSchema?) -> Schema {
+  match t {
+    Some(x) => x.fields.map(field_of)
+    None => []
+  }
+}
+
+/// The schema with every field nullable (Go's Relax): name, description,
+/// repeated, type and the record's fields kept, the rest dropped as Go
+/// drops them.
+pub fn relax(s: Schema) -> Schema {
+  s.map(fn(f) { FieldSchema{name: f.name, description: f.description, repeated: f.repeated, required: false, type_: f.type_, schema: relax(f.schema)} })
+}
+
+/// The schema as the API's JSON fields (Go's ToJSONFields, which indents
+/// with one space).
+pub fn to_json_fields(s: Schema) -> Str {
+  let v = json.Value.List(s.map(fn(f) { jraw(field_to_raw(f)) }))
+  json.indent(v.encode(), "", " ").ok() ?? v.encode()
+}
+
+/// The aliases SchemaFromJSON accepts (Go's fieldAliases).
+fn known_type(t: Str) -> Str? {
+  if t is "STRING" | "BYTES" | "INTEGER" | "FLOAT" | "BOOLEAN" | "TIMESTAMP" | "RECORD" | "DATE" | "TIME" | "DATETIME" | "NUMERIC" | "GEOGRAPHY" | "BIGNUMERIC" | "INTERVAL" | "JSON" | "RANGE" {
+    return Some(t)
+  }
+  match t {
+    "BOOL" => Some("BOOLEAN")
+    "FLOAT64" => Some("FLOAT")
+    "INT64" => Some("INTEGER")
+    "STRUCT" => Some("RECORD")
+    "DECIMAL" => Some("NUMERIC")
+    "BIGDECIMAL" => Some("BIGNUMERIC")
+    _ => None
+  }
+}
+
+/// A schema from the API's JSON form, an array of field objects (Go's
+/// SchemaFromJSON): a top-level field's alias becomes its type, and an
+/// unknown type is an error. A text that is not such an array gives
+/// std/json's error, where Go gives encoding/json's.
+pub fn schema_from_json(text: Bytes) -> Schema ! BqErr {
+  if text.is_empty() {
+    return Err(BqErr.Invalid("bigquery: empty JSON schema"))
+  }
+  let fs = json.decode[List[raw.TableFieldSchema]](text) ?? e => return Err(BqErr.Invalid(e.display()))
+  var out: Schema = []
+  for f in fs {
+    var c = field_of(f)
+    c.type_ = known_type(c.type_) ?? return Err(BqErr.Invalid("unknown field type (${c.type_})"))
+    out.push(c)
+  }
+  Ok(out)
+}

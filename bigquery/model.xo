@@ -1,0 +1,158 @@
+// Models (model.go): metadata, update with an etag, delete and the
+// listing. Go's TrainingRuns, which hands back the generated API's own
+// types, is not ported.
+
+use std/json
+use github.com/xo-lang/gcp/gensupport
+use github.com/xo-lang/gcp/bigquery/v2 as raw
+
+/// A BigQuery ML model (Go's Model).
+pub struct Model[fx: Effects] {
+  pub project_id: Str
+  pub dataset_id: Str
+  pub model_id: Str
+  c: Client[fx]
+}
+
+/// The model of id in the dataset (Go's Model).
+pub fn (d: Dataset[fx]) model(id: Str) -> Model[fx] {
+  Model{project_id: d.project_id, dataset_id: d.dataset_id, model_id: id, c: d.c}
+}
+
+/// The model's identifier (Go's Identifier): a standard SQL one with a
+/// `-` anywhere is quoted whole.
+pub fn (m: Model[fx]) identifier(f: IdentifierFormat) -> Str ! BqErr {
+  match f {
+    IdentifierFormat.LegacySql => Ok("${m.project_id}:${m.dataset_id}.${m.model_id}")
+    IdentifierFormat.StandardSql => {
+      let out = "${m.project_id}.${m.dataset_id}.${m.model_id}"
+      Ok(if out.contains("-") { "`${out}`" } else { out })
+    }
+    IdentifierFormat.StorageApiResource => Err(BqErr.Invalid(UNKNOWN_IDENTIFIER_FORMAT))
+  }
+}
+
+/// `project:dataset.model` (Go's FullyQualifiedName).
+pub fn (m: Model[fx]) fully_qualified_name() -> Str { "${m.project_id}:${m.dataset_id}.${m.model_id}" }
+
+/// A model's metadata (Go's ModelMetadata).
+pub struct ModelMetadata {
+  pub description: Str = ""
+  pub name: Str = ""
+  /// Output only: the model type, e.g. LINEAR_REGRESSION.
+  pub type_: Str = ""
+  /// Output only.
+  pub creation_time: Time? = None
+  /// Output only.
+  pub last_modified_time: Time? = None
+  pub expiration_time: Time? = None
+  /// Output only.
+  pub location: Str = ""
+  pub encryption_config: EncryptionConfig? = None
+  pub labels: Map[Str, Str] = {}
+  /// Output only.
+  pub etag: Str = ""
+  feature_columns: List[StandardSqlField] = []
+  label_columns: List[StandardSqlField] = []
+}
+
+/// The model's label columns (Go's RawLabelColumns).
+pub fn (mm: ModelMetadata) raw_label_columns() -> List[StandardSqlField] { mm.label_columns }
+
+/// The model's feature columns (Go's RawFeatureColumns).
+pub fn (mm: ModelMetadata) raw_feature_columns() -> List[StandardSqlField] { mm.feature_columns }
+
+/// Go's bqToModelMetadata.
+fn model_of(m: raw.Model) -> ModelMetadata {
+  ModelMetadata{description: m.description, name: m.friendly_name, type_: m.model_type, location: m.location, labels: m.labels, expiration_time: millis_time(m.expiration_time), creation_time: millis_time(m.creation_time), last_modified_time: millis_time(m.last_modified_time), encryption_config: encryption_of(m.encryption_configuration), feature_columns: m.feature_columns.map(sql_field_of), label_columns: m.label_columns.map(sql_field_of), etag: m.etag}
+}
+
+/// The model's metadata (Go's Metadata).
+pub fn (m: Model[fx]) metadata() -> ModelMetadata ! BqErr uses (net.dial, clock, rand, fx) {
+  let x = m.c.retry(DEFAULT_RETRY_REASONS, fn() -> raw.Model ! gensupport.CallErr uses net.dial, clock, rand, fx {
+    m.c.svc.models.get(m.project_id, m.dataset_id, m.model_id, raw.ModelsGetOptions{headers: client_headers()})
+  })?
+  Ok(model_of(x))
+}
+
+/// Deletes the model (Go's Delete). Not retried.
+pub fn (m: Model[fx]) delete() -> () ! BqErr uses (net.dial, clock, rand, fx) {
+  once(m.c.svc.models.delete(m.project_id, m.dataset_id, m.model_id, raw.ModelsDeleteOptions{headers: client_headers()}))
+}
+
+/// The changes of a model update (Go's ModelMetadataToUpdate).
+pub struct ModelMetadataToUpdate {
+  pub description: Str? = None
+  pub name: Str? = None
+  pub expiration_time: Expiration? = None
+  pub encryption_config: EncryptionConfig? = None
+  pub labels: LabelUpdater = LabelUpdater{}
+}
+
+/// Sets a label (Go's SetLabel).
+pub fn (var u: ModelMetadataToUpdate) set_label(name: Str, value: Str) { u.labels.set_label(name, value) }
+
+/// Deletes a label (Go's DeleteLabel).
+pub fn (var u: ModelMetadataToUpdate) delete_label(name: Str) { u.labels.delete_label(name) }
+
+fn model_update_body(u: ModelMetadataToUpdate) -> json.Value {
+  var b = Body{}
+  if let Some(v) = u.description {
+    b.put("description", jstr(v))
+  }
+  if let Some(v) = u.name {
+    b.put("friendlyName", jstr(v))
+  }
+  if let Some(e) = u.encryption_config {
+    b.put("encryptionConfiguration", jraw(raw.EncryptionConfiguration{kms_key_name: e.kms_key_name}))
+  }
+  match u.expiration_time {
+    Some(Expiration.Never) => b.put("expirationTime", json.Value.Null)
+    Some(Expiration.At(t)) => b.put("expirationTime", jint(time_millis(t)))
+    None => {}
+  }
+  if let Some(l) = u.labels.body() {
+    b.put("labels", l)
+  }
+  b.value()
+}
+
+/// Updates the model's metadata and returns it (Go's Update): with an
+/// etag, only when it is the model's (If-Match). Retried as a read is.
+pub fn (m: Model[fx]) update(u: ModelMetadataToUpdate, etag: Str) -> ModelMetadata ! BqErr uses (net.dial, clock, rand, fx) {
+  let body = model_update_body(u)
+  let x = m.c.retry(DEFAULT_RETRY_REASONS, fn() -> raw.Model ! gensupport.CallErr uses net.dial, clock, rand, fx {
+    m.c.send_json[raw.Model]("PATCH", "projects/{+projectId}/datasets/{+datasetId}/models/{+modelId}", {"projectId": m.project_id, "datasetId": m.dataset_id, "modelId": m.model_id}, [], etag, body)
+  })?
+  Ok(model_of(x))
+}
+
+/// The models of a dataset (Go's ModelIterator).
+pub struct ModelIterator[fx: Effects] {
+  d: Dataset[fx]
+  page: Pager[Model[fx]] = Pager{}
+}
+
+/// The dataset's models (Go's Models).
+pub fn (d: Dataset[fx]) models() -> ModelIterator[fx] { ModelIterator{d: d} }
+
+/// The next model, None after the last.
+pub fn (var it: ModelIterator[fx]) next() -> Model[fx]? ! BqErr uses (net.dial, clock, rand, fx) {
+  while it.page.needs_fetch() {
+    let d = it.d
+    let o = raw.ModelsListOptions{page_token: Some(it.page.token), headers: client_headers()}
+    match d.c.retry(DEFAULT_RETRY_REASONS, fn() -> raw.ListModelsResponse ! gensupport.CallErr uses net.dial, clock, rand, fx { d.c.svc.models.list(d.project_id, d.dataset_id, o) }) {
+      Ok(l) => {
+        var items: List[Model[fx]] = []
+        for x in l.models {
+          if let Some(r) = x.model_reference {
+            items.push(Model{project_id: r.project_id, dataset_id: r.dataset_id, model_id: r.model_id, c: d.c})
+          }
+        }
+        it.page.fill(items, l.next_page_token)
+      }
+      Err(e) => it.page.fail(e)
+    }
+  }
+  it.page.take()
+}

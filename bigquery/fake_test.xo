@@ -1,0 +1,331 @@
+// The fake JSON API the oracle's cases run against here
+// (~/xo-lead/notes/aws-43/bigquerygo, not in the repository): replies
+// served in order, every request noted as the oracle prints it, and the
+// results rendered as its JSON of Go's metadata types.
+
+use std/http
+use std/json
+use std/testing
+use github.com/xo-lang/gcp/option
+
+struct Fake {
+  replies: Mutex[List[(Int, Str)]]
+  log: Mutex[List[Str]]
+}
+
+fn note(f: Fake, s: Str) {
+  f.log.with(fn(var l: List[Str]) { l.push(s) })
+}
+
+fn header_of(req: http.Request, name: Str) -> Str? {
+  for (k, v) in req.headers {
+    if k.to_lower() == name.to_lower() {
+      return Some(v)
+    }
+  }
+  None
+}
+
+/// Go's printed x-goog-api-client: the versions replaced.
+fn norm_api_client(v: Str) -> Str {
+  var out: List[Str] = []
+  for t in v.split(" ") {
+    out.push(if t.starts_with("gl-xo/") {
+      "gl-go/GO"
+    } else if t.starts_with("gdcl/") {
+      "gdcl/V"
+    } else if t.starts_with("gccl/") {
+      "gccl/V"
+    } else {
+      t
+    })
+  }
+  out.join(" ")
+}
+
+/// A JSON text with object keys sorted, as the oracle prints bodies.
+fn canon_text(s: Str) -> Str {
+  match json.parse_value(s) {
+    Ok(v) => canon(v)
+    Err(_) => s
+  }
+}
+
+fn canon(v: json.Value) -> Str {
+  match v {
+    json.Value.Object(fs) => {
+      var ks: List[Str] = []
+      for (k, _) in fs {
+        ks.push(k)
+      }
+      var parts: List[Str] = []
+      for k in ks.sort() {
+        parts.push(json.Value.Str(k).encode() + ":" + canon(v.get(k) ?? json.Value.Null))
+      }
+      "{" + parts.join(",") + "}"
+    }
+    json.Value.List(xs) => "[" + xs.map(canon).join(",") + "]"
+    _ => v.encode()
+  }
+}
+
+/// Go's Values.Encode order: by key, each key's values in their order.
+fn by_key(pairs: List[Str]) -> List[Str] {
+  var keys: List[Str] = []
+  for p in pairs {
+    let k = p.split("=")[0]
+    if !keys.contains(k) {
+      keys.push(k)
+    }
+  }
+  var out: List[Str] = []
+  for k in keys.sort() {
+    for p in pairs {
+      if p.split("=")[0] == k {
+        out.push(p)
+      }
+    }
+  }
+  out
+}
+
+fn answer(f: Fake, req: http.Request) -> http.Response {
+  let q = req.raw_query()
+  let pairs = by_key(if q == "" { [] } else { q.split("&") })
+  note(f, "  ${req.method} ${req.url.scheme}://${req.url.host}${req.escaped_path()}${if pairs.is_empty() { "" } else { "?" + pairs.join("&") }}")
+  for h in ["X-Goog-Api-Client", "X-Goog-User-Project", "If-Match", "If-None-Match", "Content-Type"] {
+    if let Some(v) = header_of(req, h) {
+      note(f, "    ${h}: ${if h == "X-Goog-Api-Client" { norm_api_client(v) } else { v }}")
+    }
+  }
+  if !req.body.is_empty() {
+    note(f, "    body ${canon_text(req.body.to_str_lossy())}")
+  }
+  let (st, body) = f.replies.with(fn(var rs: List[(Int, Str)]) -> (Int, Str) {
+    let x = rs.get(0) ?? (200, "{}")
+    if !rs.is_empty() {
+      rs = rs[1..rs.len()]
+    }
+    x
+  })
+  http.Response{status: st, headers: {"Content-Type": "application/json; charset=UTF-8"}, body: body.bytes()}
+}
+
+fn new_fake(net: testing.FakeNet, replies: List[(Int, Str)]) -> Fake {
+  let f = Fake{replies: Mutex[List[(Int, Str)]].new(replies), log: Mutex[List[Str]].new([])}
+  let h = fn(req: http.Request) -> http.Response { answer(f, req) }
+  for m in ["GET", "PUT", "POST", "DELETE", "PATCH"] {
+    net.handle("${m} https://bigquery.fake/{rest...}", h)
+  }
+  f
+}
+
+fn lines(f: Fake) -> List[Str] { f.log.with(fn(var l: List[Str]) -> List[Str] { l }) }
+
+/// The client of a case, as the oracle's: the fake endpoint, no
+/// credentials. Its 1 s backoff sleeps on the test's clock.
+fn fake_client(os: testing.TestOs, project: Str = "p1") -> Client[()] {
+  new_client(os.net, os.clock, os.rand, project, ClientOptions{service: option.ClientOptions{endpoint: "https://bigquery.fake/bigquery/v2/", without_authentication: true}, backoff: FAST})
+}
+
+const FAST: Backoff = Backoff{initial: 1ms, max: 1ms, multiplier: 2.0}
+
+/// Go's t0: 2027-01-02T03:04:05Z.
+fn t0() -> Time { Time.from_unix(1798859045) }
+
+/// A result as the oracle prints it: ok and Go's JSON, or the error and
+/// its googleapi code.
+fn result(f: Fake, r: Result[json.Value?, BqErr]) {
+  match r {
+    Ok(Some(v)) => note(f, "  ok ${canon(v)}")
+    Ok(None) => note(f, "  ok")
+    Err(e) => {
+      note(f, "  error ${e.display()}")
+      if let Some(a) = e.api() {
+        note(f, "  googleapi code=${a.code}")
+      }
+    }
+  }
+}
+
+fn unit(f: Fake, r: Result[(), BqErr]) {
+  result(f, match r {
+    Ok(_) => Ok(None)
+    Err(e) => Err(e)
+  })
+}
+
+fn some[T](r: Result[T, BqErr], render: fn(T) -> json.Value) -> Result[json.Value?, BqErr] {
+  match r {
+    Ok(x) => Ok(Some(render(x)))
+    Err(e) => Err(e)
+  }
+}
+
+// Go's JSON of the metadata types: its field names, nil as null, a zero
+// time as 0001-01-01T00:00:00Z, a Duration in nanoseconds.
+
+fn s(x: Str) -> json.Value { json.Value.Str(x) }
+
+fn i(x: Int) -> json.Value { json.Value.Int(x) }
+
+fn b(x: Bool) -> json.Value { json.Value.Bool(x) }
+
+fn null() -> json.Value { json.Value.Null }
+
+fn obj(fs: List[(Str, json.Value)]) -> json.Value { json.Value.Object(fs) }
+
+fn t(x: Time?) -> json.Value {
+  match x {
+    Some(v) => s(v.format_rfc3339())
+    None => s("0001-01-01T00:00:00Z")
+  }
+}
+
+fn d(x: Duration) -> json.Value { i(x.nanos()) }
+
+/// A Go map, nil when empty.
+fn smap(m: Map[Str, Str]) -> json.Value {
+  if m.is_empty() {
+    return null()
+  }
+  var fs: List[(Str, json.Value)] = []
+  for (k, v) in m {
+    fs.push((k, s(v)))
+  }
+  obj(fs)
+}
+
+/// A Go slice, nil when empty.
+fn slist(xs: List[Str]) -> json.Value { if xs.is_empty() { null() } else { json.Value.List(xs.map(s)) } }
+
+fn opt[T](x: T?, f: fn(T) -> json.Value) -> json.Value {
+  match x {
+    Some(v) => f(v)
+    None => null()
+  }
+}
+
+fn enc(e: EncryptionConfig) -> json.Value { obj([("KMSKeyName", s(e.kms_key_name))]) }
+
+fn table_ref(r: TableRef) -> json.Value { obj([("ProjectID", s(r.project_id)), ("DatasetID", s(r.dataset_id)), ("TableID", s(r.table_id))]) }
+
+fn access_json(a: AccessEntry) -> json.Value {
+  obj([("Role", s(a.role)), ("EntityType", i(a.entity_type.number())), ("Entity", s(a.entity)), ("View", opt(a.view, table_ref)), ("Routine", opt(a.routine, fn(r) { obj([("ProjectID", s(r.project_id)), ("DatasetID", s(r.dataset_id)), ("RoutineID", s(r.routine_id))]) })), ("Dataset", opt(a.dataset, fn(x) { obj([("Dataset", obj([("ProjectID", s(x.dataset.project_id)), ("DatasetID", s(x.dataset.dataset_id))])), ("TargetTypes", slist(x.target_types))]) })), ("Condition", opt(a.condition, fn(c) { obj([("Expression", s(c.expression)), ("Title", s(c.title)), ("Description", s(c.description)), ("Location", s(c.location))]) }))])
+}
+
+fn dataset_json(m: DatasetMetadata) -> json.Value {
+  obj([("Name", s(m.name)), ("Description", s(m.description)), ("Location", s(m.location)), ("DefaultTableExpiration", d(m.default_table_expiration)), ("Labels", smap(m.labels)), ("Access", if m.access.is_empty() { null() } else { json.Value.List(m.access.map(access_json)) }), ("DefaultEncryptionConfig", opt(m.default_encryption_config, enc)), ("DefaultPartitionExpiration", d(m.default_partition_expiration)), ("DefaultCollation", s(m.default_collation)), ("ExternalDatasetReference", opt(m.external_dataset_reference, fn(r) { obj([("Connection", s(r.connection)), ("ExternalSource", s(r.external_source))]) })), ("MaxTimeTravel", d(m.max_time_travel)), ("StorageBillingModel", s(m.storage_billing_model)), ("CreationTime", t(m.creation_time)), ("LastModifiedTime", t(m.last_modified_time)), ("FullID", s(m.full_id)), ("Tags", if m.tags.is_empty() { null() } else { json.Value.List(m.tags.map(fn(x) { obj([("TagKey", s(x.tag_key)), ("TagValue", s(x.tag_value))]) })) }), ("IsCaseInsensitive", b(m.is_case_insensitive)), ("ETag", s(m.etag))])
+}
+
+fn field_json(f: FieldSchema) -> json.Value {
+  obj([("Name", s(f.name)), ("Description", s(f.description)), ("Repeated", b(f.repeated)), ("Required", b(f.required)), ("Type", s(f.type_)), ("PolicyTags", opt(f.policy_tags, fn(p) { obj([("Names", slist(p.names))]) })), ("Schema", schema_json(f.schema)), ("MaxLength", i(f.max_length)), ("Precision", i(f.precision)), ("Scale", i(f.scale)), ("DefaultValueExpression", s(f.default_value_expression)), ("Collation", s(f.collation)), ("RangeElementType", opt(f.range_element_type, fn(r) { obj([("Type", s(r.type_))]) })), ("RoundingMode", s(f.rounding_mode)), ("TimestampPrecision", i(f.timestamp_precision))])
+}
+
+fn schema_json(sc: Schema) -> json.Value { if sc.is_empty() { null() } else { json.Value.List(sc.map(field_json)) } }
+
+fn table_json(m: TableMetadata) -> json.Value {
+  obj([("Name", s(m.name)), ("Location", s(m.location)), ("Description", s(m.description)), ("Schema", schema_json(m.schema)), ("MaterializedView", opt(m.materialized_view, fn(v) { obj([("EnableRefresh", b(v.enable_refresh)), ("LastRefreshTime", t(v.last_refresh_time)), ("Query", s(v.query)), ("RefreshInterval", d(v.refresh_interval)), ("AllowNonIncrementalDefinition", b(v.allow_non_incremental_definition)), ("MaxStaleness", null())]) })), ("ViewQuery", s(m.view_query)), ("UseLegacySQL", b(m.use_legacy_sql)), ("UseStandardSQL", b(m.use_standard_sql)), ("TimePartitioning", opt(m.time_partitioning, fn(p) { obj([("Type", s(p.type_)), ("Expiration", d(p.expiration)), ("Field", s(p.field)), ("RequirePartitionFilter", b(p.require_partition_filter))]) })), ("RangePartitioning", opt(m.range_partitioning, fn(p) { obj([("Field", s(p.field)), ("Range", opt(p.range, fn(r) { obj([("Start", i(r.start)), ("End", i(r.end)), ("Interval", i(r.interval))]) }))]) })), ("RequirePartitionFilter", b(m.require_partition_filter)), ("Clustering", opt(m.clustering, fn(c) { obj([("Fields", slist(c.fields))]) })), ("ExpirationTime", t(m.expiration_time)), ("Labels", smap(m.labels)), ("ExternalDataConfig", null()), ("EncryptionConfig", opt(m.encryption_config, enc)), ("FullID", s(m.full_id)), ("Type", s(m.type_)), ("CreationTime", t(m.creation_time)), ("LastModifiedTime", t(m.last_modified_time)), ("NumBytes", i(m.num_bytes)), ("NumLongTermBytes", i(m.num_long_term_bytes)), ("NumRows", i(m.num_rows)), ("SnapshotDefinition", opt(m.snapshot_definition, fn(x) { obj([("BaseTableReference", opt(x.base_table_reference, table_ref)), ("SnapshotTime", t(x.snapshot_time))]) })), ("CloneDefinition", opt(m.clone_definition, fn(x) { obj([("BaseTableReference", opt(x.base_table_reference, table_ref)), ("CloneTime", t(x.clone_time))]) })), ("StreamingBuffer", opt(m.streaming_buffer, fn(x) { obj([("EstimatedBytes", i(x.estimated_bytes)), ("EstimatedRows", i(x.estimated_rows)), ("OldestEntryTime", t(x.oldest_entry_time))]) })), ("ETag", s(m.etag)), ("DefaultCollation", s(m.default_collation)), ("TableConstraints", opt(m.table_constraints, fn(tc) { obj([("PrimaryKey", opt(tc.primary_key, fn(p) { obj([("Columns", slist(p.columns))]) })), ("ForeignKeys", json.Value.List((tc.foreign_keys ?? []).map(fn(fk) { obj([("Name", s(fk.name)), ("ReferencedTable", table_ref(fk.referenced_table)), ("ColumnReferences", json.Value.List(fk.column_references.map(fn(c) { obj([("ReferencingColumn", s(c.referencing_column)), ("ReferencedColumn", s(c.referenced_column))]) })))]) })))]) })), ("MaxStaleness", null()), ("ResourceTags", opt(m.resource_tags, fn(x) { smap(x) })), ("BigLakeConfiguration", opt(m.big_lake_configuration, fn(x) { obj([("ConnectionID", s(x.connection_id)), ("StorageURI", s(x.storage_uri)), ("FileFormat", s(x.file_format)), ("TableFormat", s(x.table_format))]) }))])
+}
+
+fn sql_type_json(x: StandardSqlDataType) -> json.Value {
+  obj([("ArrayElementType", opt(x.array_element_type, sql_type_json)), ("RangeElementType", opt(x.range_element_type, sql_type_json)), ("StructType", opt(x.struct_type, fn(st) { obj([("Fields", json.Value.List(st.fields.map(sql_field_json)))]) })), ("TypeKind", s(x.type_kind))])
+}
+
+fn sql_field_json(f: StandardSqlField) -> json.Value { obj([("Name", s(f.name)), ("Type", opt(f.type_, sql_type_json))]) }
+
+fn routine_json(m: RoutineMetadata) -> json.Value {
+  obj([("ETag", s(m.etag)), ("Type", s(m.type_)), ("CreationTime", t(m.creation_time)), ("Description", s(m.description)), ("DeterminismLevel", s(m.determinism_level)), ("LastModifiedTime", t(m.last_modified_time)), ("Language", s(m.language)), ("Arguments", if m.arguments.is_empty() { null() } else { json.Value.List(m.arguments.map(fn(a) { obj([("Name", s(a.name)), ("Kind", s(a.kind)), ("Mode", s(a.mode)), ("DataType", opt(a.data_type, sql_type_json))]) })) }), ("RemoteFunctionOptions", null()), ("ReturnType", opt(m.return_type, sql_type_json)), ("ReturnTableType", opt(m.return_table_type, fn(x) { obj([("Columns", json.Value.List(x.columns.map(sql_field_json)))]) })), ("ImportedLibraries", slist(m.imported_libraries)), ("Body", s(m.body)), ("DataGovernanceType", s(m.data_governance_type))])
+}
+
+fn model_json(m: ModelMetadata) -> json.Value {
+  obj([("Description", s(m.description)), ("Name", s(m.name)), ("Type", s(m.type_)), ("CreationTime", t(m.creation_time)), ("LastModifiedTime", t(m.last_modified_time)), ("ExpirationTime", t(m.expiration_time)), ("Location", s(m.location)), ("EncryptionConfig", opt(m.encryption_config, enc)), ("Labels", smap(m.labels)), ("ETag", s(m.etag))])
+}
+
+fn datasets(f: Fake, it0: DatasetIterator[()]) {
+  var it = it0
+  while true {
+    match it.next() {
+      Ok(Some(x)) => note(f, "  dataset ${x.project_id}.${x.dataset_id}")
+      Ok(None) => {
+        note(f, "  done")
+        break
+      }
+      Err(e) => {
+        note(f, "  error ${e.display()}")
+        break
+      }
+    }
+  }
+}
+
+fn tables(f: Fake, it0: TableIterator[()]) {
+  var it = it0
+  while true {
+    match it.next() {
+      Ok(Some(x)) => note(f, "  table ${x.fully_qualified_name()}")
+      Ok(None) => {
+        note(f, "  done")
+        break
+      }
+      Err(e) => {
+        note(f, "  error ${e.display()}")
+        break
+      }
+    }
+  }
+}
+
+fn routines(f: Fake, it0: RoutineIterator[()]) {
+  var it = it0
+  while true {
+    match it.next() {
+      Ok(Some(x)) => note(f, "  routine ${x.fully_qualified_name()}")
+      Ok(None) => {
+        note(f, "  done")
+        break
+      }
+      Err(e) => {
+        note(f, "  error ${e.display()}")
+        break
+      }
+    }
+  }
+}
+
+fn models(f: Fake, it0: ModelIterator[()]) {
+  var it = it0
+  while true {
+    match it.next() {
+      Ok(Some(x)) => note(f, "  model ${x.fully_qualified_name()}")
+      Ok(None) => {
+        note(f, "  done")
+        break
+      }
+      Err(e) => {
+        note(f, "  error ${e.display()}")
+        break
+      }
+    }
+  }
+}
+
+/// Go's `%q %v` of an identifier and its error.
+fn id_line(r: Result[Str, BqErr]) -> Str {
+  match r {
+    Ok(x) => "${x.quote()} <nil>"
+    Err(e) => "\"\" ${e.display()}"
+  }
+}
+
+fn ds(f: Fake, r: Result[DatasetMetadata, BqErr]) { result(f, some(r, dataset_json)) }
+
+fn tbl(f: Fake, r: Result[TableMetadata, BqErr]) { result(f, some(r, table_json)) }
+
+fn rtn(f: Fake, r: Result[RoutineMetadata, BqErr]) { result(f, some(r, routine_json)) }
+
+fn mdl(f: Fake, r: Result[ModelMetadata, BqErr]) { result(f, some(r, model_json)) }
+
+fn sch(f: Fake, r: Result[Schema, BqErr]) { result(f, some(r, schema_json)) }
+
+fn strs(f: Fake, r: Result[List[Str], BqErr]) { result(f, some(r, fn(xs) { json.Value.List(xs.map(s)) })) }

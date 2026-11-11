@@ -8,7 +8,7 @@ cd "$(dirname "$0")/.."
 xo=${XO_CLI:-xo}
 fail=0
 gen=$(awk -F'"' '/^dir *=/ { print "./" $2 }' codegen/services.toml)
-for d in auth gensupport googleapi option storage; do
+for d in auth gensupport googleapi option storage bigquery; do
   echo "== $d"
   "$xo" test "./$d" || fail=1
 done

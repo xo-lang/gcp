@@ -1,0 +1,314 @@
+// Routines (routine.go) and the standard SQL types they declare
+// (standardsql.go).
+
+use std/json
+use github.com/xo-lang/gcp/gensupport
+use github.com/xo-lang/gcp/bigquery/v2 as raw
+
+/// A routine: a user-defined function or a procedure (Go's Routine).
+pub struct Routine[fx: Effects] {
+  pub project_id: Str
+  pub dataset_id: Str
+  pub routine_id: Str
+  c: Client[fx]
+}
+
+/// The routine of id in the dataset (Go's Routine).
+pub fn (d: Dataset[fx]) routine(id: Str) -> Routine[fx] {
+  Routine{project_id: d.project_id, dataset_id: d.dataset_id, routine_id: id, c: d.c}
+}
+
+/// The routine's project, dataset and id.
+pub fn (r: Routine[fx]) ref() -> RoutineRef { RoutineRef{project_id: r.project_id, dataset_id: r.dataset_id, routine_id: r.routine_id} }
+
+/// The routine's identifier (Go's Identifier): standard SQL only, a
+/// project with a `-` quoted.
+pub fn (r: Routine[fx]) identifier(f: IdentifierFormat) -> Str ! BqErr {
+  match f {
+    IdentifierFormat.StandardSql => Ok(if r.project_id.contains("-") { "`${r.project_id}`.${r.dataset_id}.${r.routine_id}" } else { "${r.project_id}.${r.dataset_id}.${r.routine_id}" })
+    IdentifierFormat.LegacySql | IdentifierFormat.StorageApiResource => Err(BqErr.Invalid(UNKNOWN_IDENTIFIER_FORMAT))
+  }
+}
+
+/// The standard SQL identifier (Go's FullyQualifiedName).
+pub fn (r: Routine[fx]) fully_qualified_name() -> Str { r.identifier(IdentifierFormat.StandardSql).ok() ?? "" }
+
+/// A routine's determinism (Go's RoutineDeterminism).
+pub const DETERMINISTIC: Str = "DETERMINISTIC"
+pub const NOT_DETERMINISTIC: Str = "NOT_DETERMINISTIC"
+
+/// A routine's type.
+pub const SCALAR_FUNCTION_ROUTINE: Str = "SCALAR_FUNCTION"
+pub const PROCEDURE_ROUTINE: Str = "PROCEDURE"
+pub const TABLE_VALUED_FUNCTION_ROUTINE: Str = "TABLE_VALUED_FUNCTION"
+
+/// A routine's metadata (Go's RoutineMetadata).
+pub struct RoutineMetadata {
+  /// Output only.
+  pub etag: Str = ""
+  /// One of the ROUTINE constants.
+  pub type_: Str = ""
+  /// Output only.
+  pub creation_time: Time? = None
+  pub description: Str = ""
+  pub determinism_level: Str = ""
+  /// Output only.
+  pub last_modified_time: Time? = None
+  /// "SQL" or "JAVASCRIPT".
+  pub language: Str = ""
+  pub arguments: List[RoutineArgument] = []
+  pub remote_function_options: RemoteFunctionOptions? = None
+  pub return_type: StandardSqlDataType? = None
+  pub return_table_type: StandardSqlTableType? = None
+  /// JavaScript libraries, as Cloud Storage URIs.
+  pub imported_libraries: List[Str] = []
+  /// The routine's code.
+  pub body: Str = ""
+  pub data_governance_type: Str = ""
+}
+
+/// A remote function's endpoint (Go's RemoteFunctionOptions).
+pub struct RemoteFunctionOptions {
+  pub connection: Str = ""
+  pub endpoint: Str = ""
+  pub max_batching_rows: Int = 0
+  pub user_defined_context: Map[Str, Str]? = None
+}
+
+/// An argument of a routine (Go's RoutineArgument).
+pub struct RoutineArgument {
+  pub name: Str = ""
+  /// "FIXED_TYPE" or "ANY_TYPE".
+  pub kind: Str = ""
+  /// "IN", "OUT" or "INOUT".
+  pub mode: Str = ""
+  pub data_type: StandardSqlDataType? = None
+}
+
+/// A standard SQL type (Go's StandardSQLDataType).
+pub struct StandardSqlDataType {
+  pub array_element_type: StandardSqlDataType? = None
+  pub range_element_type: StandardSqlDataType? = None
+  pub struct_type: StandardSqlStructType? = None
+  /// "INT64", "STRING", "ARRAY", "STRUCT"...
+  pub type_kind: Str = ""
+}
+
+/// A field of a struct type (Go's StandardSQLField).
+pub struct StandardSqlField {
+  pub name: Str = ""
+  pub type_: StandardSqlDataType? = None
+}
+
+/// Go's StandardSQLStructType.
+pub struct StandardSqlStructType {
+  pub fields: List[StandardSqlField] = []
+}
+
+/// A table-valued function's columns (Go's StandardSQLTableType).
+pub struct StandardSqlTableType {
+  pub columns: List[StandardSqlField] = []
+}
+
+fn sql_type_raw(t: StandardSqlDataType) -> raw.StandardSqlDataType {
+  raw.StandardSqlDataType{type_kind: t.type_kind, array_element_type: match t.array_element_type {
+    Some(a) => Some(sql_type_raw(a))
+    None => None
+  }, struct_type: match t.struct_type {
+    Some(s) => Some(raw.StandardSqlStructType{fields: s.fields.map(sql_field_raw)})
+    None => None
+  }, range_element_type: match t.range_element_type {
+    Some(r) => Some(sql_type_raw(r))
+    None => None
+  }}
+}
+
+fn sql_field_raw(f: StandardSqlField) -> raw.StandardSqlField {
+  raw.StandardSqlField{name: f.name, type_: match f.type_ {
+    Some(t) => Some(sql_type_raw(t))
+    None => None
+  }}
+}
+
+fn sql_type_of(t: raw.StandardSqlDataType?) -> StandardSqlDataType? {
+  let x = t ?? return None
+  Some(StandardSqlDataType{type_kind: x.type_kind, array_element_type: sql_type_of(x.array_element_type), struct_type: match x.struct_type {
+    Some(s) => Some(StandardSqlStructType{fields: s.fields.map(sql_field_of)})
+    None => None
+  }, range_element_type: sql_type_of(x.range_element_type)})
+}
+
+fn sql_field_of(f: raw.StandardSqlField) -> StandardSqlField { StandardSqlField{name: f.name, type_: sql_type_of(f.type_)} }
+
+fn table_type_raw(t: StandardSqlTableType) -> raw.StandardSqlTableType { raw.StandardSqlTableType{columns: t.columns.map(sql_field_raw)} }
+
+fn argument_raw(a: RoutineArgument) -> raw.Argument {
+  raw.Argument{name: a.name, argument_kind: a.kind, mode: a.mode, data_type: match a.data_type {
+    Some(t) => Some(sql_type_raw(t))
+    None => None
+  }}
+}
+
+fn remote_raw(r: RemoteFunctionOptions) -> raw.RemoteFunctionOptions {
+  raw.RemoteFunctionOptions{connection: r.connection, endpoint: r.endpoint, max_batching_rows: r.max_batching_rows, user_defined_context: r.user_defined_context ?? {}}
+}
+
+/// Go's RoutineMetadata.toBQ.
+fn routine_to_raw(rm: RoutineMetadata) -> raw.Routine {
+  var r = raw.Routine{description: rm.description, determinism_level: rm.determinism_level, language: rm.language, routine_type: rm.type_, definition_body: rm.body, data_governance_type: rm.data_governance_type, arguments: rm.arguments.map(argument_raw), imported_libraries: rm.imported_libraries, etag: rm.etag}
+  r.return_type = match rm.return_type {
+    Some(t) => Some(sql_type_raw(t))
+    None => None
+  }
+  r.return_table_type = match rm.return_table_type {
+    Some(t) => Some(table_type_raw(t))
+    None => None
+  }
+  r.remote_function_options = match rm.remote_function_options {
+    Some(o) => Some(remote_raw(o))
+    None => None
+  }
+  if let Some(t) = rm.creation_time {
+    r.creation_time = t.unix_millis()
+  }
+  if let Some(t) = rm.last_modified_time {
+    r.last_modified_time = t.unix_millis()
+  }
+  r
+}
+
+/// Go's bqToRoutineMetadata.
+fn routine_of(r: raw.Routine) -> RoutineMetadata {
+  RoutineMetadata{etag: r.etag, type_: r.routine_type, creation_time: millis_time(r.creation_time), description: r.description, determinism_level: r.determinism_level, last_modified_time: millis_time(r.last_modified_time), language: r.language, imported_libraries: r.imported_libraries, body: r.definition_body, data_governance_type: r.data_governance_type, arguments: r.arguments.map(fn(a) { RoutineArgument{name: a.name, kind: a.argument_kind, mode: a.mode, data_type: sql_type_of(a.data_type)} }), return_type: sql_type_of(r.return_type), remote_function_options: match r.remote_function_options {
+    Some(o) => Some(RemoteFunctionOptions{connection: o.connection, endpoint: o.endpoint, max_batching_rows: o.max_batching_rows, user_defined_context: if o.user_defined_context.is_empty() { None } else { Some(o.user_defined_context) }})
+    None => None
+  }, return_table_type: match r.return_table_type {
+    Some(t) => Some(StandardSqlTableType{columns: t.columns.map(sql_field_of)})
+    None => None
+  }}
+}
+
+fn routine_ref_raw[fx: Effects](r: Routine[fx]) -> raw.RoutineReference { raw.RoutineReference{project_id: r.project_id, dataset_id: r.dataset_id, routine_id: r.routine_id} }
+
+/// Creates the routine (Go's Create): md None is an empty one. Not
+/// retried.
+pub fn (r: Routine[fx]) create(md: RoutineMetadata? = None) -> () ! BqErr uses (net.dial, clock, rand, fx) {
+  var x = match md {
+    Some(m) => routine_to_raw(m)
+    None => raw.Routine{}
+  }
+  x.routine_reference = Some(routine_ref_raw(r))
+  once(r.c.svc.routines.insert(r.project_id, r.dataset_id, x, raw.RoutinesInsertOptions{headers: client_headers()}))?
+  Ok(())
+}
+
+/// The routine's metadata (Go's Metadata).
+pub fn (r: Routine[fx]) metadata() -> RoutineMetadata ! BqErr uses (net.dial, clock, rand, fx) {
+  let x = r.c.retry(DEFAULT_RETRY_REASONS, fn() -> raw.Routine ! gensupport.CallErr uses net.dial, clock, rand, fx {
+    r.c.svc.routines.get(r.project_id, r.dataset_id, r.routine_id, raw.RoutinesGetOptions{headers: client_headers()})
+  })?
+  Ok(routine_of(x))
+}
+
+/// Deletes the routine (Go's Delete). Not retried.
+pub fn (r: Routine[fx]) delete() -> () ! BqErr uses (net.dial, clock, rand, fx) {
+  once(r.c.svc.routines.delete(r.project_id, r.dataset_id, r.routine_id, raw.RoutinesDeleteOptions{headers: client_headers()}))
+}
+
+/// The changes of a routine update (Go's RoutineMetadataToUpdate): the
+/// update replaces the routine (PUT) with the fields set here.
+pub struct RoutineMetadataToUpdate {
+  /// Some([]) clears them.
+  pub arguments: List[RoutineArgument]? = None
+  pub description: Str? = None
+  pub determinism_level: Str? = None
+  pub type_: Str? = None
+  pub language: Str? = None
+  pub body: Str? = None
+  /// Some([]) clears them.
+  pub imported_libraries: List[Str]? = None
+  pub return_type: StandardSqlDataType? = None
+  pub return_table_type: StandardSqlTableType? = None
+  pub data_governance_type: Str? = None
+}
+
+/// Go's RoutineMetadataToUpdate.toBQ, with the routine's reference, as
+/// the JSON body.
+fn routine_update_body(u: RoutineMetadataToUpdate, ref: raw.RoutineReference) -> json.Value {
+  var b = Body{}
+  if let Some(v) = u.description {
+    b.put("description", jstr(v))
+  }
+  if let Some(v) = u.determinism_level {
+    // not forced: an empty level is left out
+    if v != "" {
+      b.put("determinismLevel", jstr(v))
+    }
+  }
+  if let Some(a) = u.arguments {
+    b.put("arguments", if a.is_empty() { json.Value.Null } else { json.Value.List(a.map(fn(x) { jraw(argument_raw(x)) })) })
+  }
+  if let Some(v) = u.type_ {
+    b.put("routineType", jstr(v))
+  }
+  if let Some(v) = u.language {
+    b.put("language", jstr(v))
+  }
+  if let Some(v) = u.body {
+    b.put("definitionBody", jstr(v))
+  }
+  if let Some(l) = u.imported_libraries {
+    b.put("importedLibraries", if l.is_empty() { json.Value.Null } else { jlist(l) })
+  }
+  if let Some(t) = u.return_type {
+    b.put("returnType", jraw(sql_type_raw(t)))
+  }
+  if let Some(t) = u.return_table_type {
+    b.put("returnTableType", jraw(table_type_raw(t)))
+  }
+  if let Some(v) = u.data_governance_type {
+    b.put("dataGovernanceType", jstr(v))
+  }
+  b.put("routineReference", jraw(ref))
+  b.value()
+}
+
+/// Replaces the routine's metadata and returns it (Go's Update): with an
+/// etag, only when it is the routine's (If-Match). Retried as a read is.
+pub fn (r: Routine[fx]) update(u: RoutineMetadataToUpdate, etag: Str) -> RoutineMetadata ! BqErr uses (net.dial, clock, rand, fx) {
+  let body = routine_update_body(u, routine_ref_raw(r))
+  let x = r.c.retry(DEFAULT_RETRY_REASONS, fn() -> raw.Routine ! gensupport.CallErr uses net.dial, clock, rand, fx {
+    r.c.send_json[raw.Routine]("PUT", "projects/{+projectId}/datasets/{+datasetId}/routines/{+routineId}", {"projectId": r.project_id, "datasetId": r.dataset_id, "routineId": r.routine_id}, [], etag, body)
+  })?
+  Ok(routine_of(x))
+}
+
+/// The routines of a dataset (Go's RoutineIterator).
+pub struct RoutineIterator[fx: Effects] {
+  d: Dataset[fx]
+  page: Pager[Routine[fx]] = Pager{}
+}
+
+/// The dataset's routines (Go's Routines).
+pub fn (d: Dataset[fx]) routines() -> RoutineIterator[fx] { RoutineIterator{d: d} }
+
+/// The next routine, None after the last.
+pub fn (var it: RoutineIterator[fx]) next() -> Routine[fx]? ! BqErr uses (net.dial, clock, rand, fx) {
+  while it.page.needs_fetch() {
+    let d = it.d
+    let o = raw.RoutinesListOptions{page_token: Some(it.page.token), headers: client_headers()}
+    match d.c.retry(DEFAULT_RETRY_REASONS, fn() -> raw.ListRoutinesResponse ! gensupport.CallErr uses net.dial, clock, rand, fx { d.c.svc.routines.list(d.project_id, d.dataset_id, o) }) {
+      Ok(l) => {
+        var items: List[Routine[fx]] = []
+        for x in l.routines {
+          if let Some(r) = x.routine_reference {
+            items.push(Routine{project_id: r.project_id, dataset_id: r.dataset_id, routine_id: r.routine_id, c: d.c})
+          }
+        }
+        it.page.fill(items, l.next_page_token)
+      }
+      Err(e) => it.page.fail(e)
+    }
+  }
+  it.page.take()
+}

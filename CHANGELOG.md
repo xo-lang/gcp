@@ -7,6 +7,11 @@ touches. Release notes: [docs/releases](docs/releases).
 
 ## Unreleased
 
+- `bigquery` (decision 0011 step 1): a hand-written client over
+  `bigquery/v2`: `new_client`, datasets, tables, routines and models
+  (metadata, create, update with an etag, delete, listings), access
+  entries, table IAM policies, schemas (`relax`, `to_json_fields`,
+  `schema_from_json`), errors and Go's retries. 44 Go oracle cases.
 - `storage`: the fields decision 0010's steps left out: the bucket
   encryption enforcement configs (`EncryptionEnforcementConfig`), object
   contexts (`ObjectContexts`, on attributes, updates and writes) and

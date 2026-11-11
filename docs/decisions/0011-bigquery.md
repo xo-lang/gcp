@@ -97,6 +97,33 @@ GAPIC subpackages, and OpenTelemetry tracing (`trace.go`).
   part counts (Go's `civil.Date`, `civil.Time`, `civil.DateTime`), or
   three small types of the module's own; step 2's oracle cases decide.
 
+### Step 1 (client and metadata)
+
+- **No project detection.** Go's `DetectProjectID` reads the project
+  from the credentials; `new_client` takes it, and a caller passes
+  `credentials.Credentials.project_id(env)`.
+- **Handles hold references in access entries.** Go's `AccessEntry`
+  holds a `*Table` or `*Routine`; here `TableRef` and `RoutineRef`
+  (`table.ref()`), so an entry is a plain value with no client in it.
+- **Go's optional types are `Option`s.** `optional.String` and friends
+  in the `ToUpdate` types are `Str?`, `Bool?` and `Duration?`;
+  `NeverExpire` is `Expiration.Never`.
+- **Not in step 1:** `ExternalDataConfig` (step 4),
+  `MaterializedViewDefinition.MaxStaleness` and the INTERVAL value it
+  holds (step 2), and `Model.TrainingRuns`, which hands back the
+  generated API's own types (a caller uses `bigquery/v2` directly).
+- **`SchemaFromJSON`'s decode error** is std/json's text (`at $:
+  expected array`), not encoding/json's.
+- **`bigquery/v2` resolves through the workspace only.** `require
+  github.com/xo-lang/gcp/bigquery/v2 v0.1.0` fails with XO1301 (a path
+  ending in `/v2` takes only v2.x.y versions), though the tag exists;
+  the same holds for every generated module whose API version is `/v2`
+  or above (91 of them). `bigquery/xo.mod` requires the root module
+  only until that is settled (Follow-ups).
+
+The step's 44 cases run Go's client against a fake that records each
+request; `bigquery/govec_test.xo` is generated from that output.
+
 ## Consequences
 
 - Every step is Go-vectored, as 0009 and 0010 were; each records its
@@ -111,6 +138,12 @@ GAPIC subpackages, and OpenTelemetry tracing (`trace.go`).
   `ValueSaver` and a schema for a struct, as Go's reflection does
   (`InferSchema`, struct loading and saving). When it lands, the port
   gains Go's struct mapping without changing the traits.
+
+- **`/vN` API modules and XO1301.** Google's API versions (`/v2`,
+  `/v3`) are not semver majors, but Xo's rule reads them as such: either
+  the generated modules are tagged `vN.x.y` under their path, or Xo
+  exempts them, or the paths change. An owner decision; until then the
+  hand-written modules resolve them through `xo.work`.
 
 ## Alternatives
 

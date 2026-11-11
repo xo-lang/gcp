@@ -1,0 +1,187 @@
+// BigQuery's REST client, as cloud.google.com/go/bigquery v1.86.2
+// (Apache-2.0, Copyright Google LLC; NOTICE.md), decision 0011 step 1:
+// the client, its retries (bigquery.go's runWithRetry) and its errors.
+// Calls go over the generated bigquery/v2 service; an update's body,
+// which sends empty values and nulls on purpose (Go's ForceSendFields and
+// NullFields), is written here.
+
+use std/json
+use std/url
+use github.com/xo-lang/gcp/gensupport
+use github.com/xo-lang/gcp/googleapi
+use github.com/xo-lang/gcp/option
+use github.com/xo-lang/gcp/bigquery/v2 as raw
+
+/// This module's version, in x-goog-api-client (Go's internal.Version).
+pub const VERSION: Str = "0.1.0"
+
+/// BigQuery's scope (Go's Scope).
+pub const SCOPE: Str = "https://www.googleapis.com/auth/bigquery"
+
+/// Why a BigQuery call gave no result.
+pub enum BqErr {
+  /// The call failed (the transport, the credentials, or the service's
+  /// answer, Go's *googleapi.Error).
+  Call(e: gensupport.CallErr)
+  /// The arguments were refused before any request, with Go's text.
+  Invalid(msg: Str)
+}
+
+pub fn (e: BqErr) display() -> Str {
+  match e {
+    Call(c) => c.display()
+    Invalid(m) => m
+  }
+}
+
+/// The service's answer when the error is one (Go's errors.As into a
+/// *googleapi.Error).
+pub fn (e: BqErr) api() -> googleapi.ApiErr? {
+  match e {
+    Call(c) => {
+      match c {
+        gensupport.CallErr.Api(a) => Some(a)
+        _ => None
+      }
+    }
+    Invalid(_) => None
+  }
+}
+
+/// The service's HTTP status when the error is its answer, else 0.
+pub fn (e: BqErr) code() -> Int {
+  match e.api() {
+    Some(a) => a.code
+    None => 0
+  }
+}
+
+/// The pause between attempts (gax-go's Backoff, which runWithRetry fixes
+/// at 1 s growing by 2 to 32 s): a random time up to the current bound.
+pub struct Backoff {
+  pub initial: Duration = 1s
+  pub max: Duration = 32s
+  pub multiplier: Float = 2.0
+}
+
+/// The reasons runWithRetry retries besides 500, 502, 503 and 504 (Go's
+/// defaultRetryReasons).
+pub const DEFAULT_RETRY_REASONS: List[Str] = ["backendError", "rateLimitExceeded"]
+
+/// Go's retryableError: the first error's reason is one of reasons, the
+/// status is 500, 502, 503 or 504, or the connection failed.
+pub fn retryable(e: gensupport.CallErr, reasons: List[Str]) -> Bool {
+  match e {
+    gensupport.CallErr.Api(a) => {
+      if !a.errors.is_empty() && reasons.contains(a.errors[0].reason) {
+        return true
+      }
+      a.code == 500 || a.code == 502 || a.code == 503 || a.code == 504
+    }
+    gensupport.CallErr.Http(h) => {
+      let m = h.display()
+      m.contains("unexpected EOF") || m.contains("connection refused") || m.contains("connection reset") || m.contains("timeout") || m.contains("timed out")
+    }
+    _ => false
+  }
+}
+
+/// What NewClient takes beyond the project.
+pub struct ClientOptions[fx: Effects] {
+  /// The service options: credentials (credentials.client_options),
+  /// endpoint, user agent, quota project.
+  pub service: option.ClientOptions[fx] = option.ClientOptions{}
+  /// The pause between retried attempts.
+  pub backoff: Backoff = Backoff{}
+}
+
+/// A BigQuery client (Go's Client). A value: copies share nothing but the
+/// capabilities.
+pub struct Client[fx: Effects] {
+  /// The location new datasets and jobs use when they name none (Go's
+  /// Client.Location).
+  pub location: Str = ""
+  project: Str
+  svc: raw.Service[fx]
+  core: gensupport.Core[fx]
+  clock: Clock
+  rand: Rand
+  backoff: Backoff
+}
+
+/// The client of project (Go's NewClient over HTTP). Go's
+/// DetectProjectID reads the project from the credentials; here the
+/// caller passes it (credentials.Credentials.project_id).
+pub fn new_client[fx: Effects](net: Net, clock: Clock, rand: Rand, project: Str, opts: ClientOptions[fx] = ClientOptions{}) -> Client[fx] {
+  var o = opts.service
+  if o.user_agent == "" {
+    o.user_agent = "gcloud-golang-bigquery/${VERSION}"
+  }
+  let ep = if o.endpoint == "" { raw.BASE_PATH } else { o.endpoint }
+  Client{project: project, svc: raw.new_service(net, o), core: gensupport.new_core(net, o, ep), clock: clock, rand: rand, backoff: opts.backoff}
+}
+
+/// The client's project (Go's Project).
+pub fn (c: Client[fx]) project_id() -> Str { c.project }
+
+/// The client's x-goog-api-client header (Go's setClientHeader), which
+/// replaces gensupport's.
+fn client_headers() -> List[(Str, Str)] { [("x-goog-api-client", "gl-xo/preview gccl/${VERSION}")] }
+
+/// Go's runWithRetry: calls f until it succeeds or its error is not
+/// retryable (no limit on attempts; Go stops when the context ends),
+/// pausing by the backoff between attempts.
+fn (c: Client[fx]) retry[T](reasons: List[Str], f: fn() -> T ! gensupport.CallErr uses (net.dial, clock, rand, fx)) -> T ! BqErr uses (net.dial, clock, rand, fx) {
+  var bound = if c.backoff.initial > 0s { c.backoff.initial } else { 1s }
+  let max = if c.backoff.max > 0s { c.backoff.max } else { 32s }
+  let mult = if c.backoff.multiplier > 1.0 { c.backoff.multiplier } else { 2.0 }
+  while true {
+    let e = match f() {
+      Ok(v) => return Ok(v)
+      Err(e) => e
+    }
+    if !retryable(e, reasons) {
+      return Err(BqErr.Call(e))
+    }
+    // gax: a pause of 1 + rand(bound) nanoseconds, then the bound grows
+    let ns = bound.nanos()
+    c.clock.sleep(Duration.from_nanos(1 + c.rand.int(0, ns)))
+    let next = Duration.from_nanos(Int(Float(ns) * mult))
+    bound = if next > max { max } else { next }
+  }
+  fault("unreachable")
+}
+
+/// One call with no retry.
+fn once[T](r: Result[T, gensupport.CallErr]) -> T ! BqErr {
+  r ?? e => Err(BqErr.Call(e))
+}
+
+/// Sends a hand-built JSON body (an update's, with its nulls) to path
+/// under the endpoint and decodes the answer as T.
+fn (c: Client[fx]) send_json[T: Json](method: Str, path: Str, params: Map[Str, Str], query: List[(Str, Str)], etag: Str, body: json.Value) -> T ! gensupport.CallErr uses (net.dial, clock, rand, fx) {
+  let target = googleapi.expand(googleapi.resolve_relative(c.core.base_path, path), params)
+  var q = url.values()
+  for (k, v) in query {
+    q.set(k, v)
+  }
+  q.set("alt", "json")
+  q.set("prettyPrint", "false")
+  var hs = client_headers()
+  if etag != "" {
+    hs.push(("If-Match", etag))
+  }
+  hs.push(("Content-Type", "application/json"))
+  let resp = c.core.client.send(gensupport.Request{method: method, url: target, query: q, headers: hs, body: "${body.encode()}\n".bytes()})?
+  gensupport.check(resp)?
+  gensupport.decode[T](resp)
+}
+
+/// Milliseconds since the epoch as Go's unixMillisToTime: 0 is the zero
+/// time (None).
+fn millis_time(ms: Int) -> Time? {
+  if ms == 0 { None } else { Some(Time.from_unix_millis(ms)) }
+}
+
+/// A time as milliseconds since the epoch (Go's UnixNano() / 1e6).
+fn time_millis(t: Time) -> Int { t.unix_millis() }

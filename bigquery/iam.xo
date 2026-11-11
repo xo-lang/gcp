@@ -1,0 +1,129 @@
+// A table's IAM policy (iam.go, over cloud.google.com/go/iam's Handle and
+// Policy): version 1 policies only, as BigQuery's tables.
+
+use github.com/xo-lang/gcp/gensupport
+use github.com/xo-lang/gcp/bigquery/v2 as raw
+
+/// A role and its members (Go's iampb.Binding).
+pub struct Binding {
+  pub role: Str
+  pub members: List[Str] = []
+}
+
+/// An IAM policy (Go's iam.Policy): bindings, and the etag that makes
+/// setting it safe against a concurrent change.
+pub struct Policy {
+  pub bindings: List[Binding] = []
+  pub etag: Str = ""
+  pub version: Int = 0
+}
+
+fn (p: Policy) index(role: Str) -> Int {
+  var i = 0
+  for b in p.bindings {
+    if b.role == role {
+      return i
+    }
+    i += 1
+  }
+  -1
+}
+
+/// The role's members (Go's Members).
+pub fn (p: Policy) members(role: Str) -> List[Str] {
+  let i = p.index(role)
+  if i < 0 { [] } else { p.bindings[i].members }
+}
+
+/// Whether member has role (Go's HasRole).
+pub fn (p: Policy) has_role(member: Str, role: Str) -> Bool { p.members(role).contains(member) }
+
+/// Adds member to role (Go's Add): a new binding at the end when none has
+/// the role.
+pub fn (var p: Policy) add(member: Str, role: Str) {
+  let i = p.index(role)
+  if i < 0 {
+    p.bindings.push(Binding{role: role, members: [member]})
+    return
+  }
+  if !p.bindings[i].members.contains(member) {
+    var b = p.bindings[i]
+    b.members.push(member)
+    p.bindings[i] = b
+  }
+}
+
+/// Removes member from role (Go's Remove): as Go does, the last binding or
+/// member takes the place of one removed.
+pub fn (var p: Policy) remove(member: Str, role: Str) {
+  let i = p.index(role)
+  if i < 0 {
+    return
+  }
+  var b = p.bindings[i]
+  var mi = -1
+  var k = 0
+  for m in b.members {
+    if m == member && mi < 0 {
+      mi = k
+    }
+    k += 1
+  }
+  if mi < 0 {
+    return
+  }
+  if b.members.len() == 1 {
+    let last = p.bindings.len() - 1
+    p.bindings[i] = p.bindings[last]
+    p.bindings = p.bindings[0..last]
+    return
+  }
+  let last = b.members.len() - 1
+  b.members[mi] = b.members[last]
+  b.members = b.members[0..last]
+  p.bindings[i] = b
+}
+
+/// The roles of the bindings, in order (Go's Roles).
+pub fn (p: Policy) roles() -> List[Str] { p.bindings.map(fn(b) { b.role }) }
+
+/// A table's IAM policy (Go's Table.IAM, an iam.Handle).
+pub struct IamHandle[fx: Effects] {
+  t: Table[fx]
+}
+
+/// The table's IAM policy handle (Go's IAM).
+pub fn (t: Table[fx]) iam() -> IamHandle[fx] { IamHandle{t: t} }
+
+fn (h: IamHandle[fx]) resource() -> Str { "projects/${h.t.project_id}/datasets/${h.t.dataset_id}/tables/${h.t.table_id}" }
+
+/// The policy (Go's Policy, version 1).
+pub fn (h: IamHandle[fx]) policy() -> Policy ! BqErr uses (net.dial, clock, rand, fx) {
+  let c = h.t.c
+  let res = h.resource()
+  let p = c.retry(DEFAULT_RETRY_REASONS, fn() -> raw.Policy ! gensupport.CallErr uses net.dial, clock, rand, fx {
+    c.svc.tables.get_iam_policy(res, raw.GetIamPolicyRequest{options: Some(raw.GetPolicyOptions{requested_policy_version: 1})}, raw.TablesGetIamPolicyOptions{headers: client_headers()})
+  })?
+  Ok(Policy{bindings: p.bindings.map(fn(b) { Binding{role: b.role, members: b.members} }), etag: p.etag, version: p.version})
+}
+
+/// Sets the policy (Go's SetPolicy).
+pub fn (h: IamHandle[fx]) set_policy(p: Policy) -> () ! BqErr uses (net.dial, clock, rand, fx) {
+  let c = h.t.c
+  let res = h.resource()
+  let body = raw.SetIamPolicyRequest{policy: Some(raw.Policy{bindings: p.bindings.map(fn(b) { raw.Binding{role: b.role, members: b.members} }), etag: p.etag, version: p.version})}
+  c.retry(DEFAULT_RETRY_REASONS, fn() -> raw.Policy ! gensupport.CallErr uses net.dial, clock, rand, fx {
+    c.svc.tables.set_iam_policy(res, body, raw.TablesSetIamPolicyOptions{headers: client_headers()})
+  })?
+  Ok(())
+}
+
+/// The permissions the caller has of those given (Go's TestPermissions).
+pub fn (h: IamHandle[fx]) test_permissions(permissions: List[Str]) -> List[Str] ! BqErr uses (net.dial, clock, rand, fx) {
+  let c = h.t.c
+  let res = h.resource()
+  let r = c.retry(DEFAULT_RETRY_REASONS, fn() -> raw.TestIamPermissionsResponse ! gensupport.CallErr uses net.dial, clock, rand, fx {
+    c.svc.tables.test_iam_permissions(res, raw.TestIamPermissionsRequest{permissions: permissions}, raw.TablesTestIamPermissionsOptions{headers: client_headers()})
+  })?
+  Ok(r.permissions)
+}
