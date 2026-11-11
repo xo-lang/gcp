@@ -1,0 +1,58 @@
+// The token cache every Go credential is wrapped in, as
+// cloud.google.com/go/auth v0.24.4's cachedTokenProvider (Apache-2.0,
+// Copyright Google LLC; NOTICE.md), decision 0009 step 1.
+
+/// How long before its expiry a cached token is refreshed (Go's
+/// defaultExpiryDelta).
+pub const DEFAULT_EXPIRY_DELTA: Duration = 225s
+
+/// Go's CachedTokenProviderOptions.
+pub struct CachedOptions {
+  /// How long before expiry a token is refreshed; 0s for
+  /// DEFAULT_EXPIRY_DELTA (Go's ExpireEarly).
+  pub expire_early: Duration = 0s
+}
+
+/// A provider that keeps the last token until it is within
+/// `expire_early` of its expiry (Go's NewCachedTokenProvider with
+/// DisableAsyncRefresh: Go's default async mode, which hands out the
+/// stale token while one refresh runs in the background, needs a task that
+/// outlives the call and is not ported).
+pub struct CachedTokenProvider[fx: Effects] {
+  inner: TokenProvider[fx]
+  clock: Clock
+  early: Duration
+  last: Mutex[Token?]
+}
+
+/// `p` behind a cache (Go's auth.NewCachedTokenProvider).
+pub fn cached[fx: Effects](p: TokenProvider[fx], clock: Clock, opts: CachedOptions = CachedOptions{}) -> CachedTokenProvider[fx] {
+  let early = if opts.expire_early > 0s { opts.expire_early } else { DEFAULT_EXPIRY_DELTA }
+  CachedTokenProvider{inner: p, clock: clock, early: early, last: Mutex[Token?].new(None)}
+}
+
+/// Whether `t` can be handed out at `now` (Go's tokenState == fresh): a
+/// value, and no expiry or one more than `early` away.
+pub fn fresh(t: Token, now: Time, early: Duration) -> Bool {
+  if t.value.reveal() == "" {
+    return false
+  }
+  let exp = t.expiry ?? return true
+  now.unix_millis() <= exp.unix_millis() - early.millis()
+}
+
+/// The cached token while fresh, else a new one from the provider; a
+/// failed refresh keeps the old token for the next call (Go's
+/// tokenBlocking).
+pub fn (c: CachedTokenProvider[fx]) token() -> Token ! AuthErr uses (net.dial, clock, rand, fx) {
+  c.last.with(fn(var last: Token?) -> Token ! AuthErr uses net.dial, clock, rand, fx {
+    if let Some(t) = last {
+      if fresh(t, c.clock.now(), c.early) {
+        return Ok(t)
+      }
+    }
+    let t = c.inner.token()?
+    last = Some(t)
+    Ok(t)
+  })
+}

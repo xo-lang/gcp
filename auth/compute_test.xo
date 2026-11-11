@@ -1,0 +1,182 @@
+// Decision 0009 step 1 against the Go oracle's vectors (cloud.google.com/go/
+// auth v0.24.4 and compute/metadata v0.10.0 over a fake metadata server):
+// the request lines, headers, cache behavior and error texts below are
+// what Go printed for the case named in each test.
+
+use std/http
+use std/testing
+use github.com/xo-lang/gcp/compute/metadata
+
+const MD: Str = "http://metadata.fake/computeMetadata/v1/"
+const GOOD: Str = "{\"access_token\":\"access-one\",\"expires_in\":3600,\"token_type\":\"Bearer\"}"
+const TWO: Str = "{\"access_token\":\"access-two\",\"expires_in\":3600,\"token_type\":\"Bearer\"}"
+const SHORT: Str = "{\"access_token\":\"access-one\",\"expires_in\":200,\"token_type\":\"Bearer\"}"
+
+/// A fake metadata server: each path answers its replies in order (the
+/// last repeats; a path with none is 404), and every request is logged as
+/// `GET URL | Metadata-Flavor | User-Agent`.
+fn md_server(net: testing.FakeNet, routes: Map[Str, List[(Int, Str)]]) -> Mutex[List[Str]] {
+  let log: Mutex[List[Str]] = Mutex[List[Str]].new([])
+  let left = Mutex[Map[Str, List[(Int, Str)]]].new(routes)
+  net.handle("GET http://metadata.fake/{rest...}", fn(req: http.Request) -> http.Response {
+    let path = req.escaped_path().trim_prefix("/computeMetadata/v1/")
+    let q = req.raw_query()
+    let full = if q == "" { path } else { "${path}?${q}" }
+    log.with(fn(var l: List[Str]) { l.push("GET ${MD}${full} | ${req.header("Metadata-Flavor") ?? ""} | ${req.header("User-Agent") ?? ""}") })
+    let r = left.with(fn(var m: Map[Str, List[(Int, Str)]]) -> (Int, Str) {
+      let rs = m.get(path) ?? []
+      if rs.len() == 0 {
+        return (404, "not found")
+      }
+      if rs.len() > 1 {
+        m.put(path, rs[1..rs.len()])
+      }
+      rs[0]
+    })
+    http.Response{status: r.0, headers: {}, body: r.1.bytes()}
+  })
+  log
+}
+
+fn token_routes(replies: List[(Int, Str)]) -> Map[Str, List[(Int, Str)]] {
+  {"instance/service-accounts/default/token": replies, "project/project-id": [(200, "project-md")]}
+}
+
+fn lines(log: Mutex[List[Str]]) -> List[Str] {
+  log.with(fn(var l: List[Str]) -> List[Str] { l })
+}
+
+fn md_client(os: testing.TestOs) -> metadata.Client uses env {
+  os.env.set("GCE_METADATA_HOST", "metadata.fake")
+  metadata.new_client(os.env, os.net, os.clock, os.rand)
+}
+
+fn left_secs(os: testing.TestOs, t: Token) -> Int uses clock {
+  let e = t.expiry ?? return -1
+  (e.unix_millis() - os.clock.now().unix_millis()) / 1000
+}
+
+test "md_token: scopes in the query, Go's headers, one request for two calls" {
+  let log = md_server(os.net, token_routes([(200, GOOD)]))
+  let c = md_client(os)
+  let p = compute(c, os.clock, scopes: ["scope-a", "scope-b"])
+  for _ in 0..2 {
+    let t = p.token() ?? e => fault(e.display())
+    expect(t.value.reveal()) == "access-one"
+    expect(t.token_type) == "Bearer"
+    expect(left_secs(os, t)) == 3600
+  }
+  expect(c.project_id() ?? e => fault(e.display())) == "project-md"
+  expect(c.universe_domain() ?? e => fault(e.display())) == "googleapis.com"
+  expect(lines(log)) == [
+    "GET ${MD}instance/service-accounts/default/token?scopes=scope-a%2Cscope-b | Google | gcloud-golang/0.1",
+    "GET ${MD}project/project-id | Google | gcloud-golang/0.1",
+    "GET ${MD}universe/universe-domain | Google | gcloud-golang/0.1",
+  ]
+}
+
+test "md_noscopes: no query without scopes" {
+  let log = md_server(os.net, token_routes([(200, GOOD)]))
+  let p = compute(md_client(os), os.clock)
+  let _ = p.token() ?? e => fault(e.display())
+  expect(lines(log)) == ["GET ${MD}instance/service-accounts/default/token | Google | gcloud-golang/0.1"]
+}
+
+test "md_stale_blocking: a token within 225s of expiry is fetched again" {
+  let log = md_server(os.net, token_routes([(200, SHORT), (200, TWO)]))
+  let p = compute(md_client(os), os.clock)
+  let got = (0..3).to_list().map(fn(_: Int) -> Str { (p.token() ?? e => fault(e.display())).value.reveal() })
+  expect(got) == ["access-one", "access-two", "access-two"]
+  expect(lines(log).len()) == 2
+}
+
+test "md_early_refresh: expire_early beyond the lifetime refetches every call" {
+  let log = md_server(os.net, token_routes([(200, GOOD), (200, TWO)]))
+  let p = compute(md_client(os), os.clock, opts: CachedOptions{expire_early: 3601s})
+  let got = (0..2).to_list().map(fn(_: Int) -> Str { (p.token() ?? e => fault(e.display())).value.reveal() })
+  expect(got) == ["access-one", "access-two"]
+  expect(lines(log).len()) == 2
+}
+
+test "the cache boundary: fresh until exactly 225s before expiry (Go's now.After)" {
+  let log = md_server(os.net, token_routes([(200, GOOD), (200, TWO)]))
+  let p = compute(md_client(os), os.clock)
+  let _ = p.token() ?? e => fault(e.display())
+  os.clock.advance(3375s)
+  expect((p.token() ?? e => fault(e.display())).value.reveal()) == "access-one"
+  os.clock.advance(1ms)
+  expect((p.token() ?? e => fault(e.display())).value.reveal()) == "access-two"
+  expect(lines(log).len()) == 2
+}
+
+test "a failed refresh is an error, and the next call asks again" {
+  let log = md_server(os.net, token_routes([(200, SHORT), (403, "denied"), (200, TWO)]))
+  let p = compute(md_client(os), os.clock)
+  let _ = p.token() ?? e => fault(e.display())
+  match p.token() {
+    Ok(_) => fault("want an error")
+    Err(e) => expect(e.display()) == "credentials: cannot fetch token: compute: Received 403 `denied`"
+  }
+  expect((p.token() ?? e => fault(e.display())).value.reveal()) == "access-two"
+  expect(lines(log).len()) == 3
+}
+
+fn token_err(os: testing.TestOs, replies: List[(Int, Str)]) -> Str uses (env, net.dial, clock, rand) {
+  let _ = md_server(os.net, token_routes(replies))
+  match compute(md_client(os), os.clock).token() {
+    Ok(_) => "no error"
+    Err(e) => e.display()
+  }
+}
+
+test "md_incomplete, md_404, md_403: Go's error texts" {
+  expect(token_err(os, [(200, "{}")])) == "credentials: incomplete token received from metadata"
+}
+
+test "md_404" {
+  expect(token_err(os, [(404, "not found")])) == "credentials: cannot fetch token: metadata: GCE metadata \"instance/service-accounts/default/token\" not defined"
+}
+
+test "md_403" {
+  expect(token_err(os, [(403, "denied")])) == "credentials: cannot fetch token: compute: Received 403 `denied`"
+}
+
+test "md_badjson: Go's prefix (encoding/json's own text differs)" {
+  expect(token_err(os, [(200, "{")]).starts_with("credentials: invalid token JSON from metadata: ")) == true
+}
+
+test "md_retry: 503 and 429 are retried with Go's backoff" {
+  let log = md_server(os.net, token_routes([(503, "busy"), (429, "slow down"), (200, GOOD)]))
+  let t = compute(md_client(os), os.clock).token() ?? e => fault(e.display())
+  expect(t.value.reveal()) == "access-one"
+  expect(lines(log).len()) == 3
+  let s = os.clock.sleeps()
+  expect(s.len()) == 2
+  expect(s[0] > 0s && s[0] <= 100ms) == true
+  expect(s[1] > 0s && s[1] <= 200ms) == true
+}
+
+test "md_retry_exhausted: five retries, then the last status" {
+  let log = md_server(os.net, token_routes([(500, "down")]))
+  match compute(md_client(os), os.clock).token() {
+    Ok(_) => fault("want an error")
+    Err(e) => expect(e.display()) == "credentials: cannot fetch token: compute: Received 500 `down`"
+  }
+  expect(lines(log).len()) == 6
+}
+
+test "md_project_trim and md_universe: trimmed project id, the server's universe" {
+  let _ = md_server(os.net, {"project/project-id": [(200, "  project-md\n")], "universe/universe-domain": [(200, "example.fake")]})
+  let c = md_client(os)
+  expect(c.project_id() ?? e => fault(e.display())) == "project-md"
+  expect(c.universe_domain() ?? e => fault(e.display())) == "example.fake"
+}
+
+test "the default host is 169.254.169.254 and GCE_METADATA_HOST overrides it" {
+  os.env.set("GCE_METADATA_HOST", "")
+  expect(metadata.new_client(os.env, os.net, os.clock, os.rand).host) == "169.254.169.254"
+  expect(metadata.host_set(os.env)) == false
+  os.env.set("GCE_METADATA_HOST", "metadata.fake")
+  expect(metadata.new_client(os.env, os.net, os.clock, os.rand).host) == "metadata.fake"
+  expect(metadata.host_set(os.env)) == true
+}

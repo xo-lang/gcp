@@ -1,0 +1,139 @@
+// The Google Cloud metadata server client, as
+// cloud.google.com/go/compute/metadata v0.10.0 (Apache-2.0, Copyright
+// Google LLC; NOTICE.md): GET http://HOST/computeMetadata/v1/SUFFIX with
+// `Metadata-Flavor: Google`, HOST from GCE_METADATA_HOST or
+// 169.254.169.254, retried as Go's metadataRetryer (decision 0009 step 1).
+
+use std/http
+
+/// The metadata server's address when GCE_METADATA_HOST is unset.
+pub const METADATA_IP: Str = "169.254.169.254"
+/// The variable that names another metadata host (an emulator, a proxy).
+pub const METADATA_HOST_ENV: Str = "GCE_METADATA_HOST"
+/// Go's User-Agent for metadata requests.
+pub const USER_AGENT: Str = "gcloud-golang/0.1"
+/// Retries after the first request (Go's maxRetryAttempts).
+pub const MAX_RETRY_ATTEMPTS: Int = 5
+
+/// Why a metadata value could not be read.
+pub enum MetadataErr {
+  /// The server answered 404 (Go's NotDefinedError).
+  NotDefined(suffix: Str)
+  /// Another status outside 200 (Go's *metadata.Error).
+  Status(code: Int, message: Str)
+  /// The request failed before a response.
+  Http(e: http.ClientErr)
+  /// The call's deadline passed (Go's context.DeadlineExceeded).
+  DeadlineExceeded
+}
+
+pub fn (e: MetadataErr) display() -> Str {
+  match e {
+    NotDefined(s) => "metadata: GCE metadata ${go_quote(s)} not defined"
+    Status(c, m) => "compute: Received ${c} `${m}`"
+    Http(he) => he.display()
+    DeadlineExceeded => "context deadline exceeded"
+  }
+}
+
+/// Go's %q for the ASCII suffixes metadata uses.
+fn go_quote(s: Str) -> Str {
+  "\"${s.replace("\\", "\\\\").replace("\"", "\\\"")}\""
+}
+
+/// A metadata server client (Go's metadata.Client).
+pub struct Client {
+  http: http.Client
+  /// The host requests go to.
+  pub host: Str
+  clock: Clock
+  rand: Rand
+}
+
+/// The client for the host env names (Go's metadata.NewClient).
+pub fn new_client(env: Env, net: Net, clock: Clock, rand: Rand) -> Client uses env {
+  let h = env.get(METADATA_HOST_ENV) ?? ""
+  Client{http: http.client(net), host: if h == "" { METADATA_IP } else { h }, clock: clock, rand: rand}
+}
+
+/// Whether env names a metadata host, which Go's OnGCE trusts without a
+/// probe.
+pub fn host_set(env: Env) -> Bool uses env {
+  (env.get(METADATA_HOST_ENV) ?? "") != ""
+}
+
+/// Go's shouldRetry for a status (5xx and 429) or a transport error that
+/// is temporary (a timeout).
+fn retryable(status: Int, err: http.ClientErr?) -> Bool {
+  if status >= 500 && status <= 599 || status == 429 {
+    return true
+  }
+  if let Some(e) = err {
+    return e is http.ClientErr.Timeout
+  }
+  false
+}
+
+/// The value at `suffix` (Go's Client.GetWithContext).
+pub fn (c: Client) get(suffix: Str) -> Str ! MetadataErr uses (net.dial, clock, rand) {
+  c.get_within(suffix, 0s)
+}
+
+/// The value at `suffix`, the metadata value trimmed of white space (Go's
+/// getTrimmed).
+pub fn (c: Client) get_trimmed(suffix: Str) -> Str ! MetadataErr uses (net.dial, clock, rand) {
+  Ok(c.get(suffix)?.trim())
+}
+
+/// Like get, giving up with DeadlineExceeded once `limit` has passed
+/// (0s: no limit), as Go's call under context.WithTimeout.
+pub fn (c: Client) get_within(suffix: Str, limit: Duration) -> Str ! MetadataErr uses (net.dial, clock, rand) {
+  let start = c.clock.now().unix_millis()
+  let u = "http://${c.host}/computeMetadata/v1/${suffix.trim_start_chars("/")}"
+  var attempts = 0
+  // Go's defaultBackoff: 100ms doubling to 30s, each pause in (0, cur]
+  var cur = 100
+  while {
+    let req = http.new_request("GET", u).with_header("Metadata-Flavor", "Google").with_header("User-Agent", USER_AGENT)
+    let res = c.http.send(req)
+    let (status, err) = match res {
+      Ok(r) => (r.status, None)
+      Err(e) => (0, Some(e))
+    }
+    if status != 200 && retryable(status, err) && attempts < MAX_RETRY_ATTEMPTS {
+      attempts = attempts + 1
+      let pause = c.rand.int(1, cur + 1)
+      cur = if cur * 2 > 30000 { 30000 } else { cur * 2 }
+      if limit > 0s && c.clock.now().unix_millis() + pause - start > limit.millis() {
+        return Err(MetadataErr.DeadlineExceeded)
+      }
+      c.clock.sleep(Duration.from_millis(pause))
+      continue
+    }
+    let r = res ?? e => return Err(MetadataErr.Http(e))
+    if r.status == 404 {
+      return Err(MetadataErr.NotDefined(suffix))
+    }
+    if r.status != 200 {
+      return Err(MetadataErr.Status(code: r.status, message: r.body.to_str_lossy()))
+    }
+    return Ok(r.body.to_str_lossy())
+  }
+}
+
+/// The project id (Go's ProjectIDWithContext; Go caches it per process,
+/// a caller keeps the value).
+pub fn (c: Client) project_id() -> Str ! MetadataErr uses (net.dial, clock, rand) {
+  c.get_trimmed("project/project-id")
+}
+
+/// The universe domain under Go's one second limit: the value, or
+/// googleapis.com when the server does not define it (auth's
+/// getMetadataUniverseDomain).
+pub fn (c: Client) universe_domain() -> Str ! MetadataErr uses (net.dial, clock, rand) {
+  match c.get_within("universe/universe-domain", 1s) {
+    Ok(v) => Ok(v)
+    Err(MetadataErr.NotDefined(_)) => Ok("googleapis.com")
+    Err(e) => Err(e)
+  }
+}

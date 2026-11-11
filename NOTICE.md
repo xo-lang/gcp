@@ -10,9 +10,10 @@ This project ports code, behavior and tests from the following works:
   `option`, and the Discovery documents its packages carry
   (`<api>/<version>/<api>-api.json`), whose descriptions appear in the
   generated documentation.
-- cloud.google.com/go/auth v0.24.3, Copyright Google LLC, under the
-  Apache License, Version 2.0 (below): credentials, token sources and
-  the metadata server client.
+- cloud.google.com/go/auth v0.24.4 and cloud.google.com/go/compute/metadata
+  v0.10.0, Copyright Google LLC, under the Apache License, Version 2.0
+  (below): credentials, token sources and the token cache (`auth`), and
+  the metadata server client (`compute/metadata`).
 
 Google Cloud and its product names are trademarks of Google LLC. This
 project is not affiliated with or endorsed by Google.

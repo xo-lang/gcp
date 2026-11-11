@@ -1,0 +1,46 @@
+// Tokens from the metadata server, as cloud.google.com/go/auth v0.24.4's
+// credentials/compute.go (Apache-2.0, Copyright Google LLC; NOTICE.md),
+// decision 0009 step 1.
+
+use std/json
+use std/url
+use github.com/xo-lang/gcp/compute/metadata
+
+const COMPUTE_TOKEN_URI: Str = "instance/service-accounts/default/token"
+
+struct MetadataToken {
+  access_token: Str = ""
+  expires_in: Int = 0
+  token_type: Str = ""
+} derive Json
+
+/// The metadata server's default service account token (Go's
+/// computeProvider), without a cache.
+pub struct ComputeProvider {
+  pub client: metadata.Client
+  pub clock: Clock
+  /// The scopes asked for; none for the account's own.
+  pub scopes: List[Str] = []
+}
+
+pub fn (p: ComputeProvider) token() -> Token ! AuthErr uses (net.dial, clock, rand) {
+  var uri = COMPUTE_TOKEN_URI
+  if p.scopes.len() > 0 {
+    var v = url.values()
+    v.set("scopes", p.scopes.join(","))
+    uri = "${uri}?${v.encode()}"
+  }
+  let body = p.client.get(uri) ?? e => return Err(AuthErr{msg: "credentials: cannot fetch token: ${e.display()}"})
+  let res = json.decode_str[MetadataToken](body) ?? e => return Err(AuthErr{msg: "credentials: invalid token JSON from metadata: ${e.msg}"})
+  if res.expires_in == 0 || res.access_token == "" {
+    return Err(AuthErr{msg: "credentials: incomplete token received from metadata"})
+  }
+  let exp = Time.from_unix_millis(p.clock.now().unix_millis() + res.expires_in * 1000)
+  Ok(Token{value: Secret.new(res.access_token), token_type: res.token_type, expiry: Some(exp)})
+}
+
+/// The metadata server's tokens behind the cache (Go's
+/// computeTokenProvider).
+pub fn compute(client: metadata.Client, clock: Clock, scopes: List[Str] = [], opts: CachedOptions = CachedOptions{}) -> CachedTokenProvider[()] {
+  cached(ComputeProvider{client: client, clock: clock, scopes: scopes}, clock, opts)
+}
