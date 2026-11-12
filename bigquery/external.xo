@@ -1,0 +1,224 @@
+// External data configurations (external.go): a table, or a query's
+// temporary table, over data outside BigQuery (files in Cloud Storage,
+// Google Sheets, Bigtable).
+
+use std/base64
+use github.com/xo-lang/gcp/bigquery/apiv2 as raw
+
+// How an external table's metadata cache is refreshed (Go's
+// MetadataCacheMode).
+pub const AUTOMATIC_METADATA_CACHE_MODE: Str = "AUTOMATIC"
+pub const MANUAL_METADATA_CACHE_MODE: Str = "MANUAL"
+
+// How source URIs are read (Go's FileSetSpecType).
+pub const FILE_SET_SPEC_TYPE_FILE_SYSTEM_MATCH: Str = "FILE_SET_SPEC_TYPE_FILE_SYSTEM_MATCH"
+pub const FILE_SET_SPEC_TYPE_NEW_LINE_DELIMITED_MANIFEST: Str = "FILE_SET_SPEC_TYPE_NEW_LINE_DELIMITED_MANIFEST"
+
+// A JSON source's extension (Go's JSONExtension).
+pub const JSON_EXTENSION_UNSPECIFIED: Str = "JSON_EXTENSION_UNSPECIFIED"
+pub const JSON_EXTENSION_GEO_JSON: Str = "GEOJSON"
+
+// An object table's metadata (Go's ObjectMetadata).
+pub const OBJECT_METADATA_UNSPECIFIED: Str = "OBJECT_METADATA_UNSPECIFIED"
+pub const OBJECT_METADATA_DIRECTORY: Str = "DIRECTORY"
+pub const OBJECT_METADATA_SIMPLE: Str = "SIMPLE"
+
+/// A JSON source's options (Go's JSONOptions).
+pub struct JSONOptions {
+  pub encoding: Str = ""
+}
+
+/// A Google Sheets source's options (Go's GoogleSheetsOptions).
+pub struct GoogleSheetsOptions {
+  pub skip_leading_rows: Int = 0
+  /// The sheet and cells read, e.g. `sheet1!A1:B20`.
+  pub range: Str = ""
+}
+
+/// A Bigtable column read into a field (Go's BigtableColumn).
+pub struct BigtableColumn {
+  /// The column's qualifier: sent as text when it is UTF-8, else in
+  /// unpadded base64 (Go's Qualifier string holds any bytes).
+  pub qualifier: Bytes
+  pub field_name: Str = ""
+  pub only_read_latest: Bool = false
+  pub encoding: Str = ""
+  pub type_: Str = ""
+}
+
+/// A Bigtable column family (Go's BigtableColumnFamily).
+pub struct BigtableColumnFamily {
+  pub family_id: Str = ""
+  pub columns: List[BigtableColumn] = []
+  pub encoding: Str = ""
+  pub only_read_latest: Bool = false
+  pub type_: Str = ""
+}
+
+/// A Bigtable source's options (Go's BigtableOptions).
+pub struct BigtableOptions {
+  pub column_families: List[BigtableColumnFamily] = []
+  pub ignore_unspecified_column_families: Bool = false
+  pub read_rowkey_as_string: Bool = false
+}
+
+/// The options of one source format (Go's ExternalDataConfigOptions).
+pub enum ExternalDataConfigOptions {
+  Avro(o: AvroOptions)
+  Csv(o: CSVOptions)
+  Json(o: JSONOptions)
+  GoogleSheets(o: GoogleSheetsOptions)
+  Bigtable(o: BigtableOptions)
+  Parquet(o: ParquetOptions)
+}
+
+/// Data outside BigQuery read as a table (Go's ExternalDataConfig).
+pub struct ExternalDataConfig {
+  /// CSV, AVRO, JSON, GOOGLE_SHEETS, BIGTABLE, PARQUET, ORC, ...
+  pub source_format: Str = ""
+  pub source_uris: List[Str] = []
+  /// None for none (Go's nil Schema).
+  pub schema: List[FieldSchema]? = None
+  pub auto_detect: Bool = false
+  pub compression: Str = ""
+  pub ignore_unknown_values: Bool = false
+  pub max_bad_records: Int = 0
+  pub options: ExternalDataConfigOptions? = None
+  pub hive_partitioning_options: HivePartitioningOptions? = None
+  pub decimal_target_types: List[Str] = []
+  pub connection_id: Str = ""
+  pub reference_file_schema_uri: Str = ""
+  pub metadata_cache_mode: Str = ""
+  pub time_zone: Str = ""
+  pub date_format: Str = ""
+  pub datetime_format: Str = ""
+  pub time_format: Str = ""
+  pub timestamp_format: Str = ""
+  pub file_set_spec_type: Str = ""
+  pub json_extension: Str = ""
+  pub object_metadata: Str = ""
+  pub timestamp_target_precision: List[Int] = []
+}
+
+/// A query's temporary table (Go's ExternalData: an ExternalDataConfig or
+/// a GCSReference).
+pub enum ExternalData {
+  Config(c: ExternalDataConfig)
+  Gcs(g: GCSReference)
+}
+
+fn (o: CSVOptions) external_raw() -> raw.CsvOptions {
+  raw.CsvOptions{allow_jagged_rows: o.allow_jagged_rows, allow_quoted_newlines: o.allow_quoted_newlines, encoding: o.encoding, field_delimiter: o.field_delimiter, quote: o.quote_raw(), skip_leading_rows: o.skip_leading_rows, null_marker: o.null_marker, null_markers: o.null_markers, source_column_match: o.source_column_match, preserve_ascii_control_characters: o.preserve_ascii_control_characters}
+}
+
+fn parquet_raw(o: ParquetOptions) -> raw.ParquetOptions { raw.ParquetOptions{enum_as_string: o.enum_as_string, enable_list_inference: o.enable_list_inference} }
+
+fn bigtable_column_raw(c: BigtableColumn) -> raw.BigtableColumn {
+  var q = raw.BigtableColumn{field_name: c.field_name, only_read_latest: c.only_read_latest, encoding: c.encoding, type_: c.type_}
+  match c.qualifier.to_str() {
+    Some(s) => q.qualifier_string = s
+    None => q.qualifier_encoded = base64.encode(c.qualifier, base64.Base64.RawStd)
+  }
+  q
+}
+
+/// Go's populateExternalDataConfig of each option type.
+fn options_into(o: ExternalDataConfigOptions, q: raw.ExternalDataConfiguration) -> raw.ExternalDataConfiguration {
+  match o {
+    Avro(a) => q with {avro_options: Some(raw.AvroOptions{use_avro_logical_types: a.use_avro_logical_types})}
+    Csv(c) => q with {csv_options: Some(c.external_raw())}
+    Json(j) => q with {json_options: Some(raw.JsonOptions{encoding: j.encoding})}
+    GoogleSheets(g) => q with {google_sheets_options: Some(raw.GoogleSheetsOptions{skip_leading_rows: g.skip_leading_rows, range: g.range})}
+    Bigtable(b) => q with {bigtable_options: Some(raw.BigtableOptions{ignore_unspecified_column_families: b.ignore_unspecified_column_families, read_rowkey_as_string: b.read_rowkey_as_string, column_families: b.column_families.map(fn(f) -> raw.BigtableColumnFamily { raw.BigtableColumnFamily{family_id: f.family_id, encoding: f.encoding, only_read_latest: f.only_read_latest, type_: f.type_, columns: f.columns.map(bigtable_column_raw)} })})}
+    Parquet(p) => q with {parquet_options: Some(parquet_raw(p))}
+  }
+}
+
+/// Go's ExternalDataConfig.toBQ.
+fn (e: ExternalDataConfig) to_raw() -> raw.ExternalDataConfiguration {
+  var q = raw.ExternalDataConfiguration{source_format: e.source_format, source_uris: e.source_uris, autodetect: e.auto_detect, compression: e.compression, ignore_unknown_values: e.ignore_unknown_values, max_bad_records: e.max_bad_records, hive_partitioning_options: match e.hive_partitioning_options {
+    Some(h) => Some(raw.HivePartitioningOptions{mode: h.mode, source_uri_prefix: h.source_uri_prefix, require_partition_filter: h.require_partition_filter})
+    None => None
+  }, connection_id: e.connection_id, reference_file_schema_uri: e.reference_file_schema_uri, metadata_cache_mode: e.metadata_cache_mode, time_zone: e.time_zone, date_format: e.date_format, datetime_format: e.datetime_format, time_format: e.time_format, timestamp_format: e.timestamp_format, file_set_spec_type: e.file_set_spec_type, json_extension: e.json_extension, object_metadata: e.object_metadata, timestamp_target_precision: e.timestamp_target_precision, decimal_target_types: e.decimal_target_types}
+  if let Some(s) = e.schema {
+    q.schema = Some(schema_to_raw(s))
+  }
+  if let Some(o) = e.options {
+    q = options_into(o, q)
+  }
+  q
+}
+
+/// Go's GCSReference.toBQ: the file config's format ("" is CSV), its CSV
+/// options only for CSV.
+fn (g: GCSReference) external_raw() -> raw.ExternalDataConfiguration {
+  let fc = g.file_config
+  let format = if fc.source_format == "" { CSV } else { fc.source_format }
+  var q = raw.ExternalDataConfiguration{compression: g.compression, source_uris: g.uris, autodetect: fc.auto_detect, ignore_unknown_values: fc.ignore_unknown_values, max_bad_records: fc.max_bad_records, source_format: format}
+  if let Some(s) = fc.schema {
+    q.schema = Some(schema_to_raw(s))
+  }
+  if format == CSV {
+    q.csv_options = Some(fc.csv.external_raw())
+  }
+  if let Some(a) = fc.avro_options {
+    q.avro_options = Some(raw.AvroOptions{use_avro_logical_types: a.use_avro_logical_types})
+  }
+  if let Some(p) = fc.parquet_options {
+    q.parquet_options = Some(parquet_raw(p))
+  }
+  q
+}
+
+fn (d: ExternalData) to_raw() -> raw.ExternalDataConfiguration {
+  match d {
+    Config(c) => c.to_raw()
+    Gcs(g) => g.external_raw()
+  }
+}
+
+fn bigtable_column_of(q: raw.BigtableColumn) -> BigtableColumn ! BqErr {
+  let qual = if q.qualifier_string != "" { q.qualifier_string.bytes() } else {
+    match base64.decode(q.qualifier_encoded, base64.Base64.RawStd) {
+      Ok(b) => b
+      Err(e) => return Err(BqErr.Invalid("${e}"))
+    }
+  }
+  Ok(BigtableColumn{qualifier: qual, field_name: q.field_name, only_read_latest: q.only_read_latest, encoding: q.encoding, type_: q.type_})
+}
+
+/// Go's bqToExternalDataConfig: of the options, the first present in
+/// Go's order (avro, csv, json, sheets, bigtable, parquet).
+fn external_data_config_of(q: raw.ExternalDataConfiguration) -> ExternalDataConfig ! BqErr {
+  var e = ExternalDataConfig{source_format: q.source_format, source_uris: q.source_uris, auto_detect: q.autodetect, compression: q.compression, ignore_unknown_values: q.ignore_unknown_values, max_bad_records: q.max_bad_records, schema: match q.schema {
+    Some(s) => Some(schema_of(Some(s)))
+    None => None
+  }, hive_partitioning_options: match q.hive_partitioning_options {
+    Some(h) => Some(HivePartitioningOptions{mode: h.mode, source_uri_prefix: h.source_uri_prefix, require_partition_filter: h.require_partition_filter})
+    None => None
+  }, connection_id: q.connection_id, reference_file_schema_uri: q.reference_file_schema_uri, metadata_cache_mode: q.metadata_cache_mode, time_zone: q.time_zone, timestamp_format: q.timestamp_format, time_format: q.time_format, date_format: q.date_format, datetime_format: q.datetime_format, file_set_spec_type: q.file_set_spec_type, json_extension: q.json_extension, object_metadata: q.object_metadata, timestamp_target_precision: q.timestamp_target_precision, decimal_target_types: q.decimal_target_types}
+  if let Some(a) = q.avro_options {
+    e.options = Some(ExternalDataConfigOptions.Avro(AvroOptions{use_avro_logical_types: a.use_avro_logical_types}))
+  } else if let Some(c) = q.csv_options {
+    var o = CSVOptions{allow_jagged_rows: c.allow_jagged_rows, allow_quoted_newlines: c.allow_quoted_newlines, encoding: c.encoding, field_delimiter: c.field_delimiter, skip_leading_rows: c.skip_leading_rows, null_marker: c.null_marker, null_markers: c.null_markers, source_column_match: c.source_column_match, preserve_ascii_control_characters: c.preserve_ascii_control_characters}
+    o.set_quote(c.quote)
+    e.options = Some(ExternalDataConfigOptions.Csv(o))
+  } else if let Some(j) = q.json_options {
+    e.options = Some(ExternalDataConfigOptions.Json(JSONOptions{encoding: j.encoding}))
+  } else if let Some(g) = q.google_sheets_options {
+    e.options = Some(ExternalDataConfigOptions.GoogleSheets(GoogleSheetsOptions{skip_leading_rows: g.skip_leading_rows, range: g.range}))
+  } else if let Some(b) = q.bigtable_options {
+    var fams: List[BigtableColumnFamily] = []
+    for f in b.column_families {
+      var cols: List[BigtableColumn] = []
+      for c in f.columns {
+        cols.push(bigtable_column_of(c)?)
+      }
+      fams.push(BigtableColumnFamily{family_id: f.family_id, encoding: f.encoding, only_read_latest: f.only_read_latest, type_: f.type_, columns: cols})
+    }
+    e.options = Some(ExternalDataConfigOptions.Bigtable(BigtableOptions{column_families: fams, ignore_unspecified_column_families: b.ignore_unspecified_column_families, read_rowkey_as_string: b.read_rowkey_as_string}))
+  } else if let Some(p) = q.parquet_options {
+    e.options = Some(ExternalDataConfigOptions.Parquet(ParquetOptions{enum_as_string: p.enum_as_string, enable_list_inference: p.enable_list_inference}))
+  }
+  Ok(e)
+}

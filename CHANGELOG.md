@@ -33,7 +33,9 @@ touches. Release notes: [docs/releases](docs/releases).
   (`Table.extractor_to`, `Model.extractor_to`), `Loader`
   (`Table.loader_from` a `LoadSource.Gcs` or `Reader`), `GCSReference`,
   `FileConfig`, `CSVOptions`, `JobConfig.Copy`, `Extract` and `Load`,
-  `Client.jobs()` and `Job.children()`. 23 Go oracle cases.
+  `Client.jobs()` and `Job.children()`, and external data
+  (`ExternalDataConfig` and its options on tables and as a query's
+  `table_definitions`). 30 Go oracle cases.
 - Generator: Go's `emptyPattern` (a string with a default whose pattern
   matches "" is optional, as Go's `*string`). Touches `bigquery/apiv2`
   only: `CsvOptions.quote` and `JobConfigurationLoad.quote` are `Str?`.

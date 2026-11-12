@@ -68,6 +68,8 @@ pub struct TableMetadata {
   pub expiration_time: Time? = None
   pub labels: Map[Str, Str] = {}
   pub encryption_config: EncryptionConfig? = None
+  /// A table over data outside BigQuery.
+  pub external_data_config: ExternalDataConfig? = None
   /// Output only.
   pub full_id: Str = ""
   /// Output only: one of the TABLE constants.
@@ -296,6 +298,9 @@ fn table_create_body(tm: TableMetadata?, ref: raw.TableReference) -> json.Value 
   if let Some(e) = m.expiration_time {
     t.expiration_time = time_millis(e)
   }
+  if let Some(e) = m.external_data_config {
+    t.external_data_configuration = Some(e.to_raw())
+  }
   t.encryption_configuration = encryption_to_raw(m.encryption_config)
   t.id = m.full_id
   t.type_ = m.type_
@@ -372,11 +377,11 @@ pub fn (t: Table[fx]) metadata(opts: TableMetadataOptions = TableMetadataOptions
   let r = t.c.retry(DEFAULT_RETRY_REASONS, fn() -> raw.Table ! gensupport.CallErr uses net.dial, clock, rand, fx {
     t.c.svc.tables.get(t.project_id, t.dataset_id, t.table_id, raw.TablesGetOptions{view: opts.view, headers: client_headers()})
   })?
-  Ok(table_of(r))
+  table_of(r)
 }
 
 /// Go's bqToTableMetadata.
-fn table_of(t: raw.Table) -> TableMetadata {
+fn table_of(t: raw.Table) -> TableMetadata ! BqErr {
   var md = TableMetadata{description: t.description, name: t.friendly_name, location: t.location, type_: t.type_, full_id: t.id, labels: t.labels, num_bytes: t.num_bytes, num_long_term_bytes: t.num_long_term_bytes, num_rows: t.num_rows, expiration_time: millis_time(t.expiration_time), creation_time: millis_time(t.creation_time), last_modified_time: millis_time(t.last_modified_time), etag: t.etag, default_collation: t.default_collation, encryption_config: encryption_of(t.encryption_configuration), require_partition_filter: t.require_partition_filter}
   md.snapshot_definition = match t.snapshot_definition {
     Some(s) => Some(SnapshotDefinition{base_table_reference: table_ref_of(s.base_table_reference), snapshot_time: Time.parse_rfc3339(s.snapshot_time)})
@@ -385,6 +390,9 @@ fn table_of(t: raw.Table) -> TableMetadata {
   md.clone_definition = match t.clone_definition {
     Some(s) => Some(CloneDefinition{base_table_reference: table_ref_of(s.base_table_reference), clone_time: Time.parse_rfc3339(s.clone_time)})
     None => None
+  }
+  if let Some(e) = t.external_data_configuration {
+    md.external_data_config = Some(external_data_config_of(e)?)
   }
   md.big_lake_configuration = match t.biglake_configuration {
     Some(b) => Some(BigLakeConfiguration{connection_id: b.connection_id, storage_uri: b.storage_uri, file_format: b.file_format, table_format: b.table_format})
@@ -433,7 +441,7 @@ fn table_of(t: raw.Table) -> TableMetadata {
     None => None
   }
   md.resource_tags = if t.resource_tags.is_empty() { None } else { Some(t.resource_tags) }
-  md
+  Ok(md)
 }
 
 /// Deletes the table (Go's Delete).
@@ -471,6 +479,7 @@ pub struct TableMetadataToUpdate {
   pub table_constraints: TableConstraints? = None
   pub resource_tags: Map[Str, Str]? = None
   pub big_lake_configuration: BigLakeConfiguration? = None
+  pub external_data_config: ExternalDataConfig? = None
   pub labels: LabelUpdater = LabelUpdater{}
 }
 
@@ -498,6 +507,9 @@ fn table_update_body(u: TableMetadataToUpdate) -> json.Value {
   }
   if let Some(e) = u.encryption_config {
     b.put("encryptionConfiguration", jraw(raw.EncryptionConfiguration{kms_key_name: e.kms_key_name}))
+  }
+  if let Some(e) = u.external_data_config {
+    b.put("externalDataConfiguration", jraw(e.to_raw()))
   }
   if let Some(c) = u.clustering {
     b.put("clustering", if c.fields.is_empty() { json.Value.Null } else { jraw(raw.Clustering{fields: c.fields}) })
@@ -571,7 +583,7 @@ pub fn (t: Table[fx]) update(u: TableMetadataToUpdate, etag: Str, opts: TableUpd
   let r = t.c.retry(DEFAULT_RETRY_REASONS, fn() -> raw.Table ! gensupport.CallErr uses net.dial, clock, rand, fx {
     t.c.send_json[raw.Table]("PATCH", "projects/{+projectId}/datasets/{+datasetId}/tables/{+tableId}", {"projectId": t.project_id, "datasetId": t.dataset_id, "tableId": t.table_id}, q, etag, body)
   })?
-  Ok(table_of(r))
+  table_of(r)
 }
 
 /// The tables of a dataset (Go's TableIterator).

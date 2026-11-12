@@ -71,6 +71,10 @@ pub struct QueryConfig {
   pub schema_update_options: List[Str] = []
   pub create_session: Bool = false
   pub connection_properties: List[ConnectionProperty] = []
+  /// Temporary tables over data outside BigQuery, by the name the query
+  /// uses (Go's TableDefinitions; Some even when empty takes the job
+  /// path, as Go's non-nil map).
+  pub table_definitions: Map[Str, ExternalData]? = None
   /// How long the job may run (whole milliseconds), 0 for no limit.
   pub job_timeout: Duration = 0s
   pub reservation: Str = ""
@@ -159,6 +163,13 @@ fn (qc: QueryConfig) job_config_json() -> json.Value ! BqErr {
     }
   }
   q.connection_properties = qc.connection_properties.map(fn(p) -> raw.ConnectionProperty { raw.ConnectionProperty{key: p.key, value: p.value} })
+  if let Some(defs) = qc.table_definitions {
+    var m: Map[Str, raw.ExternalDataConfiguration] = {}
+    for (name, d) in defs {
+      m[name] = d.to_raw()
+    }
+    q.table_definitions = m
+  }
   let jc = raw.JobConfiguration{labels: qc.labels, dry_run: qc.dry_run, reservation: qc.reservation, max_slots: qc.max_slots, job_timeout_ms: if qc.job_timeout > 0s { qc.job_timeout.millis() } else { 0 }}
   // the parameters are written here: the raw form cannot send "" or null
   var qv = jraw(q)
@@ -172,7 +183,7 @@ fn (qc: QueryConfig) job_config_json() -> json.Value ! BqErr {
 }
 
 /// Go's bqToQueryConfig (without the parameters, which come later).
-fn query_config_of(c: raw.JobConfiguration, q: raw.JobConfigurationQuery) -> QueryConfig {
+fn query_config_of(c: raw.JobConfiguration, q: raw.JobConfigurationQuery) -> QueryConfig ! BqErr {
   var qc = QueryConfig{labels: c.labels, dry_run: c.dry_run, job_timeout: 1ms * c.job_timeout_ms, q: q.query, create_disposition: q.create_disposition, write_disposition: q.write_disposition, allow_large_results: q.allow_large_results, priority: q.priority, max_bytes_billed: q.maximum_bytes_billed, use_legacy_sql: q.use_legacy_sql ?? true, time_partitioning: match q.time_partitioning {
     Some(p) => Some(TimePartitioning{type_: p.type_, expiration: 1ms * p.expiration_ms, field: p.field, require_partition_filter: p.require_partition_filter})
     None => None
@@ -196,7 +207,14 @@ fn query_config_of(c: raw.JobConfiguration, q: raw.JobConfigurationQuery) -> Que
   }
   qc.dst = table_ref_of(q.destination_table)
   qc.connection_properties = q.connection_properties.map(fn(p) -> ConnectionProperty { ConnectionProperty{key: p.key, value: p.value} })
-  qc
+  if !q.table_definitions.is_empty() {
+    var defs: Map[Str, ExternalData] = {}
+    for (name, d) in q.table_definitions {
+      defs[name] = ExternalData.Config(external_data_config_of(d)?)
+    }
+    qc.table_definitions = Some(defs)
+  }
+  Ok(qc)
 }
 
 /// The job's body (Go's newJob).
@@ -254,7 +272,7 @@ pub fn (q: Query[fx]) read() -> RowIterator[fx] ! BqErr uses (net.dial, clock, r
 /// needs a job.
 fn (q: Query[fx]) fast_path() -> json.Value? uses (clock) {
   let qc = q.config
-  if qc.dst.is_some() || qc.create_disposition != "" || qc.write_disposition != "" || !(qc.priority == "" || qc.priority == INTERACTIVE_PRIORITY) || qc.use_legacy_sql || qc.max_billing_tier != 0 || qc.time_partitioning.is_some() || qc.range_partitioning.is_some() || qc.clustering.is_some() || qc.destination_encryption_config.is_some() || !qc.schema_update_options.is_empty() || qc.job_timeout != 0s || qc.continuous || q.id.job_id != "" {
+  if qc.dst.is_some() || qc.create_disposition != "" || qc.write_disposition != "" || !(qc.priority == "" || qc.priority == INTERACTIVE_PRIORITY) || qc.use_legacy_sql || qc.max_billing_tier != 0 || qc.time_partitioning.is_some() || qc.range_partitioning.is_some() || qc.clustering.is_some() || qc.destination_encryption_config.is_some() || !qc.schema_update_options.is_empty() || qc.job_timeout != 0s || qc.continuous || q.id.job_id != "" || qc.table_definitions.is_some() {
     return None
   }
   var r = raw.QueryRequest{query: qc.q, create_session: qc.create_session, location: q.id.location, use_legacy_sql: Some(false), maximum_bytes_billed: qc.max_bytes_billed, request_id: request_id(q.c.clock.now()), reservation: qc.reservation, max_slots: qc.max_slots, labels: qc.labels, format_options: Some(raw.DataFormatOptions{use_int64_timestamp: true}), job_creation_mode: qc.job_creation_mode}

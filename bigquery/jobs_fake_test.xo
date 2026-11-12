@@ -278,3 +278,92 @@ fn jobs_lines(f: Fake, from: JobIterator[()]) {
     }
   }
 }
+
+/// Go's %q of a string holding any bytes: valid UTF-8 as Str.quote, else
+/// each byte outside printable ASCII as \xNN.
+fn go_quote_bytes(b: Bytes) -> Str {
+  if let Some(s) = b.to_str() {
+    return s.quote()
+  }
+  var out = StrBuilder.new()
+  out.write("\"")
+  for x in b {
+    let n = Int(x)
+    if n >= 32 && n < 127 && n != 34 && n != 92 {
+      var one = BytesBuilder.new()
+      one.write_byte(x)
+      out.write(one.freeze().to_str_lossy())
+    } else {
+      let h = n.to_str_base(16)
+      out.write("\\x${if h.len() < 2 { "0" + h } else { h }}")
+    }
+  }
+  out.write("\"")
+  out.freeze()
+}
+
+/// The oracle's ext: an external data configuration and its options.
+fn ext_lines(f: Fake, name: Str, cfg: ExternalDataConfig?) {
+  let e = cfg ?? {
+    note(f, "  ext ${name} none")
+    return
+  }
+  let sch = match e.schema {
+    Some(s) => s.map(fn(x) -> Str { "${x.name}:${x.type_}" })
+    None => []
+  }
+  let hive = match e.hive_partitioning_options {
+    Some(h) => "${h.mode}/${h.source_uri_prefix}/${h.require_partition_filter}"
+    None => "none"
+  }
+  note(f, "  ext ${name} format=${e.source_format.quote()} uris=${go_list(e.source_uris)} schema=${go_list(sch)} nilschema=${e.schema.is_none()} auto=${e.auto_detect} compression=${e.compression.quote()} ignore=${e.ignore_unknown_values} maxbad=${e.max_bad_records} hive=${hive} decimal=${go_list(e.decimal_target_types)} conn=${e.connection_id.quote()} refschema=${e.reference_file_schema_uri.quote()} cache=${e.metadata_cache_mode.quote()} tz=${e.time_zone.quote()} date=${e.date_format.quote()} datetime=${e.datetime_format.quote()} time=${e.time_format.quote()} timestamp=${e.timestamp_format.quote()} fileset=${e.file_set_spec_type.quote()} jsonext=${e.json_extension.quote()} objmeta=${e.object_metadata.quote()} precision=${go_list(e.timestamp_target_precision.map(fn(n) -> Str { "${n}" }))}")
+  match e.options {
+    None => note(f, "    options none")
+    Some(ExternalDataConfigOptions.Avro(o)) => note(f, "    avro logical=${o.use_avro_logical_types}")
+    Some(ExternalDataConfigOptions.Csv(o)) => note(f, "    csv jagged=${o.allow_jagged_rows} qnl=${o.allow_quoted_newlines} enc=${o.encoding.quote()} delim=${o.field_delimiter.quote()} quote=${o.quote.quote()} zeroquote=${o.force_zero_quote} skip=${o.skip_leading_rows} null=${o.null_marker.quote()} nulls=${go_list(o.null_markers)} match=${o.source_column_match.quote()} ascii=${o.preserve_ascii_control_characters}")
+    Some(ExternalDataConfigOptions.Json(o)) => note(f, "    json enc=${o.encoding.quote()}")
+    Some(ExternalDataConfigOptions.GoogleSheets(o)) => note(f, "    sheets skip=${o.skip_leading_rows} range=${o.range.quote()}")
+    Some(ExternalDataConfigOptions.Bigtable(o)) => {
+      note(f, "    bigtable ignore=${o.ignore_unspecified_column_families} rowkey=${o.read_rowkey_as_string} families=${o.column_families.len()}")
+      for fam in o.column_families {
+        note(f, "    family ${fam.family_id.quote()} enc=${fam.encoding.quote()} latest=${fam.only_read_latest} type=${fam.type_.quote()}")
+        for c in fam.columns {
+          note(f, "    column ${go_quote_bytes(c.qualifier)} field=${c.field_name.quote()} latest=${c.only_read_latest} enc=${c.encoding.quote()} type=${c.type_.quote()}")
+        }
+      }
+    }
+    Some(ExternalDataConfigOptions.Parquet(o)) => note(f, "    parquet enum=${o.enum_as_string} list=${o.enable_list_inference}")
+  }
+}
+
+/// The oracle's tableMeta: a table's external data configuration.
+fn table_meta(f: Fake, r: Result[TableMetadata, BqErr]) {
+  match r {
+    Ok(md) => ext_lines(f, "table", md.external_data_config)
+    Err(e) => err_line(f, e)
+  }
+}
+
+/// The oracle's defs: a fetched query job's table definitions by name.
+fn defs_lines(f: Fake, j: Job[()]?) {
+  let job = j ?? return
+  match job.config() {
+    Ok(Some(JobConfig.Query(q))) => {
+      let n = match q.table_definitions {
+        Some(m) => m.len()
+        None => 0
+      }
+      note(f, "  defs nil=${q.table_definitions.is_none()} n=${n}")
+      if let Some(m) = q.table_definitions {
+        for name in m.keys().sort() {
+          match m.get_or_fault(name, "a key") {
+            ExternalData.Config(c) => ext_lines(f, name, Some(c))
+            ExternalData.Gcs(_) => note(f, "  ext ${name} gcs")
+          }
+        }
+      }
+    }
+    Ok(_) => {}
+    Err(e) => err_line(f, e)
+  }
+}
