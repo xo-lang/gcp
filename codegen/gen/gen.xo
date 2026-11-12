@@ -143,6 +143,10 @@ pub struct Gen {
   go_names: Map[Str, Str] = {}
   /// Schemas a method returns (Go's responseTypes).
   responses: Map[Str, Bool] = {}
+  /// Schemas a request body can hold, the method's and every one it
+  /// reaches: their models get force_send_fields and null_fields
+  /// (decision 0013).
+  requests: Map[Str, Bool] = {}
   report: List[Str] = []
   /// Each generated method, for the Go vectors.
   pub infos: List[MInfo] = []
@@ -375,6 +379,7 @@ pub fn generate(doc: json.Value, header: Str) -> Module {
       g.responses[n] = true
     }
   }
+  g.requests = request_schemas(g)
   let names = g.schemas.keys().sort()
   var models = ""
   var nschemas = 0
@@ -399,6 +404,95 @@ pub fn generate(doc: json.Value, header: Str) -> Module {
   Module{models: models, service: svc.0, report: g.report, methods: svc.1, schemas: nschemas, infos: g.infos}
 }
 
+/// Every `$ref` under v.
+fn refs_in(v: json.Value, var out: List[Str]) {
+  match v {
+    json.Value.Object(fields) => {
+      for (k, x) in fields {
+        if k == "\$ref" {
+          out.push(str_of(Some(x)))
+        } else {
+          refs_in(x, out)
+        }
+      }
+    }
+    json.Value.List(items) => {
+      for x in items {
+        refs_in(x, out)
+      }
+    }
+    _ => {}
+  }
+}
+
+/// The schema a nested schema's name is under (`Event.reminders` ->
+/// `Event`), None for a top-level one.
+fn parent_of(name: Str) -> Str? {
+  let parts = name.split(".")
+  if parts.len() < 2 {
+    return None
+  }
+  name.cut_suffix("." + parts[parts.len() - 1])
+}
+
+/// The schemas a request body reaches: each method's request schema,
+/// what its properties name, and the nested schemas made of them
+/// (`Event.reminders`), until nothing new is found.
+fn request_schemas(g: Gen) -> Map[Str, Bool] {
+  var children: Map[Str, List[Str]] = {}
+  for name in g.schemas.keys() {
+    if let Some(parent) = parent_of(name) {
+      var l = children.get(parent) ?? []
+      l.push(name)
+      children[parent] = l
+    }
+  }
+  var todo: List[Str] = []
+  for (_, _, m) in methods_of(g.doc) {
+    if let Some(r) = m.get("request") {
+      if let Some((n, _)) = g.resolve(str_of(r.get("\$ref"))) {
+        todo.push(n)
+      }
+    }
+  }
+  var seen: Map[Str, Bool] = {}
+  while let Some(n) = todo.pop() {
+    if seen.contains(n) {
+      continue
+    }
+    seen[n] = true
+    var refs: List[Str] = []
+    refs_in(g.schemas.get(n) ?? json.Value.Null, refs)
+    for r in refs {
+      if let Some((rn, _)) = g.resolve(r) {
+        todo.push(rn)
+      }
+    }
+    for c in children.get(n) ?? [] {
+      todo.push(c)
+    }
+  }
+  seen
+}
+
+/// A field's entry in its model's field enum (decision 0013): the JSON
+/// name, then for a field that is not an Option `=` and its empty value's
+/// JSON, which gensupport.json_body sends for a forced field.
+fn field_entry(p: Str, t: Str, opt: Bool, wire: Str) -> Str {
+  let z = zero_of(t)
+  if opt || z == "None" {
+    return p
+  }
+  let j = if wire != "" {
+    "\"0\""
+  } else if z == "0.0" {
+    "0"
+  } else {
+    z
+  }
+  "${p}=${j}"
+}
+
 /// A struct schema's type (Go's writeSchemaStruct).
 fn (var g: Gen) struct_text(name: Str, s: json.Value) -> Str {
   let tn = g.xo_name(name)
@@ -406,7 +500,14 @@ fn (var g: Gen) struct_text(name: Str, s: json.Value) -> Str {
   if s.get("variant").is_some() {
     return "\n" + doc_lines("", "${tn}: one of several shapes, told apart by its `type` (Go's variant map).") + "pub type ${tn} = json.Value\n"
   }
-  var out = "\n" + doc_lines("", "${tn}: ${str_of(s.get("description"))}") + "pub struct ${tn} {\n"
+  let req = g.requests.contains(name) && fields_of(s.get("properties")).len() > 0
+  let ftn = "${tn}Field"
+  var desc = "${tn}: ${str_of(s.get("description"))}"
+  if req {
+    desc = desc + "\n\nIn a request body, force_send_fields are sent even when empty and null_fields as null (decision 0013)."
+  }
+  var out = "\n" + doc_lines("", desc) + "pub struct ${tn} {\n"
+  var variants = ""
   // Go's field names, from a pool holding its own fields first
   var np = Pool{}
   np.get("ForceSendFields")
@@ -415,6 +516,9 @@ fn (var g: Gen) struct_text(name: Str, s: json.Value) -> Str {
     np.get("ServerResponse")
   }
   var xp = Pool{}
+  // decision 0013's fields, reserved first as Go's own fields are
+  let force_f = xp.get("force_send_fields")
+  let null_f = xp.get("null_fields")
   for (p, ps) in fields_of(s.get("properties")) {
     let pname = np.get(initial_cap(p))
     if pname.starts_with("@") {
@@ -434,6 +538,13 @@ fn (var g: Gen) struct_text(name: Str, s: json.Value) -> Str {
     // Go's IsIntAsString: the integer travels as a JSON string
     let wire = if kind(ps) == "simple" && ty.t == "Int" && is_int_as_string(ps) { ",string" } else { "" }
     out = out + "  pub ${fname} as \"${esc(p)},omitempty${wire}\": ${t} = ${z}\n"
+    variants = variants + "  ${pname} as \"${esc(field_entry(p, ty.t, ty.opt, wire))}\"\n"
+  }
+  if req {
+    out = out + "  pub ${force_f} as \"~forceSendFields,omitempty\": List[${ftn}] = []\n"
+    out = out + "  pub ${null_f} as \"~nullFields,omitempty\": List[${ftn}] = []\n"
+    out = out + "} derive Json\n\n" + doc_lines("", "${ftn}: ${tn}'s fields, for force_send_fields and null_fields.") + "pub enum ${ftn} {\n" + variants + "} derive Json\n"
+    return out
   }
   if out.ends_with(" {\n") {
     return out.trim_suffix("\n") + "} derive Json\n"
@@ -522,6 +633,9 @@ fn (g: Gen) token_field(name: Str, s: json.Value) -> (Str, Bool, Str)? {
     np.get("ServerResponse")
   }
   var xp = Pool{}
+  // decision 0013's fields, reserved first as Go's own fields are
+  let _ = xp.get("force_send_fields")
+  let _ = xp.get("null_fields")
   for (p, ps) in fields_of(s.get("properties")) {
     let pname = np.get(initial_cap(p))
     if pname.starts_with("@") {

@@ -7,6 +7,14 @@ touches. Release notes: [docs/releases](docs/releases).
 
 ## Unreleased
 
+- **Feature** (decision 0013): a request body can send empty values and
+  null. Every model a request can hold has `force_send_fields` and
+  `null_fields` (Go's ForceSendFields and NullFields), typed by a
+  generated enum of its fields (`EventField.Attendees`), and
+  `gensupport.json_body` applies them at every level:
+  `Event{force_send_fields: [EventField.Attendees]}` sends
+  `{"attendees":[]}`, `Event{null_fields: [EventField.ConferenceData]}`
+  sends `{"conferenceData":null}`. Every generated module changes.
 - **Breaking** (decision 0012): every generated module's API version is
   now an `apivN` path element, one generator rule for all 667, so Xo
   does not read `/v2` as a semver major (XO1301 made the 91 modules at

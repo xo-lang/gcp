@@ -1,4 +1,5 @@
 use std/http
+use std/json
 use std/testing
 use std/url
 use github.com/xo-lang/gcp/option
@@ -74,4 +75,68 @@ test "media below the chunk size goes as one multipart request" {
   let _ = c.upload(os.clock, os.rand, Request{method: "POST", url: "https://up.test/plain", query: url.values()}, "https://up.test/start", Media{data: "hi".bytes(), content_type: "text/plain"}) ?? e => fault(e.display())
   let got = body.with(fn(var b: Str) -> Str { b })
   expect(got.starts_with("uploadType=multipart multipart/related; boundary=")) == true
+}
+
+// decision 0013: force_send_fields and null_fields, as the generated
+// models declare them
+enum ReminderField {
+  Method as "method=\"\""
+  Minutes as "minutes=0"
+} derive Json
+
+struct Reminder {
+  method as "method,omitempty": Str = ""
+  minutes as "minutes,omitempty": Int = 0
+  force_send_fields as "~forceSendFields,omitempty": List[ReminderField] = []
+  null_fields as "~nullFields,omitempty": List[ReminderField] = []
+} derive Json
+
+enum EvField {
+  Attendees as "attendees=[]"
+  ConferenceData as "conferenceData"
+  Overrides as "overrides=[]"
+  Summary as "summary=\"\""
+  UseDefault as "useDefault=false"
+} derive Json
+
+struct Ev {
+  summary as "summary,omitempty": Str = ""
+  attendees as "attendees,omitempty": List[Str] = []
+  conference_data as "conferenceData,omitempty": Small? = None
+  use_default as "useDefault,omitempty": Bool = false
+  overrides as "overrides,omitempty": List[Reminder] = []
+  force_send_fields as "~forceSendFields,omitempty": List[EvField] = []
+  null_fields as "~nullFields,omitempty": List[EvField] = []
+} derive Json
+
+fn body(v: Ev) -> Str {
+  json_body(v).to_str_lossy()
+}
+
+test "a forced field goes in empty, a null field as null, sorted as Go's map" {
+  expect(body(Ev{summary: "s", force_send_fields: [EvField.Attendees]})) == "{\"attendees\":[],\"summary\":\"s\"}\n"
+  expect(body(Ev{null_fields: [EvField.ConferenceData]})) == "{\"conferenceData\":null}\n"
+  expect(body(Ev{force_send_fields: [EvField.UseDefault]})) == "{\"useDefault\":false}\n"
+  // a non-empty forced field keeps its value
+  expect(body(Ev{attendees: ["a"], force_send_fields: [EvField.Attendees]})) == "{\"attendees\":[\"a\"]}\n"
+  // an Option field is never forced (Go: a nil pointer is never sent)
+  expect(body(Ev{force_send_fields: [EvField.ConferenceData]})) == "{}\n"
+  // without either list the order is the struct's
+  expect(body(Ev{summary: "s", use_default: true})) == "{\"summary\":\"s\",\"useDefault\":true}\n"
+}
+
+test "a forced field of a model inside a list" {
+  let ev = Ev{summary: "s", overrides: [Reminder{method: "popup", minutes: 0, force_send_fields: [ReminderField.Minutes]}, Reminder{method: "email", minutes: 10}]}
+  expect(body(ev)) == "{\"summary\":\"s\",\"overrides\":[{\"method\":\"popup\",\"minutes\":0},{\"method\":\"email\",\"minutes\":10}]}\n"
+  expect(json_body(ev, data_wrapper: true).to_str_lossy()) == "{\"data\": {\"summary\":\"s\",\"overrides\":[{\"method\":\"popup\",\"minutes\":0},{\"method\":\"email\",\"minutes\":10}]}\n}"
+}
+
+test "the lists stay out of a decoded model's JSON and an unset one's" {
+  let d = json.decode_str[Ev]("{\"summary\":\"s\",\"attendees\":[],\"overrides\":[{\"minutes\":0}]}")?
+  expect(json.encode_str(d)) == "{\"summary\":\"s\",\"overrides\":[{}]}"
+  expect(json.encode_str(Ev{summary: "s"}).contains("~")) == false
+  // a model's own encode with a list set shows it: only json_body applies
+  // and removes the lists (decision 0013; a derive Json skip option is
+  // asked of xo)
+  expect(json.encode_str(Ev{force_send_fields: [EvField.Attendees]})) == "{\"~forceSendFields\":[\"attendees=[]\"]}"
 }

@@ -36,6 +36,8 @@ pub struct Activity {
 } derive Json
 
 /// Cohort: Defines a cohort. A cohort is a group of users who share a common characteristic. For example, all users with the same acquisition date belong to the same cohort.
+///
+/// In a request body, force_send_fields are sent even when empty and null_fields as null (decision 0013).
 pub struct Cohort {
   /// This is used for `FIRST_VISIT_DATE` cohort, the cohort selects users whose first visit date is between start date and end date defined in the DateRange. The date ranges should be aligned for cohort requests. If the request contains `ga:cohortNthDay` it should be exactly one day long, if `ga:cohortNthWeek` it should be aligned to the week boundary (starting at Sunday and ending Saturday), and for `ga:cohortNthMonth` the date range should be aligned to the month (starting at the first and ending on the last day of the month). For LTV requests there are no such restrictions. You do not need to supply a date range for the `reportsRequest.dateRanges` field.
   pub date_range as "dateRange,omitempty": DateRange? = None
@@ -43,14 +45,33 @@ pub struct Cohort {
   pub name as "name,omitempty": Str = ""
   /// Type of the cohort. The only supported type as of now is `FIRST_VISIT_DATE`. If this field is unspecified the cohort is treated as `FIRST_VISIT_DATE` type cohort.
   pub type_ as "type,omitempty": Str = ""
+  pub force_send_fields as "~forceSendFields,omitempty": List[CohortField] = []
+  pub null_fields as "~nullFields,omitempty": List[CohortField] = []
+} derive Json
+
+/// CohortField: Cohort's fields, for force_send_fields and null_fields.
+pub enum CohortField {
+  DateRange as "dateRange"
+  Name as "name=\"\""
+  Type as "type=\"\""
 } derive Json
 
 /// CohortGroup: Defines a cohort group. For example: "cohortGroup": { "cohorts": [{ "name": "cohort 1", "type": "FIRST_VISIT_DATE", "dateRange": { "startDate": "2015-08-01", "endDate": "2015-08-01" } },{ "name": "cohort 2" "type": "FIRST_VISIT_DATE" "dateRange": { "startDate": "2015-07-01", "endDate": "2015-07-01" } }] }
+///
+/// In a request body, force_send_fields are sent even when empty and null_fields as null (decision 0013).
 pub struct CohortGroup {
   /// The definition for the cohort.
   pub cohorts as "cohorts,omitempty": List[Cohort] = []
   /// Enable Life Time Value (LTV). LTV measures lifetime value for users acquired through different channels. Please see: [Cohort Analysis](https://support.google.com/analytics/answer/6074676) and [Lifetime Value](https://support.google.com/analytics/answer/6182550) If the value of lifetimeValue is false: - The metric values are similar to the values in the web interface cohort report. - The cohort definition date ranges must be aligned to the calendar week and month. i.e. while requesting `ga:cohortNthWeek` the `startDate` in the cohort definition should be a Sunday and the `endDate` should be the following Saturday, and for `ga:cohortNthMonth`, the `startDate` should be the 1st of the month and `endDate` should be the last day of the month. When the lifetimeValue is true: - The metric values will correspond to the values in the web interface LifeTime value report. - The Lifetime Value report shows you how user value (Revenue) and engagement (Appviews, Goal Completions, Sessions, and Session Duration) grow during the 90 days after a user is acquired. - The metrics are calculated as a cumulative average per user per the time increment. - The cohort definition date ranges need not be aligned to the calendar week and month boundaries. - The `viewId` must be an [app view ID](https://support.google.com/analytics/answer/2649553#WebVersusAppViews)
   pub lifetime_value as "lifetimeValue,omitempty": Bool = false
+  pub force_send_fields as "~forceSendFields,omitempty": List[CohortGroupField] = []
+  pub null_fields as "~nullFields,omitempty": List[CohortGroupField] = []
+} derive Json
+
+/// CohortGroupField: CohortGroup's fields, for force_send_fields and null_fields.
+pub enum CohortGroupField {
+  Cohorts as "cohorts=[]"
+  LifetimeValue as "lifetimeValue=false"
 } derive Json
 
 /// ColumnHeader: Column headers.
@@ -70,11 +91,21 @@ pub struct CustomDimension {
 } derive Json
 
 /// DateRange: A contiguous set of days: startDate, startDate + 1 day, ..., endDate. The start and end dates are specified in [ISO8601](https://en.wikipedia.org/wiki/ISO_8601) date format `YYYY-MM-DD`.
+///
+/// In a request body, force_send_fields are sent even when empty and null_fields as null (decision 0013).
 pub struct DateRange {
   /// The end date for the query in the format `YYYY-MM-DD`.
   pub end_date as "endDate,omitempty": Str = ""
   /// The start date for the query in the format `YYYY-MM-DD`.
   pub start_date as "startDate,omitempty": Str = ""
+  pub force_send_fields as "~forceSendFields,omitempty": List[DateRangeField] = []
+  pub null_fields as "~nullFields,omitempty": List[DateRangeField] = []
+} derive Json
+
+/// DateRangeField: DateRange's fields, for force_send_fields and null_fields.
+pub enum DateRangeField {
+  EndDate as "endDate=\"\""
+  StartDate as "startDate=\"\""
 } derive Json
 
 /// DateRangeValues: Used to return a list of metrics for a single DateRange / dimension combination
@@ -86,14 +117,26 @@ pub struct DateRangeValues {
 } derive Json
 
 /// Dimension: [Dimensions](https://support.google.com/analytics/answer/1033861) are attributes of your data. For example, the dimension `ga:city` indicates the city, for example, "Paris" or "New York", from which a session originates.
+///
+/// In a request body, force_send_fields are sent even when empty and null_fields as null (decision 0013).
 pub struct Dimension {
   /// If non-empty, we place dimension values into buckets after string to int64. Dimension values that are not the string representation of an integral value will be converted to zero. The bucket values have to be in increasing order. Each bucket is closed on the lower end, and open on the upper end. The "first" bucket includes all values less than the first boundary, the "last" bucket includes all values up to infinity. Dimension values that fall in a bucket get transformed to a new dimension value. For example, if one gives a list of "0, 1, 3, 4, 7", then we return the following buckets: - bucket #1: values < 0, dimension value "<0" - bucket #2: values in [0,1), dimension value "0" - bucket #3: values in [1,3), dimension value "1-2" - bucket #4: values in [3,4), dimension value "3" - bucket #5: values in [4,7), dimension value "4-6" - bucket #6: values >= 7, dimension value "7+" NOTE: If you are applying histogram mutation on any dimension, and using that dimension in sort, you will want to use the sort type `HISTOGRAM_BUCKET` for that purpose. Without that the dimension values will be sorted according to dictionary (lexicographic) order. For example the ascending dictionary order is: "<50", "1001+", "121-1000", "50-120" And the ascending `HISTOGRAM_BUCKET` order is: "<50", "50-120", "121-1000", "1001+" The client has to explicitly request `"orderType": "HISTOGRAM_BUCKET"` for a histogram-mutated dimension.
   pub histogram_buckets as "histogramBuckets,omitempty": List[Str] = []
   /// Name of the dimension to fetch, for example `ga:browser`.
   pub name as "name,omitempty": Str = ""
+  pub force_send_fields as "~forceSendFields,omitempty": List[DimensionField] = []
+  pub null_fields as "~nullFields,omitempty": List[DimensionField] = []
+} derive Json
+
+/// DimensionField: Dimension's fields, for force_send_fields and null_fields.
+pub enum DimensionField {
+  HistogramBuckets as "histogramBuckets=[]"
+  Name as "name=\"\""
 } derive Json
 
 /// DimensionFilter: Dimension filter specifies the filtering options on a dimension.
+///
+/// In a request body, force_send_fields are sent even when empty and null_fields as null (decision 0013).
 pub struct DimensionFilter {
   /// Should the match be case sensitive? Default is false.
   pub case_sensitive as "caseSensitive,omitempty": Bool = false
@@ -105,17 +148,40 @@ pub struct DimensionFilter {
   pub not as "not,omitempty": Bool = false
   /// How to match the dimension to the expression. The default is REGEXP.
   pub operator as "operator,omitempty": Str = ""
+  pub force_send_fields as "~forceSendFields,omitempty": List[DimensionFilterField] = []
+  pub null_fields as "~nullFields,omitempty": List[DimensionFilterField] = []
+} derive Json
+
+/// DimensionFilterField: DimensionFilter's fields, for force_send_fields and null_fields.
+pub enum DimensionFilterField {
+  CaseSensitive as "caseSensitive=false"
+  DimensionName as "dimensionName=\"\""
+  Expressions as "expressions=[]"
+  Not as "not=false"
+  Operator as "operator=\"\""
 } derive Json
 
 /// DimensionFilterClause: A group of dimension filters. Set the operator value to specify how the filters are logically combined.
+///
+/// In a request body, force_send_fields are sent even when empty and null_fields as null (decision 0013).
 pub struct DimensionFilterClause {
   /// The repeated set of filters. They are logically combined based on the operator specified.
   pub filters as "filters,omitempty": List[DimensionFilter] = []
   /// The operator for combining multiple dimension filters. If unspecified, it is treated as an `OR`.
   pub operator as "operator,omitempty": Str = ""
+  pub force_send_fields as "~forceSendFields,omitempty": List[DimensionFilterClauseField] = []
+  pub null_fields as "~nullFields,omitempty": List[DimensionFilterClauseField] = []
+} derive Json
+
+/// DimensionFilterClauseField: DimensionFilterClause's fields, for force_send_fields and null_fields.
+pub enum DimensionFilterClauseField {
+  Filters as "filters=[]"
+  Operator as "operator=\"\""
 } derive Json
 
 /// DynamicSegment: Dynamic segment definition for defining the segment within the request. A segment can select users, sessions or both.
+///
+/// In a request body, force_send_fields are sent even when empty and null_fields as null (decision 0013).
 pub struct DynamicSegment {
   /// The name of the dynamic segment.
   pub name as "name,omitempty": Str = ""
@@ -123,6 +189,15 @@ pub struct DynamicSegment {
   pub session_segment as "sessionSegment,omitempty": SegmentDefinition? = None
   /// User Segment to select users to include in the segment.
   pub user_segment as "userSegment,omitempty": SegmentDefinition? = None
+  pub force_send_fields as "~forceSendFields,omitempty": List[DynamicSegmentField] = []
+  pub null_fields as "~nullFields,omitempty": List[DynamicSegmentField] = []
+} derive Json
+
+/// DynamicSegmentField: DynamicSegment's fields, for force_send_fields and null_fields.
+pub enum DynamicSegmentField {
+  Name as "name=\"\""
+  SessionSegment as "sessionSegment"
+  UserSegment as "userSegment"
 } derive Json
 
 /// EcommerceData: E-commerce details associated with the user activity.
@@ -152,11 +227,21 @@ pub struct EventData {
 } derive Json
 
 /// GetReportsRequest: The batch request containing multiple report request.
+///
+/// In a request body, force_send_fields are sent even when empty and null_fields as null (decision 0013).
 pub struct GetReportsRequest {
   /// Requests, each request will have a separate response. There can be a maximum of 5 requests. All requests should have the same `dateRanges`, `viewId`, `segments`, `samplingLevel`, and `cohortGroup`.
   pub report_requests as "reportRequests,omitempty": List[ReportRequest] = []
   /// Enables [resource based quotas](/analytics/devguides/reporting/core/v4/limits-quotas#analytics_reporting_api_v4), (defaults to `False`). If this field is set to `True` the per view (profile) quotas are governed by the computational cost of the request. Note that using cost based quotas will higher enable sampling rates. (10 Million for `SMALL`, 100M for `LARGE`. See the [limits and quotas documentation](/analytics/devguides/reporting/core/v4/limits-quotas#analytics_reporting_api_v4) for details.
   pub use_resource_quotas as "useResourceQuotas,omitempty": Bool = false
+  pub force_send_fields as "~forceSendFields,omitempty": List[GetReportsRequestField] = []
+  pub null_fields as "~nullFields,omitempty": List[GetReportsRequestField] = []
+} derive Json
+
+/// GetReportsRequestField: GetReportsRequest's fields, for force_send_fields and null_fields.
+pub enum GetReportsRequestField {
+  ReportRequests as "reportRequests=[]"
+  UseResourceQuotas as "useResourceQuotas=false"
 } derive Json
 
 /// GetReportsResponse: The main response class which holds the reports from the Reporting API `batchGet` call.
@@ -196,6 +281,8 @@ pub struct GoalSetData {
 } derive Json
 
 /// Metric: [Metrics](https://support.google.com/analytics/answer/1033861) are the quantitative measurements. For example, the metric `ga:users` indicates the total number of users for the requested time period.
+///
+/// In a request body, force_send_fields are sent even when empty and null_fields as null (decision 0013).
 pub struct Metric {
   /// An alias for the metric expression is an alternate name for the expression. The alias can be used for filtering and sorting. This field is optional and is useful if the expression is not a single metric but a complex expression which cannot be used in filtering and sorting. The alias is also used in the response column header.
   pub alias as "alias,omitempty": Str = ""
@@ -203,9 +290,20 @@ pub struct Metric {
   pub expression as "expression,omitempty": Str = ""
   /// Specifies how the metric expression should be formatted, for example `INTEGER`.
   pub formatting_type as "formattingType,omitempty": Str = ""
+  pub force_send_fields as "~forceSendFields,omitempty": List[MetricField] = []
+  pub null_fields as "~nullFields,omitempty": List[MetricField] = []
+} derive Json
+
+/// MetricField: Metric's fields, for force_send_fields and null_fields.
+pub enum MetricField {
+  Alias as "alias=\"\""
+  Expression as "expression=\"\""
+  FormattingType as "formattingType=\"\""
 } derive Json
 
 /// MetricFilter: MetricFilter specifies the filter on a metric.
+///
+/// In a request body, force_send_fields are sent even when empty and null_fields as null (decision 0013).
 pub struct MetricFilter {
   /// The value to compare against.
   pub comparison_value as "comparisonValue,omitempty": Str = ""
@@ -215,14 +313,34 @@ pub struct MetricFilter {
   pub not as "not,omitempty": Bool = false
   /// Is the metric `EQUAL`, `LESS_THAN` or `GREATER_THAN` the comparisonValue, the default is `EQUAL`. If the operator is `IS_MISSING`, checks if the metric is missing and would ignore the comparisonValue.
   pub operator as "operator,omitempty": Str = ""
+  pub force_send_fields as "~forceSendFields,omitempty": List[MetricFilterField] = []
+  pub null_fields as "~nullFields,omitempty": List[MetricFilterField] = []
+} derive Json
+
+/// MetricFilterField: MetricFilter's fields, for force_send_fields and null_fields.
+pub enum MetricFilterField {
+  ComparisonValue as "comparisonValue=\"\""
+  MetricName as "metricName=\"\""
+  Not as "not=false"
+  Operator as "operator=\"\""
 } derive Json
 
 /// MetricFilterClause: Represents a group of metric filters. Set the operator value to specify how the filters are logically combined.
+///
+/// In a request body, force_send_fields are sent even when empty and null_fields as null (decision 0013).
 pub struct MetricFilterClause {
   /// The repeated set of filters. They are logically combined based on the operator specified.
   pub filters as "filters,omitempty": List[MetricFilter] = []
   /// The operator for combining multiple metric filters. If unspecified, it is treated as an `OR`.
   pub operator as "operator,omitempty": Str = ""
+  pub force_send_fields as "~forceSendFields,omitempty": List[MetricFilterClauseField] = []
+  pub null_fields as "~nullFields,omitempty": List[MetricFilterClauseField] = []
+} derive Json
+
+/// MetricFilterClauseField: MetricFilterClause's fields, for force_send_fields and null_fields.
+pub enum MetricFilterClauseField {
+  Filters as "filters=[]"
+  Operator as "operator=\"\""
 } derive Json
 
 /// MetricHeader: The headers for the metrics.
@@ -242,12 +360,23 @@ pub struct MetricHeaderEntry {
 } derive Json
 
 /// OrFiltersForSegment: A list of segment filters in the `OR` group are combined with the logical OR operator.
+///
+/// In a request body, force_send_fields are sent even when empty and null_fields as null (decision 0013).
 pub struct OrFiltersForSegment {
   /// List of segment filters to be combined with a `OR` operator.
   pub segment_filter_clauses as "segmentFilterClauses,omitempty": List[SegmentFilterClause] = []
+  pub force_send_fields as "~forceSendFields,omitempty": List[OrFiltersForSegmentField] = []
+  pub null_fields as "~nullFields,omitempty": List[OrFiltersForSegmentField] = []
+} derive Json
+
+/// OrFiltersForSegmentField: OrFiltersForSegment's fields, for force_send_fields and null_fields.
+pub enum OrFiltersForSegmentField {
+  SegmentFilterClauses as "segmentFilterClauses=[]"
 } derive Json
 
 /// OrderBy: Specifies the sorting options.
+///
+/// In a request body, force_send_fields are sent even when empty and null_fields as null (decision 0013).
 pub struct OrderBy {
   /// The field which to sort by. The default sort order is ascending. Example: `ga:browser`. Note, that you can only specify one field for sort here. For example, `ga:browser, ga:city` is not valid.
   pub field_name as "fieldName,omitempty": Str = ""
@@ -255,6 +384,15 @@ pub struct OrderBy {
   pub order_type as "orderType,omitempty": Str = ""
   /// The sorting order for the field.
   pub sort_order as "sortOrder,omitempty": Str = ""
+  pub force_send_fields as "~forceSendFields,omitempty": List[OrderByField] = []
+  pub null_fields as "~nullFields,omitempty": List[OrderByField] = []
+} derive Json
+
+/// OrderByField: OrderBy's fields, for force_send_fields and null_fields.
+pub enum OrderByField {
+  FieldName as "fieldName=\"\""
+  OrderType as "orderType=\"\""
+  SortOrder as "sortOrder=\"\""
 } derive Json
 
 /// PageviewData: Represents details collected when the visitor views a page.
@@ -266,6 +404,8 @@ pub struct PageviewData {
 } derive Json
 
 /// Pivot: The Pivot describes the pivot section in the request. The Pivot helps rearrange the information in the table for certain reports by pivoting your data on a second dimension.
+///
+/// In a request body, force_send_fields are sent even when empty and null_fields as null (decision 0013).
 pub struct Pivot {
   /// DimensionFilterClauses are logically combined with an `AND` operator: only data that is included by all these DimensionFilterClauses contributes to the values in this pivot region. Dimension filters can be used to restrict the columns shown in the pivot region. For example if you have `ga:browser` as the requested dimension in the pivot region, and you specify key filters to restrict `ga:browser` to only "IE" or "Firefox", then only those two browsers would show up as columns.
   pub dimension_filter_clauses as "dimensionFilterClauses,omitempty": List[DimensionFilterClause] = []
@@ -277,6 +417,17 @@ pub struct Pivot {
   pub metrics as "metrics,omitempty": List[Metric] = []
   /// If k metrics were requested, then the response will contain some data-dependent multiple of k columns in the report. E.g., if you pivoted on the dimension `ga:browser` then you'd get k columns for "Firefox", k columns for "IE", k columns for "Chrome", etc. The ordering of the groups of columns is determined by descending order of "total" for the first of the k values. Ties are broken by lexicographic ordering of the first pivot dimension, then lexicographic ordering of the second pivot dimension, and so on. E.g., if the totals for the first value for Firefox, IE, and Chrome were 8, 2, 8, respectively, the order of columns would be Chrome, Firefox, IE. The following let you choose which of the groups of k columns are included in the response.
   pub start_group as "startGroup,omitempty": Int = 0
+  pub force_send_fields as "~forceSendFields,omitempty": List[PivotField] = []
+  pub null_fields as "~nullFields,omitempty": List[PivotField] = []
+} derive Json
+
+/// PivotField: Pivot's fields, for force_send_fields and null_fields.
+pub enum PivotField {
+  DimensionFilterClauses as "dimensionFilterClauses=[]"
+  Dimensions as "dimensions=[]"
+  MaxGroupCount as "maxGroupCount=0"
+  Metrics as "metrics=[]"
+  StartGroup as "startGroup=0"
 } derive Json
 
 /// PivotHeader: The headers for each of the pivot sections defined in the request.
@@ -350,6 +501,8 @@ pub struct ReportData {
 } derive Json
 
 /// ReportRequest: The main request class which specifies the Reporting API request.
+///
+/// In a request body, force_send_fields are sent even when empty and null_fields as null (decision 0013).
 pub struct ReportRequest {
   /// Cohort group associated with this request. If there is a cohort group in the request the `ga:cohort` dimension must be present. Every [ReportRequest](#ReportRequest) within a `batchGet` method must contain the same `cohortGroup` definition.
   pub cohort_group as "cohortGroup,omitempty": CohortGroup? = None
@@ -385,6 +538,29 @@ pub struct ReportRequest {
   pub segments as "segments,omitempty": List[Segment] = []
   /// The Analytics [view ID](https://support.google.com/analytics/answer/1009618) from which to retrieve data. Every [ReportRequest](#ReportRequest) within a `batchGet` method must contain the same `viewId`.
   pub view_id as "viewId,omitempty": Str = ""
+  pub force_send_fields as "~forceSendFields,omitempty": List[ReportRequestField] = []
+  pub null_fields as "~nullFields,omitempty": List[ReportRequestField] = []
+} derive Json
+
+/// ReportRequestField: ReportRequest's fields, for force_send_fields and null_fields.
+pub enum ReportRequestField {
+  CohortGroup as "cohortGroup"
+  DateRanges as "dateRanges=[]"
+  DimensionFilterClauses as "dimensionFilterClauses=[]"
+  Dimensions as "dimensions=[]"
+  FiltersExpression as "filtersExpression=\"\""
+  HideTotals as "hideTotals=false"
+  HideValueRanges as "hideValueRanges=false"
+  IncludeEmptyRows as "includeEmptyRows=false"
+  MetricFilterClauses as "metricFilterClauses=[]"
+  Metrics as "metrics=[]"
+  OrderBys as "orderBys=[]"
+  PageSize as "pageSize=0"
+  PageToken as "pageToken=\"\""
+  Pivots as "pivots=[]"
+  SamplingLevel as "samplingLevel=\"\""
+  Segments as "segments=[]"
+  ViewId as "viewId=\"\""
 } derive Json
 
 /// ReportRow: A row in the report.
@@ -416,6 +592,8 @@ pub struct ScreenviewData {
 } derive Json
 
 /// SearchUserActivityRequest: The request to fetch User Report from Reporting API `userActivity:get` call.
+///
+/// In a request body, force_send_fields are sent even when empty and null_fields as null (decision 0013).
 pub struct SearchUserActivityRequest {
   /// Set of all activity types being requested. Only acvities matching these types will be returned in the response. If empty, all activies will be returned.
   pub activity_types as "activityTypes,omitempty": List[Str] = []
@@ -429,6 +607,18 @@ pub struct SearchUserActivityRequest {
   pub user as "user,omitempty": User? = None
   /// Required. The Analytics [view ID](https://support.google.com/analytics/answer/1009618) from which to retrieve data. Every [SearchUserActivityRequest](#SearchUserActivityRequest) must contain the `viewId`.
   pub view_id as "viewId,omitempty": Str = ""
+  pub force_send_fields as "~forceSendFields,omitempty": List[SearchUserActivityRequestField] = []
+  pub null_fields as "~nullFields,omitempty": List[SearchUserActivityRequestField] = []
+} derive Json
+
+/// SearchUserActivityRequestField: SearchUserActivityRequest's fields, for force_send_fields and null_fields.
+pub enum SearchUserActivityRequestField {
+  ActivityTypes as "activityTypes=[]"
+  DateRange as "dateRange"
+  PageSize as "pageSize=0"
+  PageToken as "pageToken=\"\""
+  User as "user"
+  ViewId as "viewId=\"\""
 } derive Json
 
 /// SearchUserActivityResponse: The response from `userActivity:get` call.
@@ -444,20 +634,41 @@ pub struct SearchUserActivityResponse {
 } derive Json
 
 /// Segment: The segment definition, if the report needs to be segmented. A Segment is a subset of the Analytics data. For example, of the entire set of users, one Segment might be users from a particular country or city.
+///
+/// In a request body, force_send_fields are sent even when empty and null_fields as null (decision 0013).
 pub struct Segment {
   /// A dynamic segment definition in the request.
   pub dynamic_segment as "dynamicSegment,omitempty": DynamicSegment? = None
   /// The segment ID of a built-in or custom segment, for example `gaid::-3`.
   pub segment_id as "segmentId,omitempty": Str = ""
+  pub force_send_fields as "~forceSendFields,omitempty": List[SegmentField] = []
+  pub null_fields as "~nullFields,omitempty": List[SegmentField] = []
+} derive Json
+
+/// SegmentField: Segment's fields, for force_send_fields and null_fields.
+pub enum SegmentField {
+  DynamicSegment as "dynamicSegment"
+  SegmentId as "segmentId=\"\""
 } derive Json
 
 /// SegmentDefinition: SegmentDefinition defines the segment to be a set of SegmentFilters which are combined together with a logical `AND` operation.
+///
+/// In a request body, force_send_fields are sent even when empty and null_fields as null (decision 0013).
 pub struct SegmentDefinition {
   /// A segment is defined by a set of segment filters which are combined together with a logical `AND` operation.
   pub segment_filters as "segmentFilters,omitempty": List[SegmentFilter] = []
+  pub force_send_fields as "~forceSendFields,omitempty": List[SegmentDefinitionField] = []
+  pub null_fields as "~nullFields,omitempty": List[SegmentDefinitionField] = []
+} derive Json
+
+/// SegmentDefinitionField: SegmentDefinition's fields, for force_send_fields and null_fields.
+pub enum SegmentDefinitionField {
+  SegmentFilters as "segmentFilters=[]"
 } derive Json
 
 /// SegmentDimensionFilter: Dimension filter specifies the filtering options on a dimension.
+///
+/// In a request body, force_send_fields are sent even when empty and null_fields as null (decision 0013).
 pub struct SegmentDimensionFilter {
   /// Should the match be case sensitive, ignored for `IN_LIST` operator.
   pub case_sensitive as "caseSensitive,omitempty": Bool = false
@@ -471,9 +682,23 @@ pub struct SegmentDimensionFilter {
   pub min_comparison_value as "minComparisonValue,omitempty": Str = ""
   /// The operator to use to match the dimension with the expressions.
   pub operator as "operator,omitempty": Str = ""
+  pub force_send_fields as "~forceSendFields,omitempty": List[SegmentDimensionFilterField] = []
+  pub null_fields as "~nullFields,omitempty": List[SegmentDimensionFilterField] = []
+} derive Json
+
+/// SegmentDimensionFilterField: SegmentDimensionFilter's fields, for force_send_fields and null_fields.
+pub enum SegmentDimensionFilterField {
+  CaseSensitive as "caseSensitive=false"
+  DimensionName as "dimensionName=\"\""
+  Expressions as "expressions=[]"
+  MaxComparisonValue as "maxComparisonValue=\"\""
+  MinComparisonValue as "minComparisonValue=\"\""
+  Operator as "operator=\"\""
 } derive Json
 
 /// SegmentFilter: SegmentFilter defines the segment to be either a simple or a sequence segment. A simple segment condition contains dimension and metric conditions to select the sessions or users. A sequence segment condition can be used to select users or sessions based on sequential conditions.
+///
+/// In a request body, force_send_fields are sent even when empty and null_fields as null (decision 0013).
 pub struct SegmentFilter {
   /// If true, match the complement of simple or sequence segment. For example, to match all visits not from "New York", we can define the segment as follows: "sessionSegment": { "segmentFilters": [{ "simpleSegment" :{ "orFiltersForSegment": [{ "segmentFilterClauses":[{ "dimensionFilter": { "dimensionName": "ga:city", "expressions": ["New York"] } }] }] }, "not": "True" }] },
   pub not as "not,omitempty": Bool = false
@@ -481,9 +706,20 @@ pub struct SegmentFilter {
   pub sequence_segment as "sequenceSegment,omitempty": SequenceSegment? = None
   /// A Simple segment conditions consist of one or more dimension/metric conditions that can be combined
   pub simple_segment as "simpleSegment,omitempty": SimpleSegment? = None
+  pub force_send_fields as "~forceSendFields,omitempty": List[SegmentFilterField] = []
+  pub null_fields as "~nullFields,omitempty": List[SegmentFilterField] = []
+} derive Json
+
+/// SegmentFilterField: SegmentFilter's fields, for force_send_fields and null_fields.
+pub enum SegmentFilterField {
+  Not as "not=false"
+  SequenceSegment as "sequenceSegment"
+  SimpleSegment as "simpleSegment"
 } derive Json
 
 /// SegmentFilterClause: Filter Clause to be used in a segment definition, can be wither a metric or a dimension filter.
+///
+/// In a request body, force_send_fields are sent even when empty and null_fields as null (decision 0013).
 pub struct SegmentFilterClause {
   /// Dimension Filter for the segment definition.
   pub dimension_filter as "dimensionFilter,omitempty": SegmentDimensionFilter? = None
@@ -491,9 +727,20 @@ pub struct SegmentFilterClause {
   pub metric_filter as "metricFilter,omitempty": SegmentMetricFilter? = None
   /// Matches the complement (`!`) of the filter.
   pub not as "not,omitempty": Bool = false
+  pub force_send_fields as "~forceSendFields,omitempty": List[SegmentFilterClauseField] = []
+  pub null_fields as "~nullFields,omitempty": List[SegmentFilterClauseField] = []
+} derive Json
+
+/// SegmentFilterClauseField: SegmentFilterClause's fields, for force_send_fields and null_fields.
+pub enum SegmentFilterClauseField {
+  DimensionFilter as "dimensionFilter"
+  MetricFilter as "metricFilter"
+  Not as "not=false"
 } derive Json
 
 /// SegmentMetricFilter: Metric filter to be used in a segment filter clause.
+///
+/// In a request body, force_send_fields are sent even when empty and null_fields as null (decision 0013).
 pub struct SegmentMetricFilter {
   /// The value to compare against. If the operator is `BETWEEN`, this value is treated as minimum comparison value.
   pub comparison_value as "comparisonValue,omitempty": Str = ""
@@ -505,28 +752,68 @@ pub struct SegmentMetricFilter {
   pub operator as "operator,omitempty": Str = ""
   /// Scope for a metric defines the level at which that metric is defined. The specified metric scope must be equal to or greater than its primary scope as defined in the data model. The primary scope is defined by if the segment is selecting users or sessions.
   pub scope as "scope,omitempty": Str = ""
+  pub force_send_fields as "~forceSendFields,omitempty": List[SegmentMetricFilterField] = []
+  pub null_fields as "~nullFields,omitempty": List[SegmentMetricFilterField] = []
+} derive Json
+
+/// SegmentMetricFilterField: SegmentMetricFilter's fields, for force_send_fields and null_fields.
+pub enum SegmentMetricFilterField {
+  ComparisonValue as "comparisonValue=\"\""
+  MaxComparisonValue as "maxComparisonValue=\"\""
+  MetricName as "metricName=\"\""
+  Operator as "operator=\"\""
+  Scope as "scope=\"\""
 } derive Json
 
 /// SegmentSequenceStep: A segment sequence definition.
+///
+/// In a request body, force_send_fields are sent even when empty and null_fields as null (decision 0013).
 pub struct SegmentSequenceStep {
   /// Specifies if the step immediately precedes or can be any time before the next step.
   pub match_type as "matchType,omitempty": Str = ""
   /// A sequence is specified with a list of Or grouped filters which are combined with `AND` operator.
   pub or_filters_for_segment as "orFiltersForSegment,omitempty": List[OrFiltersForSegment] = []
+  pub force_send_fields as "~forceSendFields,omitempty": List[SegmentSequenceStepField] = []
+  pub null_fields as "~nullFields,omitempty": List[SegmentSequenceStepField] = []
+} derive Json
+
+/// SegmentSequenceStepField: SegmentSequenceStep's fields, for force_send_fields and null_fields.
+pub enum SegmentSequenceStepField {
+  MatchType as "matchType=\"\""
+  OrFiltersForSegment as "orFiltersForSegment=[]"
 } derive Json
 
 /// SequenceSegment: Sequence conditions consist of one or more steps, where each step is defined by one or more dimension/metric conditions. Multiple steps can be combined with special sequence operators.
+///
+/// In a request body, force_send_fields are sent even when empty and null_fields as null (decision 0013).
 pub struct SequenceSegment {
   /// If set, first step condition must match the first hit of the visitor (in the date range).
   pub first_step_should_match_first_hit as "firstStepShouldMatchFirstHit,omitempty": Bool = false
   /// The list of steps in the sequence.
   pub segment_sequence_steps as "segmentSequenceSteps,omitempty": List[SegmentSequenceStep] = []
+  pub force_send_fields as "~forceSendFields,omitempty": List[SequenceSegmentField] = []
+  pub null_fields as "~nullFields,omitempty": List[SequenceSegmentField] = []
+} derive Json
+
+/// SequenceSegmentField: SequenceSegment's fields, for force_send_fields and null_fields.
+pub enum SequenceSegmentField {
+  FirstStepShouldMatchFirstHit as "firstStepShouldMatchFirstHit=false"
+  SegmentSequenceSteps as "segmentSequenceSteps=[]"
 } derive Json
 
 /// SimpleSegment: A Simple segment conditions consist of one or more dimension/metric conditions that can be combined.
+///
+/// In a request body, force_send_fields are sent even when empty and null_fields as null (decision 0013).
 pub struct SimpleSegment {
   /// A list of segment filters groups which are combined with logical `AND` operator.
   pub or_filters_for_segment as "orFiltersForSegment,omitempty": List[OrFiltersForSegment] = []
+  pub force_send_fields as "~forceSendFields,omitempty": List[SimpleSegmentField] = []
+  pub null_fields as "~nullFields,omitempty": List[SimpleSegmentField] = []
+} derive Json
+
+/// SimpleSegmentField: SimpleSegment's fields, for force_send_fields and null_fields.
+pub enum SimpleSegmentField {
+  OrFiltersForSegment as "orFiltersForSegment=[]"
 } derive Json
 
 /// TransactionData: Represents details collected when the visitor performs a transaction on the page.
@@ -542,11 +829,21 @@ pub struct TransactionData {
 } derive Json
 
 /// User: Contains information to identify a particular user uniquely.
+///
+/// In a request body, force_send_fields are sent even when empty and null_fields as null (decision 0013).
 pub struct User {
   /// Type of the user in the request. The field `userId` is associated with this type.
   pub type_ as "type,omitempty": Str = ""
   /// Unique Id of the user for which the data is being requested.
   pub user_id as "userId,omitempty": Str = ""
+  pub force_send_fields as "~forceSendFields,omitempty": List[UserField] = []
+  pub null_fields as "~nullFields,omitempty": List[UserField] = []
+} derive Json
+
+/// UserField: User's fields, for force_send_fields and null_fields.
+pub enum UserField {
+  Type as "type=\"\""
+  UserId as "userId=\"\""
 } derive Json
 
 /// UserActivitySession: This represents a user session performed on a specific device at a certain time over a period of time.

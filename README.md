@@ -49,6 +49,26 @@ the API versions your program uses; each requires the root:
 Requires Xo 0.45.0 or later (the bigquery module, Xo 0.49.1). Release notes:
 [docs/releases/v0.1.0.md](docs/releases/v0.1.0.md).
 
+## Empty values and null in a request
+
+Every field is left out of a request body when it is empty, as in Go.
+To send an empty value or `null` (a PATCH that removes every guest or a
+Meet link), name the field in the model's `force_send_fields` or
+`null_fields` (Go's ForceSendFields and NullFields, decision 0013):
+
+```xo
+let ev = calendar.Event{
+  force_send_fields: [calendar.EventField.Attendees],
+  null_fields: [calendar.EventField.ConferenceData],
+}
+// PATCH body: {"attendees":[],"conferenceData":null}
+```
+
+Nested models have their own lists (`EventReminders{force_send_fields:
+[EventRemindersField.UseDefault]}` sends `"useDefault":false`). Only the
+request body applies them; a model's own `json.encode` shows them as
+`~forceSendFields` and `~nullFields` when set.
+
 ## Layout
 
 - `auth`, `gensupport`, `googleapi`, `option`: the hand-written core.

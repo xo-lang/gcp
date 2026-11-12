@@ -137,13 +137,104 @@ pub fn new_core[fx: Effects](net: Net, opts: option.ClientOptions[fx], base_path
 /// A request body as Go's googleapi.WithoutDataWrapper.JSONBuffer (or
 /// WithDataWrapper's `{"data": ...}`) writes it: json.Encoder's text,
 /// ending with a newline.
+///
+/// A model's `force_send_fields` and `null_fields` (decision 0013, Go's
+/// ForceSendFields and NullFields) apply here: a forced field goes in
+/// even when empty, a null field as `null`, and neither list reaches the
+/// body. A level that names either list has its keys, and its values'
+/// keys, in sorted order, as Go's map re-encoding writes them.
 pub fn json_body[T: Json](v: T, data_wrapper: Bool = false) -> Bytes {
-  let s = json.encode_str(v)
+  var s = json.encode_str(v)
+  if s.contains(FORCE_KEY_TEXT) || s.contains(NULL_KEY_TEXT) {
+    s = apply_fields(json.to_value(v)).encode()
+  }
   if data_wrapper {
     // Go's `{"data": `, json.Encoder's text with its newline, then `}`
     return "{\"data\": ${s}\n}".bytes()
   }
   "${s}\n".bytes()
+}
+
+/// The keys a model's force_send_fields and null_fields have in its JSON
+/// (decision 0013). Each entry is a field's JSON name, then for a field
+/// that is not an Option `=` and its empty value's JSON (`attendees=[]`).
+pub const FORCE_KEY: Str = "~forceSendFields"
+pub const NULL_KEY: Str = "~nullFields"
+const FORCE_KEY_TEXT: Str = "\"~forceSendFields\""
+const NULL_KEY_TEXT: Str = "\"~nullFields\""
+
+fn entry_names(v: json.Value) -> List[Str] {
+  match v {
+    json.Value.List(items) => items.filter_map(fn(x: json.Value) -> Str? {
+      match x {
+        json.Value.Str(s) => Some(s)
+        _ => None
+      }
+    })
+    _ => []
+  }
+}
+
+/// The key of an entry (`attendees=[]` -> `attendees`) and its empty
+/// value's JSON, None for an Option field (Go never sends a nil pointer).
+fn split_entry(e: Str) -> (Str, Str?) {
+  match e.cut("=") {
+    Some((k, z)) => (k, Some(z))
+    None => (e, None)
+  }
+}
+
+/// v with every object's force and null lists applied and removed.
+pub fn apply_fields(v: json.Value) -> json.Value {
+  match v {
+    json.Value.Object(fields) => {
+      var force: List[Str] = []
+      var nulls: List[Str] = []
+      var out: List[(Str, json.Value)] = []
+      for (k, x) in fields {
+        if k == FORCE_KEY {
+          force = entry_names(x)
+        } else if k == NULL_KEY {
+          nulls = entry_names(x)
+        } else {
+          out.push((k, apply_fields(x)))
+        }
+      }
+      if force.is_empty() && nulls.is_empty() {
+        return json.Value.Object(out)
+      }
+      let null_keys = nulls.map(fn(e: Str) -> Str { split_entry(e).0 })
+      for e in force {
+        let (key, zero) = split_entry(e)
+        if null_keys.contains(key) || out.any(fn(p: (Str, json.Value)) -> Bool { p.0 == key }) {
+          continue
+        }
+        if let Some(z) = zero {
+          if let Ok(zv) = json.parse_value(z) {
+            out.push((key, zv))
+          }
+        }
+      }
+      // a null field is null whatever its value (Go reports an error for a
+      // non-empty one; a Go body never has both)
+      for key in null_keys {
+        out = out.filter(fn(p: (Str, json.Value)) -> Bool { p.0 != key })
+        out.push((key, json.Value.Null))
+      }
+      sorted(json.Value.Object(out))
+    }
+    json.Value.List(items) => json.Value.List(items.map(apply_fields))
+    _ => v
+  }
+}
+
+/// v with every object's keys in byte order, all the way down.
+fn sorted(v: json.Value) -> json.Value {
+  match v {
+    json.Value.Object(fields) => json.Value.Object(fields.map(fn(p: (Str, json.Value)) -> (Str, json.Value) { (p.0, sorted(p.1)) }).sort_by(fn(p: (Str, json.Value)) -> Str { p.0 }))
+    json.Value.List(items) => json.Value.List(items.map(sorted))
+    _ => v
+  }
 }
 
 struct DataWrapper {
