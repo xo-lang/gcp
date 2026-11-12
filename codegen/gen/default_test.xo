@@ -1,0 +1,18 @@
+use std/json
+
+fn prop(text: Str) -> json.Value { json.parse_value(text).ok() ?? json.Value.Null }
+
+test "Go's UnfortunateDefault: a string whose pattern or enum allows \"\"" {
+  // bigquery's quote: default "\"", pattern ".?", so Go's Quote is *string
+  expect(unfortunate_default(prop("{\"type\":\"string\",\"default\":\"\\\"\",\"pattern\":\".?\"}"), "Str")) == true
+  expect(unfortunate_default(prop("{\"type\":\"string\",\"default\":\"x\",\"pattern\":\"^[a-z]+$\"}"), "Str")) == false
+  expect(unfortunate_default(prop("{\"type\":\"string\",\"default\":\"x\",\"enum\":[\"x\",\"\"]}"), "Str")) == true
+  expect(unfortunate_default(prop("{\"type\":\"string\",\"default\":\"x\",\"enum\":[\"x\"]}"), "Str")) == false
+  // both: Go does not know, so not a pointer
+  expect(unfortunate_default(prop("{\"type\":\"string\",\"default\":\"x\",\"pattern\":\".?\",\"enum\":[\"\"]}"), "Str")) == false
+  // no default: never
+  expect(unfortunate_default(prop("{\"type\":\"string\",\"pattern\":\".?\"}"), "Str")) == false
+  // a pattern that does not compile: Go's emptyPattern is false
+  expect(unfortunate_default(prop("{\"type\":\"string\",\"default\":\"x\",\"pattern\":\"(\"}"), "Str")) == false
+  expect(unfortunate_default(prop("{\"type\":\"boolean\",\"default\":\"true\"}"), "Bool")) == true
+}

@@ -120,6 +120,7 @@ fn config_line(f: Fake, j: Job[()]) {
       }
       note(f, "  config extract src=${src} model=${model.quote()} uris=[${e.dst.uris.join(" ")}] compression=${e.dst.compression.quote()} format=${e.dst.destination_format.quote()} delim=${e.dst.file_config.csv.field_delimiter.quote()} noheader=${e.disable_header} avro=${e.use_avro_logical_types} timeoutms=${e.job_timeout.millis()} reservation=${e.reservation.quote()} slots=${e.max_slots} labels=${map_v(e.labels)}")
     }
+    Ok(Some(JobConfig.Load(l))) => load_lines(f, l)
     Ok(Some(JobConfig.Other(c))) => note(f, if c.load.is_some() { "  config *bigquery.LoadConfig" } else if c.copy.is_some() { "  config *bigquery.CopyConfig" } else { "  config *bigquery.ExtractConfig" })
     Ok(None) => note(f, "  config none")
     Err(e) => err_line(f, e)
@@ -214,4 +215,45 @@ const INTERNAL_ERR: Str = "{\"error\":{\"code\":500,\"message\":\"x\",\"errors\"
 /// The client of a step 3 case: every pause short.
 fn jobs_client(os: testing.TestOs, project: Str = "p1") -> Client[()] {
   new_client(os.net, os.clock, os.rand, project, ClientOptions{service: option.ClientOptions{endpoint: "https://bigquery.fake/bigquery/v2/", without_authentication: true}, backoff: FAST, query_poll: FAST, status_poll: FAST})
+}
+
+fn go_list(xs: List[Str]) -> Str { "[${xs.join(" ")}]" }
+
+/// The oracle's config line of a load and its file line.
+fn load_lines(f: Fake, l: LoadConfig) {
+  let (src, fc) = match l.src {
+    LoadSource.Gcs(g) => ("gcs${go_list(g.uris)}", g.file_config)
+    LoadSource.Reader(r) => ("reader", r.file_config)
+  }
+  let tp = match l.time_partitioning {
+    Some(p) => "${p.type_}/${p.field}/${p.expiration.millis()}/${p.require_partition_filter}"
+    None => "none"
+  }
+  let rp = match l.range_partitioning {
+    Some(p) => match p.range {
+      Some(r) => "${p.field}[${r.start},${r.end},${r.interval}]"
+      None => p.field
+    }
+    None => "none"
+  }
+  let cl = match l.clustering {
+    Some(c) => go_list(c.fields)
+    None => "none"
+  }
+  let kms = match l.destination_encryption_config {
+    Some(e) => e.kms_key_name
+    None => "none"
+  }
+  let hive = match l.hive_partitioning_options {
+    Some(h) => "${h.mode}/${h.source_uri_prefix}/${h.require_partition_filter}"
+    None => "none"
+  }
+  let conn = go_list(l.connection_properties.map(fn(p) -> Str { "${p.key}=${p.value}" }))
+  note(f, "  config load src=${src} dst=${fq(l.dst)} create=${l.create_disposition.quote()} write=${l.write_disposition.quote()} time=${tp} range=${rp} cluster=${cl} kms=${kms} update=${go_list(l.schema_update_options)} projection=${go_list(l.projection_fields)} hive=${hive} decimal=${go_list(l.decimal_target_types)} timeoutms=${l.job_timeout.millis()} refschema=${l.reference_file_schema_uri.quote()} session=${l.create_session} conn=${conn} colmap=${l.column_name_character_map.quote()} reservation=${l.reservation.quote()} slots=${l.max_slots} avro=${l.use_avro_logical_types} labels=${map_v(l.labels)}")
+  let names = match fc.schema {
+    Some(s) => s.map(fn(x) -> Str { "${x.name}:${x.type_}" })
+    None => []
+  }
+  let o = fc.csv
+  note(f, "  file format=${fc.source_format.quote()} auto=${fc.auto_detect} maxbad=${fc.max_bad_records} ignore=${fc.ignore_unknown_values} schema=${go_list(names)} skip=${o.skip_leading_rows} jagged=${o.allow_jagged_rows} qnl=${o.allow_quoted_newlines} enc=${o.encoding.quote()} delim=${o.field_delimiter.quote()} quote=${o.quote.quote()} zeroquote=${o.force_zero_quote} null=${o.null_marker.quote()} nulls=${go_list(o.null_markers)} match=${o.source_column_match.quote()} ascii=${o.preserve_ascii_control_characters} tz=${fc.time_zone.quote()} date=${fc.date_format.quote()} datetime=${fc.datetime_format.quote()} time=${fc.time_format.quote()} timestamp=${fc.timestamp_format.quote()} parquet=${fc.parquet_options.is_some()} avro=${fc.avro_options.is_some()}")
 }

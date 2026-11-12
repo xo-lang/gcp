@@ -157,13 +157,27 @@ fn answer(f: Fake, req: http.Request) -> http.Response {
   let q = req.raw_query()
   let pairs = by_key(if q == "" { [] } else { q.split("&") })
   note(f, "  ${req.method} ${ids("${req.url.scheme}://${req.url.host}${req.escaped_path()}${if pairs.is_empty() { "" } else { "?" + pairs.join("&") }}")}")
+  // a multipart upload's boundary prints as BOUNDARY, its CRs as \\r and
+  // its lines one per body line (the oracle's printRequest)
+  let ct = header_of(req, "content-type") ?? ""
+  let boundary = match ct.find("boundary=") {
+    Some(i) => ct[i + 9..ct.len()]
+    None => ""
+  }
   for h in ["X-Goog-Api-Client", "X-Goog-User-Project", "If-Match", "If-None-Match", "Content-Type"] {
     if let Some(v) = header_of(req, h) {
-      note(f, "    ${h}: ${if h == "X-Goog-Api-Client" { norm_api_client(v) } else { v }}")
+      note(f, "    ${h}: ${if h == "X-Goog-Api-Client" { norm_api_client(v) } else if boundary == "" { v } else { v.replace(boundary, "BOUNDARY") }}")
     }
   }
   if !req.body.is_empty() {
-    note(f, "    body ${ids(canon_text(req.body.to_str_lossy()))}")
+    var t = canon_text(req.body.to_str_lossy())
+    if boundary != "" {
+      t = t.replace(boundary, "BOUNDARY")
+    }
+    t = ids(t).replace("\r", "\\r")
+    for line in t.split("\n") {
+      note(f, "    body ${line}")
+    }
   }
   let queue = match f.data {
     Some(d) => if req.url.path.ends_with("/data") { d } else { f.replies }

@@ -1,0 +1,198 @@
+// Load jobs (load.go, file.go): files in Cloud Storage, or bytes sent with
+// the request, loaded into a table.
+
+use std/json
+use std/url
+use github.com/xo-lang/gcp/gensupport
+use github.com/xo-lang/gcp/googleapi
+use github.com/xo-lang/gcp/bigquery/apiv2 as raw
+
+// The type a decimal column loads as (Go's DecimalTargetType).
+pub const NUMERIC_TARGET_TYPE: Str = "NUMERIC"
+pub const BIGNUMERIC_TARGET_TYPE: Str = "BIGNUMERIC"
+pub const STRING_TARGET_TYPE: Str = "STRING"
+
+// Which characters a column name may hold (Go's ColumnNameCharacterMap).
+pub const UNSPECIFIED_COLUMN_NAME_CHARACTER_MAP: Str = "COLUMN_NAME_CHARACTER_MAP_UNSPECIFIED"
+pub const STRICT_COLUMN_NAME_CHARACTER_MAP: Str = "STRICT"
+pub const V1_COLUMN_NAME_CHARACTER_MAP: Str = "V1"
+pub const V2_COLUMN_NAME_CHARACTER_MAP: Str = "V2"
+
+// How hive partition keys are read (Go's HivePartitioningMode).
+pub const AUTO_HIVE_PARTITIONING_MODE: Str = "AUTO"
+pub const STRING_HIVE_PARTITIONING_MODE: Str = "STRINGS"
+pub const CUSTOM_HIVE_PARTITIONING_MODE: Str = "CUSTOM"
+
+/// Files laid out as hive partitions (Go's HivePartitioningOptions).
+pub struct HivePartitioningOptions {
+  pub mode: Str = ""
+  /// The URI prefix the partition keys start after.
+  pub source_uri_prefix: Str = ""
+  pub require_partition_filter: Bool = false
+}
+
+/// Bytes sent with the load request (Go's ReaderSource; Xo holds the
+/// whole body, as an upload's Media does).
+pub struct ReaderSource {
+  pub data: Bytes
+  pub file_config: FileConfig = FileConfig{}
+}
+
+/// A load of data (Go's NewReaderSource).
+pub fn new_reader_source(data: Bytes) -> ReaderSource { ReaderSource{data: data} }
+
+/// What a load reads (Go's LoadSource).
+pub enum LoadSource {
+  Gcs(g: GCSReference)
+  Reader(r: ReaderSource)
+}
+
+/// How a reader's bytes are uploaded (Go's googleapi.MediaOption list).
+pub struct MediaOptions {
+  /// The bytes' media type, "" to sniff it (googleapi.ContentType).
+  pub content_type: Str = ""
+  /// No media type at all (googleapi.ContentType("")).
+  pub force_empty_content_type: Bool = false
+  /// Bytes at least this long go in a resumable upload
+  /// (googleapi.ChunkSize); 0 sends them in one request.
+  pub chunk_size: Int = gensupport.DEFAULT_CHUNK_SIZE
+}
+
+/// A load job's configuration (Go's LoadConfig).
+pub struct LoadConfig {
+  pub src: LoadSource
+  pub dst: TableRef
+  pub create_disposition: Str = ""
+  pub write_disposition: Str = ""
+  pub labels: Map[Str, Str] = {}
+  pub time_partitioning: TimePartitioning? = None
+  pub range_partitioning: RangePartitioning? = None
+  pub clustering: Clustering? = None
+  pub destination_encryption_config: EncryptionConfig? = None
+  pub schema_update_options: List[Str] = []
+  /// Overridden by the source's FileConfig.avro_options when set (as
+  /// Go's populateLoadConfig does).
+  pub use_avro_logical_types: Bool = false
+  pub projection_fields: List[Str] = []
+  pub hive_partitioning_options: HivePartitioningOptions? = None
+  /// NUMERIC_TARGET_TYPE, BIGNUMERIC_TARGET_TYPE, STRING_TARGET_TYPE.
+  pub decimal_target_types: List[Str] = []
+  /// 0s for none.
+  pub job_timeout: Duration = 0s
+  pub reference_file_schema_uri: Str = ""
+  pub create_session: Bool = false
+  pub connection_properties: List[ConnectionProperty] = []
+  /// A reader source's upload.
+  pub media_options: MediaOptions = MediaOptions{}
+  pub column_name_character_map: Str = ""
+  pub reservation: Str = ""
+  pub max_slots: Int = 0
+}
+
+/// Go's FileConfig.populateLoadConfig, onto l.
+fn file_config_into(fc: FileConfig, l: raw.JobConfigurationLoad) -> raw.JobConfigurationLoad {
+  var out = l with {skip_leading_rows: fc.csv.skip_leading_rows, source_format: fc.source_format, autodetect: fc.auto_detect, allow_jagged_rows: fc.csv.allow_jagged_rows, allow_quoted_newlines: fc.csv.allow_quoted_newlines, encoding: fc.csv.encoding, field_delimiter: fc.csv.field_delimiter, ignore_unknown_values: fc.ignore_unknown_values, max_bad_records: fc.max_bad_records, null_marker: fc.csv.null_marker, null_markers: fc.csv.null_markers, source_column_match: fc.csv.source_column_match, preserve_ascii_control_characters: fc.csv.preserve_ascii_control_characters, quote: fc.csv.quote_raw(), time_zone: fc.time_zone, time_format: fc.time_format, timestamp_format: fc.timestamp_format, datetime_format: fc.datetime_format, date_format: fc.date_format}
+  if let Some(s) = fc.schema {
+    out.schema = Some(schema_to_raw(s))
+  }
+  if let Some(p) = fc.parquet_options {
+    out.parquet_options = Some(raw.ParquetOptions{enum_as_string: p.enum_as_string, enable_list_inference: p.enable_list_inference})
+  }
+  if let Some(a) = fc.avro_options {
+    out.use_avro_logical_types = a.use_avro_logical_types
+  }
+  out
+}
+
+/// Go's bqPopulateFileConfig: parquet and avro options do not come back.
+fn file_config_of(q: raw.JobConfigurationLoad) -> FileConfig {
+  var csv = CSVOptions{skip_leading_rows: q.skip_leading_rows, allow_jagged_rows: q.allow_jagged_rows, allow_quoted_newlines: q.allow_quoted_newlines, encoding: q.encoding, field_delimiter: q.field_delimiter, null_marker: q.null_marker, null_markers: q.null_markers, source_column_match: q.source_column_match, preserve_ascii_control_characters: q.preserve_ascii_control_characters}
+  csv.set_quote(q.quote)
+  FileConfig{source_format: q.source_format, auto_detect: q.autodetect, max_bad_records: q.max_bad_records, ignore_unknown_values: q.ignore_unknown_values, schema: match q.schema {
+    Some(s) => Some(schema_of(Some(s)))
+    None => None
+  }, csv: csv, time_zone: q.time_zone, time_format: q.time_format, timestamp_format: q.timestamp_format, datetime_format: q.datetime_format, date_format: q.date_format}
+}
+
+/// Go's LoadConfig.toBQ, as JSON: the range partitioning's bounds are
+/// forced, as a table's are.
+fn (lc: LoadConfig) to_json() -> json.Value {
+  var l = raw.JobConfigurationLoad{create_disposition: lc.create_disposition, write_disposition: lc.write_disposition, destination_table: Some(table_ref_raw(lc.dst)), time_partitioning: match lc.time_partitioning {
+    Some(p) => Some(partitioning_raw(p))
+    None => None
+  }, clustering: match lc.clustering {
+    Some(c) => Some(raw.Clustering{fields: c.fields})
+    None => None
+  }, destination_encryption_configuration: encryption_to_raw(lc.destination_encryption_config), schema_update_options: lc.schema_update_options, use_avro_logical_types: lc.use_avro_logical_types, projection_fields: lc.projection_fields, hive_partitioning_options: match lc.hive_partitioning_options {
+    Some(h) => Some(raw.HivePartitioningOptions{mode: h.mode, source_uri_prefix: h.source_uri_prefix, require_partition_filter: h.require_partition_filter})
+    None => None
+  }, reference_file_schema_uri: lc.reference_file_schema_uri, create_session: lc.create_session, column_name_character_map: lc.column_name_character_map, decimal_target_types: lc.decimal_target_types, connection_properties: lc.connection_properties.map(fn(p) -> raw.ConnectionProperty { raw.ConnectionProperty{key: p.key, value: p.value} })}
+  l = match lc.src {
+    LoadSource.Gcs(g) => file_config_into(g.file_config, l with {source_uris: g.uris})
+    LoadSource.Reader(r) => file_config_into(r.file_config, l)
+  }
+  var lv = jraw(l)
+  if let Some(rp) = lc.range_partitioning {
+    lv = jset(lv, "rangePartitioning", range_partitioning_json(rp))
+  }
+  jset(jraw(raw.JobConfiguration{labels: lc.labels, job_timeout_ms: lc.job_timeout.millis(), reservation: lc.reservation, max_slots: lc.max_slots}), "load", lv)
+}
+
+/// Go's bqToLoadConfig: a load without source URIs comes back as a
+/// reader's, its data empty.
+fn load_config_of(c: raw.JobConfiguration, q: raw.JobConfigurationLoad) -> LoadConfig {
+  let fc = file_config_of(q)
+  LoadConfig{src: if q.source_uris.is_empty() { LoadSource.Reader(ReaderSource{data: "".bytes(), file_config: fc}) } else { LoadSource.Gcs(GCSReference{uris: q.source_uris, file_config: fc}) }, dst: table_ref_of(q.destination_table) ?? TableRef{project_id: "", dataset_id: "", table_id: ""}, create_disposition: q.create_disposition, write_disposition: q.write_disposition, labels: c.labels, time_partitioning: match q.time_partitioning {
+    Some(p) => Some(TimePartitioning{type_: p.type_, expiration: 1ms * p.expiration_ms, field: p.field, require_partition_filter: p.require_partition_filter})
+    None => None
+  }, range_partitioning: match q.range_partitioning {
+    Some(p) => Some(RangePartitioning{field: p.field, range: match p.range {
+      Some(r) => Some(RangePartitioningRange{start: r.start, end: r.end, interval: r.interval})
+      None => None
+    }})
+    None => None
+  }, clustering: match q.clustering {
+    Some(x) => Some(Clustering{fields: x.fields})
+    None => None
+  }, destination_encryption_config: encryption_of(q.destination_encryption_configuration), schema_update_options: q.schema_update_options, use_avro_logical_types: q.use_avro_logical_types, projection_fields: q.projection_fields, hive_partitioning_options: match q.hive_partitioning_options {
+    Some(h) => Some(HivePartitioningOptions{mode: h.mode, source_uri_prefix: h.source_uri_prefix, require_partition_filter: h.require_partition_filter})
+    None => None
+  }, decimal_target_types: q.decimal_target_types, job_timeout: 1ms * c.job_timeout_ms, reference_file_schema_uri: q.reference_file_schema_uri, create_session: q.create_session, connection_properties: q.connection_properties.map(fn(p) -> ConnectionProperty { ConnectionProperty{key: p.key, value: p.value} }), column_name_character_map: q.column_name_character_map, reservation: c.reservation, max_slots: c.max_slots}
+}
+
+/// A load into a table (Go's Loader): its configuration and the ids of
+/// its job.
+pub struct Loader[fx: Effects] {
+  pub config: LoadConfig
+  pub id: JobIdConfig = JobIdConfig{}
+  c: Client[fx]
+}
+
+/// A load of src into t (Go's LoaderFrom).
+pub fn (t: Table[fx]) loader_from(src: LoadSource) -> Loader[fx] {
+  Loader{config: LoadConfig{src: src, dst: t.ref()}, c: t.c}
+}
+
+/// Starts the load as a job (Go's Run): files in Cloud Storage as any
+/// job, retried; a reader's bytes uploaded with the request, not retried
+/// (Go's insertJob with media).
+pub fn (l: Loader[fx]) run() -> Job[fx] ! BqErr uses (net.dial, clock, rand, fx) {
+  let body = json.Value.Object([("configuration", l.config.to_json()), ("jobReference", jraw(l.id.job_ref(l.c)))])
+  let r = match l.config.src {
+    LoadSource.Gcs(_) => return l.c.insert_job(body)
+    LoadSource.Reader(r) => r
+  }
+  let c = l.c
+  let target = googleapi.expand(googleapi.resolve_relative(c.core.base_path, "projects/{+projectId}/jobs"), {"projectId": c.project})
+  let mu = googleapi.expand(googleapi.resolve_relative(c.core.base_path, "/upload/bigquery/v2/projects/{+projectId}/jobs"), {"projectId": c.project})
+  var q = url.values()
+  q.set("alt", "json")
+  q.set("prettyPrint", "false")
+  let mo = l.config.media_options
+  let media = gensupport.Media{data: r.data, content_type: mo.content_type, force_empty_content_type: mo.force_empty_content_type, chunk_size: mo.chunk_size}
+  let hs = client_headers() + [("Content-Type", "application/json")]
+  let resp = once(c.core.client.upload(c.clock, c.rand, gensupport.Request{method: "POST", url: target, query: q, headers: hs, body: "${body.encode()}\n".bytes()}, mu, media))?
+  once(gensupport.check(resp))?
+  let res = once(gensupport.decode[raw.Job](resp))?
+  job_of(res, c)
+}

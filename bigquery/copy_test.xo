@@ -6,8 +6,10 @@ const COPY_JOB: Str = "{\"kind\":\"bigquery#job\",\"jobReference\":{\"projectId\
 const EXTRACT_JOB: Str = "{\"kind\":\"bigquery#job\",\"jobReference\":{\"projectId\":\"p1\",\"jobId\":\"e1\",\"location\":\"US\"},\"configuration\":{\"extract\":{\"sourceTable\":{\"projectId\":\"p1\",\"datasetId\":\"d1\",\"tableId\":\"t1\"},\"destinationUris\":[\"gs://b/a-*.csv\",\"gs://b/b-*.csv\"],\"compression\":\"GZIP\",\"destinationFormat\":\"CSV\",\"fieldDelimiter\":\"|\",\"printHeader\":false,\"useAvroLogicalTypes\":true},\"labels\":{\"k\":\"v\"},\"jobTimeoutMs\":\"60000\",\"reservation\":\"r2\",\"maxSlots\":3},\"status\":{\"state\":\"DONE\"},\"statistics\":{\"creationTime\":\"1700000000000\",\"endTime\":\"1700000005000\",\"extract\":{\"destinationUriFileCounts\":[\"2\",\"1\"]}}}"
 const MODEL_EXTRACT_JOB: Str = "{\"jobReference\":{\"projectId\":\"p1\",\"jobId\":\"m1\",\"location\":\"US\"},\"configuration\":{\"extract\":{\"sourceModel\":{\"projectId\":\"p1\",\"datasetId\":\"d1\",\"modelId\":\"m\"},\"destinationUris\":[\"gs://b/model\"],\"destinationFormat\":\"ML_TF_SAVED_MODEL\"}},\"status\":{\"state\":\"PENDING\"}}"
 const PLAIN_EXTRACT_JOB: Str = "{\"jobReference\":{\"projectId\":\"p1\",\"jobId\":\"e2\",\"location\":\"US\"},\"configuration\":{\"extract\":{\"sourceTable\":{\"projectId\":\"p1\",\"datasetId\":\"d1\",\"tableId\":\"t1\"},\"destinationUris\":[\"gs://b/o.json\"],\"printHeader\":true}},\"status\":{\"state\":\"RUNNING\"}}"
+const LOAD_FULL_JOB: Str = "{\"jobReference\":{\"projectId\":\"p1\",\"jobId\":\"l2\",\"location\":\"US\"},\"configuration\":{\"load\":{\"sourceUris\":[\"gs://b/x-*.csv\"],\"destinationTable\":{\"projectId\":\"p1\",\"datasetId\":\"d1\",\"tableId\":\"t1\"},\"createDisposition\":\"CREATE_IF_NEEDED\",\"writeDisposition\":\"WRITE_APPEND\",\"timePartitioning\":{\"type\":\"DAY\",\"field\":\"at\",\"expirationMs\":\"172800000\"},\"rangePartitioning\":{\"field\":\"n\",\"range\":{\"start\":\"0\",\"end\":\"100\",\"interval\":\"10\"}},\"clustering\":{\"fields\":[\"name\"]},\"destinationEncryptionConfiguration\":{\"kmsKeyName\":\"k1\"},\"schemaUpdateOptions\":[\"ALLOW_FIELD_ADDITION\"],\"projectionFields\":[\"a\"],\"hivePartitioningOptions\":{\"mode\":\"AUTO\",\"sourceUriPrefix\":\"gs://b/\",\"requirePartitionFilter\":true},\"decimalTargetTypes\":[\"NUMERIC\",\"STRING\"],\"referenceFileSchemaUri\":\"gs://b/ref\",\"createSession\":true,\"connectionProperties\":[{\"key\":\"time_zone\",\"value\":\"UTC\"}],\"columnNameCharacterMap\":\"V2\",\"sourceFormat\":\"CSV\",\"autodetect\":true,\"maxBadRecords\":3,\"ignoreUnknownValues\":true,\"schema\":{\"fields\":[{\"name\":\"id\",\"type\":\"INTEGER\"},{\"name\":\"name\",\"type\":\"STRING\"}]},\"skipLeadingRows\":1,\"allowJaggedRows\":true,\"allowQuotedNewlines\":true,\"encoding\":\"ISO-8859-1\",\"fieldDelimiter\":\";\",\"quote\":\"'\",\"nullMarker\":\"NA\",\"nullMarkers\":[\"NA\",\"-\"],\"sourceColumnMatch\":\"NAME\",\"preserveAsciiControlCharacters\":true,\"timeZone\":\"UTC\",\"dateFormat\":\"YYYY-MM-DD\",\"datetimeFormat\":\"YYYY-MM-DD HH24:MI:SS\",\"timeFormat\":\"HH24:MI:SS\",\"timestampFormat\":\"YYYY-MM-DD HH24:MI:SS\",\"parquetOptions\":{\"enumAsString\":true},\"useAvroLogicalTypes\":true},\"labels\":{\"k\":\"v\"},\"jobTimeoutMs\":\"30000\",\"reservation\":\"r3\",\"maxSlots\":5},\"status\":{\"state\":\"RUNNING\"}}"
+const LOAD_ZERO_QUOTE_JOB: Str = "{\"jobReference\":{\"projectId\":\"p1\",\"jobId\":\"l3\",\"location\":\"US\"},\"configuration\":{\"load\":{\"destinationTable\":{\"projectId\":\"p1\",\"datasetId\":\"d1\",\"tableId\":\"t1\"},\"quote\":\"\"}},\"status\":{\"state\":\"DONE\"},\"statistics\":{\"creationTime\":\"1700000000000\",\"load\":{\"inputFileBytes\":\"12\",\"inputFiles\":\"1\",\"outputBytes\":\"10\",\"outputRows\":\"2\"}}}"
 
-test "copy and extract oracle: copy run, every option" {
+test "copy, extract and load oracle: copy run, every option" {
   let f = new_fake(os.net, [(200, COPY_JOB)])
   let c = jobs_client(os)
   let d = c.dataset("d1")
@@ -28,7 +30,7 @@ test "copy and extract oracle: copy run, every option" {
   expect(lines(f)) == ["  POST https://bigquery.fake/bigquery/v2/projects/p1/jobs?alt=json&prettyPrint=false", "    X-Goog-Api-Client: gl-go/GO gccl/V", "    Content-Type: application/json", "    body {\"configuration\":{\"copy\":{\"createDisposition\":\"CREATE_NEVER\",\"destinationEncryptionConfiguration\":{\"kmsKeyName\":\"k1\"},\"destinationTable\":{\"datasetId\":\"d1\",\"projectId\":\"p1\",\"tableId\":\"out\"},\"operationType\":\"SNAPSHOT\",\"sourceTables\":[{\"datasetId\":\"d1\",\"projectId\":\"p1\",\"tableId\":\"a\"},{\"datasetId\":\"d2\",\"projectId\":\"p2\",\"tableId\":\"b\"}],\"writeDisposition\":\"WRITE_TRUNCATE\"},\"jobTimeoutMs\":\"90000\",\"labels\":{\"k\":\"v\"},\"maxSlots\":7,\"reservation\":\"r1\"},\"jobReference\":{\"jobId\":\"c1\",\"location\":\"EU\",\"projectId\":\"p1\"}}", "  job p1 c1 EU \"\"", "  status Running done=false err=<nil>", "  stats created=2023-11-14T22:13:20Z start=zero end=zero bytes=0 slotms=0 children=0 parent=\"\" ratio=0 reservation=\"\"", "  config copy srcs=[p1:d1.a p2:d2.b] dst=p1:d1.out create=\"CREATE_NEVER\" write=\"WRITE_TRUNCATE\" op=\"SNAPSHOT\" kms=k1 timeoutms=90000 reservation=\"r1\" slots=7 labels=map[k:v]"]
 }
 
-test "copy and extract oracle: copy run, defaults" {
+test "copy, extract and load oracle: copy run, defaults" {
   let f = new_fake(os.net, [(200, job_running())])
   var c = jobs_client(os)
   c.location = "asia-east1"
@@ -39,7 +41,7 @@ test "copy and extract oracle: copy run, defaults" {
   expect(lines(f)) == ["  POST https://bigquery.fake/bigquery/v2/projects/p1/jobs?alt=json&prettyPrint=false", "    X-Goog-Api-Client: gl-go/GO gccl/V", "    Content-Type: application/json", "    body {\"configuration\":{\"copy\":{\"destinationTable\":{\"datasetId\":\"d1\",\"projectId\":\"p1\",\"tableId\":\"out\"},\"sourceTables\":[{\"datasetId\":\"d1\",\"projectId\":\"p1\",\"tableId\":\"a\"}]}},\"jobReference\":{\"jobId\":\"pre-RANDOMID\",\"location\":\"asia-east1\",\"projectId\":\"p1\"}}", "  job p1 job1 US \"\"", "  status Running done=false err=<nil>", "  stats created=2023-11-14T22:13:20Z start=zero end=zero bytes=0 slotms=0 children=0 parent=\"\" ratio=0 reservation=\"\""]
 }
 
-test "copy and extract oracle: copy run, restore and clone, rate limit retried" {
+test "copy, extract and load oracle: copy run, restore and clone, rate limit retried" {
   let f = new_fake(os.net, [(400, JOB_RATE_LIMITED), (200, job_running()), (200, job_running())])
   let c = jobs_client(os)
   var cp = c.dataset("d1").table("out").copier_from([c.dataset("d1").table("snap")])
@@ -52,14 +54,14 @@ test "copy and extract oracle: copy run, restore and clone, rate limit retried" 
   expect(lines(f)) == ["  POST https://bigquery.fake/bigquery/v2/projects/p1/jobs?alt=json&prettyPrint=false", "    X-Goog-Api-Client: gl-go/GO gccl/V", "    Content-Type: application/json", "    body {\"configuration\":{\"copy\":{\"destinationTable\":{\"datasetId\":\"d1\",\"projectId\":\"p1\",\"tableId\":\"out\"},\"operationType\":\"RESTORE\",\"sourceTables\":[{\"datasetId\":\"d1\",\"projectId\":\"p1\",\"tableId\":\"snap\"}],\"writeDisposition\":\"WRITE_EMPTY\"}},\"jobReference\":{\"jobId\":\"RANDOMID\",\"projectId\":\"p1\"}}", "  POST https://bigquery.fake/bigquery/v2/projects/p1/jobs?alt=json&prettyPrint=false", "    X-Goog-Api-Client: gl-go/GO gccl/V", "    Content-Type: application/json", "    body {\"configuration\":{\"copy\":{\"destinationTable\":{\"datasetId\":\"d1\",\"projectId\":\"p1\",\"tableId\":\"out\"},\"operationType\":\"RESTORE\",\"sourceTables\":[{\"datasetId\":\"d1\",\"projectId\":\"p1\",\"tableId\":\"snap\"}],\"writeDisposition\":\"WRITE_EMPTY\"}},\"jobReference\":{\"jobId\":\"RANDOMID\",\"projectId\":\"p1\"}}", "  job p1 job1 US \"\"", "  status Running done=false err=<nil>", "  stats created=2023-11-14T22:13:20Z start=zero end=zero bytes=0 slotms=0 children=0 parent=\"\" ratio=0 reservation=\"\"", "  POST https://bigquery.fake/bigquery/v2/projects/p1/jobs?alt=json&prettyPrint=false", "    X-Goog-Api-Client: gl-go/GO gccl/V", "    Content-Type: application/json", "    body {\"configuration\":{\"copy\":{\"destinationTable\":{\"datasetId\":\"d1\",\"projectId\":\"p1\",\"tableId\":\"out2\"},\"operationType\":\"CLONE\",\"sourceTables\":[{\"datasetId\":\"d1\",\"projectId\":\"p1\",\"tableId\":\"a\"}]}},\"jobReference\":{\"jobId\":\"RANDOMID\",\"projectId\":\"p1\"}}", "  job p1 job1 US \"\"", "  status Running done=false err=<nil>", "  stats created=2023-11-14T22:13:20Z start=zero end=zero bytes=0 slotms=0 children=0 parent=\"\" ratio=0 reservation=\"\""]
 }
 
-test "copy and extract oracle: copy run, invalid" {
+test "copy, extract and load oracle: copy run, invalid" {
   let f = new_fake(os.net, [(400, INVALID_QUERY)])
   let c = jobs_client(os)
   job_line(f, c.dataset("d1").table("out").copier_from([c.dataset("d1").table("a")]).run())
   expect(lines(f)) == ["  POST https://bigquery.fake/bigquery/v2/projects/p1/jobs?alt=json&prettyPrint=false", "    X-Goog-Api-Client: gl-go/GO gccl/V", "    Content-Type: application/json", "    body {\"configuration\":{\"copy\":{\"destinationTable\":{\"datasetId\":\"d1\",\"projectId\":\"p1\",\"tableId\":\"out\"},\"sourceTables\":[{\"datasetId\":\"d1\",\"projectId\":\"p1\",\"tableId\":\"a\"}]}},\"jobReference\":{\"jobId\":\"RANDOMID\",\"projectId\":\"p1\"}}", "  error googleapi: Error 400: Syntax error: Unexpected end of script at [1:7], invalidQuery", "  googleapi code=400"]
 }
 
-test "copy and extract oracle: extract run, every option" {
+test "copy, extract and load oracle: extract run, every option" {
   let f = new_fake(os.net, [(200, EXTRACT_JOB)])
   var g = new_gcs_reference(["gs://b/a-*.csv", "gs://b/b-*.csv"])
   g.compression = GZIP
@@ -79,7 +81,7 @@ test "copy and extract oracle: extract run, every option" {
   expect(lines(f)) == ["  POST https://bigquery.fake/bigquery/v2/projects/p1/jobs?alt=json&prettyPrint=false", "    X-Goog-Api-Client: gl-go/GO gccl/V", "    Content-Type: application/json", "    body {\"configuration\":{\"extract\":{\"compression\":\"GZIP\",\"destinationFormat\":\"CSV\",\"destinationUris\":[\"gs://b/a-*.csv\",\"gs://b/b-*.csv\"],\"fieldDelimiter\":\"|\",\"printHeader\":false,\"sourceTable\":{\"datasetId\":\"d1\",\"projectId\":\"p1\",\"tableId\":\"t1\"},\"useAvroLogicalTypes\":true},\"jobTimeoutMs\":\"60000\",\"labels\":{\"k\":\"v\"},\"maxSlots\":3,\"reservation\":\"r2\"},\"jobReference\":{\"jobId\":\"e1\",\"projectId\":\"p1\"}}", "  job p1 e1 US \"\"", "  status Done done=true err=<nil>", "  stats created=2023-11-14T22:13:20Z start=zero end=2023-11-14T22:13:25Z bytes=0 slotms=0 children=0 parent=\"\" ratio=0 reservation=\"\"", "  extract [2 1]", "  config extract src=p1:d1.t1 model=\"\" uris=[gs://b/a-*.csv gs://b/b-*.csv] compression=\"GZIP\" format=\"CSV\" delim=\"|\" noheader=true avro=true timeoutms=60000 reservation=\"r2\" slots=3 labels=map[k:v]"]
 }
 
-test "copy and extract oracle: extract run, defaults" {
+test "copy, extract and load oracle: extract run, defaults" {
   let f = new_fake(os.net, [(200, PLAIN_EXTRACT_JOB)])
   var e = jobs_client(os).dataset("d1").table("t1").extractor_to(new_gcs_reference(["gs://b/o.json"]))
   e.config.dst.destination_format = JSON
@@ -89,7 +91,7 @@ test "copy and extract oracle: extract run, defaults" {
   expect(lines(f)) == ["  POST https://bigquery.fake/bigquery/v2/projects/p1/jobs?alt=json&prettyPrint=false", "    X-Goog-Api-Client: gl-go/GO gccl/V", "    Content-Type: application/json", "    body {\"configuration\":{\"extract\":{\"destinationFormat\":\"NEWLINE_DELIMITED_JSON\",\"destinationUris\":[\"gs://b/o.json\"],\"sourceTable\":{\"datasetId\":\"d1\",\"projectId\":\"p1\",\"tableId\":\"t1\"}}},\"jobReference\":{\"jobId\":\"RANDOMID\",\"projectId\":\"p1\"}}", "  job p1 e2 US \"\"", "  status Running done=false err=<nil>", "  config extract src=p1:d1.t1 model=\"\" uris=[gs://b/o.json] compression=\"\" format=\"\" delim=\"\" noheader=false avro=false timeoutms=0 reservation=\"\" slots=0 labels=map[]"]
 }
 
-test "copy and extract oracle: extract run, a model" {
+test "copy, extract and load oracle: extract run, a model" {
   let f = new_fake(os.net, [(200, MODEL_EXTRACT_JOB)])
   var g = new_gcs_reference(["gs://b/model"])
   g.destination_format = TF_SAVED_MODEL
@@ -99,13 +101,13 @@ test "copy and extract oracle: extract run, a model" {
   expect(lines(f)) == ["  POST https://bigquery.fake/bigquery/v2/projects/p1/jobs?alt=json&prettyPrint=false", "    X-Goog-Api-Client: gl-go/GO gccl/V", "    Content-Type: application/json", "    body {\"configuration\":{\"extract\":{\"destinationFormat\":\"ML_TF_SAVED_MODEL\",\"destinationUris\":[\"gs://b/model\"],\"sourceModel\":{\"datasetId\":\"d1\",\"modelId\":\"m\",\"projectId\":\"p1\"}}},\"jobReference\":{\"jobId\":\"RANDOMID\",\"projectId\":\"p1\"}}", "  job p1 m1 US \"\"", "  status Pending done=false err=<nil>", "  config extract src=none model=\"p1:d1.m\" uris=[gs://b/model] compression=\"\" format=\"ML_TF_SAVED_MODEL\" delim=\"\" noheader=false avro=false timeoutms=0 reservation=\"\" slots=0 labels=map[]"]
 }
 
-test "copy and extract oracle: extract run, 503 retried, then not found" {
+test "copy, extract and load oracle: extract run, 503 retried, then not found" {
   let f = new_fake(os.net, [(503, BACKEND_ERR), (404, TABLE_NOT_FOUND)])
   job_line(f, jobs_client(os).dataset("d1").table("t1").extractor_to(new_gcs_reference(["gs://b/o"])).run())
   expect(lines(f)) == ["  POST https://bigquery.fake/bigquery/v2/projects/p1/jobs?alt=json&prettyPrint=false", "    X-Goog-Api-Client: gl-go/GO gccl/V", "    Content-Type: application/json", "    body {\"configuration\":{\"extract\":{\"destinationUris\":[\"gs://b/o\"],\"sourceTable\":{\"datasetId\":\"d1\",\"projectId\":\"p1\",\"tableId\":\"t1\"}}},\"jobReference\":{\"jobId\":\"RANDOMID\",\"projectId\":\"p1\"}}", "  POST https://bigquery.fake/bigquery/v2/projects/p1/jobs?alt=json&prettyPrint=false", "    X-Goog-Api-Client: gl-go/GO gccl/V", "    Content-Type: application/json", "    body {\"configuration\":{\"extract\":{\"destinationUris\":[\"gs://b/o\"],\"sourceTable\":{\"datasetId\":\"d1\",\"projectId\":\"p1\",\"tableId\":\"t1\"}}},\"jobReference\":{\"jobId\":\"RANDOMID\",\"projectId\":\"p1\"}}", "  error googleapi: Error 404: Not found: Table p1:d1.t1, notFound", "  googleapi code=404"]
 }
 
-test "copy and extract oracle: job from id, a copy" {
+test "copy, extract and load oracle: job from id, a copy" {
   let f = new_fake(os.net, [(200, COPY_JOB)])
   if let Some(j) = job_line(f, jobs_client(os).job_from_id_location("c1", "EU")) {
     config_line(f, j)
@@ -113,7 +115,7 @@ test "copy and extract oracle: job from id, a copy" {
   expect(lines(f)) == ["  GET https://bigquery.fake/bigquery/v2/projects/p1/jobs/c1?alt=json&fields=user_email%2Cconfiguration%2CjobReference%2Cstatus%2Cstatistics&location=EU&prettyPrint=false", "    X-Goog-Api-Client: gl-go/GO gccl/V", "  job p1 c1 EU \"\"", "  status Running done=false err=<nil>", "  stats created=2023-11-14T22:13:20Z start=zero end=zero bytes=0 slotms=0 children=0 parent=\"\" ratio=0 reservation=\"\"", "  config copy srcs=[p1:d1.a p2:d2.b] dst=p1:d1.out create=\"CREATE_NEVER\" write=\"WRITE_TRUNCATE\" op=\"SNAPSHOT\" kms=k1 timeoutms=90000 reservation=\"r1\" slots=7 labels=map[k:v]"]
 }
 
-test "copy and extract oracle: job from id, an extract with statistics" {
+test "copy, extract and load oracle: job from id, an extract with statistics" {
   let f = new_fake(os.net, [(200, EXTRACT_JOB)])
   if let Some(j) = job_line(f, jobs_client(os).job_from_id("e1")) {
     config_line(f, j)
@@ -121,10 +123,109 @@ test "copy and extract oracle: job from id, an extract with statistics" {
   expect(lines(f)) == ["  GET https://bigquery.fake/bigquery/v2/projects/p1/jobs/e1?alt=json&fields=user_email%2Cconfiguration%2CjobReference%2Cstatus%2Cstatistics&prettyPrint=false", "    X-Goog-Api-Client: gl-go/GO gccl/V", "  job p1 e1 US \"\"", "  status Done done=true err=<nil>", "  stats created=2023-11-14T22:13:20Z start=zero end=2023-11-14T22:13:25Z bytes=0 slotms=0 children=0 parent=\"\" ratio=0 reservation=\"\"", "  extract [2 1]", "  config extract src=p1:d1.t1 model=\"\" uris=[gs://b/a-*.csv gs://b/b-*.csv] compression=\"GZIP\" format=\"CSV\" delim=\"|\" noheader=true avro=true timeoutms=60000 reservation=\"r2\" slots=3 labels=map[k:v]"]
 }
 
-test "copy and extract oracle: job from id, a load" {
+test "copy, extract and load oracle: job from id, a load" {
   let f = new_fake(os.net, [(200, LOAD_RUNNING)])
   if let Some(j) = job_line(f, jobs_client(os).job_from_id("l1")) {
     config_line(f, j)
   }
-  expect(lines(f)) == ["  GET https://bigquery.fake/bigquery/v2/projects/p1/jobs/l1?alt=json&fields=user_email%2Cconfiguration%2CjobReference%2Cstatus%2Cstatistics&prettyPrint=false", "    X-Goog-Api-Client: gl-go/GO gccl/V", "  job p1 l1 US \"\"", "  status Running done=false err=<nil>", "  config *bigquery.LoadConfig"]
+  expect(lines(f)) == ["  GET https://bigquery.fake/bigquery/v2/projects/p1/jobs/l1?alt=json&fields=user_email%2Cconfiguration%2CjobReference%2Cstatus%2Cstatistics&prettyPrint=false", "    X-Goog-Api-Client: gl-go/GO gccl/V", "  job p1 l1 US \"\"", "  status Running done=false err=<nil>", "  config load src=gcs[gs://b/o] dst=p1:d1.t1 create=\"\" write=\"\" time=none range=none cluster=none kms=none update=[] projection=[] hive=none decimal=[] timeoutms=0 refschema=\"\" session=false conn=[] colmap=\"\" reservation=\"\" slots=0 avro=false labels=map[]", "  file format=\"\" auto=false maxbad=0 ignore=false schema=[] skip=0 jagged=false qnl=false enc=\"\" delim=\"\" quote=\"\" zeroquote=false null=\"\" nulls=[] match=\"\" ascii=false tz=\"\" date=\"\" datetime=\"\" time=\"\" timestamp=\"\" parquet=false avro=false"]
+}
+
+test "copy, extract and load oracle: load run from gcs, every option" {
+  let f = new_fake(os.net, [(200, LOAD_FULL_JOB)])
+  var g = new_gcs_reference(["gs://b/x-*.csv"])
+  g.file_config.source_format = CSV
+  g.file_config.auto_detect = true
+  g.file_config.max_bad_records = 3
+  g.file_config.ignore_unknown_values = true
+  g.file_config.schema = Some([FieldSchema{name: "id", type_: INTEGER_FIELD_TYPE}, FieldSchema{name: "name", type_: STRING_FIELD_TYPE}])
+  g.file_config.csv.skip_leading_rows = 1
+  g.file_config.csv.allow_jagged_rows = true
+  g.file_config.csv.allow_quoted_newlines = true
+  g.file_config.csv.encoding = ISO_8859_1
+  g.file_config.csv.field_delimiter = ";"
+  g.file_config.csv.quote = "'"
+  g.file_config.csv.null_marker = "NA"
+  g.file_config.csv.null_markers = ["NA", "-"]
+  g.file_config.csv.source_column_match = SOURCE_COLUMN_MATCH_NAME
+  g.file_config.csv.preserve_ascii_control_characters = true
+  g.file_config.time_zone = "UTC"
+  g.file_config.date_format = "YYYY-MM-DD"
+  g.file_config.datetime_format = "YYYY-MM-DD HH24:MI:SS"
+  g.file_config.time_format = "HH24:MI:SS"
+  g.file_config.timestamp_format = "YYYY-MM-DD HH24:MI:SS"
+  g.file_config.parquet_options = Some(ParquetOptions{enum_as_string: true})
+  g.file_config.avro_options = Some(AvroOptions{use_avro_logical_types: true})
+  var l = jobs_client(os).dataset("d1").table("t1").loader_from(LoadSource.Gcs(g))
+  l.config.create_disposition = CREATE_IF_NEEDED
+  l.config.write_disposition = WRITE_APPEND
+  l.config.time_partitioning = Some(TimePartitioning{field: "at", expiration: 48h})
+  l.config.range_partitioning = Some(RangePartitioning{field: "n", range: Some(RangePartitioningRange{start: 0, end: 100, interval: 10})})
+  l.config.clustering = Some(Clustering{fields: ["name"]})
+  l.config.destination_encryption_config = Some(EncryptionConfig{kms_key_name: "k1"})
+  l.config.schema_update_options = ["ALLOW_FIELD_ADDITION"]
+  l.config.projection_fields = ["a"]
+  l.config.hive_partitioning_options = Some(HivePartitioningOptions{mode: AUTO_HIVE_PARTITIONING_MODE, source_uri_prefix: "gs://b/", require_partition_filter: true})
+  l.config.decimal_target_types = [NUMERIC_TARGET_TYPE, STRING_TARGET_TYPE]
+  l.config.reference_file_schema_uri = "gs://b/ref"
+  l.config.create_session = true
+  l.config.connection_properties = [ConnectionProperty{key: "time_zone", value: "UTC"}]
+  l.config.column_name_character_map = V2_COLUMN_NAME_CHARACTER_MAP
+  l.config.labels = {"k": "v"}
+  l.config.job_timeout = 30s
+  l.config.reservation = "r3"
+  l.config.max_slots = 5
+  l.id.job_id = "l2"
+  if let Some(j) = job_line(f, l.run()) {
+    config_line(f, j)
+  }
+  expect(lines(f)) == ["  POST https://bigquery.fake/bigquery/v2/projects/p1/jobs?alt=json&prettyPrint=false", "    X-Goog-Api-Client: gl-go/GO gccl/V", "    Content-Type: application/json", "    body {\"configuration\":{\"jobTimeoutMs\":\"30000\",\"labels\":{\"k\":\"v\"},\"load\":{\"allowJaggedRows\":true,\"allowQuotedNewlines\":true,\"autodetect\":true,\"clustering\":{\"fields\":[\"name\"]},\"columnNameCharacterMap\":\"V2\",\"connectionProperties\":[{\"key\":\"time_zone\",\"value\":\"UTC\"}],\"createDisposition\":\"CREATE_IF_NEEDED\",\"createSession\":true,\"dateFormat\":\"YYYY-MM-DD\",\"datetimeFormat\":\"YYYY-MM-DD HH24:MI:SS\",\"decimalTargetTypes\":[\"NUMERIC\",\"STRING\"],\"destinationEncryptionConfiguration\":{\"kmsKeyName\":\"k1\"},\"destinationTable\":{\"datasetId\":\"d1\",\"projectId\":\"p1\",\"tableId\":\"t1\"},\"encoding\":\"ISO-8859-1\",\"fieldDelimiter\":\";\",\"hivePartitioningOptions\":{\"mode\":\"AUTO\",\"requirePartitionFilter\":true,\"sourceUriPrefix\":\"gs://b/\"},\"ignoreUnknownValues\":true,\"maxBadRecords\":3,\"nullMarker\":\"NA\",\"nullMarkers\":[\"NA\",\"-\"],\"parquetOptions\":{\"enumAsString\":true},\"preserveAsciiControlCharacters\":true,\"projectionFields\":[\"a\"],\"quote\":\"'\",\"rangePartitioning\":{\"field\":\"n\",\"range\":{\"end\":\"100\",\"interval\":\"10\",\"start\":\"0\"}},\"referenceFileSchemaUri\":\"gs://b/ref\",\"schema\":{\"fields\":[{\"name\":\"id\",\"type\":\"INTEGER\"},{\"name\":\"name\",\"type\":\"STRING\"}]},\"schemaUpdateOptions\":[\"ALLOW_FIELD_ADDITION\"],\"skipLeadingRows\":1,\"sourceColumnMatch\":\"NAME\",\"sourceFormat\":\"CSV\",\"sourceUris\":[\"gs://b/x-*.csv\"],\"timeFormat\":\"HH24:MI:SS\",\"timePartitioning\":{\"expirationMs\":\"172800000\",\"field\":\"at\",\"type\":\"DAY\"},\"timeZone\":\"UTC\",\"timestampFormat\":\"YYYY-MM-DD HH24:MI:SS\",\"useAvroLogicalTypes\":true,\"writeDisposition\":\"WRITE_APPEND\"},\"maxSlots\":5,\"reservation\":\"r3\"},\"jobReference\":{\"jobId\":\"l2\",\"projectId\":\"p1\"}}", "  job p1 l2 US \"\"", "  status Running done=false err=<nil>", "  config load src=gcs[gs://b/x-*.csv] dst=p1:d1.t1 create=\"CREATE_IF_NEEDED\" write=\"WRITE_APPEND\" time=DAY/at/172800000/false range=n[0,100,10] cluster=[name] kms=k1 update=[ALLOW_FIELD_ADDITION] projection=[a] hive=AUTO/gs://b//true decimal=[NUMERIC STRING] timeoutms=30000 refschema=\"gs://b/ref\" session=true conn=[time_zone=UTC] colmap=\"V2\" reservation=\"r3\" slots=5 avro=true labels=map[k:v]", "  file format=\"CSV\" auto=true maxbad=3 ignore=true schema=[id:INTEGER name:STRING] skip=1 jagged=true qnl=true enc=\"ISO-8859-1\" delim=\";\" quote=\"'\" zeroquote=false null=\"NA\" nulls=[NA -] match=\"NAME\" ascii=true tz=\"UTC\" date=\"YYYY-MM-DD\" datetime=\"YYYY-MM-DD HH24:MI:SS\" time=\"HH24:MI:SS\" timestamp=\"YYYY-MM-DD HH24:MI:SS\" parquet=false avro=false"]
+}
+
+test "copy, extract and load oracle: load run from gcs, no quote, rate limit retried" {
+  let f = new_fake(os.net, [(400, JOB_RATE_LIMITED), (200, LOAD_ZERO_QUOTE_JOB)])
+  var g = new_gcs_reference(["gs://b/a.csv", "gs://b/b.csv"])
+  g.file_config.csv.force_zero_quote = true
+  g.file_config.csv.quote = "x"
+  if let Some(j) = job_line(f, jobs_client(os).dataset("d1").table("t1").loader_from(LoadSource.Gcs(g)).run()) {
+    config_line(f, j)
+  }
+  expect(lines(f)) == ["  POST https://bigquery.fake/bigquery/v2/projects/p1/jobs?alt=json&prettyPrint=false", "    X-Goog-Api-Client: gl-go/GO gccl/V", "    Content-Type: application/json", "    body {\"configuration\":{\"load\":{\"destinationTable\":{\"datasetId\":\"d1\",\"projectId\":\"p1\",\"tableId\":\"t1\"},\"quote\":\"\",\"sourceUris\":[\"gs://b/a.csv\",\"gs://b/b.csv\"]}},\"jobReference\":{\"jobId\":\"RANDOMID\",\"projectId\":\"p1\"}}", "  POST https://bigquery.fake/bigquery/v2/projects/p1/jobs?alt=json&prettyPrint=false", "    X-Goog-Api-Client: gl-go/GO gccl/V", "    Content-Type: application/json", "    body {\"configuration\":{\"load\":{\"destinationTable\":{\"datasetId\":\"d1\",\"projectId\":\"p1\",\"tableId\":\"t1\"},\"quote\":\"\",\"sourceUris\":[\"gs://b/a.csv\",\"gs://b/b.csv\"]}},\"jobReference\":{\"jobId\":\"RANDOMID\",\"projectId\":\"p1\"}}", "  job p1 l3 US \"\"", "  status Done done=true err=<nil>", "  stats created=2023-11-14T22:13:20Z start=zero end=zero bytes=0 slotms=0 children=0 parent=\"\" ratio=0 reservation=\"\"", "  load bytes=12 files=1 outbytes=10 outrows=2", "  config load src=reader dst=p1:d1.t1 create=\"\" write=\"\" time=none range=none cluster=none kms=none update=[] projection=[] hive=none decimal=[] timeoutms=0 refschema=\"\" session=false conn=[] colmap=\"\" reservation=\"\" slots=0 avro=false labels=map[]", "  file format=\"\" auto=false maxbad=0 ignore=false schema=[] skip=0 jagged=false qnl=false enc=\"\" delim=\"\" quote=\"\" zeroquote=true null=\"\" nulls=[] match=\"\" ascii=false tz=\"\" date=\"\" datetime=\"\" time=\"\" timestamp=\"\" parquet=false avro=false"]
+}
+
+test "copy, extract and load oracle: load run from a reader, multipart" {
+  let f = new_fake(os.net, [(200, LOAD_ZERO_QUOTE_JOB)])
+  var r = new_reader_source("1,a\n2,b\n".bytes())
+  r.file_config.source_format = CSV
+  r.file_config.schema = Some([FieldSchema{name: "id", type_: INTEGER_FIELD_TYPE}, FieldSchema{name: "name", type_: STRING_FIELD_TYPE}])
+  var l = jobs_client(os).dataset("d1").table("t1").loader_from(LoadSource.Reader(r))
+  l.config.write_disposition = WRITE_TRUNCATE
+  if let Some(j) = job_line(f, l.run()) {
+    config_line(f, j)
+  }
+  expect(lines(f)) == ["  POST https://bigquery.fake/upload/bigquery/v2/projects/p1/jobs?alt=json&prettyPrint=false&uploadType=multipart", "    X-Goog-Api-Client: gl-go/GO gccl/V", "    Content-Type: multipart/related; boundary=BOUNDARY", "    body --BOUNDARY\\r", "    body Content-Type: application/json\\r", "    body \\r", "    body {\"configuration\":{\"load\":{\"destinationTable\":{\"datasetId\":\"d1\",\"projectId\":\"p1\",\"tableId\":\"t1\"},\"schema\":{\"fields\":[{\"name\":\"id\",\"type\":\"INTEGER\"},{\"name\":\"name\",\"type\":\"STRING\"}]},\"sourceFormat\":\"CSV\",\"writeDisposition\":\"WRITE_TRUNCATE\"}},\"jobReference\":{\"jobId\":\"RANDOMID\",\"projectId\":\"p1\"}}", "    body \\r", "    body --BOUNDARY\\r", "    body Content-Type: text/plain; charset=utf-8\\r", "    body \\r", "    body 1,a", "    body 2,b", "    body \\r", "    body --BOUNDARY--\\r", "    body ", "  job p1 l3 US \"\"", "  status Done done=true err=<nil>", "  stats created=2023-11-14T22:13:20Z start=zero end=zero bytes=0 slotms=0 children=0 parent=\"\" ratio=0 reservation=\"\"", "  load bytes=12 files=1 outbytes=10 outrows=2", "  config load src=reader dst=p1:d1.t1 create=\"\" write=\"\" time=none range=none cluster=none kms=none update=[] projection=[] hive=none decimal=[] timeoutms=0 refschema=\"\" session=false conn=[] colmap=\"\" reservation=\"\" slots=0 avro=false labels=map[]", "  file format=\"\" auto=false maxbad=0 ignore=false schema=[] skip=0 jagged=false qnl=false enc=\"\" delim=\"\" quote=\"\" zeroquote=true null=\"\" nulls=[] match=\"\" ascii=false tz=\"\" date=\"\" datetime=\"\" time=\"\" timestamp=\"\" parquet=false avro=false"]
+}
+
+test "copy, extract and load oracle: load run from a reader, not retried" {
+  let f = new_fake(os.net, [(400, JOB_RATE_LIMITED), (200, LOAD_ZERO_QUOTE_JOB)])
+  var r = new_reader_source("{\"id\":1}\n".bytes())
+  r.file_config.source_format = JSON
+  job_line(f, jobs_client(os).dataset("d1").table("t1").loader_from(LoadSource.Reader(r)).run())
+  expect(lines(f)) == ["  POST https://bigquery.fake/upload/bigquery/v2/projects/p1/jobs?alt=json&prettyPrint=false&uploadType=multipart", "    X-Goog-Api-Client: gl-go/GO gccl/V", "    Content-Type: multipart/related; boundary=BOUNDARY", "    body --BOUNDARY\\r", "    body Content-Type: application/json\\r", "    body \\r", "    body {\"configuration\":{\"load\":{\"destinationTable\":{\"datasetId\":\"d1\",\"projectId\":\"p1\",\"tableId\":\"t1\"},\"sourceFormat\":\"NEWLINE_DELIMITED_JSON\"}},\"jobReference\":{\"jobId\":\"RANDOMID\",\"projectId\":\"p1\"}}", "    body \\r", "    body --BOUNDARY\\r", "    body Content-Type: text/plain; charset=utf-8\\r", "    body \\r", "    body {\"id\":1}", "    body \\r", "    body --BOUNDARY--\\r", "    body ", "  error googleapi: Error 400: Job exceeded rate limits, jobRateLimitExceeded", "  googleapi code=400"]
+}
+
+test "copy, extract and load oracle: job from id, a load with every option" {
+  let f = new_fake(os.net, [(200, LOAD_FULL_JOB)])
+  if let Some(j) = job_line(f, jobs_client(os).job_from_id("l2")) {
+    config_line(f, j)
+  }
+  expect(lines(f)) == ["  GET https://bigquery.fake/bigquery/v2/projects/p1/jobs/l2?alt=json&fields=user_email%2Cconfiguration%2CjobReference%2Cstatus%2Cstatistics&prettyPrint=false", "    X-Goog-Api-Client: gl-go/GO gccl/V", "  job p1 l2 US \"\"", "  status Running done=false err=<nil>", "  config load src=gcs[gs://b/x-*.csv] dst=p1:d1.t1 create=\"CREATE_IF_NEEDED\" write=\"WRITE_APPEND\" time=DAY/at/172800000/false range=n[0,100,10] cluster=[name] kms=k1 update=[ALLOW_FIELD_ADDITION] projection=[a] hive=AUTO/gs://b//true decimal=[NUMERIC STRING] timeoutms=30000 refschema=\"gs://b/ref\" session=true conn=[time_zone=UTC] colmap=\"V2\" reservation=\"r3\" slots=5 avro=true labels=map[k:v]", "  file format=\"CSV\" auto=true maxbad=3 ignore=true schema=[id:INTEGER name:STRING] skip=1 jagged=true qnl=true enc=\"ISO-8859-1\" delim=\";\" quote=\"'\" zeroquote=false null=\"NA\" nulls=[NA -] match=\"NAME\" ascii=true tz=\"UTC\" date=\"YYYY-MM-DD\" datetime=\"YYYY-MM-DD HH24:MI:SS\" time=\"HH24:MI:SS\" timestamp=\"YYYY-MM-DD HH24:MI:SS\" parquet=false avro=false"]
+}
+
+test "copy, extract and load oracle: job from id, a reader load" {
+  let f = new_fake(os.net, [(200, LOAD_ZERO_QUOTE_JOB)])
+  if let Some(j) = job_line(f, jobs_client(os).job_from_id("l3")) {
+    config_line(f, j)
+  }
+  expect(lines(f)) == ["  GET https://bigquery.fake/bigquery/v2/projects/p1/jobs/l3?alt=json&fields=user_email%2Cconfiguration%2CjobReference%2Cstatus%2Cstatistics&prettyPrint=false", "    X-Goog-Api-Client: gl-go/GO gccl/V", "  job p1 l3 US \"\"", "  status Done done=true err=<nil>", "  stats created=2023-11-14T22:13:20Z start=zero end=zero bytes=0 slotms=0 children=0 parent=\"\" ratio=0 reservation=\"\"", "  load bytes=12 files=1 outbytes=10 outrows=2", "  config load src=reader dst=p1:d1.t1 create=\"\" write=\"\" time=none range=none cluster=none kms=none update=[] projection=[] hive=none decimal=[] timeoutms=0 refschema=\"\" session=false conn=[] colmap=\"\" reservation=\"\" slots=0 avro=false labels=map[]", "  file format=\"\" auto=false maxbad=0 ignore=false schema=[] skip=0 jagged=false qnl=false enc=\"\" delim=\"\" quote=\"\" zeroquote=true null=\"\" nulls=[] match=\"\" ascii=false tz=\"\" date=\"\" datetime=\"\" time=\"\" timestamp=\"\" parquet=false avro=false"]
 }

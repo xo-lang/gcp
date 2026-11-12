@@ -5,6 +5,7 @@
 // method taking the required parameters and an options struct.
 
 use std/json
+use std/regexp
 
 /// What one module is: its files and what was not handled.
 pub struct Module {
@@ -302,14 +303,14 @@ fn unfortunate_default(p: json.Value, t: Str) -> Bool {
     return false
   }
   if str_of(p.get("type")) == "string" && !is_int_as_string(p) {
-    let pat = str_of(p.get("pattern"))
+    let has_pat = p.get("pattern").is_some()
     let en = list_of(p.get("enum"))
-    if pat != "" && !en.is_empty() {
+    if has_pat && !en.is_empty() {
       return false
     }
-    // an empty pattern match needs a regexp; only an enum holding "" is
-    // checked
-    return en.any(fn(e: json.Value) -> Bool { str_of(Some(e)) == "" })
+    // (a) an enum holding "", or (b) a pattern matching "" (bigquery's
+    // quote, ".?", so Go's Quote is a *string)
+    return (has_pat && empty_pattern(str_of(p.get("pattern")))) || en.any(fn(e: json.Value) -> Bool { str_of(Some(e)) == "" })
   }
   if t == "Int" || t == "Float" || is_int_as_string(p) {
     return match Float.parse(d) {
@@ -318,6 +319,14 @@ fn unfortunate_default(p: json.Value, t: Str) -> Bool {
     }
   }
   false
+}
+
+/// Go's emptyPattern: the pattern compiles and matches "".
+fn empty_pattern(pat: Str) -> Bool {
+  match regexp.compile(pat) {
+    Ok(r) => r.is_match("")
+    Err(_) => false
+  }
 }
 
 /// The response schema's name of a method, if a struct.
