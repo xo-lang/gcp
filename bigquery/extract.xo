@@ -1,0 +1,86 @@
+// Extract jobs (extract.go): a table's rows, or a model, written to files
+// in Cloud Storage.
+
+use std/json
+use github.com/xo-lang/gcp/bigquery/apiv2 as raw
+
+/// A model's place (Go's *Model as an extract's source).
+pub struct ModelRef {
+  pub project_id: Str
+  pub dataset_id: Str
+  pub model_id: Str
+}
+
+/// The model's reference.
+pub fn (m: Model[fx]) ref() -> ModelRef { ModelRef{project_id: m.project_id, dataset_id: m.dataset_id, model_id: m.model_id} }
+
+/// An extract job's configuration (Go's ExtractConfig).
+pub struct ExtractConfig {
+  /// The table extracted, or None for a model's extract.
+  pub src: TableRef? = None
+  /// The model extracted, or None for a table's.
+  pub src_model: ModelRef? = None
+  /// Where the files go and how they are written.
+  pub dst: GCSReference
+  /// No header row in a CSV file.
+  pub disable_header: Bool = false
+  pub use_avro_logical_types: Bool = false
+  pub labels: Map[Str, Str] = {}
+  /// 0s for none.
+  pub job_timeout: Duration = 0s
+  pub reservation: Str = ""
+  pub max_slots: Int = 0
+}
+
+/// Go's ExtractConfig.toBQ: printHeader is sent only to turn the header
+/// off.
+fn (e: ExtractConfig) to_raw() -> raw.JobConfiguration {
+  var x = e.dst.extract_raw()
+  x.use_avro_logical_types = e.use_avro_logical_types
+  if e.disable_header {
+    x.print_header = Some(false)
+  }
+  if let Some(t) = e.src {
+    x.source_table = Some(table_ref_raw(t))
+  }
+  if let Some(m) = e.src_model {
+    x.source_model = Some(raw.ModelReference{project_id: m.project_id, dataset_id: m.dataset_id, model_id: m.model_id})
+  }
+  raw.JobConfiguration{labels: e.labels, extract: Some(x), job_timeout_ms: e.job_timeout.millis(), reservation: e.reservation, max_slots: e.max_slots}
+}
+
+/// Go's bqToExtractConfig: of the destination's file options only the
+/// field delimiter comes back.
+fn extract_config_of(c: raw.JobConfiguration, q: raw.JobConfigurationExtract) -> ExtractConfig {
+  ExtractConfig{src: table_ref_of(q.source_table), src_model: match q.source_model {
+    Some(m) => Some(ModelRef{project_id: m.project_id, dataset_id: m.dataset_id, model_id: m.model_id})
+    None => None
+  }, dst: GCSReference{uris: q.destination_uris, compression: q.compression, destination_format: q.destination_format, file_config: FileConfig{csv: CSVOptions{field_delimiter: q.field_delimiter}}}, disable_header: match q.print_header {
+    Some(p) => !p
+    None => false
+  }, use_avro_logical_types: q.use_avro_logical_types, labels: c.labels, job_timeout: 1ms * c.job_timeout_ms, reservation: c.reservation, max_slots: c.max_slots}
+}
+
+/// An extract to files (Go's Extractor): its configuration and the ids of
+/// its job.
+pub struct Extractor[fx: Effects] {
+  pub config: ExtractConfig
+  pub id: JobIdConfig = JobIdConfig{}
+  c: Client[fx]
+}
+
+/// An extract of t's rows to dst (Go's Table.ExtractorTo).
+pub fn (t: Table[fx]) extractor_to(dst: GCSReference) -> Extractor[fx] {
+  Extractor{config: ExtractConfig{src: Some(t.ref()), dst: dst}, c: t.c}
+}
+
+/// An extract of m to dst (Go's Model.ExtractorTo).
+pub fn (m: Model[fx]) extractor_to(dst: GCSReference) -> Extractor[fx] {
+  Extractor{config: ExtractConfig{src_model: Some(m.ref()), dst: dst}, c: m.c}
+}
+
+/// Starts the extract as a job (Go's Run).
+pub fn (e: Extractor[fx]) run() -> Job[fx] ! BqErr uses (net.dial, clock, rand, fx) {
+  let body = json.Value.Object([("configuration", jraw(e.config.to_raw())), ("jobReference", jraw(e.id.job_ref(e.c)))])
+  e.c.insert_job(body)
+}

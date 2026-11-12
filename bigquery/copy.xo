@@ -1,0 +1,63 @@
+// Copy jobs (copy.go): tables copied into a table, or a snapshot, restore
+// or clone of one.
+
+use std/json
+use github.com/xo-lang/gcp/bigquery/apiv2 as raw
+
+// What a copy does (Go's TableCopyOperationType).
+pub const COPY_OPERATION: Str = "COPY"
+pub const SNAPSHOT_OPERATION: Str = "SNAPSHOT"
+pub const RESTORE_OPERATION: Str = "RESTORE"
+pub const CLONE_OPERATION: Str = "CLONE"
+
+/// A copy job's configuration (Go's CopyConfig).
+pub struct CopyConfig {
+  /// The tables copied from.
+  pub srcs: List[TableRef]
+  /// The table copied into.
+  pub dst: TableRef
+  pub create_disposition: Str = ""
+  pub write_disposition: Str = ""
+  pub labels: Map[Str, Str] = {}
+  pub destination_encryption_config: EncryptionConfig? = None
+  /// COPY_OPERATION, SNAPSHOT_OPERATION, RESTORE_OPERATION or
+  /// CLONE_OPERATION; "" for a copy.
+  pub operation_type: Str = ""
+  /// 0s for none.
+  pub job_timeout: Duration = 0s
+  pub reservation: Str = ""
+  pub max_slots: Int = 0
+}
+
+/// Go's CopyConfig.toBQ.
+fn (cc: CopyConfig) to_raw() -> raw.JobConfiguration {
+  raw.JobConfiguration{labels: cc.labels, copy: Some(raw.JobConfigurationTableCopy{create_disposition: cc.create_disposition, write_disposition: cc.write_disposition, destination_table: Some(table_ref_raw(cc.dst)), destination_encryption_configuration: encryption_to_raw(cc.destination_encryption_config), source_tables: cc.srcs.map(table_ref_raw), operation_type: cc.operation_type}), job_timeout_ms: cc.job_timeout.millis(), reservation: cc.reservation, max_slots: cc.max_slots}
+}
+
+/// Go's bqToCopyConfig.
+fn copy_config_of(c: raw.JobConfiguration, q: raw.JobConfigurationTableCopy) -> CopyConfig {
+  var srcs: List[TableRef] = []
+  for t in q.source_tables {
+    srcs.push(TableRef{project_id: t.project_id, dataset_id: t.dataset_id, table_id: t.table_id})
+  }
+  CopyConfig{srcs: srcs, dst: table_ref_of(q.destination_table) ?? TableRef{project_id: "", dataset_id: "", table_id: ""}, create_disposition: q.create_disposition, write_disposition: q.write_disposition, labels: c.labels, destination_encryption_config: encryption_of(q.destination_encryption_configuration), operation_type: q.operation_type, job_timeout: 1ms * c.job_timeout_ms, reservation: c.reservation, max_slots: c.max_slots}
+}
+
+/// A copy into a table (Go's Copier): its configuration and the ids of
+/// its job.
+pub struct Copier[fx: Effects] {
+  pub config: CopyConfig
+  pub id: JobIdConfig = JobIdConfig{}
+  c: Client[fx]
+}
+
+/// A copy of srcs into t (Go's CopierFrom).
+pub fn (t: Table[fx]) copier_from(srcs: List[Table[fx]]) -> Copier[fx] {
+  Copier{config: CopyConfig{srcs: srcs.map(fn(s) -> TableRef { s.ref() }), dst: t.ref()}, c: t.c}
+}
+
+/// Starts the copy as a job (Go's Run).
+pub fn (cp: Copier[fx]) run() -> Job[fx] ! BqErr uses (net.dial, clock, rand, fx) {
+  let body = json.Value.Object([("configuration", jraw(cp.config.to_raw())), ("jobReference", jraw(cp.id.job_ref(cp.c)))])
+  cp.c.insert_job(body)
+}

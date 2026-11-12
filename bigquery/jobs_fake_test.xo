@@ -102,6 +102,24 @@ fn config_line(f: Fake, j: Job[()]) {
       }
       note(f, "  config query ${q.q.quote()} legacy=${q.use_legacy_sql} standard=${q.use_standard_sql} dry=${q.dry_run} cache_off=${q.disable_query_cache} billed=${q.max_bytes_billed} priority=${q.priority.quote()} default=${q.default_project_id}.${q.default_dataset_id} dst=${dst.quote()} create=${q.create_disposition.quote()} write=${q.write_disposition.quote()} timeoutms=${q.job_timeout.millis()} labels=${map_v(q.labels)} params=${q.parameters.len()} session=${q.create_session}")
     }
+    Ok(Some(JobConfig.Copy(c))) => {
+      let kms = match c.destination_encryption_config {
+        Some(e) => e.kms_key_name
+        None => "none"
+      }
+      note(f, "  config copy srcs=[${c.srcs.map(fq).join(" ")}] dst=${fq(c.dst)} create=${c.create_disposition.quote()} write=${c.write_disposition.quote()} op=${c.operation_type.quote()} kms=${kms} timeoutms=${c.job_timeout.millis()} reservation=${c.reservation.quote()} slots=${c.max_slots} labels=${map_v(c.labels)}")
+    }
+    Ok(Some(JobConfig.Extract(e))) => {
+      let src = match e.src {
+        Some(t) => fq(t)
+        None => "none"
+      }
+      let model = match e.src_model {
+        Some(m) => "${m.project_id}:${m.dataset_id}.${m.model_id}"
+        None => ""
+      }
+      note(f, "  config extract src=${src} model=${model.quote()} uris=[${e.dst.uris.join(" ")}] compression=${e.dst.compression.quote()} format=${e.dst.destination_format.quote()} delim=${e.dst.file_config.csv.field_delimiter.quote()} noheader=${e.disable_header} avro=${e.use_avro_logical_types} timeoutms=${e.job_timeout.millis()} reservation=${e.reservation.quote()} slots=${e.max_slots} labels=${map_v(e.labels)}")
+    }
     Ok(Some(JobConfig.Other(c))) => note(f, if c.load.is_some() { "  config *bigquery.LoadConfig" } else if c.copy.is_some() { "  config *bigquery.CopyConfig" } else { "  config *bigquery.ExtractConfig" })
     Ok(None) => note(f, "  config none")
     Err(e) => err_line(f, e)

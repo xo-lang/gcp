@@ -1,0 +1,120 @@
+// Files in Cloud Storage and how they are read (gcs.go, file.go and the
+// option types of external.go): the URIs an extract writes and a load
+// reads, their format, compression and CSV options.
+
+use github.com/xo-lang/gcp/bigquery/apiv2 as raw
+
+// A file's format (Go's DataFormat).
+pub const CSV: Str = "CSV"
+pub const AVRO: Str = "AVRO"
+pub const JSON: Str = "NEWLINE_DELIMITED_JSON"
+pub const DATASTORE_BACKUP: Str = "DATASTORE_BACKUP"
+pub const GOOGLE_SHEETS: Str = "GOOGLE_SHEETS"
+pub const BIGTABLE: Str = "BIGTABLE"
+pub const PARQUET: Str = "PARQUET"
+pub const ORC: Str = "ORC"
+pub const ICEBERG: Str = "ICEBERG"
+/// A model's export formats.
+pub const TF_SAVED_MODEL: Str = "ML_TF_SAVED_MODEL"
+pub const XGBOOST_BOOSTER: Str = "ML_XGBOOST_BOOSTER"
+
+// A file's compression (Go's Compression).
+pub const COMPRESSION_NONE: Str = "NONE"
+pub const GZIP: Str = "GZIP"
+pub const DEFLATE: Str = "DEFLATE"
+pub const SNAPPY: Str = "SNAPPY"
+
+// A CSV file's character encoding (Go's Encoding).
+pub const UTF_8: Str = "UTF-8"
+pub const ISO_8859_1: Str = "ISO-8859-1"
+
+// How a CSV file's columns match the schema (Go's SourceColumnMatch).
+pub const SOURCE_COLUMN_MATCH_UNSPECIFIED: Str = "SOURCE_COLUMN_MATCH_UNSPECIFIED"
+pub const SOURCE_COLUMN_MATCH_POSITION: Str = "POSITION"
+pub const SOURCE_COLUMN_MATCH_NAME: Str = "NAME"
+
+/// How a CSV file is read and written (Go's CSVOptions).
+pub struct CSVOptions {
+  pub allow_jagged_rows: Bool = false
+  pub allow_quoted_newlines: Bool = false
+  pub encoding: Str = ""
+  pub field_delimiter: Str = ""
+  /// The quote character, "" for the service's (a double quote).
+  pub quote: Str = ""
+  /// No quote character at all, sent as "" (Go's ForceZeroQuote).
+  pub force_zero_quote: Bool = false
+  pub skip_leading_rows: Int = 0
+  pub null_marker: Str = ""
+  pub null_markers: List[Str] = []
+  pub source_column_match: Str = ""
+  pub preserve_ascii_control_characters: Bool = false
+}
+
+/// Go's CSVOptions.quote: Some("") for no quote character, None for the
+/// service's.
+fn (o: CSVOptions) quote_raw() -> Str? {
+  if o.force_zero_quote {
+    return Some("")
+  }
+  if o.quote == "" { None } else { Some(o.quote) }
+}
+
+/// Go's setQuote.
+fn (var o: CSVOptions) set_quote(q: Str?) {
+  if let Some(s) = q {
+    o.quote = s
+    if s == "" {
+      o.force_zero_quote = true
+    }
+  }
+}
+
+/// Parquet's options (Go's ParquetOptions).
+pub struct ParquetOptions {
+  pub enum_as_string: Bool = false
+  pub enable_list_inference: Bool = false
+}
+
+/// Avro's options (Go's AvroOptions).
+pub struct AvroOptions {
+  pub use_avro_logical_types: Bool = false
+}
+
+/// How files are read (Go's FileConfig, its CSVOptions a field here).
+pub struct FileConfig {
+  pub source_format: Str = ""
+  pub auto_detect: Bool = false
+  pub max_bad_records: Int = 0
+  pub ignore_unknown_values: Bool = false
+  /// The files' schema, None for none (Go's nil Schema).
+  pub schema: List[FieldSchema]? = None
+  pub csv: CSVOptions = CSVOptions{}
+  pub parquet_options: ParquetOptions? = None
+  pub avro_options: AvroOptions? = None
+  pub time_zone: Str = ""
+  pub date_format: Str = ""
+  pub datetime_format: Str = ""
+  pub time_format: Str = ""
+  pub timestamp_format: Str = ""
+}
+
+/// Files in Cloud Storage (Go's GCSReference): what a load reads and an
+/// extract writes.
+pub struct GCSReference {
+  /// gs://bucket/object URIs; an object name may end in one `*`.
+  pub uris: List[Str]
+  pub file_config: FileConfig = FileConfig{}
+  /// How an extract compresses what it writes (GZIP, DEFLATE, SNAPPY or
+  /// COMPRESSION_NONE), "" for none; a load's files say for themselves.
+  pub compression: Str = ""
+  /// The format an extract writes, "" for the service's (CSV).
+  pub destination_format: Str = ""
+}
+
+/// The files at uris (Go's NewGCSReference).
+pub fn new_gcs_reference(uris: List[Str]) -> GCSReference { GCSReference{uris: uris} }
+
+/// The extract's destination fields of g (Go's toBQ of the extract).
+fn (g: GCSReference) extract_raw() -> raw.JobConfigurationExtract {
+  raw.JobConfigurationExtract{destination_uris: g.uris, compression: g.compression, destination_format: g.destination_format, field_delimiter: g.file_config.csv.field_delimiter}
+}

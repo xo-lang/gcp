@@ -126,17 +126,27 @@ pub struct ExtractStatistics {
 /// A job's configuration (Go's JobConfig).
 pub enum JobConfig {
   Query(q: QueryConfig)
-  /// A copy, extract or load job's, raw until step 4.
+  Copy(c: CopyConfig)
+  Extract(e: ExtractConfig)
+  /// A load job's, raw until its step.
   Other(c: raw.JobConfiguration)
 }
 
 /// The job's configuration, None when it was not read (Go's Config).
 pub fn (j: Job[fx]) config() -> JobConfig? ! BqErr {
   let c = j.conf ?? return Ok(None)
+  // in Go's order: copy, extract, load, then query
+  if let Some(cp) = c.copy {
+    return Ok(Some(JobConfig.Copy(copy_config_of(c, cp))))
+  }
+  if let Some(x) = c.extract {
+    return Ok(Some(JobConfig.Extract(extract_config_of(c, x))))
+  }
+  if c.load.is_some() {
+    return Ok(Some(JobConfig.Other(c)))
+  }
   if let Some(q) = c.query {
-    if c.copy.is_none() && c.extract.is_none() && c.load.is_none() {
-      return Ok(Some(JobConfig.Query(query_config_of(c, q))))
-    }
+    return Ok(Some(JobConfig.Query(query_config_of(c, q))))
   }
   Ok(Some(JobConfig.Other(c)))
 }
