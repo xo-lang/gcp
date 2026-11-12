@@ -1,0 +1,251 @@
+// The Null types (nulls.go): a value that may be NULL, with Go's JSON
+// forms through `derive Json(via: json.Value, ...)` (decision 0478): null
+// when not valid, a NullFloat64's NaN and infinities as strings, a
+// NullTime and NullDateTime as BigQuery writes them. Each is also a
+// query parameter (`param`), as Go infers one from it.
+
+use std/json
+use std/time
+
+fn null_or(valid: Bool, v: json.Value) -> json.Value { if valid { v } else { json.Value.Null } }
+
+fn json_err(want: Str, v: json.Value) -> BqErr { BqErr.Invalid("json: cannot unmarshal ${v.encode()} into Go value of type ${want}") }
+
+/// An INT64 that may be NULL (Go's NullInt64).
+pub struct NullInt64 {
+  pub int64: Int = 0
+  pub valid: Bool = false
+} derive Json(via: json.Value, to: null_int64_json, from: null_int64_of)
+
+fn null_int64_json(n: NullInt64) -> json.Value { null_or(n.valid, json.Value.Int(n.int64)) }
+
+fn null_int64_of(v: json.Value) -> NullInt64 ! BqErr {
+  match v {
+    Null => Ok(NullInt64{})
+    Int(n) => Ok(NullInt64{int64: n, valid: true})
+    _ => Err(json_err("int64", v))
+  }
+}
+
+pub fn (n: NullInt64) display() -> Str { if n.valid { "${n.int64}" } else { "NULL" } }
+
+pub fn (n: NullInt64) param() -> Param { if n.valid { Param.Int(n.int64) } else { Param.Null("INT64") } }
+
+/// A STRING that may be NULL (Go's NullString).
+pub struct NullString {
+  pub string_val: Str = ""
+  pub valid: Bool = false
+} derive Json(via: json.Value, to: null_string_json, from: null_string_of)
+
+fn null_string_json(n: NullString) -> json.Value { null_or(n.valid, json.Value.Str(n.string_val)) }
+
+fn str_of(v: json.Value) -> Str? ! BqErr {
+  match v {
+    Null => Ok(None)
+    Str(s) => Ok(Some(s))
+    _ => Err(json_err("string", v))
+  }
+}
+
+fn null_string_of(v: json.Value) -> NullString ! BqErr {
+  Ok(match str_of(v)? {
+    Some(s) => NullString{string_val: s, valid: true}
+    None => NullString{}
+  })
+}
+
+pub fn (n: NullString) display() -> Str { if n.valid { n.string_val } else { "NULL" } }
+
+pub fn (n: NullString) param() -> Param { if n.valid { Param.Str(n.string_val) } else { Param.Null("STRING") } }
+
+/// A GEOGRAPHY that may be NULL (Go's NullGeography).
+pub struct NullGeography {
+  pub geography_val: Str = ""
+  pub valid: Bool = false
+} derive Json(via: json.Value, to: null_geography_json, from: null_geography_of)
+
+fn null_geography_json(n: NullGeography) -> json.Value { null_or(n.valid, json.Value.Str(n.geography_val)) }
+
+fn null_geography_of(v: json.Value) -> NullGeography ! BqErr {
+  Ok(match str_of(v)? {
+    Some(s) => NullGeography{geography_val: s, valid: true}
+    None => NullGeography{}
+  })
+}
+
+pub fn (n: NullGeography) display() -> Str { if n.valid { n.geography_val } else { "NULL" } }
+
+pub fn (n: NullGeography) param() -> Param { if n.valid { Param.Geography(n.geography_val) } else { Param.Null("GEOGRAPHY") } }
+
+/// A JSON value, as its text, that may be NULL (Go's NullJSON).
+pub struct NullJson {
+  pub json_val: Str = ""
+  pub valid: Bool = false
+} derive Json(via: json.Value, to: null_json_json, from: null_json_of)
+
+fn null_json_json(n: NullJson) -> json.Value { null_or(n.valid, json.Value.Str(n.json_val)) }
+
+fn null_json_of(v: json.Value) -> NullJson ! BqErr {
+  Ok(match str_of(v)? {
+    Some(s) => NullJson{json_val: s, valid: true}
+    None => NullJson{}
+  })
+}
+
+pub fn (n: NullJson) display() -> Str { if n.valid { n.json_val } else { "NULL" } }
+
+pub fn (n: NullJson) param() -> Param { if n.valid { Param.Json(n.json_val) } else { Param.Null("JSON") } }
+
+/// A FLOAT64 that may be NULL (Go's NullFloat64): NaN and the infinities
+/// travel as "NaN", "Infinity" and "-Infinity" (and read "+Inf", "Inf",
+/// "-Inf" too).
+pub struct NullFloat64 {
+  pub float64: Float = 0.0
+  pub valid: Bool = false
+} derive Json(via: json.Value, to: null_float64_json, from: null_float64_of)
+
+fn null_float64_json(n: NullFloat64) -> json.Value {
+  if !n.valid {
+    return json.Value.Null
+  }
+  let f = n.float64
+  if f.is_nan() {
+    return json.Value.Str("NaN")
+  }
+  if f.is_inf() {
+    return json.Value.Str(if f > 0.0 { "Infinity" } else { "-Infinity" })
+  }
+  json.Value.Num(f)
+}
+
+fn null_float64_of(v: json.Value) -> NullFloat64 ! BqErr {
+  match v {
+    Null => Ok(NullFloat64{})
+    Int(n) => Ok(NullFloat64{float64: Float(n), valid: true})
+    Num(f) => Ok(NullFloat64{float64: f, valid: true})
+    Str(s) => match s {
+      "+Inf" | "Inf" | "Infinity" => Ok(NullFloat64{float64: 1.0 / 0.0, valid: true})
+      "-Inf" | "-Infinity" => Ok(NullFloat64{float64: -1.0 / 0.0, valid: true})
+      "NaN" => Ok(NullFloat64{float64: 0.0 / 0.0, valid: true})
+      _ => Err(json_err("float64", v))
+    }
+    _ => Err(json_err("float64", v))
+  }
+}
+
+pub fn (n: NullFloat64) display() -> Str {
+  if !n.valid {
+    return "NULL"
+  }
+  let f = n.float64
+  if f.is_nan() {
+    return "NaN"
+  }
+  if f.is_inf() {
+    return if f > 0.0 { "+Inf" } else { "-Inf" }
+  }
+  f.to_general(-1)
+}
+
+pub fn (n: NullFloat64) param() -> Param { if n.valid { Param.Float(n.float64) } else { Param.Null("FLOAT64") } }
+
+/// A BOOL that may be NULL (Go's NullBool).
+pub struct NullBool {
+  pub bool: Bool = false
+  pub valid: Bool = false
+} derive Json(via: json.Value, to: null_bool_json, from: null_bool_of)
+
+fn null_bool_json(n: NullBool) -> json.Value { null_or(n.valid, json.Value.Bool(n.bool)) }
+
+fn null_bool_of(v: json.Value) -> NullBool ! BqErr {
+  match v {
+    Null => Ok(NullBool{})
+    Bool(b) => Ok(NullBool{bool: b, valid: true})
+    _ => Err(json_err("bool", v))
+  }
+}
+
+pub fn (n: NullBool) display() -> Str { if !n.valid { "NULL" } else if n.bool { "true" } else { "false" } }
+
+pub fn (n: NullBool) param() -> Param { if n.valid { Param.Bool(n.bool) } else { Param.Null("BOOL") } }
+
+/// A TIMESTAMP that may be NULL (Go's NullTimestamp): RFC 3339 text.
+pub struct NullTimestamp {
+  pub timestamp: Time = Time.UNIX_EPOCH
+  pub valid: Bool = false
+} derive Json(via: json.Value, to: null_timestamp_json, from: null_timestamp_of)
+
+fn null_timestamp_json(n: NullTimestamp) -> json.Value { null_or(n.valid, json.Value.Str(rfc3339_nano(n.timestamp))) }
+
+fn null_timestamp_of(v: json.Value) -> NullTimestamp ! BqErr {
+  let s = str_of(v)? ?? return Ok(NullTimestamp{})
+  let t = Time.parse_rfc3339(s) ?? return Err(BqErr.Invalid("bigquery: bad TIMESTAMP value ${s.quote()}"))
+  Ok(NullTimestamp{timestamp: t, valid: true})
+}
+
+/// Go's time.Time String in UTC: "2023-11-14 22:13:20.123456 +0000 UTC".
+pub fn (n: NullTimestamp) display() -> Str {
+  if !n.valid {
+    return "NULL"
+  }
+  let c = time.civil(n.timestamp, time.utc())
+  "${date_string(c.date)} ${two(c.time.hour)}:${two(c.time.minute)}:${two(c.time.second)}${fraction(c.time.nanos, 9)} +0000 UTC"
+}
+
+pub fn (n: NullTimestamp) param() -> Param { if n.valid { Param.Timestamp(n.timestamp) } else { Param.Null("TIMESTAMP") } }
+
+/// A DATE that may be NULL (Go's NullDate): YYYY-MM-DD.
+pub struct NullDate {
+  pub date: time.Date = time.Date{year: 0, month: 0, day: 0}
+  pub valid: Bool = false
+} derive Json(via: json.Value, to: null_date_json, from: null_date_of)
+
+fn null_date_json(n: NullDate) -> json.Value { null_or(n.valid, json.Value.Str(date_string(n.date))) }
+
+fn null_date_of(v: json.Value) -> NullDate ! BqErr {
+  let s = str_of(v)? ?? return Ok(NullDate{})
+  // civil.Date's UnmarshalText: two digit month and day only
+  if s.len() != 10 {
+    return Err(BqErr.Invalid("bigquery: bad DATE value ${s.quote()}"))
+  }
+  Ok(NullDate{date: parse_civil_date(s)?, valid: true})
+}
+
+pub fn (n: NullDate) display() -> Str { if n.valid { date_string(n.date) } else { "NULL" } }
+
+pub fn (n: NullDate) param() -> Param { if n.valid { Param.Date(n.date) } else { Param.Null("DATE") } }
+
+/// A TIME that may be NULL (Go's NullTime): civil_time_string.
+pub struct NullTime {
+  pub time: time.ClockTime = time.ClockTime{hour: 0, minute: 0, second: 0, nanos: 0}
+  pub valid: Bool = false
+} derive Json(via: json.Value, to: null_time_json, from: null_time_of)
+
+fn null_time_json(n: NullTime) -> json.Value { null_or(n.valid, json.Value.Str(civil_time_string(n.time))) }
+
+fn null_time_of(v: json.Value) -> NullTime ! BqErr {
+  let s = str_of(v)? ?? return Ok(NullTime{})
+  Ok(NullTime{time: parse_civil_time(s)?, valid: true})
+}
+
+pub fn (n: NullTime) display() -> Str { if n.valid { civil_time_string(n.time) } else { "<null>" } }
+
+pub fn (n: NullTime) param() -> Param { if n.valid { Param.Time(n.time) } else { Param.Null("TIME") } }
+
+/// A DATETIME that may be NULL (Go's NullDateTime):
+/// civil_date_time_string, a space between the date and the time.
+pub struct NullDateTime {
+  pub date_time: DateTime = DateTime{date: time.Date{year: 0, month: 0, day: 0}, time: time.ClockTime{hour: 0, minute: 0, second: 0, nanos: 0}}
+  pub valid: Bool = false
+} derive Json(via: json.Value, to: null_date_time_json, from: null_date_time_of)
+
+fn null_date_time_json(n: NullDateTime) -> json.Value { null_or(n.valid, json.Value.Str(civil_date_time_string(n.date_time))) }
+
+fn null_date_time_of(v: json.Value) -> NullDateTime ! BqErr {
+  let s = str_of(v)? ?? return Ok(NullDateTime{})
+  Ok(NullDateTime{date_time: parse_sql_date_time(s)?, valid: true})
+}
+
+pub fn (n: NullDateTime) display() -> Str { if n.valid { civil_date_time_string(n.date_time) } else { "<null>" } }
+
+pub fn (n: NullDateTime) param() -> Param { if n.valid { Param.DateTime(n.date_time) } else { Param.Null("DATETIME") } }

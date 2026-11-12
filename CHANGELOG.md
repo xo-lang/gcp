@@ -31,7 +31,8 @@ touches. Release notes: [docs/releases](docs/releases).
   `load_map`, `ValueSaver` and `ValuesSaver`, `row_json`,
   `civil_time_string` and `civil_date_time_string`, and query
   parameters (`QueryParameter`, `Param`, `QueryParameterValue`,
-  `to_json`). 39 Go oracle cases; Go's interval and civil string bugs
+  `to_json`), and the `Null*` types (`NullInt64` ... `NullDateTime`,
+  Go's JSON forms through `derive Json(via:)`). 42 Go oracle cases; Go's interval and civil string bugs
   are not ported (decision 0011).
 - `bigquery` (decision 0011 step 1): a hand-written client over
   `bigquery/v2`: `new_client`, datasets, tables, routines and models

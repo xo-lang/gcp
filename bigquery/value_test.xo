@@ -255,9 +255,53 @@ fn run_case(name: Str) -> List[Str] {
       param(out, "xa", Param.Explicit(QueryParameterValue{type_: StandardSqlDataType{array_element_type: Some(sql("STRING"))}, array_value: [QueryParameterValue{value: Some(Param.Str("a"))}, QueryParameterValue{value: Some(Param.Str("b"))}]}))
       param(out, "xs", Param.Explicit(QueryParameterValue{type_: StandardSqlDataType{struct_type: Some(StandardSqlStructType{fields: [StandardSqlField{name: "n", type_: Some(sql("INT64"))}]})}, struct_value: {"n": QueryParameterValue{value: Some(Param.Int(42))}}}))
     }
+    "null json" => {
+      let ts = Time.from_unix_micros(1700000000123456)
+      out.push("  json [${[json.encode_str(NullInt64{int64: 5, valid: true}), json.encode_str(NullInt64{}), json.encode_str(NullString{string_val: "a", valid: true}), json.encode_str(NullString{}), json.encode_str(NullBool{bool: true, valid: true}), json.encode_str(NullGeography{geography_val: "POINT(1 2)", valid: true}), json.encode_str(NullJson{json_val: "{\"a\":1}", valid: true})].join(",")}]")
+      out.push("  json [${[json.encode_str(NullFloat64{float64: 1.5, valid: true}), json.encode_str(NullFloat64{float64: 0.0 / 0.0, valid: true}), json.encode_str(NullFloat64{float64: 1.0 / 0.0, valid: true}), json.encode_str(NullFloat64{float64: -1.0 / 0.0, valid: true}), json.encode_str(NullFloat64{})].join(",")}]")
+      out.push("  json [${[json.encode_str(NullTimestamp{timestamp: ts, valid: true}), json.encode_str(NullDate{date: cd(2026, 11, 11), valid: true}), json.encode_str(NullTime{time: ct(3, 4, 5, 6000), valid: true}), json.encode_str(NullDateTime{date_time: DateTime{date: cd(2026, 1, 2), time: ct(3, 0, 0, 0)}, valid: true}), json.encode_str(NullTimestamp{}), json.encode_str(NullDate{}), json.encode_str(NullTime{}), json.encode_str(NullDateTime{})].join(",")}]")
+    }
+    "null string" => {
+      for t in [NullInt64{int64: 5, valid: true}.display(), NullInt64{}.display(), NullFloat64{float64: 1.5, valid: true}.display(), NullBool{valid: true}.display(), NullString{string_val: "a", valid: true}.display(), NullTimestamp{timestamp: Time.from_unix_micros(1700000000123456), valid: true}.display(), NullDate{date: cd(2026, 11, 11), valid: true}.display(), NullTime{time: ct(3, 4, 5, 6000), valid: true}.display(), NullDateTime{date_time: DateTime{date: cd(2026, 1, 2), time: ct(3, 0, 0, 0)}, valid: true}.display(), NullTime{}.display()] {
+        out.push("  ${t.quote()}")
+      }
+    }
+    "null unmarshal" => {
+      un(out, "5", fn(t) { show_null(json.decode_str[NullInt64](t), fn(n) { (n.display(), json.encode_str(n)) }) })
+      un(out, "null", fn(t) { show_null(json.decode_str[NullInt64](t), fn(n) { (n.display(), json.encode_str(n)) }) })
+      un(out, "\"5\"", fn(t) { show_null(json.decode_str[NullInt64](t), fn(n) { (n.display(), json.encode_str(n)) }) })
+      for t in ["1.5", "\"NaN\"", "\"Infinity\"", "\"-Infinity\"", "\"x\""] {
+        un(out, t, fn(x) { show_null(json.decode_str[NullFloat64](x), fn(n) { (n.display(), json.encode_str(n)) }) })
+      }
+      un(out, "true", fn(t) { show_null(json.decode_str[NullBool](t), fn(n) { (n.display(), json.encode_str(n)) }) })
+      for t in ["\"a\"", "null"] {
+        un(out, t, fn(x) { show_null(json.decode_str[NullString](x), fn(n) { (n.display(), json.encode_str(n)) }) })
+      }
+      un(out, "\"2026-11-11T03:04:05.123456Z\"", fn(t) { show_null(json.decode_str[NullTimestamp](t), fn(n) { (n.display(), json.encode_str(n)) }) })
+      un(out, "\"2026-11-11\"", fn(t) { show_null(json.decode_str[NullDate](t), fn(n) { (n.display(), json.encode_str(n)) }) })
+      for t in ["\"03:04:05.000006\"", "\"25:00:00\""] {
+        un(out, t, fn(x) { show_null(json.decode_str[NullTime](x), fn(n) { (n.display(), json.encode_str(n)) }) })
+      }
+      for t in ["\"2026-01-02 03:04:05\"", "\"2026-01-02T03:04:05\""] {
+        un(out, t, fn(x) { show_null(json.decode_str[NullDateTime](x), fn(n) { (n.display(), json.encode_str(n)) }) })
+      }
+    }
     _ => fault("no case ${name}")
   }
   out
+}
+
+/// Go's unmarshal(): "from TEXT: String() JSON" or the error.
+fn un(var out: List[Str], text: Str, f: fn(Str) -> Str) { out.push("  from ${text}: ${f(text)}") }
+
+fn show_null[T](r: Result[T, json.DecodeErr], f: fn(T) -> (Str, Str)) -> Str {
+  match r {
+    Ok(n) => {
+      let (s, j) = f(n)
+      "${s} ${j}"
+    }
+    Err(e) => "error ${e}"
+  }
 }
 
 /// Whether got is the line Go printed; a want ending "error ~" takes any
