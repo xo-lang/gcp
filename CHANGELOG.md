@@ -24,6 +24,19 @@ touches. Release notes: [docs/releases](docs/releases).
   `codegen/services.toml` gains `go_dir` (Go's path) beside `dir` (the
   module); generated files other than `xo.mod` are unchanged. The old
   paths keep their v0.1.0 tags.
+- `bigquery` (decision 0011 step 2b): NUMERIC and BIGNUMERIC.
+  `Value.Rat` and `Param.Rat` (std/big's `BigRat`), `numeric_string`,
+  `big_numeric_string`; cells parse as Go's `Rat.SetString`. The
+  bigquery module now needs Xo 0.49.1. 5 Go oracle cases.
+- `bigquery` (decision 0011 step 4): copy, extract and load jobs and
+  job listing. `Copier` (`Table.copier_from`), `Extractor`
+  (`Table.extractor_to`, `Model.extractor_to`), `Loader`
+  (`Table.loader_from` a `LoadSource.Gcs` or `Reader`), `GCSReference`,
+  `FileConfig`, `CSVOptions`, `JobConfig.Copy`, `Extract` and `Load`,
+  `Client.jobs()` and `Job.children()`. 23 Go oracle cases.
+- Generator: Go's `emptyPattern` (a string with a default whose pattern
+  matches "" is optional, as Go's `*string`). Touches `bigquery/apiv2`
+  only: `CsvOptions.quote` and `JobConfigurationLoad.quote` are `Str?`.
 - `bigquery` (decision 0011 step 3): queries and rows. `Query`
   (`QueryConfig`, `JobIdConfig`; `run` as a job, `read` over the
   `jobs.query` fast path or the job's results), `Job` (`job_from_id`,

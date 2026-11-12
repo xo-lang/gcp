@@ -5,6 +5,7 @@
 // user type implements ValueLoader or ValueSaver by hand.
 
 use std/base64
+use std/big
 use std/json
 use std/time
 use github.com/xo-lang/gcp/bigquery/apiv2 as raw
@@ -33,6 +34,8 @@ pub enum Value {
   DateTime(dt: DateTime)
   /// INTERVAL (Go's *IntervalValue).
   Interval(iv: IntervalValue)
+  /// NUMERIC and BIGNUMERIC (Go's *big.Rat).
+  Rat(r: big.BigRat)
   /// RANGE (Go's *RangeValue).
   Range(r: RangeValue)
   /// A repeated field's values, or a record's values in schema order
@@ -64,6 +67,14 @@ pub const NUMERIC_PRECISION_DIGITS: Int = 38
 pub const NUMERIC_SCALE_DIGITS: Int = 9
 pub const BIG_NUMERIC_PRECISION_DIGITS: Int = 76
 pub const BIG_NUMERIC_SCALE_DIGITS: Int = 38
+
+/// r as a NUMERIC's text: NUMERIC_SCALE_DIGITS after the point, the last
+/// rounded half away from zero (Go's NumericString).
+pub fn numeric_string(r: big.BigRat) -> Str { r.float_text(NUMERIC_SCALE_DIGITS) }
+
+/// r as a BIGNUMERIC's text, BIG_NUMERIC_SCALE_DIGITS after the point
+/// (Go's BigNumericString).
+pub fn big_numeric_string(r: big.BigRat) -> Str { r.float_text(BIG_NUMERIC_SCALE_DIGITS) }
 
 /// A row as a map by field name, a record as a map of its fields and a
 /// repeated record as a list of them (Go's map[string]Value as a
@@ -157,18 +168,21 @@ fn values_to_map(vs: List[Value], schema: Schema) -> Map[Str, Value] ! BqErr {
 }
 
 /// Go's toUploadValue: a TIME or DATETIME as its BigQuery string, each of
-/// a repeated one too (none: Null); an INTERVAL as its string (Go sends
-/// the struct's fields, decision 0011); any other value as it is.
+/// a repeated one too (none: Null); a NUMERIC or BIGNUMERIC as
+/// numeric_string or big_numeric_string; an INTERVAL as its string (Go
+/// sends the struct's fields, decision 0011); any other value as it is.
 fn to_upload_value(v: Value, f: FieldSchema) -> Value {
+  let big_numeric = f.type_ == BIG_NUMERIC_FIELD_TYPE
   let cvt = fn(x: Value) -> Value {
     match x {
       Time(t) => Value.Str(civil_time_string(t))
       DateTime(dt) => Value.Str(civil_date_time_string(dt))
       Interval(iv) => Value.Str(iv.display())
+      Rat(r) => Value.Str(if big_numeric { big_numeric_string(r) } else { numeric_string(r) })
       _ => x
     }
   }
-  if f.type_ != TIME_FIELD_TYPE && f.type_ != DATE_TIME_FIELD_TYPE && f.type_ != INTERVAL_FIELD_TYPE {
+  if f.type_ != TIME_FIELD_TYPE && f.type_ != DATE_TIME_FIELD_TYPE && f.type_ != INTERVAL_FIELD_TYPE && f.type_ != NUMERIC_FIELD_TYPE && !big_numeric {
     return v
   }
   if !f.repeated {
@@ -202,6 +216,8 @@ fn write_json(var b: StrBuilder, v: Value) -> () ! BqErr {
     Time(t) => b.write(go_quote(clock_string(t)))
     DateTime(dt) => b.write(go_quote("${date_string(dt.date)}T${clock_string(dt.time)}"))
     Interval(iv) => b.write(go_quote(iv.display()))
+    // Go's Rat.MarshalText: `a`, or `a/b`
+    Rat(r) => b.write(go_quote(r.rat_text()))
     Range(r) => {
       b.write("{\"start\":")
       write_json(b, r.start)?
@@ -467,9 +483,8 @@ fn parse_int(s: Str) -> Int ! BqErr {
 const MIN_MICROS: Int = -9223372036854775
 const MAX_MICROS: Int = 9223372036854775
 
-/// Go's convertBasicType: a cell's text as the Value of its field type.
-/// NUMERIC and BIGNUMERIC wait for std/big's BigRat (decision 0011, step
-/// 2b); a TIMESTAMP outside the years 1677 to 2262 is refused (Go's
+/// Go's convertBasicType: a cell's text as the Value of its field type
+/// (NUMERIC and BIGNUMERIC as Go's Rat.SetString reads them); a TIMESTAMP outside the years 1677 to 2262 is refused (Go's
 /// time.Time holds the years 1 to 9999).
 fn convert_basic(val: Str, typ: Str) -> Value ! BqErr {
   match typ {
@@ -496,7 +511,10 @@ fn convert_basic(val: Str, typ: Str) -> Value ! BqErr {
     "DATE" => Ok(Value.Date(parse_civil_date(val)?))
     "TIME" => Ok(Value.Time(parse_civil_time(val)?))
     "DATETIME" => Ok(Value.DateTime(parse_civil_date_time(val)?))
-    "NUMERIC" | "BIGNUMERIC" => Err(BqErr.Invalid("bigquery: ${typ} values need std/big's BigRat (decision 0011, step 2b)"))
+    "NUMERIC" | "BIGNUMERIC" => match big.parse_rat(val) {
+      Ok(r) => Ok(Value.Rat(r))
+      Err(_) => Err(BqErr.Invalid("bigquery: invalid ${typ} value ${val.quote()}"))
+    }
     "INTERVAL" => match parse_interval(val) {
       Ok(iv) => Ok(Value.Interval(iv))
       Err(_) => Err(BqErr.Invalid("bigquery: invalid INTERVAL value ${val.quote()}"))
