@@ -339,3 +339,81 @@ pub fn (j: Job[fx]) read() -> RowIterator[fx] ! BqErr uses (net.dial, clock, ran
   it.schema = schema
   Ok(it)
 }
+
+/// Jobs of a project (Go's JobIterator): its filters are set before the
+/// first next().
+pub struct JobIterator[fx: Effects] {
+  /// The jobs' project; the client's by default.
+  pub project_id: Str
+  /// Jobs of every user, not only the caller's.
+  pub all_users: Bool = false
+  /// Only jobs in this state; State.Unspecified for all.
+  pub state: State = State.Unspecified
+  /// Only jobs created after this time.
+  pub min_creation_time: Time? = None
+  /// Only jobs created before this time.
+  pub max_creation_time: Time? = None
+  /// Only the children of this script job.
+  pub parent_job_id: Str = ""
+  c: Client[fx]
+  page: Pager[Job[fx]] = Pager{}
+}
+
+/// The jobs of the client's project (Go's Jobs).
+pub fn (c: Client[fx]) jobs() -> JobIterator[fx] { JobIterator{project_id: c.project, c: c} }
+
+/// The jobs a script job started (Go's Children): listed in the client's
+/// project.
+pub fn (j: Job[fx]) children() -> JobIterator[fx] {
+  var it = j.c.jobs()
+  it.parent_job_id = j.job_id
+  it
+}
+
+/// The next job, None after the last (Go's Next and iterator.Done).
+/// Listed jobs carry their full configuration (projection "full").
+pub fn (var it: JobIterator[fx]) next() -> Job[fx]? ! BqErr uses (net.dial, clock, rand, fx) {
+  while it.page.needs_fetch() {
+    let c = it.c
+    let project = it.project_id
+    let st: List[Str] = match it.state {
+      State.Unspecified => []
+      State.Pending => ["pending"]
+      State.Running => ["running"]
+      State.Done => ["done"]
+    }
+    let o = raw.JobsListOptions{page_token: Some(it.page.token), projection: Some("full"), all_users: Some(it.all_users), state_filter: st, min_creation_time: match it.min_creation_time {
+      Some(t) => Some(time_millis(t))
+      None => None
+    }, max_creation_time: match it.max_creation_time {
+      Some(t) => Some(time_millis(t))
+      None => None
+    }, parent_job_id: if it.parent_job_id == "" { None } else { Some(it.parent_job_id) }, headers: client_headers()}
+    let r = c.retry(DEFAULT_RETRY_REASONS, fn() -> raw.JobList ! gensupport.CallErr uses net.dial, clock, rand, fx {
+      c.svc.jobs.list(project, o)
+    })
+    match r {
+      Ok(l) => {
+        var items: List[Job[fx]] = []
+        var bad: BqErr? = None
+        for x in l.jobs {
+          match job_of(raw.Job{job_reference: x.job_reference, configuration: x.configuration, status: x.status, statistics: x.statistics, user_email: x.user_email}, c) {
+            Ok(j) => items.push(j)
+            Err(e) => {
+              bad = Some(e)
+              break
+            }
+          }
+        }
+        match bad {
+          Some(e) => it.page.fail(e)
+          None => it.page.fill(items, l.next_page_token)
+        }
+      }
+      Err(e) => {
+        it.page.fail(e)
+      }
+    }
+  }
+  it.page.take()
+}
