@@ -398,10 +398,46 @@ pub fn generate(doc: json.Value, header: Str) -> Module {
       _ => {}
     }
   }
+  models = field_enum_names(models)
   let svc = g.service_text(header)
   let mi = imports(models, ["std/json"])
   models = header + (if mi == "" { "" } else { "\n" + mi }) + models
   Module{models: models, service: svc.0, report: g.report, methods: svc.1, schemas: nschemas, infos: g.infos}
+}
+
+/// models with each field enum placeholder (`\u{1}F<Model>\u{1}`) named
+/// `<Model>Field`, or `<Model>Fields`, `<Model>FieldEnum` when a type of
+/// the module already has that name (decision 0013).
+fn field_enum_names(models: Str) -> Str {
+  var taken: Map[Str, Bool] = {}
+  for line in models.split("\n") {
+    for kw in ["pub struct ", "pub type ", "pub enum "] {
+      if let Some(rest) = line.cut_prefix(kw) {
+        if !rest.starts_with("\u{1}") {
+          taken[rest.split(" ")[0]] = true
+        }
+      }
+    }
+  }
+  var out = models
+  for piece in models.split("\u{1}F") {
+    if let Some((tn, _)) = piece.cut("\u{1}") {
+      let ph = "\u{1}F${tn}\u{1}"
+      if !out.contains(ph) {
+        continue
+      }
+      var name = "${tn}Field"
+      for alt in ["${tn}Fields", "${tn}FieldEnum"] {
+        if !taken.contains(name) {
+          break
+        }
+        name = alt
+      }
+      taken[name] = true
+      out = out.replace(ph, name)
+    }
+  }
+  out
 }
 
 /// Every `$ref` under v.
@@ -501,7 +537,9 @@ fn (var g: Gen) struct_text(name: Str, s: json.Value) -> Str {
     return "\n" + doc_lines("", "${tn}: one of several shapes, told apart by its `type` (Go's variant map).") + "pub type ${tn} = json.Value\n"
   }
   let req = g.requests.contains(name) && fields_of(s.get("properties")).len() > 0
-  let ftn = "${tn}Field"
+  // a placeholder, named once every type of the module is known
+  // (field_enum_names): `<Model>Field` may be a schema's own type
+  let ftn = "\u{1}F${tn}\u{1}"
   var desc = "${tn}: ${str_of(s.get("description"))}"
   if req {
     desc = desc + "\n\nIn a request body, force_send_fields are sent even when empty and null_fields as null (decision 0013)."
