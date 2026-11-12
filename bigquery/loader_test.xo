@@ -1,0 +1,37 @@
+// ValueLoader as a generic bound (ADR 0613 step 4): load fills the
+// caller's value.
+
+/// A user row type loading by hand (Go's ValueLoader).
+struct Person {
+  name: Str = ""
+  age: Int = 0
+  loads: Int = 0
+}
+
+fn (var p: Person) load(vals: List[Value], s: Schema) -> () ! BqErr {
+  for i in 0..s.len() {
+    match (s[i].name, vals[i]) {
+      ("name", Value.Str(x)) => p.name = x
+      ("age", Value.Int(x)) => p.age = x
+      _ => return Err(BqErr.Invalid("bad field ${s[i].name}"))
+    }
+  }
+  p.loads = p.loads + 1
+  Ok(())
+}
+
+fn fill[T: ValueLoader](var t: T, vals: List[Value], s: Schema) -> () ! BqErr { t.load(vals, s) }
+
+test "value loader: a generic bound writes back to the caller" {
+  let s: Schema = [FieldSchema{name: "name", type_: STRING_FIELD_TYPE}, FieldSchema{name: "age", type_: INTEGER_FIELD_TYPE}]
+  var p = Person{}
+  fill(p, [Value.Str("ada"), Value.Int(36)], s)?
+  fill(p, [Value.Str("bob"), Value.Int(7)], s)?
+  expect(p.name) == "bob"
+  expect(p.age) == 7
+  expect(p.loads) == 2
+  var m = ValueMap{}
+  fill(m, [Value.Str("ada"), Value.Int(36)], s)?
+  expect(m.m.len()) == 2
+  expect(fill(p, [Value.Int(1), Value.Int(2)], s).is_err()) == true
+}

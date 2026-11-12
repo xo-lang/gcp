@@ -30,7 +30,7 @@ Status (google.golang.org/api v0.311.0, 667 modules; the full table is
   client, datasets, tables, routines, models, schemas, row values with
   NUMERIC and BIGNUMERIC, query parameters, queries, copy, extract and
   load jobs, job listing, the row iterator and streaming inserts; it
-  needs Xo 0.49.1), and
+  needs Xo 0.50), and
   `auth` has decision 0009's credentials. See
   [gcp-cloud-go-coverage.md](docs/reports/gcp-cloud-go-coverage.md).
 
@@ -46,7 +46,7 @@ the API versions your program uses; each requires the root:
     xo get github.com/xo-lang/gcp@v0.1.0
     xo get github.com/xo-lang/gcp/storage/apiv1@v0.1.0
 
-Requires Xo 0.45.0 or later (the bigquery module, Xo 0.49.1). Release notes:
+Requires Xo 0.51.0 or later (decision 0013's `as "-"` lists, xo decision 0622). Release notes:
 [docs/releases/v0.1.0.md](docs/releases/v0.1.0.md).
 
 ## Empty values and null in a request

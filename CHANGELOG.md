@@ -17,6 +17,10 @@ touches. Release notes: [docs/releases](docs/releases).
   sends `{"conferenceData":null}`. The lists are never in a model's own
   JSON (`as "-"`), so gcp now needs xo 0.51.0 or later (xo decision
   0622). Every generated module changes.
+- bigquery needs Xo 0.50: `ValueLoader` is an interface (`load(var
+  self, ...)`, Go's), `ValueMap` implements it and
+  `RowIterator.next_into` loads a row into any implementer; schema
+  fields are `Schema?` again (decision 0011 step 5).
 - **Breaking** (decision 0012): every generated module's API version is
   now an `apivN` path element, one generator rule for all 667, so Xo
   does not read `/v2` as a semver major (XO1301 made the 91 modules at

@@ -29,7 +29,7 @@ struct FetchedPage {
   token: Str
   rows: List[List[Value]]
   total_rows: Int
-  schema: List[FieldSchema]?
+  schema: Schema?
 }
 
 /// The rows of a table or a query (Go's RowIterator). next gives each row
@@ -39,7 +39,7 @@ pub struct RowIterator[fx: Effects] {
   /// StartIndex).
   pub start_index: Int = 0
   /// The rows' schema: None until the first page (Go's Schema).
-  pub schema: List[FieldSchema]? = None
+  pub schema: Schema? = None
   /// The rows in all, as of the last page (Go's TotalRows).
   pub total_rows: Int = 0
   /// The most rows a page asks for, 0 for the service's choice (Go's
@@ -96,8 +96,16 @@ pub fn (var it: RowIterator[fx]) next_map() -> Map[Str, Value]? ! BqErr uses (ne
   Ok(Some(load_map(row, it.schema ?? [])?))
 }
 
-/// The next row through load, given the row and its schema (Go's Next
-/// into a ValueLoader).
+/// Loads the next row into dst (Go's Next(dst) with a ValueLoader);
+/// false at the end, dst then unchanged.
+pub fn (var it: RowIterator[fx]) next_into[T: ValueLoader](var dst: T) -> Bool ! BqErr uses (net.dial, clock, rand, fx) {
+  let row = it.next()? ?? return Ok(false)
+  dst.load(row, it.schema ?? [])?
+  Ok(true)
+}
+
+/// The next row through load, given the row and its schema (a function
+/// in place of a ValueLoader).
 pub fn (var it: RowIterator[fx]) next_with[T](load: fn(List[Value], Schema) -> T ! BqErr) -> T? ! BqErr uses (net.dial, clock, rand, fx) {
   let row = it.next()? ?? return Ok(None)
   Ok(Some(load(row, it.schema ?? [])?))

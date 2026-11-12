@@ -76,12 +76,28 @@ pub fn numeric_string(r: big.BigRat) -> Str { r.float_text(NUMERIC_SCALE_DIGITS)
 /// (Go's BigNumericString).
 pub fn big_numeric_string(r: big.BigRat) -> Str { r.float_text(BIG_NUMERIC_SCALE_DIGITS) }
 
+/// A type a row loads into (Go's ValueLoader): load fills the receiver
+/// from the row's values and schema. RowIterator.next_into takes one as
+/// a generic bound; a function loader goes through next_with.
+pub interface ValueLoader {
+  fn load(var self, vals: List[Value], s: Schema) -> () ! BqErr
+}
+
+/// A row as a map by field name (Go's map[string]Value as a
+/// ValueLoader).
+pub struct ValueMap {
+  pub m: Map[Str, Value] = {}
+}
+
+/// Go's loadMap into the receiver.
+pub fn (var v: ValueMap) load(vals: List[Value], s: Schema) -> () ! BqErr {
+  v.m = map_of(vals, s)
+  Ok(())
+}
+
 /// A row as a map by field name, a record as a map of its fields and a
 /// repeated record as a list of them (Go's map[string]Value as a
-/// ValueLoader). Go's ValueLoader is an interface whose Load fills its
-/// receiver; an Xo interface method cannot change its receiver, so a
-/// loader is a function `fn(List[Value], Schema) -> T ! BqErr` that the
-/// row iterator calls (decision 0011), and []Value is the row itself.
+/// ValueLoader), as a function loader for next_with.
 pub fn load_map(vals: List[Value], s: Schema) -> Map[Str, Value] ! BqErr { Ok(map_of(vals, s)) }
 
 /// Go's loadMap: each field by name; a record is a map of its fields, a

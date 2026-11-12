@@ -134,13 +134,18 @@ request; `bigquery/govec_test.xo` is generated from that output.
 - **Civil times are std/time's** `Date` and `ClockTime`, and the
   module's `DateTime{date, time}` (std has no date and time pair without
   a zone). Settles the open question above.
-- **A loader is a function.** Go's `ValueLoader` fills its receiver in
-  `Load`; an Xo interface method cannot change its receiver (no `var
-  self`), so a loader is `fn(List[Value], Schema) -> T ! BqErr` that
-  step 3's row iterator calls. `[]Value` is the row itself and
-  `map[string]Value` is `load_map`. `ValueSaver` is an interface, and
-  `ValuesSaver` is Go's; `row_json` is the JSON a streaming insert
-  sends (encoding/json's: keys sorted, `<>&` escaped, NaN refused).
+- **A loader is an interface used as a generic bound.** Go's
+  `ValueLoader` fills its receiver in `Load`; here `ValueLoader` has
+  `fn load(var self, ...)` (decision 0613 step 4, Xo 0.50) and
+  `RowIterator.next_into[T: ValueLoader](var dst: T)` fills the
+  caller's value. Interface values of it (a loader kept in a field)
+  wait for decision 0613 step 5; until then a loader is not stored, and
+  `next_with` takes a function `fn(List[Value], Schema) -> T ! BqErr`
+  (as Xo 0.49 required). `[]Value` is the row itself and
+  `map[string]Value` is `ValueMap` (or `load_map`). `ValueSaver` is an
+  interface, and `ValuesSaver` is Go's; `row_json` is the JSON a
+  streaming insert sends (encoding/json's: keys sorted, `<>&` escaped,
+  NaN refused).
 - **Parameters say their type.** Go infers a parameter's type from its
   Go type by reflection; here `Param` has a variant per type, an
   `Array` names its element type (as Go's slice type does, so an empty
@@ -280,6 +285,17 @@ with every load and file option, the zero quote, a reader's multipart
 upload and its refusal to retry, config round trips of fetched jobs,
 the listing's pages, filters, retries and errors, and external data on
 table create, get and update and in query table definitions.
+
+### Step 5 (Xo 0.50: loaders and Schema?)
+
+Xo 0.50 fixes the false XO0407 alias cycle on a `Schema?` field (xo
+955837e2c), so `FetchedPage`, `FileConfig` and `ExternalDataConfig`
+hold `Schema?` again in place of `List[FieldSchema]?` (the same type;
+no caller changes). `ValueLoader` becomes an interface with a `var
+self` method, `ValueMap` implements it, and `next_into` loads a row into
+any implementer (`loader_test.xo` checks the write-back through a
+generic bound; the oracle cases that read rows as maps now go through
+`next_into(ValueMap)`).
 
 ### Step 2b (NUMERIC and BIGNUMERIC)
 
