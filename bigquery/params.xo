@@ -1,0 +1,212 @@
+// Query parameters (params.go). Go infers a parameter's type from its Go
+// type by reflection; here a Param says its type (decision 0011), and an
+// ARRAY names its element type, as Go's slice type does.
+
+use std/base64
+use std/json
+use std/time
+
+/// A parameter of a query (Go's QueryParameter): name is for named mode
+/// and matches the query's name case-insensitively.
+pub struct QueryParameter {
+  pub name: Str = ""
+  pub value: Param
+}
+
+/// A parameter's value and type (Go's QueryParameter.Value).
+pub enum Param {
+  /// INT64 (Go's int types).
+  Int(n: Int)
+  /// FLOAT64.
+  Float(f: Float)
+  /// BOOL.
+  Bool(b: Bool)
+  /// STRING.
+  Str(s: Str)
+  /// BYTES.
+  Bytes(b: Bytes)
+  /// TIMESTAMP, written in UTC (Go writes a time.Time in its zone: the
+  /// same instant).
+  Timestamp(t: Time)
+  /// DATE.
+  Date(d: time.Date)
+  /// TIME.
+  Time(t: time.ClockTime)
+  /// DATETIME.
+  DateTime(dt: DateTime)
+  /// INTERVAL.
+  Interval(iv: IntervalValue)
+  /// GEOGRAPHY (Go's valid NullGeography).
+  Geography(s: Str)
+  /// JSON (Go's valid NullJSON).
+  Json(s: Str)
+  /// A NULL of the type ("INT64", "STRING", "DATE"...: Go's Null types
+  /// with Valid false).
+  Null(type_: Str)
+  /// ARRAY of elem's type (Go's slices and arrays).
+  Array(elem: StandardSqlDataType, items: List[Param])
+  /// STRUCT, its fields in order (Go's structs).
+  Struct(fields: List[(Str, Param)])
+  /// RANGE; None is an unbounded end, and one end must be set (Go's
+  /// *RangeValue).
+  Range(start: Param?, end: Param?)
+  /// A value with its type spelled out (Go's *QueryParameterValue).
+  Explicit(v: QueryParameterValue)
+}
+
+/// A parameter with an explicit type (Go's QueryParameterValue): a scalar
+/// in value, else array_value or struct_value.
+pub struct QueryParameterValue {
+  pub type_: StandardSqlDataType = StandardSqlDataType{}
+  pub value: Param? = None
+  pub array_value: List[QueryParameterValue] = []
+  pub struct_value: Map[Str, QueryParameterValue] = {}
+}
+
+fn jobj(fields: List[(Str, json.Value)]) -> json.Value { json.Value.Object(fields) }
+
+fn type_json(t: Str) -> json.Value { jobj([("type", json.Value.Str(t))]) }
+
+/// Go's StandardSQLDataType.toBQParamType.
+fn sql_param_type(t: StandardSqlDataType) -> json.Value {
+  if let Some(a) = t.array_element_type {
+    return jobj([("arrayType", sql_param_type(a)), ("type", json.Value.Str("ARRAY"))])
+  }
+  if let Some(st) = t.struct_type {
+    return jobj([("structTypes", json.Value.List(st.fields.map(fn(f) -> json.Value {
+      jobj([("name", json.Value.Str(f.name)), ("type", sql_param_type(f.type_ ?? StandardSqlDataType{}))])
+    }))), ("type", json.Value.Str("STRUCT"))])
+  }
+  if let Some(r) = t.range_element_type {
+    return jobj([("rangeElementType", type_json(r.type_kind)), ("type", json.Value.Str(RANGE_FIELD_TYPE))])
+  }
+  type_json(t.type_kind)
+}
+
+/// Go's paramType: the parameterType of a value.
+fn param_type(p: Param) -> json.Value ! BqErr {
+  Ok(match p {
+    Int(_) => type_json("INT64")
+    Float(_) => type_json("FLOAT64")
+    Bool(_) => type_json("BOOL")
+    Str(_) => type_json("STRING")
+    Bytes(_) => type_json("BYTES")
+    Timestamp(_) => type_json("TIMESTAMP")
+    Date(_) => type_json("DATE")
+    Time(_) => type_json("TIME")
+    DateTime(_) => type_json("DATETIME")
+    Interval(_) => type_json("INTERVAL")
+    Geography(_) => type_json("GEOGRAPHY")
+    Json(_) => type_json("JSON")
+    Null(t) => type_json(t)
+    Array(elem, _) => jobj([("arrayType", sql_param_type(elem)), ("type", json.Value.Str("ARRAY"))])
+    Struct(fields) => {
+      var ts: List[json.Value] = []
+      for (name, v) in fields {
+        ts.push(jobj([("name", json.Value.Str(name)), ("type", param_type(v)?)]))
+      }
+      jobj([("structTypes", json.Value.List(ts)), ("type", json.Value.Str("STRUCT"))])
+    }
+    Range(start, end) => {
+      let e = start ?? end ?? return Err(BqErr.Invalid("unable to determine range element type from RangeValue without a non-nil start or end value"))
+      jobj([("rangeElementType", param_type(e)?), ("type", json.Value.Str("RANGE"))])
+    }
+    Explicit(v) => sql_param_type(v.type_)
+  })
+}
+
+fn scalar_json(s: Str) -> json.Value { jobj([("value", json.Value.Str(s))]) }
+
+/// A TIMESTAMP parameter's text (Go's "2006-01-02 15:04:05.999999-07:00"
+/// in UTC).
+fn timestamp_param(t: Time) -> Str {
+  let c = time.civil(t, time.utc())
+  "${date_string(c.date)} ${two(c.time.hour)}:${two(c.time.minute)}:${two(c.time.second)}${fraction(c.time.nanos, 6)}+00:00"
+}
+
+/// Go's paramValue: the parameterValue of a value.
+fn param_value(p: Param) -> json.Value ! BqErr {
+  Ok(match p {
+    Int(n) => scalar_json("${n}")
+    Float(f) => scalar_json(f.to_general(-1))
+    Bool(b) => scalar_json(if b { "true" } else { "false" })
+    Str(s) => scalar_json(s)
+    Bytes(b) => scalar_json(base64.encode(b))
+    Timestamp(t) => scalar_json(timestamp_param(t))
+    Date(d) => scalar_json(date_string(d))
+    Time(t) => scalar_json(civil_time_string(t))
+    DateTime(dt) => scalar_json(civil_date_time_string(dt))
+    Interval(iv) => scalar_json(iv.display())
+    Geography(s) => scalar_json(s)
+    Json(s) => scalar_json(s)
+    Null(_) => jobj([("value", json.Value.Null)])
+    Array(_, items) => {
+      if items.is_empty() {
+        return Ok(jobj([]))
+      }
+      var vs: List[json.Value] = []
+      for v in items {
+        vs.push(param_value(v)?)
+      }
+      jobj([("arrayValues", json.Value.List(vs))])
+    }
+    Struct(fields) => {
+      var m: Map[Str, json.Value] = {}
+      for (name, v) in fields {
+        m[name] = param_value(v)?
+      }
+      jobj([("structValues", sorted_obj(m))])
+    }
+    Range(start, end) => {
+      var r: List[(Str, json.Value)] = []
+      if let Some(e) = end {
+        r.push(("end", param_value(e)?))
+      }
+      if let Some(s) = start {
+        r.push(("start", param_value(s)?))
+      }
+      jobj([("rangeValue", jobj(r))])
+    }
+    Explicit(v) => explicit_value(v)?
+  })
+}
+
+fn sorted_obj(m: Map[Str, json.Value]) -> json.Value {
+  jobj(m.keys().sort().map(fn(k) -> (Str, json.Value) { (k, m.get_or_fault(k, "k is one of the keys")) }))
+}
+
+/// Go's QueryParameterValue.toBQParamValue.
+fn explicit_value(v: QueryParameterValue) -> json.Value ! BqErr {
+  if !v.array_value.is_empty() {
+    var vs: List[json.Value] = []
+    for e in v.array_value {
+      vs.push(explicit_value(e)?)
+    }
+    return Ok(jobj([("arrayValues", json.Value.List(vs))]))
+  }
+  if !v.struct_value.is_empty() {
+    var m: Map[Str, json.Value] = {}
+    for k in v.struct_value.keys() {
+      m[k] = explicit_value(v.struct_value.get_or_fault(k, "k is one of the keys"))?
+    }
+    return Ok(jobj([("structValues", sorted_obj(m))]))
+  }
+  match v.value {
+    Some(p) => param_value(p)
+    None => Err(BqErr.Invalid("bigquery: nil parameter"))
+  }
+}
+
+/// The parameter as the API's QueryParameter JSON (Go's toBQ), its keys
+/// sorted as Go writes them.
+pub fn (p: QueryParameter) to_json() -> json.Value ! BqErr {
+  let pv = param_value(p.value)?
+  let pt = param_type(p.value)?
+  var fields: List[(Str, json.Value)] = []
+  if !p.name.is_empty() {
+    fields.push(("name", json.Value.Str(p.name)))
+  }
+  fields.push(("parameterType", pt))
+  fields.push(("parameterValue", pv))
+  Ok(jobj(fields))
+}

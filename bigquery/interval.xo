@@ -1,0 +1,180 @@
+// INTERVAL values (intervalvalue.go). Go keeps each part in an int32;
+// here they are Ints that parse_interval keeps to int32's range.
+
+/// An INTERVAL (Go's IntervalValue): in canonical form years and months
+/// share a sign and months are below 12, days stand alone, and the time
+/// parts share a sign and are reduced.
+pub struct IntervalValue {
+  pub years: Int = 0
+  pub months: Int = 0
+  pub days: Int = 0
+  pub hours: Int = 0
+  pub minutes: Int = 0
+  pub seconds: Int = 0
+  /// The fraction of a second, in nanoseconds.
+  pub sub_second_nanos: Int = 0
+}
+
+/// The interval as BigQuery writes it, canonical: [sign]Y-M [sign]D
+/// [sign]H:M:S[.F] (Go's String). Go writes a negative fraction with its
+/// sign after the point ("6.-00001"); here the fraction has no sign
+/// (decision 0011).
+pub fn (iv: IntervalValue) display() -> Str {
+  let src = if iv.is_canonical() { iv } else { iv.canonicalize() }
+  // a part under a year or an hour keeps its sign as -0 (Go drops it:
+  // 0-5 for minus five months; decision 0011)
+  let ym = if src.years == 0 && src.months < 0 { "-0" } else { "${src.years}" }
+  let neg_time = src.minutes < 0 || src.seconds < 0 || src.sub_second_nanos < 0
+  let h = if src.hours == 0 && neg_time { "-0" } else { "${src.hours}" }
+  var out = "${ym}-${src.months.abs()} ${src.days} ${h}:${src.minutes.abs()}:${src.seconds.abs()}"
+  if src.sub_second_nanos != 0 {
+    var mant = src.sub_second_nanos.abs().to_str_width(9, zero: true)
+    while mant.ends_with("0") {
+      mant = mant[0..mant.len() - 1]
+    }
+    out = "${out}.${mant}"
+  }
+  out
+}
+
+const INTERVAL_PARTS: List[Str] = ["YEARS", "MONTHS", "DAYS", "HOURS", "MINUTES", "SECONDS", "SUBSECONDS"]
+
+/// The interval of BigQuery's canonical text (Go's ParseInterval).
+pub fn parse_interval(value: Str) -> IntervalValue ! BqErr {
+  var iv = IntervalValue{}
+  var rest = value
+  // the sign of the years and of the hours, kept for -0 too (Go reads
+  // "-0-5" as 0-5 and "-0:30:0" as 0:30:0; decision 0011)
+  var neg_years = false
+  var neg_hours = false
+  for part in INTERVAL_PARTS {
+    let before = trim_lead(rest, " ")
+    let (r, v) = interval_part(part, rest)?
+    match part {
+      "YEARS" => {
+        iv.years = v
+        neg_years = before.starts_with("-")
+      }
+      "MONTHS" => iv.months = if neg_years { -v } else { v }
+      "DAYS" => iv.days = v
+      "HOURS" => {
+        iv.hours = v
+        neg_hours = before.starts_with("-")
+      }
+      "MINUTES" => iv.minutes = if neg_hours { -v } else { v }
+      "SECONDS" => iv.seconds = if neg_hours { -v } else { v }
+      _ => iv.sub_second_nanos = if neg_hours { -v } else { v }
+    }
+    rest = r
+  }
+  Ok(iv)
+}
+
+/// Go's getPartValue: the part's separator trimmed, then its number (a
+/// sign allowed for years, days and hours), and the rest of s.
+fn interval_part(part: Str, s0: Str) -> (Str, Int) ! BqErr {
+  let sep = match part {
+    "YEARS" | "DAYS" | "HOURS" => " "
+    "MONTHS" => "-"
+    "MINUTES" | "SECONDS" => ":"
+    _ => "."
+  }
+  var s = trim_lead(s0, sep)
+  var captured = ""
+  if part == "YEARS" || part == "DAYS" || part == "HOURS" {
+    if s.starts_with("-") {
+      captured = "-"
+      s = s[1..s.len()]
+    } else if s.starts_with("+") {
+      s = s[1..s.len()]
+    }
+  }
+  var n = 0
+  let b = s.bytes()
+  while n < b.len() && b[n] >= 0x30 && b[n] <= 0x39 {
+    n += 1
+  }
+  captured = "${captured}${s[0..n]}"
+  s = s[n..s.len()]
+  if captured.is_empty() {
+    if part == "SUBSECONDS" {
+      return Ok((s, 0))
+    }
+    return Err(BqErr.Invalid("no value parsed for part ${part}"))
+  }
+  if part == "SUBSECONDS" {
+    let f = Float.parse("0.${captured}").or_err(BqErr.Invalid("couldn't parse ${captured} as ${part}"))?
+    return Ok((s, Int(f * 1e9)))
+  }
+  let v = Int.parse(captured) ?? return Err(BqErr.Invalid("error parsing value ${captured} for ${part}: strconv.ParseInt: parsing ${captured.quote()}: invalid syntax"))
+  if v < -2147483648 || v > 2147483647 {
+    return Err(BqErr.Invalid("error parsing value ${captured} for ${part}: strconv.ParseInt: parsing ${captured.quote()}: value out of range"))
+  }
+  Ok((s, v))
+}
+
+/// The interval of a duration: hours, minutes, seconds and nanoseconds
+/// only (Go's IntervalValueFromDuration).
+pub fn interval_from_duration(d: Duration) -> IntervalValue {
+  var nanos = d.nanos()
+  let hours = nanos / 3600 / 1000000000
+  nanos -= hours * 3600 * 1000000000
+  let minutes = nanos / 60 / 1000000000
+  nanos -= minutes * 60 * 1000000000
+  let seconds = nanos / 1000000000
+  nanos -= seconds * 1000000000
+  IntervalValue{hours: hours, minutes: minutes, seconds: seconds, sub_second_nanos: nanos}
+}
+
+/// The interval as a duration, a month counted as 30 days and a year as
+/// 12 months (Go's ToDuration). Go multiplies the sub-second nanoseconds
+/// by 1e9 in an int32, so a fraction comes out wrong; here they count as
+/// nanoseconds (decision 0011).
+pub fn (iv: IntervalValue) to_duration() -> Duration {
+  var accum = 12 * iv.years + iv.months
+  accum = accum * 30 + iv.days
+  accum = accum * 24 + iv.hours
+  accum = accum * 60 + iv.minutes
+  accum = accum * 60 + iv.seconds
+  accum = accum * 1000000000 + iv.sub_second_nanos
+  1ns * accum
+}
+
+/// The interval reduced: months into years with one sign, the time parts
+/// into hours, minutes, seconds and nanoseconds with one sign; days kept
+/// (Go's Canonicalize).
+pub fn (iv: IntervalValue) canonicalize() -> IntervalValue {
+  var out = iv
+  var total_months = iv.years * 12 + iv.months
+  out.years = total_months / 12
+  total_months -= out.years * 12
+  out.months = total_months % 12
+  var total = iv.hours * 3600 * 1000000000 + iv.minutes * 60 * 1000000000 + iv.seconds * 1000000000 + iv.sub_second_nanos
+  out.hours = total / 60 / 60 / 1000000000
+  total -= out.hours * 3600 * 1000000000
+  out.minutes = total / 60 / 1000000000
+  total -= out.minutes * 60 * 1000000000
+  out.seconds = total / 1000000000
+  total -= out.seconds * 1000000000
+  out.sub_second_nanos = total
+  out
+}
+
+/// Whether the interval is in canonical form (Go's IsCanonical).
+pub fn (iv: IntervalValue) is_canonical() -> Bool {
+  if !same_sign(iv.years, iv.months) || !same_sign(iv.hours, iv.minutes) {
+    return false
+  }
+  iv.months.abs() <= 12 && iv.minutes.abs() <= 60 && iv.seconds.abs() <= 60 && iv.sub_second_nanos.abs() <= 1000000000
+}
+
+/// s without the copies of sep at its start.
+fn trim_lead(s0: Str, sep: Str) -> Str {
+  var s = s0
+  while s.starts_with(sep) {
+    s = s[1..s.len()]
+  }
+  s
+}
+
+fn same_sign(a: Int, b: Int) -> Bool { !((a > 0 && b < 0) || (a < 0 && b > 0)) }

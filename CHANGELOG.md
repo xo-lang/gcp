@@ -24,6 +24,15 @@ touches. Release notes: [docs/releases](docs/releases).
   `codegen/services.toml` gains `go_dir` (Go's path) beside `dir` (the
   module); generated files other than `xo.mod` are unchanged. The old
   paths keep their v0.1.0 tags.
+- `bigquery` (decision 0011 step 2a): row values. `Value` (every field
+  type but NUMERIC and BIGNUMERIC, which wait for std/big's BigRat),
+  `DateTime`, `RangeValue`, `IntervalValue` (`parse_interval`,
+  `display`, `canonicalize`, `to_duration`, `interval_from_duration`),
+  `load_map`, `ValueSaver` and `ValuesSaver`, `row_json`,
+  `civil_time_string` and `civil_date_time_string`, and query
+  parameters (`QueryParameter`, `Param`, `QueryParameterValue`,
+  `to_json`). 39 Go oracle cases; Go's interval and civil string bugs
+  are not ported (decision 0011).
 - `bigquery` (decision 0011 step 1): a hand-written client over
   `bigquery/v2`: `new_client`, datasets, tables, routines and models
   (metadata, create, update with an etag, delete, listings), access

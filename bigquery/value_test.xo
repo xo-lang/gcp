@@ -1,0 +1,287 @@
+// Step 2 (values): each case does what the Go oracle's case does
+// (~/xo-lead/notes/aws-43/bigqueryvals/main.go) and prints the same
+// lines; value_want_test.xo holds Go's lines, generated from its output.
+
+use std/json
+use std/time
+use github.com/xo-lang/gcp/bigquery/apiv2 as raw
+
+fn show_f(f: Float) -> Str {
+  if f.is_nan() {
+    return "NaN"
+  }
+  if f.is_inf() {
+    return if f > 0.0 { "+Inf" } else { "-Inf" }
+  }
+  f.to_general(-1)
+}
+
+fn show_time(t: time.ClockTime) -> Str { "${t.hour}:${t.minute}:${t.second}.${t.nanos}" }
+
+fn show_date(d: time.Date) -> Str { "${d.year}-${d.month}-${d.day}" }
+
+fn show_iv(iv: IntervalValue) -> Str { "interval ${iv.years} ${iv.months} ${iv.days} ${iv.hours} ${iv.minutes} ${iv.seconds} ${iv.sub_second_nanos}" }
+
+/// Go's show(): a value's kind and contents.
+fn show(v: Value) -> Str {
+  match v {
+    Null => "null"
+    Str(s) => "str ${s.quote()}"
+    Bytes(b) => "bytes ${b.to_str_lossy().quote()}"
+    Int(n) => "int ${n}"
+    Float(f) => "float ${show_f(f)}"
+    Bool(b) => "bool ${b}"
+    Timestamp(t) => "ts ${t.unix_micros()} UTC"
+    Date(d) => "date ${show_date(d)}"
+    Time(t) => "time ${show_time(t)}"
+    DateTime(dt) => "datetime ${show_date(dt.date)} ${show_time(dt.time)}"
+    Interval(iv) => show_iv(iv)
+    Range(r) => "range(${show(r.start)}, ${show(r.end)})"
+    List(items) => "[${items.map(show).join(", ")}]"
+    Map(m) => "{${m.keys().sort().map(fn(k) -> Str { "${k}: ${show(m.get_or_fault(k, "a key"))}" }).join(", ")}}"
+  }
+}
+
+fn field(name: Str, typ: Str) -> Str { "{\"name\":${name.quote()},\"type\":${typ.quote()}}" }
+
+fn fields(fs: List[Str]) -> Str { "{\"fields\":[${fs.join(",")}]}" }
+
+fn cells(vs: List[Str]) -> Str { "{\"f\":[${vs.map(fn(v) -> Str { "{\"v\":${v}}" }).join(",")}]}" }
+
+fn rows(rs: List[Str]) -> Str { "{\"totalRows\":\"${rs.len()}\",\"rows\":[${rs.join(",")}]}" }
+
+/// Go's read(): the rows converted under the schema, each as its values
+/// or (as_map) a map, then "done", or the first error.
+fn read(var out: List[Str], schema: Str, rows_json: Str, as_map: Bool) {
+  let s = schema_of(Some(json.decode_str[raw.TableSchema](schema) ?? e => fault("schema: ${e}")))
+  let data = json.decode_str[raw.TableDataList](rows_json) ?? e => fault("rows: ${e}")
+  for r in data.rows {
+    match convert_row(r, s) {
+      Ok(vs) => {
+        if as_map {
+          let m = load_map(vs, s) ?? e => fault("${e}")
+          out.push("  row ${show(Value.Map(m))}")
+        } else {
+          out.push("  row ${show(Value.List(vs))}")
+        }
+      }
+      Err(e) => {
+        out.push("  error ${e}")
+        return
+      }
+    }
+  }
+  out.push("  done")
+}
+
+fn scalar(var out: List[Str], typ: Str, vals: List[Str]) {
+  for v in vals {
+    out.push("  cell ${typ} ${v}")
+    read(out, fields([field("x", typ)]), rows([cells([v])]), false)
+  }
+}
+
+fn save(var out: List[Str], s: ValuesSaver) {
+  match s.save() {
+    Ok((m, id)) => {
+      let j = match row_json(m) {
+        Ok(x) => "json ${x}"
+        Err(e) => "error ${e}"
+      }
+      out.push("  id ${id.quote()} ${j}")
+    }
+    Err(e) => out.push("  error ${e}")
+  }
+}
+
+fn param(var out: List[Str], name: Str, v: Param) {
+  let p = QueryParameter{name: name, value: v}
+  match p.to_json() {
+    Ok(j) => out.push("  param [${j.encode()}]")
+    Err(e) => out.push("  error ${e}")
+  }
+}
+
+fn cd(y: Int, m: Int, day: Int) -> time.Date { time.Date{year: y, month: m, day: day} }
+
+fn ct(h: Int, m: Int, s: Int, n: Int) -> time.ClockTime { time.ClockTime{hour: h, minute: m, second: s, nanos: n} }
+
+fn fs(name: Str, typ: Str) -> FieldSchema { FieldSchema{name: name, type_: typ} }
+
+fn sql(kind: Str) -> StandardSqlDataType { StandardSqlDataType{type_kind: kind} }
+
+/// The lines of the case, as the Go oracle prints them.
+fn run_case(name: Str) -> List[Str] {
+  var out: List[Str] = []
+  let rec = "{\"name\":\"r\",\"type\":\"RECORD\",\"fields\":[${field("a", "STRING")},${field("b", "INTEGER")}]}"
+  let rrec = "{\"name\":\"r\",\"type\":\"RECORD\",\"mode\":\"REPEATED\",\"fields\":[${field("a", "STRING")}]}"
+  let rg = fn(et: Str) -> Str { "{\"name\":\"g\",\"type\":\"RANGE\",\"rangeElementType\":{\"type\":\"${et}\"}}" }
+  match name {
+    "scalar STRING" => scalar(out, "STRING", ["\"abc\"", "\"\"", "null"])
+    "scalar BYTES" => scalar(out, "BYTES", ["\"aGk=\"", "\"\"", "\"!!\""])
+    "scalar INTEGER" => scalar(out, "INTEGER", ["\"42\"", "\"-9223372036854775808\"", "\"9223372036854775808\"", "\"1.5\""])
+    "scalar INT64" => scalar(out, "INT64", ["\"7\""])
+    "scalar FLOAT" => scalar(out, "FLOAT", ["\"1.5\"", "\"-0.25\"", "\"1e10\"", "\"NaN\"", "\"Infinity\"", "\"-Infinity\"", "\"x\""])
+    "scalar BOOLEAN" => scalar(out, "BOOLEAN", ["\"true\"", "\"false\"", "\"1\"", "\"T\"", "\"yes\""])
+    "scalar TIMESTAMP" => scalar(out, "TIMESTAMP", ["\"1700000000123456\"", "\"0\"", "\"-1\"", "\"1.7e9\"", "\"-62135596800000000\"", "\"253402300799999999\""])
+    "scalar DATE" => scalar(out, "DATE", ["\"2026-11-11\"", "\"0001-01-01\"", "\"2026-1-2\"", "\"2026-13-01\""])
+    "scalar TIME" => scalar(out, "TIME", ["\"03:04:05\"", "\"23:59:59.999999\"", "\"03:04:05.1\"", "\"24:00:00\""])
+    "scalar DATETIME" => scalar(out, "DATETIME", ["\"2026-11-11T03:04:05\"", "\"2026-11-11T03:04:05.000006\"", "\"2026-11-11 03:04:05\""])
+    "scalar GEOGRAPHY JSON" => {
+      scalar(out, "GEOGRAPHY", ["\"POINT(1 2)\""])
+      scalar(out, "JSON", ["\"{\\\"a\\\":1}\""])
+    }
+    "scalar INTERVAL" => scalar(out, "INTERVAL", ["\"1-2 3 4:5:6.5\"", "\"-1-2 -3 -4:5:6\"", "\"0-0 0 0:0:0\"", "\"bad\""])
+    "scalar unknown type" => scalar(out, "WIBBLE", ["\"1\""])
+    "cell not a string" => scalar(out, "INTEGER", ["5", "true"])
+    "repeated" => read(out, fields(["{\"name\":\"xs\",\"type\":\"INTEGER\",\"mode\":\"REPEATED\"}"]), rows([cells(["[{\"v\":\"1\"},{\"v\":\"2\"}]"]), cells(["[]"])]), false)
+    "record" => read(out, fields([rec, field("n", "BOOLEAN")]), rows([cells(["{\"f\":[{\"v\":\"x\"},{\"v\":\"3\"}]}", "\"true\""]), cells(["null", "null"])]), false)
+    "record as map" => read(out, fields([rec, field("n", "BOOLEAN")]), rows([cells(["{\"f\":[{\"v\":\"x\"},{\"v\":null}]}", "\"true\""]), cells(["null", "null"])]), true)
+    "repeated record" => read(out, fields([rrec]), rows([cells(["[{\"v\":{\"f\":[{\"v\":\"p\"}]}},{\"v\":{\"f\":[{\"v\":\"q\"}]}}]"])]), false)
+    "repeated record as map" => read(out, fields([rrec]), rows([cells(["[{\"v\":{\"f\":[{\"v\":\"p\"}]}},{\"v\":{\"f\":[{\"v\":\"q\"}]}}]"]), cells(["[]"])]), true)
+    "record length mismatch" => read(out, fields([rec]), rows([cells(["{\"f\":[{\"v\":\"x\"}]}"])]), false)
+    "row length mismatch" => read(out, fields([field("a", "STRING"), field("b", "STRING")]), rows([cells(["\"x\""])]), false)
+    "range" => {
+      read(out, fields([rg("DATE")]), rows([cells(["\"[2026-01-01, 2026-02-01)\""]), cells(["\"[UNBOUNDED, 2026-02-01)\""]), cells(["\"[2026-01-01, UNBOUNDED)\""]), cells(["null"])]), false)
+      read(out, fields([rg("DATETIME")]), rows([cells(["\"[2026-01-01T01:02:03, UNBOUNDED)\""])]), false)
+      read(out, fields([rg("TIMESTAMP")]), rows([cells(["\"[1700000000000000, 1700000000000001)\""])]), false)
+    }
+    "range bad" => {
+      read(out, fields([rg("INTEGER")]), rows([cells(["\"[1, 2)\""])]), false)
+      read(out, fields([rg("DATE")]), rows([cells(["\"(2026-01-01, 2026-02-01)\""])]), false)
+      read(out, fields([rg("DATE")]), rows([cells(["\"[2026-01-01,2026-02-01)\""])]), false)
+      read(out, fields([rg("DATE")]), rows([cells(["\"[x, 2026-02-01)\""])]), false)
+      read(out, fields([rg("DATE")]), rows([cells(["\"[2026-01-01, y)\""])]), false)
+      read(out, fields(["{\"name\":\"g\",\"type\":\"RANGE\"}"]), rows([cells(["\"[2026-01-01, 2026-02-01)\""])]), false)
+    }
+    "range repeated" => read(out, fields(["{\"name\":\"g\",\"type\":\"RANGE\",\"mode\":\"REPEATED\",\"rangeElementType\":{\"type\":\"DATE\"}}"]), rows([cells(["[{\"v\":\"[2026-01-01, 2026-02-01)\"},{\"v\":null}]"])]), false)
+    "civil strings" => {
+      for t in [ct(3, 4, 5, 0), ct(3, 4, 5, 6000), ct(3, 4, 5, 1499), ct(3, 4, 5, 999999500), ct(23, 59, 59, 123456789)] {
+        out.push("  time ${show_time(t)}: ${civil_time_string(t)}")
+      }
+      for dt in [DateTime{date: cd(2026, 11, 11), time: ct(3, 4, 5, 7000)}, DateTime{date: cd(7, 1, 2), time: ct(0, 0, 0, 0)}] {
+        out.push("  datetime ${show_date(dt.date)} ${show_time(dt.time)}: ${civil_date_time_string(dt)}")
+      }
+    }
+    "interval parse" => {
+      for s in ["1-2 3 4:5:6.5", "-1-2 -3 -4:5:6.000001", "0-0 0 0:0:0", "+1-2 +3 +4:5:6", "1-14 3 4:75:6", "10-0 0 0:0:0.123456789", "1-2 3", "1-2 3 4:5", "", "x-2 3 4:5:6", "1-2 3 4:5:6.", "99999999999-0 0 0:0:0", "-0-5 0 0:0:0", "0-0 0 -0:30:0", "1-2 3 4:5:6  "] {
+        match parse_interval(s) {
+          Ok(iv) => out.push("  parse ${s.quote()}: ${show_iv(iv)} canonical ${iv.is_canonical()} string ${iv.display().quote()} canon ${show_iv(iv.canonicalize())}")
+          Err(e) => out.push("  parse ${s.quote()}: error ${e}")
+        }
+      }
+    }
+    "interval values" => {
+      for iv in [IntervalValue{years: 1, months: -2}, IntervalValue{months: 25}, IntervalValue{months: -25}, IntervalValue{hours: 1, minutes: -30}, IntervalValue{minutes: 125, seconds: 70}, IntervalValue{seconds: -61, sub_second_nanos: -500}, IntervalValue{days: 400, hours: 30}, IntervalValue{sub_second_nanos: 1500000000}, IntervalValue{months: -5}, IntervalValue{minutes: -30}] {
+        out.push("  ${show_iv(iv)}: canonical ${iv.is_canonical()} string ${iv.display().quote()} canon ${show_iv(iv.canonicalize())}")
+      }
+    }
+    "interval durations" => {
+      for x in [0ns, 1h + 2m + 3s + 4ns, -(25h + 1ns), 90m] {
+        out.push("  from ${x.nanos()}: ${show_iv(interval_from_duration(x))}")
+      }
+      for iv in [IntervalValue{years: 1}, IntervalValue{months: 1, days: 1, hours: 1, minutes: 1, seconds: 1}, IntervalValue{days: -2}, IntervalValue{seconds: 1, sub_second_nanos: 1}, IntervalValue{sub_second_nanos: 500000000}] {
+        out.push("  to ${show_iv(iv)}: ${iv.to_duration().nanos()}")
+      }
+    }
+    "values saver" => {
+      let sch = [fs("s", STRING_FIELD_TYPE), fs("i", INTEGER_FIELD_TYPE), fs("f", FLOAT_FIELD_TYPE), fs("b", BOOLEAN_FIELD_TYPE), fs("y", BYTES_FIELD_TYPE)]
+      save(out, ValuesSaver{schema: sch, insert_id: "id1", row: [Value.Str("a\"<b>"), Value.Int(-3), Value.Float(1.25), Value.Bool(true), Value.Bytes(b"hi")]})
+      save(out, ValuesSaver{schema: sch, row: [Value.Null, Value.Null, Value.Null, Value.Null, Value.Null]})
+      save(out, ValuesSaver{schema: sch, row: [Value.Str("a")]})
+      save(out, ValuesSaver{schema: [fs("f", FLOAT_FIELD_TYPE)], row: [Value.Float(Float.parse("NaN") ?? 0.0)]})
+      save(out, ValuesSaver{schema: [fs("f", FLOAT_FIELD_TYPE)], row: [Value.Float(1e21)]})
+    }
+    "values saver civil" => {
+      let tsch = [fs("ts", TIMESTAMP_FIELD_TYPE), fs("d", DATE_FIELD_TYPE), fs("t", TIME_FIELD_TYPE), fs("dt", DATE_TIME_FIELD_TYPE), fs("iv", INTERVAL_FIELD_TYPE), fs("g", GEOGRAPHY_FIELD_TYPE), fs("j", JSON_FIELD_TYPE)]
+      save(out, ValuesSaver{schema: tsch, row: [Value.Timestamp(Time.from_unix_micros(1700000000123456)), Value.Date(cd(2026, 11, 11)), Value.Time(ct(3, 4, 5, 6000)), Value.DateTime(DateTime{date: cd(2026, 1, 2), time: ct(3, 4, 5, 0)}), Value.Interval(IntervalValue{years: 1, months: 2, days: 3, hours: 4, minutes: 5, seconds: 6}), Value.Str("POINT(1 2)"), Value.Str("{\"a\":1}")]})
+      save(out, ValuesSaver{schema: tsch, row: [Value.Timestamp(Time.from_unix(0)), Value.Date(cd(1, 1, 1)), Value.Time(ct(0, 0, 0, 0)), Value.DateTime(DateTime{date: cd(0, 0, 0), time: ct(0, 0, 0, 0)}), Value.Interval(IntervalValue{months: 25}), Value.Str(""), Value.Str("")]})
+    }
+    "values saver repeated" => {
+      let rsch = [FieldSchema{name: "xs", type_: INTEGER_FIELD_TYPE, repeated: true}, FieldSchema{name: "ts", type_: TIME_FIELD_TYPE, repeated: true}, FieldSchema{name: "e", type_: STRING_FIELD_TYPE, repeated: true}]
+      save(out, ValuesSaver{schema: rsch, row: [Value.List([Value.Int(1), Value.Int(2)]), Value.List([Value.Time(ct(1, 0, 0, 0)), Value.Time(ct(2, 0, 0, 1000))]), Value.List([])]})
+      save(out, ValuesSaver{schema: rsch, row: [Value.List([]), Value.List([]), Value.Null]})
+    }
+    "values saver record" => {
+      let recsch = [FieldSchema{name: "r", type_: RECORD_FIELD_TYPE, schema: [fs("a", STRING_FIELD_TYPE), fs("t", TIME_FIELD_TYPE)]}, FieldSchema{name: "rr", type_: RECORD_FIELD_TYPE, repeated: true, schema: [fs("b", INTEGER_FIELD_TYPE)]}]
+      save(out, ValuesSaver{schema: recsch, row: [Value.List([Value.Str("x"), Value.Time(ct(9, 0, 0, 0))]), Value.List([Value.List([Value.Int(1)]), Value.List([Value.Int(2)])])]})
+      save(out, ValuesSaver{schema: recsch, row: [Value.Null, Value.List([])]})
+      save(out, ValuesSaver{schema: recsch, row: [Value.List([Value.Str("x")]), Value.Null]})
+      save(out, ValuesSaver{schema: recsch, row: [Value.Str("notrecord"), Value.Null]})
+      save(out, ValuesSaver{schema: recsch, row: [Value.Null, Value.List([Value.Str("notrecord")])]})
+    }
+    "values saver range" => save(out, ValuesSaver{schema: [FieldSchema{name: "g", type_: RANGE_FIELD_TYPE, range_element_type: Some(RangeElementType{type_: DATE_FIELD_TYPE})}], row: [Value.Range(RangeValue{start: Value.Date(cd(2026, 1, 1))})]})
+    "params scalar" => {
+      param(out, "i", Param.Int(-5))
+      param(out, "f", Param.Float(1.5))
+      param(out, "b", Param.Bool(false))
+      param(out, "s", Param.Str("x"))
+      param(out, "e", Param.Str(""))
+      param(out, "y", Param.Bytes(b"hi"))
+      param(out, "ts", Param.Timestamp(Time.from_unix_micros(1700000000123456)))
+      param(out, "ts2", Param.Timestamp(Time.from_unix(1767323045 + 7 * 3600)))
+      param(out, "d", Param.Date(cd(2026, 11, 11)))
+      param(out, "t", Param.Time(ct(3, 4, 5, 6000)))
+      param(out, "dt", Param.DateTime(DateTime{date: cd(2026, 1, 2), time: ct(3, 0, 0, 0)}))
+      param(out, "iv", Param.Interval(IntervalValue{years: 1, months: 2, days: 3, hours: 4, minutes: 5, seconds: 6}))
+    }
+    "params null" => {
+      param(out, "ni", Param.Null("INT64"))
+      param(out, "ni5", Param.Int(5))
+      param(out, "ns", Param.Null("STRING"))
+      param(out, "nse", Param.Str(""))
+      param(out, "nf", Param.Null("FLOAT64"))
+      param(out, "nb", Param.Null("BOOL"))
+      param(out, "ng", Param.Geography("POINT(1 2)"))
+      param(out, "nj", Param.Null("JSON"))
+      param(out, "nts", Param.Null("TIMESTAMP"))
+      param(out, "nd", Param.Date(cd(2026, 1, 2)))
+      param(out, "nt", Param.Null("TIME"))
+      param(out, "ndt", Param.Null("DATETIME"))
+    }
+    "params array" => {
+      param(out, "a", Param.Array(elem: sql("INT64"), items: [Param.Int(1), Param.Int(2)]))
+      param(out, "ae", Param.Array(elem: sql("STRING"), items: []))
+      param(out, "aa", Param.Array(elem: sql("STRING"), items: [Param.Str("x"), Param.Null("STRING")]))
+    }
+    "params struct" => param(out, "st", Param.Struct([("A", Param.Int(1)), ("I", Param.Struct([("B", Param.Str("z"))])), ("L", Param.Array(elem: sql("FLOAT64"), items: [Param.Float(0.5)]))]))
+    "params range" => {
+      param(out, "r", Param.Range(start: Some(Param.Date(cd(2026, 1, 1))), end: Some(Param.Date(cd(2026, 2, 1)))))
+      param(out, "ru", Param.Range(start: None, end: Some(Param.Timestamp(Time.from_unix(1700000000)))))
+      param(out, "rn", Param.Range(start: None, end: None))
+    }
+    "params explicit" => {
+      param(out, "x", Param.Explicit(QueryParameterValue{type_: sql("BIGNUMERIC"), value: Some(Param.Str("1.5"))}))
+      param(out, "xa", Param.Explicit(QueryParameterValue{type_: StandardSqlDataType{array_element_type: Some(sql("STRING"))}, array_value: [QueryParameterValue{value: Some(Param.Str("a"))}, QueryParameterValue{value: Some(Param.Str("b"))}]}))
+      param(out, "xs", Param.Explicit(QueryParameterValue{type_: StandardSqlDataType{struct_type: Some(StandardSqlStructType{fields: [StandardSqlField{name: "n", type_: Some(sql("INT64"))}]})}, struct_value: {"n": QueryParameterValue{value: Some(Param.Int(42))}}}))
+    }
+    _ => fault("no case ${name}")
+  }
+  out
+}
+
+/// Whether got is the line Go printed; a want ending "error ~" takes any
+/// error (std's text where Go's comes from strconv, time or base64).
+fn line_ok(got: Str, want: Str) -> Bool {
+  if let Some(p) = want.cut_suffix("error ~") {
+    return got.starts_with("${p}error ")
+  }
+  got == want
+}
+
+fn check_case(name: Str) -> () ! Str {
+  let got = run_case(name)
+  let want = want_lines(name)
+  var diffs: List[Str] = []
+  for i in 0..got.len().max(want.len()) {
+    let g = if i < got.len() { got[i] } else { "<none>" }
+    let w = if i < want.len() { want[i] } else { "<none>" }
+    if !line_ok(g, w) {
+      diffs.push("line ${i}:\n  got  ${g}\n  want ${w}")
+    }
+  }
+  if !diffs.is_empty() {
+    return Err("${name}:\n${diffs.join("\n")}")
+  }
+  Ok(())
+}

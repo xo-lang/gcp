@@ -1,0 +1,628 @@
+// Row values (value.go, rangevalue.go, nulls.go): the API's row cells
+// to Values under a schema, Values to the JSON a streaming insert sends,
+// the civil time strings, and the loader and saver interfaces. Go loads
+// a row into a struct by reflection; Xo has none (decision 0011): a
+// user type implements ValueLoader or ValueSaver by hand.
+
+use std/base64
+use std/json
+use std/time
+use github.com/xo-lang/gcp/bigquery/apiv2 as raw
+
+/// A value of a row (Go's Value, an `any` holding one of these).
+pub enum Value {
+  /// SQL NULL (Go's nil).
+  Null
+  /// STRING, GEOGRAPHY and JSON.
+  Str(s: Str)
+  /// BYTES.
+  Bytes(b: Bytes)
+  /// INTEGER.
+  Int(n: Int)
+  /// FLOAT.
+  Float(f: Float)
+  /// BOOLEAN.
+  Bool(b: Bool)
+  /// TIMESTAMP: an instant (Go's time.Time in UTC).
+  Timestamp(t: Time)
+  /// DATE (Go's civil.Date).
+  Date(d: time.Date)
+  /// TIME (Go's civil.Time).
+  Time(t: time.ClockTime)
+  /// DATETIME (Go's civil.DateTime).
+  DateTime(dt: DateTime)
+  /// INTERVAL (Go's *IntervalValue).
+  Interval(iv: IntervalValue)
+  /// RANGE (Go's *RangeValue).
+  Range(r: RangeValue)
+  /// A repeated field's values, or a record's values in schema order
+  /// (Go's []Value, used for both).
+  List(items: List[Value])
+  /// A record by field name: what ValueMap loads and a ValueSaver saves
+  /// (Go's map[string]Value).
+  Map(fields: Map[Str, Value])
+}
+
+/// A date and a wall clock time (Go's civil.DateTime).
+pub struct DateTime {
+  pub date: time.Date
+  pub time: time.ClockTime
+}
+
+/// A RANGE value; Null is an unbounded end (Go's RangeValue).
+pub struct RangeValue {
+  pub start: Value = Value.Null
+  pub end: Value = Value.Null
+}
+
+/// The insert id that asks for no deduplication (Go's NoDedupeID).
+pub const NO_DEDUPE_ID: Str = "NoDedupeID"
+
+/// The digits a NUMERIC holds and the digits after its point (Go's
+/// NumericPrecisionDigits and NumericScaleDigits), and BIGNUMERIC's.
+pub const NUMERIC_PRECISION_DIGITS: Int = 38
+pub const NUMERIC_SCALE_DIGITS: Int = 9
+pub const BIG_NUMERIC_PRECISION_DIGITS: Int = 76
+pub const BIG_NUMERIC_SCALE_DIGITS: Int = 38
+
+/// A row as a map by field name, a record as a map of its fields and a
+/// repeated record as a list of them (Go's map[string]Value as a
+/// ValueLoader). Go's ValueLoader is an interface whose Load fills its
+/// receiver; an Xo interface method cannot change its receiver, so a
+/// loader is a function `fn(List[Value], Schema) -> T ! BqErr` that the
+/// row iterator calls (decision 0011), and []Value is the row itself.
+pub fn load_map(vals: List[Value], s: Schema) -> Map[Str, Value] ! BqErr { Ok(map_of(vals, s)) }
+
+/// Go's loadMap: each field by name; a record is a map of its fields, a
+/// repeated record a list of them.
+fn map_of(vals: List[Value], s: Schema) -> Map[Str, Value] {
+  var m: Map[Str, Value] = {}
+  for i in 0..s.len() {
+    let f = s[i]
+    let val = if i < vals.len() { vals[i] } else { Value.Null }
+    if f.type_ != RECORD_FIELD_TYPE {
+      m[f.name] = val
+      continue
+    }
+    m[f.name] = match val {
+      List(items) => if f.repeated {
+        Value.List(items.map(fn(e) -> Value {
+          match e {
+            List(rec) => Value.Map(map_of(rec, f.schema))
+            _ => e
+          }
+        }))
+      } else {
+        Value.Map(map_of(items, f.schema))
+      }
+      _ => val
+    }
+  }
+  m
+}
+
+/// A row a streaming insert sends (Go's ValueSaver): the values by field
+/// name and the insert id ("" for a random one, NO_DEDUPE_ID for none).
+pub interface ValueSaver {
+  fn save(self) -> (Map[Str, Value], Str) ! BqErr
+}
+
+/// Values in schema order as a ValueSaver (Go's ValuesSaver).
+pub struct ValuesSaver {
+  pub schema: Schema
+  pub insert_id: Str = ""
+  pub row: List[Value]
+}
+
+pub fn (s: ValuesSaver) save() -> (Map[Str, Value], Str) ! BqErr {
+  Ok((values_to_map(s.row, s.schema)?, s.insert_id))
+}
+
+/// Go's valuesToMap: each value under its field's name, a record's values
+/// as a map, a repeated record's as a list of maps.
+fn values_to_map(vs: List[Value], schema: Schema) -> Map[Str, Value] ! BqErr {
+  if vs.len() != schema.len() {
+    return Err(BqErr.Invalid("schema does not match length of row to be inserted"))
+  }
+  var m: Map[Str, Value] = {}
+  for i in 0..schema.len() {
+    let f = schema[i]
+    let v = vs[i]
+    if v == Value.Null {
+      m[f.name] = Value.Null
+      continue
+    }
+    if f.type_ != RECORD_FIELD_TYPE {
+      m[f.name] = to_upload_value(v, f)
+      continue
+    }
+    let vals = match v {
+      List(items) => items
+      _ => return Err(BqErr.Invalid("nested record is not a []Value"))
+    }
+    if !f.repeated {
+      m[f.name] = Value.Map(values_to_map(vals, f.schema)?)
+      continue
+    }
+    var maps: List[Value] = []
+    for e in vals {
+      match e {
+        List(rec) => maps.push(Value.Map(values_to_map(rec, f.schema)?))
+        _ => return Err(BqErr.Invalid("nested record in slice is not a []Value"))
+      }
+    }
+    m[f.name] = Value.List(maps)
+  }
+  Ok(m)
+}
+
+/// Go's toUploadValue: a TIME or DATETIME as its BigQuery string, each of
+/// a repeated one too (none: Null); an INTERVAL as its string (Go sends
+/// the struct's fields, decision 0011); any other value as it is.
+fn to_upload_value(v: Value, f: FieldSchema) -> Value {
+  let cvt = fn(x: Value) -> Value {
+    match x {
+      Time(t) => Value.Str(civil_time_string(t))
+      DateTime(dt) => Value.Str(civil_date_time_string(dt))
+      Interval(iv) => Value.Str(iv.display())
+      _ => x
+    }
+  }
+  if f.type_ != TIME_FIELD_TYPE && f.type_ != DATE_TIME_FIELD_TYPE && f.type_ != INTERVAL_FIELD_TYPE {
+    return v
+  }
+  if !f.repeated {
+    return cvt(v)
+  }
+  match v {
+    List(items) => if items.is_empty() { Value.Null } else { Value.List(items.map(cvt)) }
+    _ => cvt(v)
+  }
+}
+
+/// A saved row as the JSON object a streaming insert sends (Go's
+/// encoding/json of the map: keys sorted, < > & escaped). NaN and the
+/// infinities are refused as encoding/json refuses them.
+pub fn row_json(row: Map[Str, Value]) -> Str ! BqErr {
+  var b = StrBuilder.new()
+  write_json(b, Value.Map(row))?
+  Ok(b.freeze())
+}
+
+fn write_json(var b: StrBuilder, v: Value) -> () ! BqErr {
+  match v {
+    Null => b.write("null")
+    Str(s) => b.write(go_quote(s))
+    Bytes(x) => b.write(go_quote(base64.encode(x)))
+    Int(n) => b.write("${n}")
+    Float(f) => b.write(go_json_float(f)?)
+    Bool(x) => b.write(if x { "true" } else { "false" })
+    Timestamp(t) => b.write(go_quote(rfc3339_nano(t)))
+    Date(d) => b.write(go_quote(date_string(d)))
+    Time(t) => b.write(go_quote(clock_string(t)))
+    DateTime(dt) => b.write(go_quote("${date_string(dt.date)}T${clock_string(dt.time)}"))
+    Interval(iv) => b.write(go_quote(iv.display()))
+    Range(r) => {
+      b.write("{\"start\":")
+      write_json(b, r.start)?
+      b.write(",\"end\":")
+      write_json(b, r.end)?
+      b.write("}")
+    }
+    List(items) => {
+      b.write("[")
+      for i in 0..items.len() {
+        if i > 0 {
+          b.write(",")
+        }
+        write_json(b, items[i])?
+      }
+      b.write("]")
+    }
+    Map(fields) => {
+      b.write("{")
+      var first = true
+      for k in fields.keys().sort() {
+        if !first {
+          b.write(",")
+        }
+        first = false
+        b.write(go_quote(k))
+        b.write(":")
+        write_json(b, fields.get_or_fault(k, "k is one of the keys"))?
+      }
+      b.write("}")
+    }
+  }
+  Ok(())
+}
+
+const HEX: Str = "0123456789abcdef"
+
+/// s as encoding/json writes a string: \" \\ \n \r \t, other control
+/// characters, < > & and U+2028/U+2029 as \u escapes.
+fn go_quote(s: Str) -> Str {
+  var b = StrBuilder.new()
+  b.write("\"")
+  for r in s.runes() {
+    let c = Int(r)
+    if c == 0x22 {
+      b.write("\\\"")
+    } else if c == 0x5c {
+      b.write("\\\\")
+    } else if c == 0x0a {
+      b.write("\\n")
+    } else if c == 0x0d {
+      b.write("\\r")
+    } else if c == 0x09 {
+      b.write("\\t")
+    } else if c < 0x20 || c == 0x3c || c == 0x3e || c == 0x26 {
+      b.write("\\u00${HEX[c / 16..c / 16 + 1]}${HEX[c % 16..c % 16 + 1]}")
+    } else if c == 0x2028 || c == 0x2029 {
+      b.write("\\u${c.to_str_base(16)}")
+    } else {
+      b.write("${r}")
+    }
+  }
+  b.write("\"")
+  b.freeze()
+}
+
+/// f as encoding/json writes a float64: the shortest digits, in exponent
+/// form below 1e-6 and from 1e21 (e-07 written e-7).
+fn go_json_float(f: Float) -> Str ! BqErr {
+  if f.is_nan() {
+    return Err(BqErr.Invalid("json: unsupported value: NaN"))
+  }
+  if f.is_inf() {
+    return Err(BqErr.Invalid("json: unsupported value: ${if f > 0.0 { "+Inf" } else { "-Inf" }}"))
+  }
+  let a = f.abs()
+  if a != 0.0 && (a < 0.000001 || a >= 1e21) {
+    let s = f.to_exp(-1)
+    // Go's encoding/json cleans e-09 to e-9
+    if let Some((m, e)) = s.cut("e-0") {
+      return Ok("${m}e-${e}")
+    }
+    return Ok(s)
+  }
+  Ok(f.to_fixed(-1))
+}
+
+/// t in UTC as Go's time.RFC3339Nano: the fraction's trailing zeros cut.
+fn rfc3339_nano(t: Time) -> Str {
+  let c = time.civil(t, time.utc())
+  "${date_string(c.date)}T${two(c.time.hour)}:${two(c.time.minute)}:${two(c.time.second)}${fraction(c.time.nanos, 9)}Z"
+}
+
+/// "." and the first digits of nanos (of 9), trailing zeros cut; "" for
+/// none (Go's .999999999 layouts).
+fn fraction(nanos: Int, digits: Int) -> Str {
+  var n = nanos
+  for _ in 0..(9 - digits) {
+    n = n / 10
+  }
+  if n == 0 {
+    return ""
+  }
+  var s = n.to_str_width(digits, zero: true)
+  while s.ends_with("0") {
+    s = s[0..s.len() - 1]
+  }
+  ".${s}"
+}
+
+fn two(n: Int) -> Str { n.to_str_width(2, zero: true) }
+
+/// civil.Date's String: YYYY-MM-DD.
+fn date_string(d: time.Date) -> Str { "${d.year.to_str_width(4, zero: true)}-${two(d.month)}-${two(d.day)}" }
+
+/// civil.Time's String: HH:MM:SS, and nine fraction digits when there are
+/// nanoseconds.
+fn clock_string(t: time.ClockTime) -> Str {
+  let s = "${two(t.hour)}:${two(t.minute)}:${two(t.second)}"
+  if t.nanos == 0 { s } else { "${s}.${t.nanos.to_str_width(9, zero: true)}" }
+}
+
+/// A TIME as BigQuery SQL writes it (Go's CivilTimeString): rounded to
+/// the microsecond, six fraction digits when there is one. Go writes a
+/// time within half a microsecond of the next second with seven digits
+/// (".1000000"); here the fraction stops at .999999 (decision 0011).
+pub fn civil_time_string(t: time.ClockTime) -> Str {
+  let s = "${two(t.hour)}:${two(t.minute)}:${two(t.second)}"
+  if t.nanos == 0 {
+    return s
+  }
+  var micro = (t.nanos + 500) / 1000
+  if micro > 999999 {
+    micro = 999999
+  }
+  "${s}.${micro.to_str_width(6, zero: true)}"
+}
+
+/// A DATETIME as BigQuery SQL writes it (Go's CivilDateTimeString): the
+/// date, a space, and civil_time_string.
+pub fn civil_date_time_string(dt: DateTime) -> Str { "${date_string(dt.date)} ${civil_time_string(dt.time)}" }
+
+/// The Ints of digits (one to max of them) at the start of s, and the
+/// rest; None when s does not start with a digit.
+fn digits(s: Str, max: Int) -> (Int, Str)? {
+  var n = 0
+  var i = 0
+  let b = s.bytes()
+  while i < b.len() && i < max && b[i] >= 0x30 && b[i] <= 0x39 {
+    n = n * 10 + Int(b[i]) - 0x30
+    i += 1
+  }
+  if i == 0 {
+    return None
+  }
+  Some((n, s[i..s.len()]))
+}
+
+/// Go's civil.ParseDate and the bigquery fallback (parseCivilDate): four
+/// year digits, then the month and the day in one or two digits each.
+pub fn parse_civil_date(s: Str) -> time.Date ! BqErr {
+  let bad = BqErr.Invalid("bigquery: bad DATE value ${s.quote()}")
+  if s.len() < 4 {
+    return Err(bad)
+  }
+  let (y, r1) = digits(s, 4) ?? return Err(bad)
+  if s.len() - r1.len() != 4 {
+    return Err(bad)
+  }
+  let r2 = r1.cut_prefix("-") ?? return Err(bad)
+  let (m, r3) = digits(r2, 2) ?? return Err(bad)
+  let r4 = r3.cut_prefix("-") ?? return Err(bad)
+  let (d, r5) = digits(r4, 2) ?? return Err(bad)
+  if !r5.is_empty() {
+    return Err(bad)
+  }
+  time.date(y, m, d) ?? e => Err(BqErr.Invalid("bigquery: bad DATE value ${s.quote()}: ${e}"))
+}
+
+/// Go's civil.ParseTime: HH:MM:SS with the hour in one or two digits and
+/// any fraction (digits past nine dropped).
+pub fn parse_civil_time(s: Str) -> time.ClockTime ! BqErr {
+  let bad = BqErr.Invalid("bigquery: bad TIME value ${s.quote()}")
+  let (h, r1) = digits(s, 2) ?? return Err(bad)
+  let r2 = r1.cut_prefix(":") ?? return Err(bad)
+  let (mi, r3) = digits(r2, 2) ?? return Err(bad)
+  if r2.len() - r3.len() != 2 {
+    return Err(bad)
+  }
+  let r4 = r3.cut_prefix(":") ?? return Err(bad)
+  let (sec, r5) = digits(r4, 2) ?? return Err(bad)
+  if r4.len() - r5.len() != 2 {
+    return Err(bad)
+  }
+  var nanos = 0
+  if !r5.is_empty() {
+    let f = r5.cut_prefix(".") ?? r5.cut_prefix(",") ?? return Err(bad)
+    let b = f.bytes()
+    if b.is_empty() {
+      return Err(bad)
+    }
+    var scale = 100000000
+    for c in b {
+      if c < 0x30 || c > 0x39 {
+        return Err(bad)
+      }
+      nanos += (Int(c) - 0x30) * scale
+      scale = scale / 10
+    }
+  }
+  if h > 23 || mi > 59 || sec > 59 {
+    return Err(BqErr.Invalid("bigquery: bad TIME value ${s.quote()}: out of range"))
+  }
+  Ok(time.ClockTime{hour: h, minute: mi, second: sec, nanos: nanos})
+}
+
+/// Go's civil.ParseDateTime: a date with two digit month and day, T (or
+/// t), and a time.
+pub fn parse_civil_date_time(s: Str) -> DateTime ! BqErr {
+  let bad = BqErr.Invalid("bigquery: bad DATETIME value ${s.quote()}")
+  let i = s.find_any("Tt") ?? return Err(bad)
+  if i != 10 {
+    return Err(bad)
+  }
+  let d = parse_civil_date(s[0..10]) ?? _ => return Err(bad)
+  let t = parse_civil_time(s[11..s.len()]) ?? _ => return Err(bad)
+  Ok(DateTime{date: d, time: t})
+}
+
+/// Go's parseCivilDateTime: a date and a time with a space between, as a
+/// DATETIME query parameter and a NullDateTime's JSON write it.
+pub fn parse_sql_date_time(s: Str) -> DateTime ! BqErr {
+  let parts = s.fields()
+  if parts.len() != 2 {
+    return Err(BqErr.Invalid("bigquery: bad DATETIME value ${s.quote()}"))
+  }
+  parse_civil_date_time("${parts[0]}T${parts[1]}")
+}
+
+/// strconv's error for text that is not a number: "value out of range"
+/// for digits that overflow, else "invalid syntax".
+fn num_err(fn_name: Str, s: Str) -> BqErr {
+  let b = s.trim_prefix("-").trim_prefix("+").bytes()
+  var all_digits = !b.is_empty()
+  for c in b {
+    if c < 0x30 || c > 0x39 {
+      all_digits = false
+    }
+  }
+  BqErr.Invalid("strconv.${fn_name}: parsing ${s.quote()}: ${if all_digits { "value out of range" } else { "invalid syntax" }}")
+}
+
+/// Go's strconv.ParseInt(s, 10, 64): no _ between digits.
+fn parse_int(s: Str) -> Int ! BqErr {
+  if s.contains("_") {
+    return Err(num_err("ParseInt", s))
+  }
+  Int.parse(s).or_err(num_err("ParseInt", s))
+}
+
+/// The earliest and latest microsecond a Time holds (1677-09-21 to
+/// 2262-04-11: nanoseconds in an Int).
+const MIN_MICROS: Int = -9223372036854775
+const MAX_MICROS: Int = 9223372036854775
+
+/// Go's convertBasicType: a cell's text as the Value of its field type.
+/// NUMERIC and BIGNUMERIC wait for std/big's BigRat (decision 0011, step
+/// 2b); a TIMESTAMP outside the years 1677 to 2262 is refused (Go's
+/// time.Time holds the years 1 to 9999).
+fn convert_basic(val: Str, typ: Str) -> Value ! BqErr {
+  match typ {
+    "STRING" | "GEOGRAPHY" | "JSON" => Ok(Value.Str(val))
+    "BYTES" => match base64.decode(val) {
+      Ok(b) => Ok(Value.Bytes(b))
+      Err(e) => Err(BqErr.Invalid("${e}"))
+    }
+    "INTEGER" => Ok(Value.Int(parse_int(val)?))
+    "FLOAT" => {
+      if val.contains("_") {
+        return Err(num_err("ParseFloat", val))
+      }
+      Ok(Value.Float(Float.parse(val).or_err(num_err("ParseFloat", val))?))
+    }
+    "BOOLEAN" => Ok(Value.Bool(Bool.parse(val).or_err(BqErr.Invalid("strconv.ParseBool: parsing ${val.quote()}: invalid syntax"))?))
+    "TIMESTAMP" => {
+      let us = parse_int(val)?
+      if us < MIN_MICROS || us > MAX_MICROS {
+        return Err(BqErr.Invalid("bigquery: TIMESTAMP ${val.quote()} is outside the years a Time holds (1677 to 2262)"))
+      }
+      Ok(Value.Timestamp(Time.from_unix_micros(us)))
+    }
+    "DATE" => Ok(Value.Date(parse_civil_date(val)?))
+    "TIME" => Ok(Value.Time(parse_civil_time(val)?))
+    "DATETIME" => Ok(Value.DateTime(parse_civil_date_time(val)?))
+    "NUMERIC" | "BIGNUMERIC" => Err(BqErr.Invalid("bigquery: ${typ} values need std/big's BigRat (decision 0011, step 2b)"))
+    "INTERVAL" => match parse_interval(val) {
+      Ok(iv) => Ok(Value.Interval(iv))
+      Err(_) => Err(BqErr.Invalid("bigquery: invalid INTERVAL value ${val.quote()}"))
+    }
+    _ => Err(BqErr.Invalid("unrecognized type: ${typ}"))
+  }
+}
+
+/// Go's %v of a JSON value that is not a cell's string.
+fn go_print(v: json.Value) -> Str {
+  match v {
+    Bool(b) => if b { "true" } else { "false" }
+    Int(n) => "${n}"
+    Num(f) => f.to_general(-1)
+    _ => v.encode()
+  }
+}
+
+/// A cell's "v" in a repeated field's list or a record's "f" list.
+fn cell_v(c: json.Value) -> json.Value ! BqErr {
+  match c {
+    Object(_) => Ok(c.get("v") ?? json.Value.Null)
+    _ => Err(BqErr.Invalid("bigquery: a cell ${c.encode()} is not an object"))
+  }
+}
+
+/// Go's convertValue: null, a repeated field's list, a record's object,
+/// or a basic value's string.
+fn convert_value(val: json.Value, typ: Str, schema: Schema) -> Value ! BqErr {
+  match val {
+    Null => Ok(Value.Null)
+    List(items) => {
+      var vs: List[Value] = []
+      for c in items {
+        vs.push(convert_value(cell_v(c)?, typ, schema)?)
+      }
+      Ok(Value.List(vs))
+    }
+    Object(_) => {
+      let rec = match val.get("f") {
+        Some(List(cs)) => cs
+        _ => return Err(BqErr.Invalid("bigquery: a record ${val.encode()} has no \"f\" list"))
+      }
+      if rec.len() != schema.len() {
+        return Err(BqErr.Invalid("schema length does not match record length"))
+      }
+      var vs: List[Value] = []
+      for i in 0..rec.len() {
+        vs.push(convert_value(cell_v(rec[i])?, schema[i].type_, schema[i].schema)?)
+      }
+      Ok(Value.List(vs))
+    }
+    Str(s) => convert_basic(s, typ)
+    _ => Err(BqErr.Invalid("got value ${go_print(val)}; expected a value of type ${typ}"))
+  }
+}
+
+/// Go's convertRangeValue: "[start, end)" with UNBOUNDED for an open end,
+/// of DATE, DATETIME or TIMESTAMP.
+fn convert_range(val: json.Value, element: Str) -> Value ! BqErr {
+  let s = match val {
+    Null => return Ok(Value.Null)
+    Str(x) => x
+    _ => return Err(BqErr.Invalid("bigquery: invalid RANGE value ${val.encode()}"))
+  }
+  if element != DATE_FIELD_TYPE && element != DATE_TIME_FIELD_TYPE && element != TIMESTAMP_FIELD_TYPE {
+    return Err(BqErr.Invalid("bigquery: invalid RANGE element type ${element.quote()}"))
+  }
+  if !s.starts_with("[") || !s.ends_with(")") {
+    return Err(BqErr.Invalid("bigquery: invalid RANGE value ${s.quote()}"))
+  }
+  let inner = s[1..s.len() - 1]
+  let parts = inner.split(", ")
+  if parts.len() != 2 {
+    return Err(BqErr.Invalid("bigquery: invalid RANGE value ${inner.quote()}"))
+  }
+  var r = RangeValue{}
+  if parts[0] != "UNBOUNDED" {
+    r.start = convert_basic(parts[0], element) ?? _ => return Err(BqErr.Invalid("bigquery: invalid RANGE start value ${parts[0].quote()}"))
+  }
+  if parts[1] != "UNBOUNDED" {
+    r.end = convert_basic(parts[1], element) ?? _ => return Err(BqErr.Invalid("bigquery: invalid RANGE end value ${parts[1].quote()}"))
+  }
+  Ok(Value.Range(r))
+}
+
+/// Go's convertRow: a row's cells as Values under the schema.
+fn convert_row(r: raw.TableRow, schema: Schema) -> List[Value] ! BqErr {
+  if schema.len() != r.f.len() {
+    return Err(BqErr.Invalid("schema length does not match row length"))
+  }
+  var vs: List[Value] = []
+  for i in 0..r.f.len() {
+    let f = schema[i]
+    let v = r.f[i].v ?? json.Value.Null
+    if f.type_ == RANGE_FIELD_TYPE {
+      let et = match f.range_element_type {
+        Some(t) => t.type_
+        None => return Err(BqErr.Invalid("bigquery: incomplete range schema for conversion"))
+      }
+      if f.repeated {
+        var rs: List[Value] = []
+        match v {
+          List(items) => {
+            for c in items {
+              rs.push(convert_range(cell_v(c)?, et)?)
+            }
+          }
+          _ => return Err(BqErr.Invalid("bigquery: a repeated RANGE ${v.encode()} is not a list"))
+        }
+        vs.push(Value.List(rs))
+      } else {
+        vs.push(convert_range(v, et)?)
+      }
+      continue
+    }
+    vs.push(convert_value(v, f.type_, f.schema)?)
+  }
+  Ok(vs)
+}
+
+/// Go's convertRows.
+fn convert_rows(rows: List[raw.TableRow], schema: Schema) -> List[List[Value]] ! BqErr {
+  var out: List[List[Value]] = []
+  for r in rows {
+    out.push(convert_row(r, schema)?)
+  }
+  Ok(out)
+}
