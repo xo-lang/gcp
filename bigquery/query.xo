@@ -1,0 +1,283 @@
+// Queries (query.go): a query's configuration, running it as a job
+// (jobs.insert), and reading its rows, over jobs.query when the
+// configuration allows (Go's fast path) and the job's results otherwise.
+// Not here yet: TableDefinitions (external data, step 4), and a read
+// job's parameters back from the service (Go's bqToQueryParameter).
+
+use std/json
+use std/time
+use github.com/xo-lang/gcp/gensupport
+use github.com/xo-lang/gcp/bigquery/apiv2 as raw
+
+/// Whether a job may create its destination table (Go's
+/// TableCreateDisposition).
+pub const CREATE_IF_NEEDED: Str = "CREATE_IF_NEEDED"
+pub const CREATE_NEVER: Str = "CREATE_NEVER"
+
+/// What a job does to rows already in its destination (Go's
+/// TableWriteDisposition).
+pub const WRITE_APPEND: Str = "WRITE_APPEND"
+pub const WRITE_TRUNCATE: Str = "WRITE_TRUNCATE"
+pub const WRITE_TRUNCATE_DATA: Str = "WRITE_TRUNCATE_DATA"
+pub const WRITE_EMPTY: Str = "WRITE_EMPTY"
+
+/// A query's priority (Go's QueryPriority).
+pub const BATCH_PRIORITY: Str = "BATCH"
+pub const INTERACTIVE_PRIORITY: Str = "INTERACTIVE"
+
+/// Whether jobs.query must create a job (Go's JobCreationMode).
+pub const JOB_CREATION_MODE_UNSPECIFIED: Str = "JOB_CREATION_MODE_UNSPECIFIED"
+pub const JOB_CREATION_MODE_REQUIRED: Str = "JOB_CREATION_REQUIRED"
+pub const JOB_CREATION_MODE_OPTIONAL: Str = "JOB_CREATION_OPTIONAL"
+
+/// A connection property of a query (Go's ConnectionProperty).
+pub struct ConnectionProperty {
+  pub key: Str = ""
+  pub value: Str = ""
+}
+
+/// A query job's configuration (Go's QueryConfig).
+pub struct QueryConfig {
+  /// The table the results go to; None for a temporary one.
+  pub dst: TableRef? = None
+  /// The query's text.
+  pub q: Str = ""
+  /// The dataset unqualified names are in.
+  pub default_project_id: Str = ""
+  pub default_dataset_id: Str = ""
+  /// One of the CREATE constants, "" for the service's default.
+  pub create_disposition: Str = ""
+  /// One of the WRITE constants, "" for the service's default.
+  pub write_disposition: Str = ""
+  pub disable_query_cache: Bool = false
+  /// Nested and repeated fields kept (legacy SQL); sets
+  /// allow_large_results.
+  pub disable_flattened_results: Bool = false
+  pub allow_large_results: Bool = false
+  /// One of the PRIORITY constants, "" for interactive.
+  pub priority: Str = ""
+  pub max_billing_tier: Int = 0
+  pub max_bytes_billed: Int = 0
+  pub use_standard_sql: Bool = false
+  pub use_legacy_sql: Bool = false
+  pub parameters: List[QueryParameter] = []
+  pub time_partitioning: TimePartitioning? = None
+  pub range_partitioning: RangePartitioning? = None
+  pub clustering: Clustering? = None
+  pub labels: Map[Str, Str] = {}
+  /// Only checked and costed, not run.
+  pub dry_run: Bool = false
+  pub destination_encryption_config: EncryptionConfig? = None
+  pub schema_update_options: List[Str] = []
+  pub create_session: Bool = false
+  pub connection_properties: List[ConnectionProperty] = []
+  /// How long the job may run (whole milliseconds), 0 for no limit.
+  pub job_timeout: Duration = 0s
+  pub reservation: Str = ""
+  pub max_slots: Int = 0
+  pub continuous: Bool = false
+  /// One of the JOB_CREATION_MODE constants, "" for the default.
+  pub job_creation_mode: Str = ""
+}
+
+/// The ids a new job is given (Go's JobIDConfig).
+pub struct JobIdConfig {
+  /// "" for a random id.
+  pub job_id: Str = ""
+  /// A random suffix after job_id and a dash.
+  pub add_job_id_suffix: Bool = false
+  /// "" for the client's location.
+  pub location: Str = ""
+  /// "" for the client's project.
+  pub project_id: Str = ""
+}
+
+/// A query to run (Go's Query): its configuration and the ids of its job.
+pub struct Query[fx: Effects] {
+  pub config: QueryConfig = QueryConfig{}
+  pub id: JobIdConfig = JobIdConfig{}
+  c: Client[fx]
+}
+
+/// A query of q (Go's Query).
+pub fn (c: Client[fx]) query(q: Str) -> Query[fx] { Query{config: QueryConfig{q: q}, c: c} }
+
+/// Go's createJobRef.
+fn (j: JobIdConfig) job_ref[fx: Effects](c: Client[fx]) -> raw.JobReference uses rand {
+  let project = if j.project_id == "" { c.project } else { j.project_id }
+  let loc = if j.location == "" { c.location } else { j.location }
+  let id = if j.job_id == "" {
+    c.random_id()
+  } else if j.add_job_id_suffix {
+    "${j.job_id}-${c.random_id()}"
+  } else {
+    j.job_id
+  }
+  raw.JobReference{project_id: project, location: loc, job_id: id}
+}
+
+fn params_json(ps: List[QueryParameter]) -> json.Value ! BqErr {
+  var out: List[json.Value] = []
+  for p in ps {
+    out.push(p.to_json()?)
+  }
+  Ok(json.Value.List(out))
+}
+
+/// The configuration as the API's JobConfiguration (Go's toBQ).
+fn (qc: QueryConfig) job_config_json() -> json.Value ! BqErr {
+  var q = raw.JobConfigurationQuery{query: qc.q, create_disposition: qc.create_disposition, write_disposition: qc.write_disposition, allow_large_results: qc.allow_large_results, priority: qc.priority, maximum_bytes_billed: qc.max_bytes_billed, time_partitioning: match qc.time_partitioning {
+    Some(p) => Some(partitioning_raw(p))
+    None => None
+  }, clustering: match qc.clustering {
+    Some(c) => Some(raw.Clustering{fields: c.fields})
+    None => None
+  }, destination_encryption_configuration: encryption_to_raw(qc.destination_encryption_config), schema_update_options: qc.schema_update_options, create_session: qc.create_session, continuous: qc.continuous}
+  if qc.default_project_id != "" || qc.default_dataset_id != "" {
+    q.default_dataset = Some(raw.DatasetReference{dataset_id: qc.default_dataset_id, project_id: qc.default_project_id})
+  }
+  if qc.max_billing_tier > 0 {
+    q.maximum_billing_tier = Some(qc.max_billing_tier)
+  }
+  if qc.disable_query_cache {
+    q.use_query_cache = Some(false)
+  }
+  if qc.disable_flattened_results {
+    q.flatten_results = Some(false)
+    q.allow_large_results = true
+  }
+  if qc.use_standard_sql && qc.use_legacy_sql {
+    return Err(BqErr.Invalid("bigquery: cannot provide both UseStandardSQL and UseLegacySQL"))
+  }
+  if !qc.parameters.is_empty() && qc.use_legacy_sql {
+    return Err(BqErr.Invalid("bigquery: cannot provide both Parameters (implying standard SQL) and UseLegacySQL"))
+  }
+  q.use_legacy_sql = Some(qc.use_legacy_sql)
+  if let Some(d) = qc.dst {
+    if d.project_id != "" || d.dataset_id != "" || d.table_id != "" {
+      q.destination_table = Some(table_ref_raw(d))
+    }
+  }
+  q.connection_properties = qc.connection_properties.map(fn(p) -> raw.ConnectionProperty { raw.ConnectionProperty{key: p.key, value: p.value} })
+  let jc = raw.JobConfiguration{labels: qc.labels, dry_run: qc.dry_run, reservation: qc.reservation, max_slots: qc.max_slots, job_timeout_ms: if qc.job_timeout > 0s { qc.job_timeout.millis() } else { 0 }}
+  // the parameters are written here: the raw form cannot send "" or null
+  var qv = jraw(q)
+  if !qc.parameters.is_empty() {
+    qv = jset(qv, "queryParameters", params_json(qc.parameters)?)
+  }
+  if let Some(rp) = qc.range_partitioning {
+    qv = jset(qv, "rangePartitioning", range_partitioning_json(rp))
+  }
+  Ok(jset(jraw(jc), "query", qv))
+}
+
+/// Go's bqToQueryConfig (without the parameters, which come later).
+fn query_config_of(c: raw.JobConfiguration, q: raw.JobConfigurationQuery) -> QueryConfig {
+  var qc = QueryConfig{labels: c.labels, dry_run: c.dry_run, job_timeout: 1ms * c.job_timeout_ms, q: q.query, create_disposition: q.create_disposition, write_disposition: q.write_disposition, allow_large_results: q.allow_large_results, priority: q.priority, max_bytes_billed: q.maximum_bytes_billed, use_legacy_sql: q.use_legacy_sql ?? true, time_partitioning: match q.time_partitioning {
+    Some(p) => Some(TimePartitioning{type_: p.type_, expiration: 1ms * p.expiration_ms, field: p.field, require_partition_filter: p.require_partition_filter})
+    None => None
+  }, clustering: match q.clustering {
+    Some(x) => Some(Clustering{fields: x.fields})
+    None => None
+  }, destination_encryption_config: encryption_of(q.destination_encryption_configuration), schema_update_options: q.schema_update_options, create_session: q.create_session, continuous: q.continuous, reservation: c.reservation, max_slots: c.max_slots}
+  qc.use_standard_sql = !qc.use_legacy_sql
+  if let Some(d) = q.default_dataset {
+    qc.default_project_id = d.project_id
+    qc.default_dataset_id = d.dataset_id
+  }
+  if let Some(t) = q.maximum_billing_tier {
+    qc.max_billing_tier = t
+  }
+  if q.use_query_cache == Some(false) {
+    qc.disable_query_cache = true
+  }
+  if q.flatten_results == Some(false) {
+    qc.disable_flattened_results = true
+  }
+  qc.dst = table_ref_of(q.destination_table)
+  qc.connection_properties = q.connection_properties.map(fn(p) -> ConnectionProperty { ConnectionProperty{key: p.key, value: p.value} })
+  qc
+}
+
+/// The job's body (Go's newJob).
+fn (q: Query[fx]) job_json() -> json.Value ! BqErr uses rand {
+  let config = q.config.job_config_json()?
+  Ok(json.Value.Object([("configuration", config), ("jobReference", jraw(q.id.job_ref(q.c)))]))
+}
+
+/// Starts the query as a job (Go's Run).
+pub fn (q: Query[fx]) run() -> Job[fx] ! BqErr uses (net.dial, clock, rand, fx) {
+  let body = q.job_json()?
+  q.c.insert_job(body)
+}
+
+/// Go's insertJob: retried with the job reasons, as the body names the
+/// job.
+fn (c: Client[fx]) insert_job(body: json.Value) -> Job[fx] ! BqErr uses (net.dial, clock, rand, fx) {
+  let res = c.retry(JOB_RETRY_REASONS, fn() -> raw.Job ! gensupport.CallErr uses net.dial, clock, rand, fx {
+    c.send_json[raw.Job]("POST", "projects/{+projectId}/jobs", {"projectId": c.project}, [], "", body)
+  })?
+  job_of(res, c)
+}
+
+/// The query's rows (Go's Read): over jobs.query when the configuration
+/// allows, else as a job's.
+pub fn (q: Query[fx]) read() -> RowIterator[fx] ! BqErr uses (net.dial, clock, rand, fx) {
+  if q.config.dry_run {
+    return Err(BqErr.Invalid("bigquery: cannot evaluate Query.Read() for dry-run queries"))
+  }
+  let body = match q.fast_path() {
+    Some(b) => b
+    None => {
+      let j = q.run()?
+      return j.read()
+    }
+  }
+  let c = q.c
+  let resp = c.retry(JOB_RETRY_REASONS, fn() -> raw.QueryResponse ! gensupport.CallErr uses net.dial, clock, rand, fx {
+    c.send_json[raw.QueryResponse]("POST", "projects/{+projectId}/queries", {"projectId": c.project}, [], "", body)
+  })?
+  let job: Job[fx]? = match resp.job_reference {
+    Some(r) => Some(Job{project: r.project_id, job_id: r.job_id, loc: r.location, query_id: resp.query_id, c: c})
+    None => None
+  }
+  if resp.job_complete {
+    let src = RowSource{job: job, query_id: resp.query_id, cached: Some(CachedPage{rows: resp.rows, schema: resp.schema, next_token: resp.page_token, total_rows: resp.total_rows})}
+    return Ok(new_row_iterator(src, c))
+  }
+  var j = job ?? return Err(BqErr.Invalid("bigquery: an incomplete query has no job"))
+  j.conf = Some(raw.JobConfiguration{query: Some(raw.JobConfigurationQuery{})})
+  j.read()
+}
+
+/// Go's probeFastPath: the jobs.query body, None when the configuration
+/// needs a job.
+fn (q: Query[fx]) fast_path() -> json.Value? uses (clock) {
+  let qc = q.config
+  if qc.dst.is_some() || qc.create_disposition != "" || qc.write_disposition != "" || !(qc.priority == "" || qc.priority == INTERACTIVE_PRIORITY) || qc.use_legacy_sql || qc.max_billing_tier != 0 || qc.time_partitioning.is_some() || qc.range_partitioning.is_some() || qc.clustering.is_some() || qc.destination_encryption_config.is_some() || !qc.schema_update_options.is_empty() || qc.job_timeout != 0s || qc.continuous || q.id.job_id != "" {
+    return None
+  }
+  var r = raw.QueryRequest{query: qc.q, create_session: qc.create_session, location: q.id.location, use_legacy_sql: Some(false), maximum_bytes_billed: qc.max_bytes_billed, request_id: request_id(q.c.clock.now()), reservation: qc.reservation, max_slots: qc.max_slots, labels: qc.labels, format_options: Some(raw.DataFormatOptions{use_int64_timestamp: true}), job_creation_mode: qc.job_creation_mode}
+  if qc.disable_query_cache {
+    r.use_query_cache = Some(false)
+  }
+  if qc.default_dataset_id != "" {
+    r.default_dataset = Some(raw.DatasetReference{project_id: qc.default_project_id, dataset_id: qc.default_dataset_id})
+  }
+  var v = jraw(r)
+  if !qc.parameters.is_empty() {
+    // Go falls back to a job when a parameter is refused; the job's
+    // insert then refuses it
+    let ps = params_json(qc.parameters).ok() ?? return None
+    v = jset(v, "queryParameters", ps)
+  }
+  Some(v)
+}
+
+/// Go's uid.NewSpace("request").New(), the first of its space:
+/// request-YYYYMMDD-<nanoseconds since midnight UTC>-0001.
+fn request_id(now: Time) -> Str {
+  let c = time.civil(now, time.utc())
+  let ns = ((c.time.hour * 60 + c.time.minute) * 60 + c.time.second) * 1000000000 + c.time.nanos
+  "request-${c.date.year.to_str_width(4, zero: true)}${two(c.date.month)}${two(c.date.day)}-${ns}-0001"
+}

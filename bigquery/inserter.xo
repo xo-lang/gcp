@@ -1,0 +1,74 @@
+// Streaming inserts (inserter.go): rows from ValueSavers sent with
+// tabledata.insertAll, each with its insert id, and the rows the service
+// refused as BqErr.PutMulti. Go also takes structs, inferring their
+// schema by reflection; here a row is a ValueSaver (decision 0011).
+
+use github.com/xo-lang/gcp/gensupport
+use github.com/xo-lang/gcp/bigquery/apiv2 as raw
+
+/// Streams rows into a table (Go's Inserter).
+pub struct Inserter[fx: Effects] {
+  /// Insert the valid rows even when some are not (Go's
+  /// SkipInvalidRows).
+  pub skip_invalid_rows: Bool = false
+  /// Accept and drop values the schema does not name (Go's
+  /// IgnoreUnknownValues).
+  pub ignore_unknown_values: Bool = false
+  /// Insert into the table named by the table's id and this suffix,
+  /// created from the table as a template (Go's TableTemplateSuffix).
+  pub table_template_suffix: Str = ""
+  t: Table[fx]
+}
+
+/// An inserter into the table (Go's Inserter).
+pub fn (t: Table[fx]) inserter() -> Inserter[fx] { Inserter{t: t} }
+
+/// Inserts the rows (Go's Put): nothing is sent for none. A row with no
+/// insert id gets a random one; NO_DEDUPE_ID sends none.
+pub fn (u: Inserter[fx]) put(rows: List[ValueSaver]) -> () ! BqErr uses (net.dial, clock, rand, fx) {
+  if rows.is_empty() {
+    return Ok(())
+  }
+  let c = u.t.c
+  var ids: List[Str] = []
+  var parts: List[Str] = []
+  for s in rows {
+    let (row, id0) = s.save()?
+    let id = if id0 == NO_DEDUPE_ID { "" } else if id0 == "" { c.random_id() } else { id0 }
+    ids.push(id)
+    let insert_id = if id == "" { "" } else { "\"insertId\":${go_quote(id)}," }
+    parts.push("{${insert_id}\"json\":${row_json(row)?}}")
+  }
+  // Go's TableDataInsertAllRequest, its fields in Go's order
+  var body = ""
+  if u.ignore_unknown_values {
+    body = "${body}\"ignoreUnknownValues\":true,"
+  }
+  body = "${body}\"rows\":[${parts.join(",")}]"
+  if u.skip_invalid_rows {
+    body = "${body},\"skipInvalidRows\":true"
+  }
+  if u.table_template_suffix != "" {
+    body = "${body},\"templateSuffix\":${go_quote(u.table_template_suffix)}"
+  }
+  let t = u.t
+  let res = c.retry(DEFAULT_RETRY_REASONS, fn() -> raw.TableDataInsertAllResponse ! gensupport.CallErr uses net.dial, clock, rand, fx {
+    c.send_text[raw.TableDataInsertAllResponse]("POST", "projects/{+projectId}/datasets/{+datasetId}/tables/{+tableId}/insertAll", {"projectId": t.project_id, "datasetId": t.dataset_id, "tableId": t.table_id}, [], "", "{${body}}")
+  })?
+  insert_errors(res.insert_errors, ids)
+}
+
+/// Go's handleInsertErrors.
+fn insert_errors(ierrs: List[raw.TableDataInsertAllResponseInsertErrors], ids: List[Str]) -> () ! BqErr {
+  if ierrs.is_empty() {
+    return Ok(())
+  }
+  var out: List[RowInsertionError] = []
+  for e in ierrs {
+    if e.index >= ids.len() || e.index < 0 {
+      return Err(BqErr.Invalid("internal error: unexpected row index: ${e.index}"))
+    }
+    out.push(RowInsertionError{insert_id: ids[e.index], row_index: e.index, errors: e.errors.map(error_of)})
+  }
+  Err(BqErr.PutMulti(out))
+}

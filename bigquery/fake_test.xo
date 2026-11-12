@@ -11,6 +11,8 @@ use github.com/xo-lang/gcp/option
 struct Fake {
   replies: Mutex[List[(Int, Str)]]
   log: Mutex[List[Str]]
+  /// When set, tabledata.list's replies (".../data"), in order.
+  data: Mutex[List[(Int, Str)]]? = None
 }
 
 fn note(f: Fake, s: Str) {
@@ -41,6 +43,68 @@ fn norm_api_client(v: Str) -> Str {
     })
   }
   out.join(" ")
+}
+
+fn is_hex(b: Int) -> Bool { (b >= 0x30 && b <= 0x39) || (b >= 0x61 && b <= 0x66) }
+
+fn is_digit(b: Int) -> Bool { b >= 0x30 && b <= 0x39 }
+
+fn digits_at(b: Bytes, i0: Int) -> Int {
+  var i = i0
+  while i < b.len() && is_digit(Int(b[i])) {
+    i += 1
+  }
+  i - i0
+}
+
+/// The oracle's ids(): each run of 32 hex digits as RANDOMID (scanned
+/// left to right, as Go's regexp does), then each jobs.query request id
+/// (request-DDDDDDDD-D+-DDDD) as REQUESTID.
+fn ids(s: Str) -> Str {
+  let b = s.bytes()
+  var out = StrBuilder.new()
+  var i = 0
+  var start = 0
+  while i < b.len() {
+    var n = 0
+    while n < 32 && i + n < b.len() && is_hex(Int(b[i + n])) {
+      n += 1
+    }
+    if n == 32 {
+      out.write(s[start..i])
+      out.write("RANDOMID")
+      i += 32
+      start = i
+    } else {
+      i += 1
+    }
+  }
+  out.write(s[start..s.len()])
+  let t = out.freeze()
+  let tb = t.bytes()
+  var res = StrBuilder.new()
+  var j = 0
+  var from = 0
+  while j < tb.len() {
+    if t[j..t.len()].starts_with("request-") {
+      let k = j + 8
+      let d1 = digits_at(tb, k)
+      if d1 == 8 && k + 8 < tb.len() && tb[k + 8] == 0x2d {
+        let d2 = digits_at(tb, k + 9)
+        let k2 = k + 9 + d2
+        if d2 > 0 && k2 < tb.len() && tb[k2] == 0x2d && digits_at(tb, k2 + 1) >= 4 {
+          res.write(t[from..j])
+          res.write("REQUESTID")
+          j = k2 + 5
+          from = j
+          continue
+        }
+      }
+    }
+    j += 1
+  }
+  res.write(t[from..t.len()])
+  res.freeze()
 }
 
 /// A JSON text with object keys sorted, as the oracle prints bodies.
@@ -92,16 +156,20 @@ fn by_key(pairs: List[Str]) -> List[Str] {
 fn answer(f: Fake, req: http.Request) -> http.Response {
   let q = req.raw_query()
   let pairs = by_key(if q == "" { [] } else { q.split("&") })
-  note(f, "  ${req.method} ${req.url.scheme}://${req.url.host}${req.escaped_path()}${if pairs.is_empty() { "" } else { "?" + pairs.join("&") }}")
+  note(f, "  ${req.method} ${ids("${req.url.scheme}://${req.url.host}${req.escaped_path()}${if pairs.is_empty() { "" } else { "?" + pairs.join("&") }}")}")
   for h in ["X-Goog-Api-Client", "X-Goog-User-Project", "If-Match", "If-None-Match", "Content-Type"] {
     if let Some(v) = header_of(req, h) {
       note(f, "    ${h}: ${if h == "X-Goog-Api-Client" { norm_api_client(v) } else { v }}")
     }
   }
   if !req.body.is_empty() {
-    note(f, "    body ${canon_text(req.body.to_str_lossy())}")
+    note(f, "    body ${ids(canon_text(req.body.to_str_lossy()))}")
   }
-  let (st, body) = f.replies.with(fn(var rs: List[(Int, Str)]) -> (Int, Str) {
+  let queue = match f.data {
+    Some(d) => if req.url.path.ends_with("/data") { d } else { f.replies }
+    None => f.replies
+  }
+  let (st, body) = queue.with(fn(var rs: List[(Int, Str)]) -> (Int, Str) {
     let x = rs.get(0) ?? (200, "{}")
     if !rs.is_empty() {
       rs = rs[1..rs.len()]
@@ -111,8 +179,14 @@ fn answer(f: Fake, req: http.Request) -> http.Response {
   http.Response{status: st, headers: {"Content-Type": "application/json; charset=UTF-8"}, body: body.bytes()}
 }
 
-fn new_fake(net: testing.FakeNet, replies: List[(Int, Str)]) -> Fake {
-  let f = Fake{replies: Mutex[List[(Int, Str)]].new(replies), log: Mutex[List[Str]].new([])}
+fn new_fake(net: testing.FakeNet, replies: List[(Int, Str)]) -> Fake { new_fake_data(net, replies, None) }
+
+/// A fake that answers tabledata.list from data, the rest from replies.
+fn new_fake_data(net: testing.FakeNet, replies: List[(Int, Str)], data: List[(Int, Str)]?) -> Fake {
+  let f = Fake{replies: Mutex[List[(Int, Str)]].new(replies), log: Mutex[List[Str]].new([]), data: match data {
+    Some(d) => Some(Mutex[List[(Int, Str)]].new(d))
+    None => None
+  }}
   let h = fn(req: http.Request) -> http.Response { answer(f, req) }
   for m in ["GET", "PUT", "POST", "DELETE", "PATCH"] {
     net.handle("${m} https://bigquery.fake/{rest...}", h)

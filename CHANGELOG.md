@@ -24,6 +24,15 @@ touches. Release notes: [docs/releases](docs/releases).
   `codegen/services.toml` gains `go_dir` (Go's path) beside `dir` (the
   module); generated files other than `xo.mod` are unchanged. The old
   paths keep their v0.1.0 tags.
+- `bigquery` (decision 0011 step 3): queries and rows. `Query`
+  (`QueryConfig`, `JobIdConfig`; `run` as a job, `read` over the
+  `jobs.query` fast path or the job's results), `Job` (`job_from_id`,
+  `job_from_id_location`, `job_from_project`, `status`, `wait`, `read`,
+  `config`, `cancel`, `delete`), `JobStatus` and `JobStatistics` (query,
+  load and extract details), `RowIterator` (`Table.read`, page tokens,
+  `start_index`, `page_size`, `next`, `next_map`, `next_with` a loader),
+  and the streaming `Inserter` (`put`, insert ids, `BqErr.PutMulti` of
+  `RowInsertionError`, `ServiceError`). 43 Go oracle cases.
 - `bigquery` (decision 0011 step 2a): row values. `Value` (every field
   type but NUMERIC and BIGNUMERIC, which wait for std/big's BigRat),
   `DateTime`, `RangeValue`, `IntervalValue` (`parse_interval`,

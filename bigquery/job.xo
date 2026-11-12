@@ -1,0 +1,330 @@
+// Jobs (job.go): a job's handle, its status and statistics, waiting for
+// it, reading a query job's rows, cancel and delete. The job listing,
+// and the copy, extract and load configurations, come with step 4; a
+// non-query job's configuration is its raw form until then.
+
+use github.com/xo-lang/gcp/gensupport
+use github.com/xo-lang/gcp/bigquery/apiv2 as raw
+
+/// A job (Go's Job): its ids and what was last read of it. A value:
+/// status and wait return the new status and keep it in the job they are
+/// called on.
+pub struct Job[fx: Effects] {
+  project: Str = ""
+  job_id: Str = ""
+  loc: Str = ""
+  user_email: Str = ""
+  conf: raw.JobConfiguration? = None
+  last: JobStatus? = None
+  query_id: Str = ""
+  c: Client[fx]
+}
+
+/// The job's project (Go's ProjectID).
+pub fn (j: Job[fx]) project_id() -> Str { j.project }
+
+/// The job's id (Go's ID).
+pub fn (j: Job[fx]) id() -> Str { j.job_id }
+
+/// The job's location (Go's Location).
+pub fn (j: Job[fx]) location() -> Str { j.loc }
+
+/// Who ran the job (Go's Email).
+pub fn (j: Job[fx]) email() -> Str { j.user_email }
+
+/// The status the job was last read with, if any (Go's LastStatus).
+pub fn (j: Job[fx]) last_status() -> JobStatus? { j.last }
+
+/// A job's state (Go's State).
+pub enum State {
+  Unspecified
+  Pending
+  Running
+  Done
+}
+
+/// A job's status (Go's JobStatus).
+pub struct JobStatus {
+  pub state: State = State.Unspecified
+  /// Why a done job failed (Go's Err), None when it did not.
+  pub err: ServiceError? = None
+  /// The errors met while the job ran; they need not have failed it.
+  pub errors: List[ServiceError] = []
+  pub statistics: JobStatistics? = None
+}
+
+/// Whether the job has finished (Go's Done).
+pub fn (s: JobStatus) done() -> Bool { s.state == State.Done }
+
+/// A job's statistics (Go's JobStatistics). Not here yet: the reservation
+/// usage, the script and transaction details.
+pub struct JobStatistics {
+  pub creation_time: Time? = None
+  pub start_time: Time? = None
+  pub end_time: Time? = None
+  pub total_bytes_processed: Int = 0
+  pub details: Statistics? = None
+  pub total_slot_duration: Duration = 0s
+  pub reservation_id: Str = ""
+  pub num_child_jobs: Int = 0
+  pub parent_job_id: Str = ""
+  /// The session of a query run with create_session.
+  pub session_id: Str? = None
+  pub final_execution_duration: Duration = 0s
+  pub edition: Str = ""
+  pub completion_ratio: Float = 0.0
+}
+
+/// What a job's statistics say of its kind (Go's Statistics).
+pub enum Statistics {
+  Query(s: QueryStatistics)
+  Load(s: LoadStatistics)
+  Extract(s: ExtractStatistics)
+}
+
+/// A query's statistics (Go's QueryStatistics). Not here yet: the query
+/// plan, the timeline, BI Engine, performance insights.
+pub struct QueryStatistics {
+  pub billing_tier: Int = 0
+  pub cache_hit: Bool = false
+  pub statement_type: Str = ""
+  pub total_bytes_billed: Int = 0
+  pub total_bytes_processed: Int = 0
+  pub total_bytes_processed_accuracy: Str = ""
+  pub num_dml_affected_rows: Int = 0
+  pub dml_stats: DmlStatistics? = None
+  pub referenced_tables: List[TableRef] = []
+  pub schema: Schema = []
+  pub slot_millis: Int = 0
+  pub total_services_sku_slot_millis: Int = 0
+  pub undeclared_query_parameter_names: List[Str] = []
+  pub ddl_target_table: TableRef? = None
+  pub ddl_operation_performed: Str = ""
+  pub ddl_target_routine: RoutineRef? = None
+}
+
+/// A DML statement's row counts (Go's DMLStatistics).
+pub struct DmlStatistics {
+  pub inserted_row_count: Int = 0
+  pub deleted_row_count: Int = 0
+  pub updated_row_count: Int = 0
+}
+
+/// A load's statistics (Go's LoadStatistics).
+pub struct LoadStatistics {
+  pub input_file_bytes: Int = 0
+  pub input_files: Int = 0
+  pub output_bytes: Int = 0
+  pub output_rows: Int = 0
+}
+
+/// An extract's statistics (Go's ExtractStatistics).
+pub struct ExtractStatistics {
+  pub destination_uri_file_counts: List[Int] = []
+}
+
+/// A job's configuration (Go's JobConfig).
+pub enum JobConfig {
+  Query(q: QueryConfig)
+  /// A copy, extract or load job's, raw until step 4.
+  Other(c: raw.JobConfiguration)
+}
+
+/// The job's configuration, None when it was not read (Go's Config).
+pub fn (j: Job[fx]) config() -> JobConfig? ! BqErr {
+  let c = j.conf ?? return Ok(None)
+  if let Some(q) = c.query {
+    if c.copy.is_none() && c.extract.is_none() && c.load.is_none() {
+      return Ok(Some(JobConfig.Query(query_config_of(c, q))))
+    }
+  }
+  Ok(Some(JobConfig.Other(c)))
+}
+
+/// The job of id in the client's project and location (Go's JobFromID).
+pub fn (c: Client[fx]) job_from_id(id: Str) -> Job[fx] ! BqErr uses (net.dial, clock, rand, fx) {
+  c.job_from_project(c.project, id, c.location)
+}
+
+/// The job of id in the client's project and location (Go's
+/// JobFromIDLocation).
+pub fn (c: Client[fx]) job_from_id_location(id: Str, location: Str) -> Job[fx] ! BqErr uses (net.dial, clock, rand, fx) {
+  c.job_from_project(c.project, id, location)
+}
+
+/// The job of id in project and location (Go's JobFromProject).
+pub fn (c: Client[fx]) job_from_project(project: Str, id: Str, location: Str) -> Job[fx] ! BqErr uses (net.dial, clock, rand, fx) {
+  let j = c.get_job(id, location, project, ["user_email", "configuration", "jobReference", "status", "statistics"])?
+  job_of(j, c)
+}
+
+/// Go's getJobInternal: the project defaults to the client's, an empty
+/// location is not sent.
+fn (c: Client[fx]) get_job(id: Str, location: Str, project: Str, fields: List[Str]) -> raw.Job ! BqErr uses (net.dial, clock, rand, fx) {
+  let proj = if project == "" { c.project } else { project }
+  let o = raw.JobsGetOptions{location: if location == "" { None } else { Some(location) }, fields: fields, headers: client_headers()}
+  c.retry(DEFAULT_RETRY_REASONS, fn() -> raw.Job ! gensupport.CallErr uses net.dial, clock, rand, fx {
+    c.svc.jobs.get(proj, id, o)
+  })
+}
+
+/// Go's bqToJob.
+fn job_of[fx: Effects](q: raw.Job, c: Client[fx]) -> Job[fx] ! BqErr {
+  let r = q.job_reference ?? raw.JobReference{}
+  var j = Job{project: r.project_id, job_id: r.job_id, loc: r.location, user_email: q.user_email, conf: q.configuration, c: c}
+  j.set_status(q.status)?
+  j.set_statistics(q.statistics)
+  Ok(j)
+}
+
+fn state_of(s: Str) -> State? {
+  match s {
+    "PENDING" => Some(State.Pending)
+    "RUNNING" => Some(State.Running)
+    "DONE" => Some(State.Done)
+    _ => None
+  }
+}
+
+/// Go's setStatus: no status leaves the last one.
+fn (var j: Job[fx]) set_status(qs: raw.JobStatus?) -> () ! BqErr {
+  let s = qs ?? return Ok(())
+  let state = state_of(s.state) ?? return Err(BqErr.Invalid("unexpected job state: ${s.state}"))
+  var st = JobStatus{state: state}
+  if state == State.Done {
+    if let Some(e) = s.error_result {
+      st.err = Some(error_of(e))
+    }
+  }
+  st.errors = s.errors.map(error_of)
+  j.last = Some(st)
+  Ok(())
+}
+
+/// Go's setStatistics: kept on the last status, if there is one.
+fn (var j: Job[fx]) set_statistics(qt: raw.JobStatistics?) {
+  let s = qt ?? return
+  var st = j.last ?? return
+  var js = JobStatistics{creation_time: millis_time(s.creation_time), start_time: millis_time(s.start_time), end_time: millis_time(s.end_time), total_bytes_processed: s.total_bytes_processed, total_slot_duration: 1ms * s.total_slot_ms, reservation_id: s.reservation_id, num_child_jobs: s.num_child_jobs, parent_job_id: s.parent_job_id, final_execution_duration: 1ms * s.final_execution_duration_ms, edition: s.edition, completion_ratio: s.completion_ratio}
+  if let Some(si) = s.session_info {
+    js.session_id = Some(si.session_id)
+  }
+  if let Some(e) = s.extract {
+    js.details = Some(Statistics.Extract(ExtractStatistics{destination_uri_file_counts: e.destination_uri_file_counts.map(fn(x) -> Int { Int.parse(x) ?? 0 })}))
+  } else if let Some(l) = s.load {
+    js.details = Some(Statistics.Load(LoadStatistics{input_file_bytes: l.input_file_bytes, input_files: l.input_files, output_bytes: l.output_bytes, output_rows: l.output_rows}))
+  } else if let Some(q) = s.query {
+    js.details = Some(Statistics.Query(query_statistics_of(q)))
+  }
+  st.statistics = Some(js)
+  j.last = Some(st)
+}
+
+fn query_statistics_of(q: raw.JobStatistics2) -> QueryStatistics {
+  QueryStatistics{billing_tier: q.billing_tier, cache_hit: q.cache_hit, statement_type: q.statement_type, total_bytes_billed: q.total_bytes_billed, total_bytes_processed: q.total_bytes_processed, total_bytes_processed_accuracy: q.total_bytes_processed_accuracy, num_dml_affected_rows: q.num_dml_affected_rows, dml_stats: match q.dml_stats {
+    Some(d) => Some(DmlStatistics{inserted_row_count: d.inserted_row_count, deleted_row_count: d.deleted_row_count, updated_row_count: d.updated_row_count})
+    None => None
+  }, referenced_tables: q.referenced_tables.map(fn(t) -> TableRef { TableRef{project_id: t.project_id, dataset_id: t.dataset_id, table_id: t.table_id} }), schema: schema_of(q.schema), slot_millis: q.total_slot_ms, total_services_sku_slot_millis: q.total_services_sku_slot_ms, undeclared_query_parameter_names: q.undeclared_query_parameters.map(fn(p) -> Str { p.name }), ddl_target_table: table_ref_of(q.ddl_target_table), ddl_operation_performed: q.ddl_operation_performed, ddl_target_routine: match q.ddl_target_routine {
+    Some(r) => Some(RoutineRef{project_id: r.project_id, dataset_id: r.dataset_id, routine_id: r.routine_id})
+    None => None
+  }}
+}
+
+fn (j: Job[fx]) is_query() -> Bool {
+  match j.conf {
+    Some(c) => c.query.is_some()
+    None => false
+  }
+}
+
+/// The job's status, read again and kept as its last (Go's Status).
+pub fn (var j: Job[fx]) status() -> JobStatus ! BqErr uses (net.dial, clock, rand, fx) {
+  let q = j.c.get_job(j.job_id, j.loc, j.project, ["status", "statistics"])?
+  j.set_status(q.status)?
+  j.set_statistics(q.statistics)
+  Ok(j.last ?? JobStatus{})
+}
+
+/// Asks the service to stop the job (Go's Cancel); status says when it
+/// has.
+pub fn (j: Job[fx]) cancel() -> () ! BqErr uses (net.dial, clock, rand, fx) {
+  let c = j.c
+  let o = raw.JobsCancelOptions{location: Some(j.loc), fields: [""], headers: client_headers()}
+  c.retry(DEFAULT_RETRY_REASONS, fn() -> raw.JobCancelResponse ! gensupport.CallErr uses net.dial, clock, rand, fx {
+    c.svc.jobs.cancel(j.project, j.job_id, o)
+  })?
+  Ok(())
+}
+
+/// Deletes the job's metadata (Go's Delete).
+pub fn (j: Job[fx]) delete() -> () ! BqErr uses (net.dial, clock, rand, fx) {
+  let c = j.c
+  let o = raw.JobsDeleteOptions{location: if j.loc == "" { None } else { Some(j.loc) }, headers: client_headers()}
+  c.retry(DEFAULT_RETRY_REASONS, fn() -> () ! gensupport.CallErr uses net.dial, clock, rand, fx {
+    c.svc.jobs.delete(j.project, j.job_id, o)
+  })
+}
+
+/// Waits for the job to finish and returns its last status (Go's Wait):
+/// a query's results are polled, then its status read; another job's
+/// status is polled. A failed job is a status with err, not an error.
+pub fn (var j: Job[fx]) wait() -> JobStatus ! BqErr uses (net.dial, clock, rand, fx) {
+  if j.is_query() {
+    j.wait_for_query(j.project)?
+    return j.status()
+  }
+  var bound = start_bound(j.c.status_poll)
+  while true {
+    let s = j.status()?
+    if s.done() {
+      return Ok(s)
+    }
+    bound = j.c.pause(j.c.status_poll, bound)
+  }
+  fault("unreachable")
+}
+
+/// Go's waitForQuery: getQueryResults with no rows until the job is
+/// complete, its schema and row count then.
+fn (j: Job[fx]) wait_for_query(project: Str) -> (List[FieldSchema]?, Int) ! BqErr uses (net.dial, clock, rand, fx) {
+  let c = j.c
+  let o = raw.JobsGetQueryResultsOptions{format_options_use_int64_timestamp: Some(true), location: Some(j.loc), max_results: Some(0), headers: client_headers()}
+  var bound = start_bound(c.query_poll)
+  while true {
+    match c.svc.jobs.get_query_results(project, j.job_id, o) {
+      Ok(res) => {
+        if res.job_complete {
+          return Ok((schema_opt(res.schema), res.total_rows))
+        }
+      }
+      Err(e) => {
+        if !retryable(e, JOB_RETRY_REASONS) {
+          return Err(BqErr.Call(e))
+        }
+      }
+    }
+    bound = c.pause(c.query_poll, bound)
+  }
+  fault("unreachable")
+}
+
+/// Go's bqToSchema: None for no schema.
+fn schema_opt(t: raw.TableSchema?) -> List[FieldSchema]? {
+  match t {
+    Some(_) => Some(schema_of(t))
+    None => None
+  }
+}
+
+/// The rows of a query job, once it is complete (Go's Read).
+pub fn (j: Job[fx]) read() -> RowIterator[fx] ! BqErr uses (net.dial, clock, rand, fx) {
+  if !j.is_query() {
+    return Err(BqErr.Invalid("bigquery: cannot read from a non-query job"))
+  }
+  let (schema, total) = j.wait_for_query(j.project)?
+  let src = Job{project: j.project, job_id: j.job_id, loc: j.loc, query_id: j.query_id, c: j.c}
+  var it = new_row_iterator(RowSource{job: Some(src), query_id: j.query_id}, j.c)
+  it.total_rows = total
+  it.schema = schema
+  Ok(it)
+}

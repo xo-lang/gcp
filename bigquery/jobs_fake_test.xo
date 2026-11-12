@@ -1,0 +1,199 @@
+// Step 3's printing (jobs, statuses, configurations, rows) as the Go
+// oracle prints it (~/xo-lead/notes/aws-43/bigqueryjobs/cases.go).
+
+use std/testing
+use github.com/xo-lang/gcp/option
+
+fn err_line(f: Fake, e: BqErr) {
+  note(f, "  error ${ids(e.display())}")
+  if let Some(a) = e.api() {
+    note(f, "  googleapi code=${a.code}")
+  }
+}
+
+fn tm(t: Time?) -> Str {
+  match t {
+    Some(x) => rfc3339_nano(x)
+    None => "zero"
+  }
+}
+
+fn names(s: List[FieldSchema]) -> Str { "[${s.map(fn(x) -> Str { "${x.name}:${x.type_}" }).join(" ")}]" }
+
+/// Go's %v of a []string.
+fn strs_v(xs: List[Str]) -> Str { "[${xs.join(" ")}]" }
+
+/// Go's %v of a map[string]string.
+fn map_v(m: Map[Str, Str]) -> Str { "map[${m.keys().sort().map(fn(k) -> Str { "${k}:${m.get_or_fault(k, "a key")}" }).join(" ")}]" }
+
+fn state_name(s: State) -> Str {
+  match s {
+    Unspecified => "Unspecified"
+    Pending => "Pending"
+    Running => "Running"
+    Done => "Done"
+  }
+}
+
+fn fq(t: TableRef) -> Str { "${t.project_id}:${t.dataset_id}.${t.table_id}" }
+
+fn job_line(f: Fake, r: Result[Job[()], BqErr]) -> Job[()]? {
+  match r {
+    Ok(j) => {
+      note(f, "  job ${j.project_id()} ${ids(j.id())} ${j.location()} ${j.email().quote()}")
+      status_line(f, Ok(j.last_status()))
+      Some(j)
+    }
+    Err(e) => {
+      err_line(f, e)
+      None
+    }
+  }
+}
+
+fn status_line(f: Fake, r: Result[JobStatus?, BqErr]) {
+  let s = match r {
+    Ok(Some(s)) => s
+    Ok(None) => {
+      note(f, "  status none")
+      return
+    }
+    Err(e) => {
+      err_line(f, e)
+      return
+    }
+  }
+  let e = match s.err {
+    Some(x) => x.display()
+    None => "<nil>"
+  }
+  note(f, "  status ${state_name(s.state)} done=${s.done()} err=${e}")
+  for x in s.errors {
+    note(f, "  job error ${x.display()}")
+  }
+  let st = s.statistics ?? return
+  note(f, "  stats created=${tm(st.creation_time)} start=${tm(st.start_time)} end=${tm(st.end_time)} bytes=${st.total_bytes_processed} slotms=${st.total_slot_duration.millis()} children=${st.num_child_jobs} parent=${st.parent_job_id.quote()} ratio=${show_f(st.completion_ratio)} reservation=${st.reservation_id.quote()}")
+  if let Some(sid) = st.session_id {
+    note(f, "  session ${sid}")
+  }
+  match st.details {
+    Some(Statistics.Query(d)) => {
+      let ddl = match d.ddl_target_table {
+        Some(t) => fq(t)
+        None => ""
+      }
+      note(f, "  query tier=${d.billing_tier} cache=${d.cache_hit} type=${d.statement_type} billed=${d.total_bytes_billed} processed=${d.total_bytes_processed} accuracy=${d.total_bytes_processed_accuracy} dml=${d.num_dml_affected_rows} slotms=${d.slot_millis} schema=${names(d.schema)} tables=${strs_v(d.referenced_tables.map(fq))} undeclared=${strs_v(d.undeclared_query_parameter_names)} ddl=${d.ddl_operation_performed.quote()} ddltable=${ddl.quote()}")
+      if let Some(m) = d.dml_stats {
+        note(f, "  dml inserted=${m.inserted_row_count} deleted=${m.deleted_row_count} updated=${m.updated_row_count}")
+      }
+    }
+    Some(Statistics.Load(d)) => note(f, "  load bytes=${d.input_file_bytes} files=${d.input_files} outbytes=${d.output_bytes} outrows=${d.output_rows}")
+    Some(Statistics.Extract(d)) => note(f, "  extract [${d.destination_uri_file_counts.map(fn(n) -> Str { "${n}" }).join(" ")}]")
+    None => {}
+  }
+}
+
+fn config_line(f: Fake, j: Job[()]) {
+  match j.config() {
+    Ok(Some(JobConfig.Query(q))) => {
+      let dst = match q.dst {
+        Some(t) => fq(t)
+        None => ""
+      }
+      note(f, "  config query ${q.q.quote()} legacy=${q.use_legacy_sql} standard=${q.use_standard_sql} dry=${q.dry_run} cache_off=${q.disable_query_cache} billed=${q.max_bytes_billed} priority=${q.priority.quote()} default=${q.default_project_id}.${q.default_dataset_id} dst=${dst.quote()} create=${q.create_disposition.quote()} write=${q.write_disposition.quote()} timeoutms=${q.job_timeout.millis()} labels=${map_v(q.labels)} params=${q.parameters.len()} session=${q.create_session}")
+    }
+    Ok(Some(JobConfig.Other(c))) => note(f, if c.load.is_some() { "  config *bigquery.LoadConfig" } else if c.copy.is_some() { "  config *bigquery.CopyConfig" } else { "  config *bigquery.ExtractConfig" })
+    Ok(None) => note(f, "  config none")
+    Err(e) => err_line(f, e)
+  }
+}
+
+/// The iterator read to its end, a row a line (the oracle's rows).
+fn rows_line(f: Fake, r: Result[RowIterator[()], BqErr], as_map: Bool = false) {
+  var it = match r {
+    Ok(it) => it
+    Err(e) => {
+      err_line(f, e)
+      return
+    }
+  }
+  while true {
+    let shown = if as_map {
+      match it.next_map() {
+        Ok(Some(m)) => show(Value.Map(m))
+        Ok(None) => break
+        Err(e) => {
+          err_line(f, e)
+          return
+        }
+      }
+    } else {
+      match it.next() {
+        Ok(Some(vs)) => show(Value.List(vs))
+        Ok(None) => break
+        Err(e) => {
+          err_line(f, e)
+          return
+        }
+      }
+    }
+    note(f, "  row ${shown}")
+  }
+  let src = match it.source_job() {
+    Some(j) => "${j.project_id()}/${ids(j.id())}/${j.location()}"
+    None => ""
+  }
+  note(f, "  done total=${it.total_rows} schema=${names(it.schema ?? [])} job=${src.quote()} query=${it.query_id().quote()}")
+}
+
+fn ok_line(f: Fake, r: Result[(), BqErr]) {
+  match r {
+    Ok(_) => note(f, "  ok")
+    Err(e) => err_line(f, e)
+  }
+}
+
+fn vsv(id: Int, name: Str) -> ValuesSaver {
+  ValuesSaver{schema: [FieldSchema{name: "id", type_: "INTEGER"}, FieldSchema{name: "name", type_: "STRING"}], row: [Value.Int(id), Value.Str(name)]}
+}
+
+fn with_id(s: ValuesSaver, id: Str) -> ValuesSaver {
+  var x = s
+  x.insert_id = id
+  x
+}
+
+fn row(id: Str, name: Str, at: Str) -> Str { "{\"f\":[{\"v\":\"${id}\"},{\"v\":\"${name}\"},{\"v\":\"${at}\"}]}" }
+
+fn complete(extra: Str) -> Str { "{\"kind\":\"bigquery#queryResponse\",\"jobComplete\":true,\"schema\":${SCHEMA_JSON},\"totalRows\":\"3\",${extra}}" }
+
+fn insert_err(i: Int, reasons: List[Str]) -> Str {
+  "{\"index\":${i},\"errors\":[${reasons.map(fn(r) -> Str { "{\"reason\":\"${r}\",\"location\":\"name\",\"message\":\"bad ${r}\"}" }).join(",")}]}"
+}
+
+fn rows12() -> Str { "${row("1", "a", "1700000000000000")},${row("2", "b", "1700000000500000")}" }
+
+fn rows3() -> Str { row("3", "c", "1700000001000000") }
+
+fn job_done() -> Str { "{\"kind\":\"bigquery#job\",\"id\":\"p1:US.job1\",${JOB_REF},${QUERY_CONF},\"status\":{\"state\":\"DONE\"},${query_stats()},\"user_email\":\"a@example.com\"}" }
+
+fn job_running() -> Str { "{\"kind\":\"bigquery#job\",${JOB_REF},\"configuration\":{\"query\":{\"query\":\"SELECT 1\"}},\"status\":{\"state\":\"RUNNING\"},\"statistics\":{\"creationTime\":\"1700000000000\"}}" }
+
+fn query_stats() -> Str { "\"statistics\":{\"creationTime\":\"1700000000000\",\"startTime\":\"1700000001000\",\"endTime\":\"1700000002500\",\"totalBytesProcessed\":\"2048\",\"totalSlotMs\":\"1500\",\"completionRatio\":1,\"reservation_id\":\"res1\",\"sessionInfo\":{\"sessionId\":\"s1\"},\"query\":{\"billingTier\":1,\"cacheHit\":true,\"statementType\":\"SELECT\",\"totalBytesBilled\":\"10485760\",\"totalBytesProcessed\":\"2048\",\"totalBytesProcessedAccuracy\":\"PRECISE\",\"numDmlAffectedRows\":\"3\",\"totalSlotMs\":\"1500\",\"schema\":${SCHEMA_JSON},\"referencedTables\":[{\"projectId\":\"p1\",\"datasetId\":\"d1\",\"tableId\":\"t1\"}],\"undeclaredQueryParameters\":[{\"name\":\"x\",\"parameterType\":{\"type\":\"INT64\"}}],\"ddlOperationPerformed\":\"CREATE\",\"ddlTargetTable\":{\"projectId\":\"p1\",\"datasetId\":\"d1\",\"tableId\":\"t9\"},\"dmlStats\":{\"insertedRowCount\":\"3\",\"deletedRowCount\":\"0\",\"updatedRowCount\":\"1\"}}}" }
+
+const SCHEMA_JSON: Str = "{\"fields\":[{\"name\":\"id\",\"type\":\"INTEGER\"},{\"name\":\"name\",\"type\":\"STRING\"},{\"name\":\"at\",\"type\":\"TIMESTAMP\"}]}"
+const JOB_REF: Str = "\"jobReference\":{\"projectId\":\"p1\",\"jobId\":\"job1\",\"location\":\"US\"}"
+const QUERY_CONF: Str = "\"configuration\":{\"query\":{\"query\":\"SELECT 1\",\"useLegacySql\":false,\"useQueryCache\":false,\"maximumBytesBilled\":\"1000\",\"priority\":\"BATCH\",\"defaultDataset\":{\"projectId\":\"p2\",\"datasetId\":\"d2\"},\"destinationTable\":{\"projectId\":\"p1\",\"datasetId\":\"d1\",\"tableId\":\"out\"},\"createDisposition\":\"CREATE_IF_NEEDED\",\"writeDisposition\":\"WRITE_APPEND\",\"createSession\":true},\"labels\":{\"k\":\"v\"},\"jobTimeoutMs\":\"90000\",\"dryRun\":false}"
+const JOB_FAILED: Str = "{\"jobReference\":{\"projectId\":\"p2\",\"jobId\":\"j2\",\"location\":\"EU\"},\"configuration\":{\"query\":{\"query\":\"SELECT x\"}},\"status\":{\"state\":\"DONE\",\"errorResult\":{\"reason\":\"invalidQuery\",\"location\":\"query\",\"message\":\"Unrecognized name: x\"},\"errors\":[{\"reason\":\"invalidQuery\",\"location\":\"query\",\"message\":\"Unrecognized name: x\"},{\"reason\":\"stopped\",\"message\":\"stopped\"}]}}"
+const LOAD_RUNNING: Str = "{\"jobReference\":{\"projectId\":\"p1\",\"jobId\":\"l1\",\"location\":\"US\"},\"configuration\":{\"load\":{\"destinationTable\":{\"projectId\":\"p1\",\"datasetId\":\"d1\",\"tableId\":\"t1\"},\"sourceUris\":[\"gs://b/o\"]}},\"status\":{\"state\":\"RUNNING\"}}"
+const LOAD_STATUS: Str = "{\"status\":{\"state\":\"RUNNING\"},\"statistics\":{\"creationTime\":\"1700000000000\",\"load\":{\"inputFileBytes\":\"100\",\"inputFiles\":\"1\",\"outputBytes\":\"90\",\"outputRows\":\"5\"}}}"
+const LOAD_DONE: Str = "{\"status\":{\"state\":\"DONE\"},\"statistics\":{\"creationTime\":\"1700000000000\",\"endTime\":\"1700000009000\",\"load\":{\"inputFileBytes\":\"100\",\"inputFiles\":\"1\",\"outputBytes\":\"90\",\"outputRows\":\"5\"}}}"
+const JOB_RATE_LIMITED: Str = "{\"error\":{\"code\":400,\"message\":\"Job exceeded rate limits\",\"errors\":[{\"message\":\"Job exceeded rate limits\",\"domain\":\"global\",\"reason\":\"jobRateLimitExceeded\"}]}}"
+const INVALID_QUERY: Str = "{\"error\":{\"code\":400,\"message\":\"Syntax error: Unexpected end of script at [1:7]\",\"errors\":[{\"message\":\"Syntax error: Unexpected end of script at [1:7]\",\"domain\":\"global\",\"reason\":\"invalidQuery\",\"location\":\"q\",\"locationType\":\"parameter\"}],\"status\":\"INVALID_ARGUMENT\"}}"
+const TABLE_NOT_FOUND: Str = "{\"error\":{\"code\":404,\"message\":\"Not found: Table p1:d1.t1\",\"errors\":[{\"message\":\"Not found: Table p1:d1.t1\",\"domain\":\"global\",\"reason\":\"notFound\"}],\"status\":\"NOT_FOUND\"}}"
+const INTERNAL_ERR: Str = "{\"error\":{\"code\":500,\"message\":\"x\",\"errors\":[{\"message\":\"x\",\"domain\":\"global\",\"reason\":\"internalError\"}]}}"
+
+/// The client of a step 3 case: every pause short.
+fn jobs_client(os: testing.TestOs, project: Str = "p1") -> Client[()] {
+  new_client(os.net, os.clock, os.rand, project, ClientOptions{service: option.ClientOptions{endpoint: "https://bigquery.fake/bigquery/v2/", without_authentication: true}, backoff: FAST, query_poll: FAST, status_poll: FAST})
+}

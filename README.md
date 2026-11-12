@@ -26,9 +26,10 @@ Status (google.golang.org/api v0.311.0, 667 modules; the full table is
   composes, signed URLs and POST policies, ACLs, HMAC keys,
   notifications, IAM, and lifecycle, retention, soft delete, autoclass,
   restore and move), the BigQuery client is in progress (`bigquery`,
-  [decision 0011](docs/decisions/0011-bigquery.md) steps 1 and 2a: the
-  client, datasets, tables, routines, models, schemas, row values and
-  query parameters), and
+  [decision 0011](docs/decisions/0011-bigquery.md) steps 1 to 3: the
+  client, datasets, tables, routines, models, schemas, row values,
+  query parameters, queries, jobs, the row iterator and streaming
+  inserts), and
   `auth` has decision 0009's credentials. See
   [gcp-cloud-go-coverage.md](docs/reports/gcp-cloud-go-coverage.md).
 

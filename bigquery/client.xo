@@ -25,12 +25,15 @@ pub enum BqErr {
   Call(e: gensupport.CallErr)
   /// The arguments were refused before any request, with Go's text.
   Invalid(msg: Str)
+  /// A streaming insert's rows the service refused (Go's PutMultiError).
+  PutMulti(rows: List[RowInsertionError])
 }
 
 pub fn (e: BqErr) display() -> Str {
   match e {
     Call(c) => c.display()
     Invalid(m) => m
+    PutMulti(rows) => put_multi_display(rows)
   }
 }
 
@@ -45,6 +48,7 @@ pub fn (e: BqErr) api() -> googleapi.ApiErr? {
       }
     }
     Invalid(_) => None
+    PutMulti(_) => None
   }
 }
 
@@ -67,6 +71,10 @@ pub struct Backoff {
 /// The reasons runWithRetry retries besides 500, 502, 503 and 504 (Go's
 /// defaultRetryReasons).
 pub const DEFAULT_RETRY_REASONS: List[Str] = ["backendError", "rateLimitExceeded"]
+
+/// The reasons a job's insert, a query and a query's polling retry (Go's
+/// jobRetryReasons).
+pub const JOB_RETRY_REASONS: List[Str] = ["backendError", "rateLimitExceeded", "jobRateLimitExceeded", "internalError"]
 
 /// Go's retryableError: the first error's reason is one of reasons, the
 /// status is 500, 502, 503 or 504, or the connection failed.
@@ -93,6 +101,12 @@ pub struct ClientOptions[fx: Effects] {
   pub service: option.ClientOptions[fx] = option.ClientOptions{}
   /// The pause between retried attempts.
   pub backoff: Backoff = Backoff{}
+  /// The pause between polls of a query's results (Go's waitForQuery: 50
+  /// ms growing by 1.3 to 60 s).
+  pub query_poll: Backoff = Backoff{initial: 50ms, max: 60s, multiplier: 1.3}
+  /// The pause between polls of another job's status (Go's Job.Wait,
+  /// gax's default: 1 s growing by 2 to 30 s).
+  pub status_poll: Backoff = Backoff{initial: 1s, max: 30s, multiplier: 2.0}
 }
 
 /// A BigQuery client (Go's Client). A value: copies share nothing but the
@@ -107,6 +121,8 @@ pub struct Client[fx: Effects] {
   clock: Clock
   rand: Rand
   backoff: Backoff
+  query_poll: Backoff
+  status_poll: Backoff
 }
 
 /// The client of project (Go's NewClient over HTTP). Go's
@@ -118,7 +134,7 @@ pub fn new_client[fx: Effects](net: Net, clock: Clock, rand: Rand, project: Str,
     o.user_agent = "gcloud-golang-bigquery/${VERSION}"
   }
   let ep = if o.endpoint == "" { raw.BASE_PATH } else { o.endpoint }
-  Client{project: project, svc: raw.new_service(net, o), core: gensupport.new_core(net, o, ep), clock: clock, rand: rand, backoff: opts.backoff}
+  Client{project: project, svc: raw.new_service(net, o), core: gensupport.new_core(net, o, ep), clock: clock, rand: rand, backoff: opts.backoff, query_poll: opts.query_poll, status_poll: opts.status_poll}
 }
 
 /// The client's project (Go's Project).
@@ -132,9 +148,7 @@ fn client_headers() -> List[(Str, Str)] { [("x-goog-api-client", "gl-xo/preview 
 /// retryable (no limit on attempts; Go stops when the context ends),
 /// pausing by the backoff between attempts.
 fn (c: Client[fx]) retry[T](reasons: List[Str], f: fn() -> T ! gensupport.CallErr uses (net.dial, clock, rand, fx)) -> T ! BqErr uses (net.dial, clock, rand, fx) {
-  var bound = if c.backoff.initial > 0s { c.backoff.initial } else { 1s }
-  let max = if c.backoff.max > 0s { c.backoff.max } else { 32s }
-  let mult = if c.backoff.multiplier > 1.0 { c.backoff.multiplier } else { 2.0 }
+  var bound = start_bound(c.backoff)
   while true {
     let e = match f() {
       Ok(v) => return Ok(v)
@@ -143,13 +157,22 @@ fn (c: Client[fx]) retry[T](reasons: List[Str], f: fn() -> T ! gensupport.CallEr
     if !retryable(e, reasons) {
       return Err(BqErr.Call(e))
     }
-    // gax: a pause of 1 + rand(bound) nanoseconds, then the bound grows
-    let ns = bound.nanos()
-    c.clock.sleep(Duration.from_nanos(1 + c.rand.int(0, ns)))
-    let next = Duration.from_nanos(Int(Float(ns) * mult))
-    bound = if next > max { max } else { next }
+    bound = c.pause(c.backoff, bound)
   }
   fault("unreachable")
+}
+
+fn start_bound(b: Backoff) -> Duration { if b.initial > 0s { b.initial } else { 1s } }
+
+/// gax's Pause: a sleep of 1 + rand(bound) nanoseconds; the next bound,
+/// grown by the multiplier up to the maximum.
+fn (c: Client[fx]) pause(b: Backoff, bound: Duration) -> Duration uses (clock, rand) {
+  let max = if b.max > 0s { b.max } else { 32s }
+  let mult = if b.multiplier > 1.0 { b.multiplier } else { 2.0 }
+  let ns = bound.nanos()
+  c.clock.sleep(Duration.from_nanos(1 + c.rand.int(0, ns)))
+  let next = Duration.from_nanos(Int(Float(ns) * mult))
+  if next > max { max } else { next }
 }
 
 /// One call with no retry.
@@ -160,6 +183,12 @@ fn once[T](r: Result[T, gensupport.CallErr]) -> T ! BqErr {
 /// Sends a hand-built JSON body (an update's, with its nulls) to path
 /// under the endpoint and decodes the answer as T.
 fn (c: Client[fx]) send_json[T: Json](method: Str, path: Str, params: Map[Str, Str], query: List[(Str, Str)], etag: Str, body: json.Value) -> T ! gensupport.CallErr uses (net.dial, clock, rand, fx) {
+  c.send_text[T](method, path, params, query, etag, body.encode())
+}
+
+/// send_json with the body's JSON text as it is (a streaming insert's
+/// rows, written as Go writes them).
+fn (c: Client[fx]) send_text[T: Json](method: Str, path: Str, params: Map[Str, Str], query: List[(Str, Str)], etag: Str, body: Str) -> T ! gensupport.CallErr uses (net.dial, clock, rand, fx) {
   let target = googleapi.expand(googleapi.resolve_relative(c.core.base_path, path), params)
   var q = url.values()
   for (k, v) in query {
@@ -172,10 +201,13 @@ fn (c: Client[fx]) send_json[T: Json](method: Str, path: Str, params: Map[Str, S
     hs.push(("If-Match", etag))
   }
   hs.push(("Content-Type", "application/json"))
-  let resp = c.core.client.send(gensupport.Request{method: method, url: target, query: q, headers: hs, body: "${body.encode()}\n".bytes()})?
+  let resp = c.core.client.send(gensupport.Request{method: method, url: target, query: q, headers: hs, body: "${body}\n".bytes()})?
   gensupport.check(resp)?
   gensupport.decode[T](resp)
 }
+
+/// A random id: 32 hex digits (Go's randomID).
+fn (c: Client[fx]) random_id() -> Str uses rand { c.rand.bytes(16).to_hex() }
 
 /// Milliseconds since the epoch as Go's unixMillisToTime: 0 is the zero
 /// time (None).

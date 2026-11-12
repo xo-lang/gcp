@@ -1,0 +1,224 @@
+// The rows of a table or a query (iterator.go): pages of tabledata.list
+// or jobs.getQueryResults, the first page of a fast query kept from its
+// answer, each row converted under the schema (convert_rows). Go reads
+// over the Storage API when the client has a storage read client; that
+// comes later.
+
+use github.com/xo-lang/gcp/gensupport
+use github.com/xo-lang/gcp/bigquery/apiv2 as raw
+
+/// Where an iterator's rows come from (Go's rowSource): a query job, a
+/// table, or only the rows a fast query's answer held.
+struct RowSource[fx: Effects] {
+  job: Job[fx]? = None
+  table: Table[fx]? = None
+  query_id: Str = ""
+  cached: CachedPage? = None
+}
+
+/// The first page of a fast query (Go's cachedRows, cachedSchema,
+/// cachedNextToken, cachedTotalRows).
+struct CachedPage {
+  rows: List[raw.TableRow]
+  schema: raw.TableSchema?
+  next_token: Str
+  total_rows: Int
+}
+
+struct FetchedPage {
+  token: Str
+  rows: List[List[Value]]
+  total_rows: Int
+  schema: List[FieldSchema]?
+}
+
+/// The rows of a table or a query (Go's RowIterator). next gives each row
+/// as its values, next_map by field name, next_with through a loader.
+pub struct RowIterator[fx: Effects] {
+  /// The row to start at, for a table or a job's first page (Go's
+  /// StartIndex).
+  pub start_index: Int = 0
+  /// The rows' schema: None until the first page (Go's Schema).
+  pub schema: List[FieldSchema]? = None
+  /// The rows in all, as of the last page (Go's TotalRows).
+  pub total_rows: Int = 0
+  /// The most rows a page asks for, 0 for the service's choice (Go's
+  /// PageInfo().MaxSize).
+  pub page_size: Int = 0
+  src: RowSource[fx]
+  c: Client[fx]
+  rows: List[List[Value]] = []
+  token: Str = ""
+  started: Bool = false
+  err: BqErr? = None
+}
+
+fn new_row_iterator[fx: Effects](src: RowSource[fx], c: Client[fx]) -> RowIterator[fx] { RowIterator{src: src, c: c} }
+
+/// The rows of the table (Go's Read).
+pub fn (t: Table[fx]) read() -> RowIterator[fx] { new_row_iterator(RowSource{table: Some(t)}, t.c) }
+
+/// The job the rows come from, if any (Go's SourceJob).
+pub fn (it: RowIterator[fx]) source_job() -> Job[fx]? {
+  let j = it.src.job ?? return None
+  Some(Job{project: j.project, job_id: j.job_id, loc: j.loc, c: j.c})
+}
+
+/// The id of the query the rows come from, "" for none (Go's QueryID).
+pub fn (it: RowIterator[fx]) query_id() -> Str { it.src.query_id }
+
+/// The next row's values, None after the last (Go's Next into a
+/// []Value). An error stays: each later call returns it again.
+pub fn (var it: RowIterator[fx]) next() -> List[Value]? ! BqErr uses (net.dial, clock, rand, fx) {
+  while it.rows.is_empty() {
+    if let Some(e) = it.err {
+      return Err(e)
+    }
+    if it.started && it.token == "" {
+      return Ok(None)
+    }
+    match it.fetch() {
+      Ok(_) => {}
+      Err(e) => {
+        it.err = Some(e)
+        return Err(e)
+      }
+    }
+  }
+  let row = it.rows[0]
+  it.rows = it.rows[1..it.rows.len()]
+  Ok(Some(row))
+}
+
+/// The next row by field name (Go's Next into a map[string]Value).
+pub fn (var it: RowIterator[fx]) next_map() -> Map[Str, Value]? ! BqErr uses (net.dial, clock, rand, fx) {
+  let row = it.next()? ?? return Ok(None)
+  Ok(Some(load_map(row, it.schema ?? [])?))
+}
+
+/// The next row through load, given the row and its schema (Go's Next
+/// into a ValueLoader).
+pub fn (var it: RowIterator[fx]) next_with[T](load: fn(List[Value], Schema) -> T ! BqErr) -> T? ! BqErr uses (net.dial, clock, rand, fx) {
+  let row = it.next()? ?? return Ok(None)
+  Ok(Some(load(row, it.schema ?? [])?))
+}
+
+/// Go's RowIterator.fetch: one page, its rows kept, the schema taken from
+/// the first.
+fn (var it: RowIterator[fx]) fetch() -> () ! BqErr uses (net.dial, clock, rand, fx) {
+  let res = it.fetch_page()?
+  it.started = true
+  it.rows = it.rows + res.rows
+  if it.schema.is_none() {
+    it.schema = res.schema
+  }
+  it.total_rows = res.total_rows
+  it.token = res.token
+  Ok(())
+}
+
+/// Go's fetchPage: the cached page if it fits, else the job's or the
+/// table's next page; with neither, no rows.
+fn (var it: RowIterator[fx]) fetch_page() -> FetchedPage ! BqErr uses (net.dial, clock, rand, fx) {
+  if let Some(p) = it.cached_page()? {
+    return Ok(p)
+  }
+  if let Some(j) = it.src.job {
+    return it.job_page(j)
+  }
+  if let Some(t) = it.src.table {
+    return it.table_page(t)
+  }
+  Ok(FetchedPage{token: "", rows: [], total_rows: 0, schema: match it.schema {
+    Some(s) => Some(s)
+    None => None
+  }})
+}
+
+/// Go's fetchCachedPage: the page is used once, and only as the first
+/// page from row 0 whose size is the service's or the page's own.
+fn (var it: RowIterator[fx]) cached_page() -> FetchedPage? ! BqErr {
+  let cp = it.src.cached ?? return Ok(None)
+  it.src.cached = None
+  let schema = match it.schema {
+    Some(s) => s
+    None => {
+      if cp.schema.is_none() {
+        return Ok(None)
+      }
+      schema_of(cp.schema)
+    }
+  }
+  if it.token == "" && it.start_index == 0 && (it.page_size == 0 || it.page_size == cp.rows.len()) {
+    let rows = convert_rows(cp.rows, schema)?
+    return Ok(Some(FetchedPage{token: cp.next_token, rows: rows, total_rows: cp.total_rows, schema: Some(schema)}))
+  }
+  Ok(None)
+}
+
+/// Go's fetchJobResultPage: getQueryResults from the page token, or the
+/// start index for the first page.
+fn (it: RowIterator[fx]) job_page(j: Job[fx]) -> FetchedPage ! BqErr uses (net.dial, clock, rand, fx) {
+  let c = j.c
+  var fields = ["rows", "pageToken", "totalRows"]
+  if it.schema.is_none() {
+    fields.push("schema")
+  }
+  var o = raw.JobsGetQueryResultsOptions{format_options_use_int64_timestamp: Some(true), location: Some(j.loc), fields: fields, headers: client_headers()}
+  if it.token != "" {
+    o.page_token = Some(it.token)
+  } else {
+    o.start_index = Some(it.start_index)
+  }
+  if it.page_size > 0 {
+    o.max_results = Some(it.page_size)
+  }
+  let res = c.retry(DEFAULT_RETRY_REASONS, fn() -> raw.GetQueryResultsResponse ! gensupport.CallErr uses net.dial, clock, rand, fx {
+    c.svc.jobs.get_query_results(j.project, j.job_id, o)
+  })?
+  let schema = match it.schema {
+    Some(s) => s
+    None => schema_of(res.schema)
+  }
+  Ok(FetchedPage{token: res.page_token, rows: convert_rows(res.rows, schema)?, total_rows: res.total_rows, schema: Some(schema)})
+}
+
+/// Go's fetchTableResultPage: tabledata.list, and the table's schema
+/// when the iterator has none. Go asks for both at once; here the schema
+/// is asked for first, and the list's error wins as in Go.
+fn (it: RowIterator[fx]) table_page(t: Table[fx]) -> FetchedPage ! BqErr uses (net.dial, clock, rand, fx) {
+  let c = t.c
+  var schema = it.schema
+  var schema_err: BqErr? = None
+  if schema.is_none() {
+    // Go's call sets no x-goog-api-client of its own
+    let o = raw.TablesGetOptions{fields: ["schema"]}
+    match c.retry(DEFAULT_RETRY_REASONS, fn() -> raw.Table ! gensupport.CallErr uses net.dial, clock, rand, fx {
+      c.svc.tables.get(t.project_id, t.dataset_id, t.table_id, o)
+    }) {
+      Ok(bqt) => {
+        if bqt.schema.is_some() {
+          schema = Some(schema_of(bqt.schema))
+        }
+      }
+      Err(e) => schema_err = Some(e)
+    }
+  }
+  var o = raw.TabledataListOptions{format_options_use_int64_timestamp: Some(true), headers: client_headers()}
+  if it.token != "" {
+    o.page_token = Some(it.token)
+  } else {
+    o.start_index = Some(it.start_index)
+  }
+  if it.page_size > 0 {
+    o.max_results = Some(it.page_size)
+  }
+  let res = c.retry(DEFAULT_RETRY_REASONS, fn() -> raw.TableDataList ! gensupport.CallErr uses net.dial, clock, rand, fx {
+    c.svc.tabledata.list(t.project_id, t.dataset_id, t.table_id, o)
+  })?
+  if let Some(e) = schema_err {
+    return Err(e)
+  }
+  let s = schema ?? []
+  Ok(FetchedPage{token: res.page_token, rows: convert_rows(res.rows, s)?, total_rows: res.total_rows, schema: schema})
+}

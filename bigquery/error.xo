@@ -1,0 +1,52 @@
+// A job's and a row's errors (error.go).
+
+use github.com/xo-lang/gcp/bigquery/apiv2 as raw
+
+/// An error the service reports about a job or a row (Go's Error).
+pub struct ServiceError {
+  pub location: Str = ""
+  pub message: Str = ""
+  pub reason: Str = ""
+}
+
+/// Go's Error text: `{Location: "..."; Message: "..."; Reason: "..."}`.
+pub fn (e: ServiceError) display() -> Str {
+  "{Location: ${e.location.quote()}; Message: ${e.message.quote()}; Reason: ${e.reason.quote()}}"
+}
+
+fn error_of(p: raw.ErrorProto) -> ServiceError { ServiceError{location: p.location, message: p.message, reason: p.reason} }
+
+/// Go's MultiError text: the first error, and how many others.
+pub fn multi_error_display(errs: List[ServiceError]) -> Str {
+  match errs.len() {
+    0 => "(0 errors)"
+    1 => errs[0].display()
+    2 => "${errs[0].display()} (and 1 other error)"
+    n => "${errs[0].display()} (and ${n - 1} other errors)"
+  }
+}
+
+/// A row a streaming insert could not add (Go's RowInsertionError).
+pub struct RowInsertionError {
+  /// The row's insert id ("" for none).
+  pub insert_id: Str = ""
+  /// The row's place in the insert, from 0.
+  pub row_index: Int = 0
+  pub errors: List[ServiceError] = []
+}
+
+pub fn (e: RowInsertionError) display() -> Str {
+  "insertion of row [insertID: ${e.insert_id.quote()}; insertIndex: ${e.row_index}] failed with error: ${multi_error_display(e.errors)}"
+}
+
+/// Go's PutMultiError text: the count, then the first three rows' errors.
+fn put_multi_display(rows: List[RowInsertionError]) -> Str {
+  let plural = if rows.len() == 1 { "" } else { "s" }
+  var details = ""
+  if !rows.is_empty() {
+    let shown = if rows.len() > 3 { rows[0..3] } else { rows }
+    let ellipsis = if rows.len() > 3 { ", ..." } else { "" }
+    details = " (${shown.map(fn(r) -> Str { r.display() }).join(", ")}${ellipsis})"
+  }
+  "${rows.len()} row insertion${plural} failed${details}"
+}
