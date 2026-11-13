@@ -74,9 +74,12 @@ The four Calendar bodies are tested against what Go's calendar/v3
   strings in these APIs.
 - The generated models grow from 56 MB to 107 MB of source (the enums,
   two fields and the two methods per request model). A program's code
-  (`__text` plus `_ptext`, darwin/arm64, xo 43f8dfd09): a Calendar
-  events.patch program 1.846 to 2.024 MB (+9.6%), a BigQuery query
-  program 4.067 to 4.373 MB (+7.5%); the BigQuery part is mostly derived
-  Debug printing the lists and decoders giving skipped fields their
-  defaults, which xo is asked to trim before 0.51 (the lead,
-  2026-11-13).
+  (`__text` plus `_ptext`, darwin/arm64), before and after this form:
+  with xo 43f8dfd09, a Calendar events.patch program 1.846 to 2.024 MB
+  (+9.6%) and a BigQuery query program 4.067 to 4.373 MB (+7.5%); with
+  xo fa4885045 (main, 2026-11-13, whole program, with the Debug table and
+  shared returns trims), 1.749 to 1.914 MB (+9.4%) and 3.903 to 4.166 MB
+  (+6.7%), an aws control program unchanged at 2.329 MB. The trims cut
+  both sides about 5% but leave the cost of this form near the same
+  share; the BigQuery part is mostly derived Debug printing the lists
+  and decoders giving skipped fields their defaults.
