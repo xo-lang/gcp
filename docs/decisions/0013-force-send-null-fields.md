@@ -27,21 +27,25 @@ generated types carry `ForceSendFields` and `NullFields` for this, and
 request schema and every schema it reaches, 29,484 of 61,456) gets
 
 ```xo
-pub force_send_fields as "~forceSendFields,omitempty": List[EventField] = []
-pub null_fields as "~nullFields,omitempty": List[EventField] = []
+pub force_send_fields as "-": List[EventField] = []
+pub null_fields as "-": List[EventField] = []
 ```
 
 and an enum of its fields, `EventField`, whose variants are Go's field
 names. A misspelled field is a compile error, where Go's strings are
-silently ignored. Each variant's JSON name is the field's key, then for
-a field that is not an Option `=` and its empty value's JSON
-(`Attendees as "attendees=[]"`, `Minutes as "minutes=0"`; an int64 sent
-as a string is `"0"`).
+silently ignored. `as "-"` (xo decision 0622) leaves both lists out of
+every derive: a model's JSON never holds them, encoded or decoded.
 
-`gensupport.json_body` writes the body as before when no model in it
-sets either list. Otherwise it applies them to the body's JSON value at
-every level, nested models and models inside lists included, and drops
-both keys:
+Each request model also gets `body_marked()` (whether it, or a model in
+it, sets either list) and `body_mark(v)`, which writes into v, the
+model's JSON, each level's entries: the field's key, then for a field
+that is not an Option `=` and its empty value's JSON (`attendees=[]`,
+`minutes=0`; an int64 sent as a string is `"0"`), from one generated
+match per enum. A generated request passes them to
+`gensupport.json_body` only when `body_marked()`: the body is then
+written as before when no model in it sets either list. Otherwise
+json_body applies the entries at every level, nested models and models
+inside lists and maps included:
 
 - A forced field that is absent gets its empty value. A forced Option
   field that is None stays out, as Go never sends a nil pointer.
@@ -57,17 +61,22 @@ The four Calendar bodies are tested against what Go's calendar/v3
 
 ## Consequences
 
-- The lists are ordinary fields, so a model's own `json.encode` shows
-  them as `~forceSendFields` and `~nullFields` when the user set them.
-  They are `omitempty`, so a decoded response, its re-encoding, and any
-  model without them set never show them. A `derive Json` option to
-  skip a field is asked of xo (the lead, 2026-11-12); when it lands the
-  generator marks both fields skipped and json_body reads them through
-  the model, with no change to user code.
+- The lists are skipped fields (`as "-"`), so gcp needs an xo with
+  decision 0622 (0.51.0, its first release): an older xo reads `"-"`
+  as the JSON key `-`. The first form (2026-11-12, gcp 991353d) put
+  them in the model's JSON as `~forceSendFields` and `~nullFields`; its
+  decoders paid for the two keys in every model, +13% and +22% of a
+  Calendar and a BigQuery program's code with xo 0.49.1.
 - Go's `NullFields` entries for a map key (`"Labels.k"`) are not
   supported: `null_fields` names whole fields.
 - Go turns every number under a re-encoded level into a float64; a
   whole number above 2^53 there would differ. Ids above that travel as
   strings in these APIs.
-- The generated models grow from 56 MB to 75 MB of source (the enums
-  and two fields per request model).
+- The generated models grow from 56 MB to 107 MB of source (the enums,
+  two fields and the two methods per request model). A program's code
+  (`__text` plus `_ptext`, darwin/arm64, xo 43f8dfd09): a Calendar
+  events.patch program 1.846 to 2.024 MB (+9.6%), a BigQuery query
+  program 4.067 to 4.373 MB (+7.5%); the BigQuery part is mostly derived
+  Debug printing the lists and decoders giving skipped fields their
+  defaults, which xo is asked to trim before 0.51 (the lead,
+  2026-11-13).

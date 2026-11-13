@@ -66,8 +66,8 @@ let ev = calendar.Event{
 
 Nested models have their own lists (`EventReminders{force_send_fields:
 [EventRemindersField.UseDefault]}` sends `"useDefault":false`). Only the
-request body applies them; a model's own `json.encode` shows them as
-`~forceSendFields` and `~nullFields` when set.
+request body applies them: they are never in a model's own JSON
+(`as "-"`, which needs xo 0.51.0 or later).
 
 ## Layout
 

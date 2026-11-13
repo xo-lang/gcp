@@ -14,7 +14,9 @@ touches. Release notes: [docs/releases](docs/releases).
   `gensupport.json_body` applies them at every level:
   `Event{force_send_fields: [EventField.Attendees]}` sends
   `{"attendees":[]}`, `Event{null_fields: [EventField.ConferenceData]}`
-  sends `{"conferenceData":null}`. Every generated module changes.
+  sends `{"conferenceData":null}`. The lists are never in a model's own
+  JSON (`as "-"`), so gcp now needs xo 0.51.0 or later (xo decision
+  0622). Every generated module changes.
 - **Breaking** (decision 0012): every generated module's API version is
   now an `apivN` path element, one generator rule for all 667, so Xo
   does not read `/v2` as a semver major (XO1301 made the 91 modules at
