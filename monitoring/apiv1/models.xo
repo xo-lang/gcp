@@ -2,6 +2,7 @@
 // DO NOT EDIT.
 
 use std/json
+use github.com/xo-lang/gcp/gensupport
 
 /// Aggregation: Describes how to combine multiple time series to provide a different view of the data. Aggregation of time series is done in two steps. First, each time series in the set is aligned to the same time interval boundaries, then the set of time series is optionally reduced in number.Alignment consists of applying the per_series_aligner operation to each time series after its data has been divided into regular alignment_period time intervals. This process takes all of the data points in an alignment period, applies a mathematical transformation such as averaging, minimum, maximum, delta, etc., and converts them into a single data point per period.Reduction is when the aligned and transformed time series can optionally be combined, reducing the number of time series through similar mathematical transformations. Reduction involves applying a cross_series_reducer to all the time series, optionally sorting the time series into subsets with group_by_fields, and applying the reducer to each subset.The raw time series data can contain a huge amount of information from multiple sources. Alignment and reduction transforms this mass of data into a more manageable and representative collection of data, for example "the 95% latency across the average of all tasks in a cluster". This representative data can be more easily graphed and comprehended, and the individual time series data is still available for later drilldown. For more details, see Filtering and aggregation (https://cloud.google.com/monitoring/api/v3/aggregation).
 ///
@@ -15,17 +16,42 @@ pub struct Aggregation {
   pub group_by_fields as "groupByFields,omitempty": List[Str] = []
   /// An Aligner describes how to bring the data points in a single time series into temporal alignment. Except for ALIGN_NONE, all alignments cause all the data points in an alignment_period to be mathematically grouped together, resulting in a single data point for each alignment_period with end timestamp at the end of the period.Not all alignment operations may be applied to all time series. The valid choices depend on the metric_kind and value_type of the original time series. Alignment can change the metric_kind or the value_type of the time series.Time series data must be aligned in order to perform cross-time series reduction. If cross_series_reducer is specified, then per_series_aligner must be specified and not equal to ALIGN_NONE and alignment_period must be specified; otherwise, an error is returned.
   pub per_series_aligner as "perSeriesAligner,omitempty": Str = ""
-  pub force_send_fields as "~forceSendFields,omitempty": List[AggregationField] = []
-  pub null_fields as "~nullFields,omitempty": List[AggregationField] = []
+  pub force_send_fields as "-": List[AggregationField] = []
+  pub null_fields as "-": List[AggregationField] = []
 } derive Json
 
 /// AggregationField: Aggregation's fields, for force_send_fields and null_fields.
 pub enum AggregationField {
-  AlignmentPeriod as "alignmentPeriod=\"\""
-  CrossSeriesReducer as "crossSeriesReducer=\"\""
-  GroupByFields as "groupByFields=[]"
-  PerSeriesAligner as "perSeriesAligner=\"\""
-} derive Json
+  AlignmentPeriod
+  CrossSeriesReducer
+  GroupByFields
+  PerSeriesAligner
+}
+
+fn aggregation_field_entry(f: AggregationField) -> Str {
+  match f {
+    AlignmentPeriod => "alignmentPeriod=\"\""
+    CrossSeriesReducer => "crossSeriesReducer=\"\""
+    GroupByFields => "groupByFields=[]"
+    PerSeriesAligner => "perSeriesAligner=\"\""
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: Aggregation) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: Aggregation) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  gensupport.mark(o, m.force_send_fields.map(aggregation_field_entry), m.null_fields.map(aggregation_field_entry))
+}
 
 /// AggregationFunction: Preview: An identifier for an aggregation function. Aggregation functions are SQL functions that group or transform data from multiple points to a single point. This is a preview feature and may be subject to change before final release.
 ///
@@ -35,15 +61,44 @@ pub struct AggregationFunction {
   pub parameters as "parameters,omitempty": List[Parameter] = []
   /// Required. The type of aggregation function, must be one of the following: "none" - no function. "percentile" - APPROX_QUANTILES() - 1 parameter numeric value "average" - AVG() "count" - COUNT() "count-distinct" - COUNT(DISTINCT) "count-distinct-approx" - APPROX_COUNT_DISTINCT() "max" - MAX() "min" - MIN() "sum" - SUM()
   pub type_ as "type,omitempty": Str = ""
-  pub force_send_fields as "~forceSendFields,omitempty": List[AggregationFunctionField] = []
-  pub null_fields as "~nullFields,omitempty": List[AggregationFunctionField] = []
+  pub force_send_fields as "-": List[AggregationFunctionField] = []
+  pub null_fields as "-": List[AggregationFunctionField] = []
 } derive Json
 
 /// AggregationFunctionField: AggregationFunction's fields, for force_send_fields and null_fields.
 pub enum AggregationFunctionField {
-  Parameters as "parameters=[]"
-  Type as "type=\"\""
-} derive Json
+  Parameters
+  Type
+}
+
+fn aggregation_function_field_entry(f: AggregationFunctionField) -> Str {
+  match f {
+    Parameters => "parameters=[]"
+    Type => "type=\"\""
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: AggregationFunction) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  for c in m.parameters {
+    if c.body_marked() {
+      return true
+    }
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: AggregationFunction) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  o = gensupport.mark_field(o, "parameters", fn(x: json.Value) -> json.Value { gensupport.mark_list(x, fn(i: Int, e: json.Value) -> json.Value { m.parameters[i].body_mark(e) }) })
+  gensupport.mark(o, m.force_send_fields.map(aggregation_function_field_entry), m.null_fields.map(aggregation_function_field_entry))
+}
 
 /// AlertChart: A chart that displays alert policy data.
 ///
@@ -51,14 +106,36 @@ pub enum AggregationFunctionField {
 pub struct AlertChart {
   /// Required. The resource name of the alert policy. The format is: projects/[PROJECT_ID_OR_NUMBER]/alertPolicies/[ALERT_POLICY_ID]
   pub name as "name,omitempty": Str = ""
-  pub force_send_fields as "~forceSendFields,omitempty": List[AlertChartField] = []
-  pub null_fields as "~nullFields,omitempty": List[AlertChartField] = []
+  pub force_send_fields as "-": List[AlertChartField] = []
+  pub null_fields as "-": List[AlertChartField] = []
 } derive Json
 
 /// AlertChartField: AlertChart's fields, for force_send_fields and null_fields.
 pub enum AlertChartField {
-  Name as "name=\"\""
-} derive Json
+  Name
+}
+
+fn alert_chart_field_entry(f: AlertChartField) -> Str {
+  match f {
+    Name => "name=\"\""
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: AlertChart) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: AlertChart) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  gensupport.mark(o, m.force_send_fields.map(alert_chart_field_entry), m.null_fields.map(alert_chart_field_entry))
+}
 
 /// Axis: A chart axis.
 ///
@@ -68,15 +145,38 @@ pub struct Axis {
   pub label as "label,omitempty": Str = ""
   /// The axis scale. By default, a linear scale is used.
   pub scale as "scale,omitempty": Str = ""
-  pub force_send_fields as "~forceSendFields,omitempty": List[AxisField] = []
-  pub null_fields as "~nullFields,omitempty": List[AxisField] = []
+  pub force_send_fields as "-": List[AxisField] = []
+  pub null_fields as "-": List[AxisField] = []
 } derive Json
 
 /// AxisField: Axis's fields, for force_send_fields and null_fields.
 pub enum AxisField {
-  Label as "label=\"\""
-  Scale as "scale=\"\""
-} derive Json
+  Label
+  Scale
+}
+
+fn axis_field_entry(f: AxisField) -> Str {
+  match f {
+    Label => "label=\"\""
+    Scale => "scale=\"\""
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: Axis) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: Axis) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  gensupport.mark(o, m.force_send_fields.map(axis_field_entry), m.null_fields.map(axis_field_entry))
+}
 
 /// Breakdown: Preview: A breakdown is an aggregation applied to the measures over a specified column. A breakdown can result in multiple series across a category for the provided measure. This is a preview feature and may be subject to change before final release.
 ///
@@ -90,17 +190,50 @@ pub struct Breakdown {
   pub limit as "limit,omitempty": Int = 0
   /// Required. The sort order is applied to the values of the breakdown column.
   pub sort_order as "sortOrder,omitempty": Str = ""
-  pub force_send_fields as "~forceSendFields,omitempty": List[BreakdownField] = []
-  pub null_fields as "~nullFields,omitempty": List[BreakdownField] = []
+  pub force_send_fields as "-": List[BreakdownField] = []
+  pub null_fields as "-": List[BreakdownField] = []
 } derive Json
 
 /// BreakdownField: Breakdown's fields, for force_send_fields and null_fields.
 pub enum BreakdownField {
-  AggregationFunction as "aggregationFunction"
-  Column as "column=\"\""
-  Limit as "limit=0"
-  SortOrder as "sortOrder=\"\""
-} derive Json
+  AggregationFunction
+  Column
+  Limit
+  SortOrder
+}
+
+fn breakdown_field_entry(f: BreakdownField) -> Str {
+  match f {
+    AggregationFunction => "aggregationFunction"
+    Column => "column=\"\""
+    Limit => "limit=0"
+    SortOrder => "sortOrder=\"\""
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: Breakdown) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  if let Some(c) = m.aggregation_function {
+    if c.body_marked() {
+      return true
+    }
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: Breakdown) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  if let Some(c) = m.aggregation_function {
+    o = gensupport.mark_field(o, "aggregationFunction", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  gensupport.mark(o, m.force_send_fields.map(breakdown_field_entry), m.null_fields.map(breakdown_field_entry))
+}
 
 /// ChartOptions: Options to control visual rendering of a chart.
 ///
@@ -110,15 +243,38 @@ pub struct ChartOptions {
   pub display_horizontal as "displayHorizontal,omitempty": Bool = false
   /// The chart mode.
   pub mode as "mode,omitempty": Str = ""
-  pub force_send_fields as "~forceSendFields,omitempty": List[ChartOptionsField] = []
-  pub null_fields as "~nullFields,omitempty": List[ChartOptionsField] = []
+  pub force_send_fields as "-": List[ChartOptionsField] = []
+  pub null_fields as "-": List[ChartOptionsField] = []
 } derive Json
 
 /// ChartOptionsField: ChartOptions's fields, for force_send_fields and null_fields.
 pub enum ChartOptionsField {
-  DisplayHorizontal as "displayHorizontal=false"
-  Mode as "mode=\"\""
-} derive Json
+  DisplayHorizontal
+  Mode
+}
+
+fn chart_options_field_entry(f: ChartOptionsField) -> Str {
+  match f {
+    DisplayHorizontal => "displayHorizontal=false"
+    Mode => "mode=\"\""
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: ChartOptions) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: ChartOptions) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  gensupport.mark(o, m.force_send_fields.map(chart_options_field_entry), m.null_fields.map(chart_options_field_entry))
+}
 
 /// CollapsibleGroup: A widget that groups the other widgets. All widgets that are within the area spanned by the grouping widget are considered member widgets.
 ///
@@ -126,14 +282,36 @@ pub enum ChartOptionsField {
 pub struct CollapsibleGroup {
   /// The collapsed state of the widget on first page load.
   pub collapsed as "collapsed,omitempty": Bool = false
-  pub force_send_fields as "~forceSendFields,omitempty": List[CollapsibleGroupField] = []
-  pub null_fields as "~nullFields,omitempty": List[CollapsibleGroupField] = []
+  pub force_send_fields as "-": List[CollapsibleGroupField] = []
+  pub null_fields as "-": List[CollapsibleGroupField] = []
 } derive Json
 
 /// CollapsibleGroupField: CollapsibleGroup's fields, for force_send_fields and null_fields.
 pub enum CollapsibleGroupField {
-  Collapsed as "collapsed=false"
-} derive Json
+  Collapsed
+}
+
+fn collapsible_group_field_entry(f: CollapsibleGroupField) -> Str {
+  match f {
+    Collapsed => "collapsed=false"
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: CollapsibleGroup) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: CollapsibleGroup) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  gensupport.mark(o, m.force_send_fields.map(collapsible_group_field_entry), m.null_fields.map(collapsible_group_field_entry))
+}
 
 /// Column: Defines the layout properties and content for a column.
 ///
@@ -143,15 +321,44 @@ pub struct Column {
   pub weight as "weight,omitempty,string": Int = 0
   /// The display widgets arranged vertically in this column.
   pub widgets as "widgets,omitempty": List[Widget] = []
-  pub force_send_fields as "~forceSendFields,omitempty": List[ColumnField] = []
-  pub null_fields as "~nullFields,omitempty": List[ColumnField] = []
+  pub force_send_fields as "-": List[ColumnField] = []
+  pub null_fields as "-": List[ColumnField] = []
 } derive Json
 
 /// ColumnField: Column's fields, for force_send_fields and null_fields.
 pub enum ColumnField {
-  Weight as "weight=\"0\""
-  Widgets as "widgets=[]"
-} derive Json
+  Weight
+  Widgets
+}
+
+fn column_field_entry(f: ColumnField) -> Str {
+  match f {
+    Weight => "weight=\"0\""
+    Widgets => "widgets=[]"
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: Column) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  for c in m.widgets {
+    if c.body_marked() {
+      return true
+    }
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: Column) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  o = gensupport.mark_field(o, "widgets", fn(x: json.Value) -> json.Value { gensupport.mark_list(x, fn(i: Int, e: json.Value) -> json.Value { m.widgets[i].body_mark(e) }) })
+  gensupport.mark(o, m.force_send_fields.map(column_field_entry), m.null_fields.map(column_field_entry))
+}
 
 /// ColumnLayout: A simplified layout that divides the available space into vertical columns and arranges a set of widgets vertically in each column.
 ///
@@ -159,14 +366,42 @@ pub enum ColumnField {
 pub struct ColumnLayout {
   /// The columns of content to display.
   pub columns as "columns,omitempty": List[Column] = []
-  pub force_send_fields as "~forceSendFields,omitempty": List[ColumnLayoutField] = []
-  pub null_fields as "~nullFields,omitempty": List[ColumnLayoutField] = []
+  pub force_send_fields as "-": List[ColumnLayoutField] = []
+  pub null_fields as "-": List[ColumnLayoutField] = []
 } derive Json
 
 /// ColumnLayoutField: ColumnLayout's fields, for force_send_fields and null_fields.
 pub enum ColumnLayoutField {
-  Columns as "columns=[]"
-} derive Json
+  Columns
+}
+
+fn column_layout_field_entry(f: ColumnLayoutField) -> Str {
+  match f {
+    Columns => "columns=[]"
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: ColumnLayout) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  for c in m.columns {
+    if c.body_marked() {
+      return true
+    }
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: ColumnLayout) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  o = gensupport.mark_field(o, "columns", fn(x: json.Value) -> json.Value { gensupport.mark_list(x, fn(i: Int, e: json.Value) -> json.Value { m.columns[i].body_mark(e) }) })
+  gensupport.mark(o, m.force_send_fields.map(column_layout_field_entry), m.null_fields.map(column_layout_field_entry))
+}
 
 /// ColumnSettings: The persistent settings for a table's columns.
 ///
@@ -182,18 +417,50 @@ pub struct ColumnSettings {
   pub thresholds as "thresholds,omitempty": List[Threshold] = []
   /// Required. Whether the column should be visible on page load.
   pub visible as "visible,omitempty": Bool = false
-  pub force_send_fields as "~forceSendFields,omitempty": List[ColumnSettingsField] = []
-  pub null_fields as "~nullFields,omitempty": List[ColumnSettingsField] = []
+  pub force_send_fields as "-": List[ColumnSettingsField] = []
+  pub null_fields as "-": List[ColumnSettingsField] = []
 } derive Json
 
 /// ColumnSettingsField: ColumnSettings's fields, for force_send_fields and null_fields.
 pub enum ColumnSettingsField {
-  Alignment as "alignment=\"\""
-  Column as "column=\"\""
-  DisplayName as "displayName=\"\""
-  Thresholds as "thresholds=[]"
-  Visible as "visible=false"
-} derive Json
+  Alignment
+  Column
+  DisplayName
+  Thresholds
+  Visible
+}
+
+fn column_settings_field_entry(f: ColumnSettingsField) -> Str {
+  match f {
+    Alignment => "alignment=\"\""
+    Column => "column=\"\""
+    DisplayName => "displayName=\"\""
+    Thresholds => "thresholds=[]"
+    Visible => "visible=false"
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: ColumnSettings) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  for c in m.thresholds {
+    if c.body_marked() {
+      return true
+    }
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: ColumnSettings) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  o = gensupport.mark_field(o, "thresholds", fn(x: json.Value) -> json.Value { gensupport.mark_list(x, fn(i: Int, e: json.Value) -> json.Value { m.thresholds[i].body_mark(e) }) })
+  gensupport.mark(o, m.force_send_fields.map(column_settings_field_entry), m.null_fields.map(column_settings_field_entry))
+}
 
 /// ColumnSortingOptions: Data structure to storing column's sort strategy
 ///
@@ -203,15 +470,38 @@ pub struct ColumnSortingOptions {
   pub column as "column,omitempty": Str = ""
   /// Optional. A sorting direction that determines ascending or descending order. This is a legacy field kept for backwards compatibility with table.
   pub direction as "direction,omitempty": Str = ""
-  pub force_send_fields as "~forceSendFields,omitempty": List[ColumnSortingOptionsField] = []
-  pub null_fields as "~nullFields,omitempty": List[ColumnSortingOptionsField] = []
+  pub force_send_fields as "-": List[ColumnSortingOptionsField] = []
+  pub null_fields as "-": List[ColumnSortingOptionsField] = []
 } derive Json
 
 /// ColumnSortingOptionsField: ColumnSortingOptions's fields, for force_send_fields and null_fields.
 pub enum ColumnSortingOptionsField {
-  Column as "column=\"\""
-  Direction as "direction=\"\""
-} derive Json
+  Column
+  Direction
+}
+
+fn column_sorting_options_field_entry(f: ColumnSortingOptionsField) -> Str {
+  match f {
+    Column => "column=\"\""
+    Direction => "direction=\"\""
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: ColumnSortingOptions) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: ColumnSortingOptions) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  gensupport.mark(o, m.force_send_fields.map(column_sorting_options_field_entry), m.null_fields.map(column_sorting_options_field_entry))
+}
 
 /// Dashboard: A Google Stackdriver dashboard. Dashboards define the content and layout of pages in the Stackdriver web application.
 ///
@@ -237,23 +527,100 @@ pub struct Dashboard {
   pub name as "name,omitempty": Str = ""
   /// The content is divided into equally spaced rows and the widgets are arranged horizontally.
   pub row_layout as "rowLayout,omitempty": RowLayout? = None
-  pub force_send_fields as "~forceSendFields,omitempty": List[DashboardField] = []
-  pub null_fields as "~nullFields,omitempty": List[DashboardField] = []
+  pub force_send_fields as "-": List[DashboardField] = []
+  pub null_fields as "-": List[DashboardField] = []
 } derive Json
 
 /// DashboardField: Dashboard's fields, for force_send_fields and null_fields.
 pub enum DashboardField {
-  Annotations as "annotations"
-  ColumnLayout as "columnLayout"
-  DashboardFilters as "dashboardFilters=[]"
-  DisplayName as "displayName=\"\""
-  Etag as "etag=\"\""
-  GridLayout as "gridLayout"
-  Labels as "labels={}"
-  MosaicLayout as "mosaicLayout"
-  Name as "name=\"\""
-  RowLayout as "rowLayout"
-} derive Json
+  Annotations
+  ColumnLayout
+  DashboardFilters
+  DisplayName
+  Etag
+  GridLayout
+  Labels
+  MosaicLayout
+  Name
+  RowLayout
+}
+
+fn dashboard_field_entry(f: DashboardField) -> Str {
+  match f {
+    Annotations => "annotations"
+    ColumnLayout => "columnLayout"
+    DashboardFilters => "dashboardFilters=[]"
+    DisplayName => "displayName=\"\""
+    Etag => "etag=\"\""
+    GridLayout => "gridLayout"
+    Labels => "labels={}"
+    MosaicLayout => "mosaicLayout"
+    Name => "name=\"\""
+    RowLayout => "rowLayout"
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: Dashboard) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  if let Some(c) = m.annotations {
+    if c.body_marked() {
+      return true
+    }
+  }
+  if let Some(c) = m.column_layout {
+    if c.body_marked() {
+      return true
+    }
+  }
+  for c in m.dashboard_filters {
+    if c.body_marked() {
+      return true
+    }
+  }
+  if let Some(c) = m.grid_layout {
+    if c.body_marked() {
+      return true
+    }
+  }
+  if let Some(c) = m.mosaic_layout {
+    if c.body_marked() {
+      return true
+    }
+  }
+  if let Some(c) = m.row_layout {
+    if c.body_marked() {
+      return true
+    }
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: Dashboard) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  if let Some(c) = m.annotations {
+    o = gensupport.mark_field(o, "annotations", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  if let Some(c) = m.column_layout {
+    o = gensupport.mark_field(o, "columnLayout", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  o = gensupport.mark_field(o, "dashboardFilters", fn(x: json.Value) -> json.Value { gensupport.mark_list(x, fn(i: Int, e: json.Value) -> json.Value { m.dashboard_filters[i].body_mark(e) }) })
+  if let Some(c) = m.grid_layout {
+    o = gensupport.mark_field(o, "gridLayout", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  if let Some(c) = m.mosaic_layout {
+    o = gensupport.mark_field(o, "mosaicLayout", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  if let Some(c) = m.row_layout {
+    o = gensupport.mark_field(o, "rowLayout", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  gensupport.mark(o, m.force_send_fields.map(dashboard_field_entry), m.null_fields.map(dashboard_field_entry))
+}
 
 /// DashboardAnnotations: Dashboard-level configuration for annotations
 ///
@@ -263,15 +630,44 @@ pub struct DashboardAnnotations {
   pub default_resource_names as "defaultResourceNames,omitempty": List[Str] = []
   /// List of annotation configurations for this dashboard. Each entry specifies one event type.
   pub event_annotations as "eventAnnotations,omitempty": List[EventAnnotation] = []
-  pub force_send_fields as "~forceSendFields,omitempty": List[DashboardAnnotationsField] = []
-  pub null_fields as "~nullFields,omitempty": List[DashboardAnnotationsField] = []
+  pub force_send_fields as "-": List[DashboardAnnotationsField] = []
+  pub null_fields as "-": List[DashboardAnnotationsField] = []
 } derive Json
 
 /// DashboardAnnotationsField: DashboardAnnotations's fields, for force_send_fields and null_fields.
 pub enum DashboardAnnotationsField {
-  DefaultResourceNames as "defaultResourceNames=[]"
-  EventAnnotations as "eventAnnotations=[]"
-} derive Json
+  DefaultResourceNames
+  EventAnnotations
+}
+
+fn dashboard_annotations_field_entry(f: DashboardAnnotationsField) -> Str {
+  match f {
+    DefaultResourceNames => "defaultResourceNames=[]"
+    EventAnnotations => "eventAnnotations=[]"
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: DashboardAnnotations) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  for c in m.event_annotations {
+    if c.body_marked() {
+      return true
+    }
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: DashboardAnnotations) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  o = gensupport.mark_field(o, "eventAnnotations", fn(x: json.Value) -> json.Value { gensupport.mark_list(x, fn(i: Int, e: json.Value) -> json.Value { m.event_annotations[i].body_mark(e) }) })
+  gensupport.mark(o, m.force_send_fields.map(dashboard_annotations_field_entry), m.null_fields.map(dashboard_annotations_field_entry))
+}
 
 /// DashboardFilter: A filter to reduce the amount of data charted in relevant widgets.
 ///
@@ -293,21 +689,74 @@ pub struct DashboardFilter {
   pub time_series_query as "timeSeriesQuery,omitempty": TimeSeriesQuery? = None
   /// The type of the filter value. If value_type is not provided, it will be inferred from the default_value. If neither value_type nor default_value is provided, value_type will be set to STRING by default.
   pub value_type as "valueType,omitempty": Str = ""
-  pub force_send_fields as "~forceSendFields,omitempty": List[DashboardFilterField] = []
-  pub null_fields as "~nullFields,omitempty": List[DashboardFilterField] = []
+  pub force_send_fields as "-": List[DashboardFilterField] = []
+  pub null_fields as "-": List[DashboardFilterField] = []
 } derive Json
 
 /// DashboardFilterField: DashboardFilter's fields, for force_send_fields and null_fields.
 pub enum DashboardFilterField {
-  FilterType as "filterType=\"\""
-  LabelKey as "labelKey=\"\""
-  StringArray as "stringArray"
-  StringArrayValue as "stringArrayValue"
-  StringValue as "stringValue=\"\""
-  TemplateVariable as "templateVariable=\"\""
-  TimeSeriesQuery as "timeSeriesQuery"
-  ValueType as "valueType=\"\""
-} derive Json
+  FilterType
+  LabelKey
+  StringArray
+  StringArrayValue
+  StringValue
+  TemplateVariable
+  TimeSeriesQuery
+  ValueType
+}
+
+fn dashboard_filter_field_entry(f: DashboardFilterField) -> Str {
+  match f {
+    FilterType => "filterType=\"\""
+    LabelKey => "labelKey=\"\""
+    StringArray => "stringArray"
+    StringArrayValue => "stringArrayValue"
+    StringValue => "stringValue=\"\""
+    TemplateVariable => "templateVariable=\"\""
+    TimeSeriesQuery => "timeSeriesQuery"
+    ValueType => "valueType=\"\""
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: DashboardFilter) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  if let Some(c) = m.string_array {
+    if c.body_marked() {
+      return true
+    }
+  }
+  if let Some(c) = m.string_array_value {
+    if c.body_marked() {
+      return true
+    }
+  }
+  if let Some(c) = m.time_series_query {
+    if c.body_marked() {
+      return true
+    }
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: DashboardFilter) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  if let Some(c) = m.string_array {
+    o = gensupport.mark_field(o, "stringArray", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  if let Some(c) = m.string_array_value {
+    o = gensupport.mark_field(o, "stringArrayValue", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  if let Some(c) = m.time_series_query {
+    o = gensupport.mark_field(o, "timeSeriesQuery", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  gensupport.mark(o, m.force_send_fields.map(dashboard_filter_field_entry), m.null_fields.map(dashboard_filter_field_entry))
+}
 
 /// DataSet: Groups a time series query definition with charting options.
 ///
@@ -331,22 +780,84 @@ pub struct DataSet {
   pub target_axis as "targetAxis,omitempty": Str = ""
   /// Required. Fields for querying time series data from the Stackdriver metrics API.
   pub time_series_query as "timeSeriesQuery,omitempty": TimeSeriesQuery? = None
-  pub force_send_fields as "~forceSendFields,omitempty": List[DataSetField] = []
-  pub null_fields as "~nullFields,omitempty": List[DataSetField] = []
+  pub force_send_fields as "-": List[DataSetField] = []
+  pub null_fields as "-": List[DataSetField] = []
 } derive Json
 
 /// DataSetField: DataSet's fields, for force_send_fields and null_fields.
 pub enum DataSetField {
-  Breakdowns as "breakdowns=[]"
-  Dimensions as "dimensions=[]"
-  LegendTemplate as "legendTemplate=\"\""
-  Measures as "measures=[]"
-  MinAlignmentPeriod as "minAlignmentPeriod=\"\""
-  PlotType as "plotType=\"\""
-  Sort as "sort=[]"
-  TargetAxis as "targetAxis=\"\""
-  TimeSeriesQuery as "timeSeriesQuery"
-} derive Json
+  Breakdowns
+  Dimensions
+  LegendTemplate
+  Measures
+  MinAlignmentPeriod
+  PlotType
+  Sort
+  TargetAxis
+  TimeSeriesQuery
+}
+
+fn data_set_field_entry(f: DataSetField) -> Str {
+  match f {
+    Breakdowns => "breakdowns=[]"
+    Dimensions => "dimensions=[]"
+    LegendTemplate => "legendTemplate=\"\""
+    Measures => "measures=[]"
+    MinAlignmentPeriod => "minAlignmentPeriod=\"\""
+    PlotType => "plotType=\"\""
+    Sort => "sort=[]"
+    TargetAxis => "targetAxis=\"\""
+    TimeSeriesQuery => "timeSeriesQuery"
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: DataSet) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  for c in m.breakdowns {
+    if c.body_marked() {
+      return true
+    }
+  }
+  for c in m.dimensions {
+    if c.body_marked() {
+      return true
+    }
+  }
+  for c in m.measures {
+    if c.body_marked() {
+      return true
+    }
+  }
+  for c in m.sort {
+    if c.body_marked() {
+      return true
+    }
+  }
+  if let Some(c) = m.time_series_query {
+    if c.body_marked() {
+      return true
+    }
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: DataSet) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  o = gensupport.mark_field(o, "breakdowns", fn(x: json.Value) -> json.Value { gensupport.mark_list(x, fn(i: Int, e: json.Value) -> json.Value { m.breakdowns[i].body_mark(e) }) })
+  o = gensupport.mark_field(o, "dimensions", fn(x: json.Value) -> json.Value { gensupport.mark_list(x, fn(i: Int, e: json.Value) -> json.Value { m.dimensions[i].body_mark(e) }) })
+  o = gensupport.mark_field(o, "measures", fn(x: json.Value) -> json.Value { gensupport.mark_list(x, fn(i: Int, e: json.Value) -> json.Value { m.measures[i].body_mark(e) }) })
+  o = gensupport.mark_field(o, "sort", fn(x: json.Value) -> json.Value { gensupport.mark_list(x, fn(i: Int, e: json.Value) -> json.Value { m.sort[i].body_mark(e) }) })
+  if let Some(c) = m.time_series_query {
+    o = gensupport.mark_field(o, "timeSeriesQuery", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  gensupport.mark(o, m.force_send_fields.map(data_set_field_entry), m.null_fields.map(data_set_field_entry))
+}
 
 /// Dimension: A chart dimension. Dimensions are a structured label, class, or category for a set of measurements in your data.
 ///
@@ -372,23 +883,54 @@ pub struct Dimension {
   pub x_max as "xMax,omitempty": Float = 0.0
   /// The minimum value for the x-axis.
   pub x_min as "xMin,omitempty": Float = 0.0
-  pub force_send_fields as "~forceSendFields,omitempty": List[DimensionField] = []
-  pub null_fields as "~nullFields,omitempty": List[DimensionField] = []
+  pub force_send_fields as "-": List[DimensionField] = []
+  pub null_fields as "-": List[DimensionField] = []
 } derive Json
 
 /// DimensionField: Dimension's fields, for force_send_fields and null_fields.
 pub enum DimensionField {
-  Column as "column=\"\""
-  ColumnType as "columnType=\"\""
-  FloatBinSize as "floatBinSize=0"
-  MaxBinCount as "maxBinCount=0"
-  NumericBinSize as "numericBinSize=0"
-  SortColumn as "sortColumn=\"\""
-  SortOrder as "sortOrder=\"\""
-  TimeBinSize as "timeBinSize=\"\""
-  XMax as "xMax=0"
-  XMin as "xMin=0"
-} derive Json
+  Column
+  ColumnType
+  FloatBinSize
+  MaxBinCount
+  NumericBinSize
+  SortColumn
+  SortOrder
+  TimeBinSize
+  XMax
+  XMin
+}
+
+fn dimension_field_entry(f: DimensionField) -> Str {
+  match f {
+    Column => "column=\"\""
+    ColumnType => "columnType=\"\""
+    FloatBinSize => "floatBinSize=0"
+    MaxBinCount => "maxBinCount=0"
+    NumericBinSize => "numericBinSize=0"
+    SortColumn => "sortColumn=\"\""
+    SortOrder => "sortOrder=\"\""
+    TimeBinSize => "timeBinSize=\"\""
+    XMax => "xMax=0"
+    XMin => "xMin=0"
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: Dimension) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: Dimension) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  gensupport.mark(o, m.force_send_fields.map(dimension_field_entry), m.null_fields.map(dimension_field_entry))
+}
 
 /// DroppedLabels: A set of (label, value) pairs that were removed from a Distribution time series during aggregation and then added as an attachment to a Distribution.Exemplar.The full label set for the exemplars is constructed by using the dropped pairs in combination with the label values that remain on the aggregated Distribution time series. The constructed full label set can be used to identify the specific entity, such as the instance or job, which might be contributing to a long-tail. However, with dropped labels, the storage requirements are reduced because only the aggregated distribution values for a large group of time series are stored.Note that there are no guarantees on ordering of the labels from exemplar-to-exemplar and from distribution-to-distribution in the same stream, and there may be duplicates. It is up to clients to resolve any ambiguities.
 pub struct DroppedLabels {
@@ -409,16 +951,40 @@ pub struct ErrorReportingPanel {
   pub services as "services,omitempty": List[Str] = []
   /// Represents the source code version that the developer provided, which could represent a version label or a Git SHA-1 hash, for example. For App Engine standard environment, the version is set to the version of the app.
   pub versions as "versions,omitempty": List[Str] = []
-  pub force_send_fields as "~forceSendFields,omitempty": List[ErrorReportingPanelField] = []
-  pub null_fields as "~nullFields,omitempty": List[ErrorReportingPanelField] = []
+  pub force_send_fields as "-": List[ErrorReportingPanelField] = []
+  pub null_fields as "-": List[ErrorReportingPanelField] = []
 } derive Json
 
 /// ErrorReportingPanelField: ErrorReportingPanel's fields, for force_send_fields and null_fields.
 pub enum ErrorReportingPanelField {
-  ProjectNames as "projectNames=[]"
-  Services as "services=[]"
-  Versions as "versions=[]"
-} derive Json
+  ProjectNames
+  Services
+  Versions
+}
+
+fn error_reporting_panel_field_entry(f: ErrorReportingPanelField) -> Str {
+  match f {
+    ProjectNames => "projectNames=[]"
+    Services => "services=[]"
+    Versions => "versions=[]"
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: ErrorReportingPanel) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: ErrorReportingPanel) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  gensupport.mark(o, m.force_send_fields.map(error_reporting_panel_field_entry), m.null_fields.map(error_reporting_panel_field_entry))
+}
 
 /// EventAnnotation: Annotation configuration for one event type on a dashboard
 ///
@@ -434,18 +1000,44 @@ pub struct EventAnnotation {
   pub filter as "filter,omitempty": Str = ""
   /// Per annotation level override for the names of logging resources to search for events. Currently only projects are supported. If both this field and the per annotation field is empty, it will default to the host project. Limit: 50 projects. For example: “projects/another-project-id”
   pub resource_names as "resourceNames,omitempty": List[Str] = []
-  pub force_send_fields as "~forceSendFields,omitempty": List[EventAnnotationField] = []
-  pub null_fields as "~nullFields,omitempty": List[EventAnnotationField] = []
+  pub force_send_fields as "-": List[EventAnnotationField] = []
+  pub null_fields as "-": List[EventAnnotationField] = []
 } derive Json
 
 /// EventAnnotationField: EventAnnotation's fields, for force_send_fields and null_fields.
 pub enum EventAnnotationField {
-  DisplayName as "displayName=\"\""
-  Enabled as "enabled=false"
-  EventType as "eventType=\"\""
-  Filter as "filter=\"\""
-  ResourceNames as "resourceNames=[]"
-} derive Json
+  DisplayName
+  Enabled
+  EventType
+  Filter
+  ResourceNames
+}
+
+fn event_annotation_field_entry(f: EventAnnotationField) -> Str {
+  match f {
+    DisplayName => "displayName=\"\""
+    Enabled => "enabled=false"
+    EventType => "eventType=\"\""
+    Filter => "filter=\"\""
+    ResourceNames => "resourceNames=[]"
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: EventAnnotation) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: EventAnnotation) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  gensupport.mark(o, m.force_send_fields.map(event_annotation_field_entry), m.null_fields.map(event_annotation_field_entry))
+}
 
 /// Field: A single field of a message type.New usages of this message as an alternative to FieldDescriptorProto are strongly discouraged. This message does not reliability preserve all information necessary to model the schema and preserve semantics. Instead make use of FileDescriptorSet which preserves the necessary information.
 pub struct Field {
@@ -477,14 +1069,36 @@ pub struct Field {
 pub struct FilterControl {
   /// Name of the template variable the widget affects.
   pub template_variable as "templateVariable,omitempty": Str = ""
-  pub force_send_fields as "~forceSendFields,omitempty": List[FilterControlField] = []
-  pub null_fields as "~nullFields,omitempty": List[FilterControlField] = []
+  pub force_send_fields as "-": List[FilterControlField] = []
+  pub null_fields as "-": List[FilterControlField] = []
 } derive Json
 
 /// FilterControlField: FilterControl's fields, for force_send_fields and null_fields.
 pub enum FilterControlField {
-  TemplateVariable as "templateVariable=\"\""
-} derive Json
+  TemplateVariable
+}
+
+fn filter_control_field_entry(f: FilterControlField) -> Str {
+  match f {
+    TemplateVariable => "templateVariable=\"\""
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: FilterControl) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: FilterControl) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  gensupport.mark(o, m.force_send_fields.map(filter_control_field_entry), m.null_fields.map(filter_control_field_entry))
+}
 
 /// GaugeView: A gauge chart shows where the current value sits within a pre-defined range. The upper and lower bounds should define the possible range of values for the scorecard's query (inclusive).
 ///
@@ -494,15 +1108,38 @@ pub struct GaugeView {
   pub lower_bound as "lowerBound,omitempty": Float = 0.0
   /// The upper bound for this gauge chart. The value of the chart should always be less than or equal to this.
   pub upper_bound as "upperBound,omitempty": Float = 0.0
-  pub force_send_fields as "~forceSendFields,omitempty": List[GaugeViewField] = []
-  pub null_fields as "~nullFields,omitempty": List[GaugeViewField] = []
+  pub force_send_fields as "-": List[GaugeViewField] = []
+  pub null_fields as "-": List[GaugeViewField] = []
 } derive Json
 
 /// GaugeViewField: GaugeView's fields, for force_send_fields and null_fields.
 pub enum GaugeViewField {
-  LowerBound as "lowerBound=0"
-  UpperBound as "upperBound=0"
-} derive Json
+  LowerBound
+  UpperBound
+}
+
+fn gauge_view_field_entry(f: GaugeViewField) -> Str {
+  match f {
+    LowerBound => "lowerBound=0"
+    UpperBound => "upperBound=0"
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: GaugeView) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: GaugeView) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  gensupport.mark(o, m.force_send_fields.map(gauge_view_field_entry), m.null_fields.map(gauge_view_field_entry))
+}
 
 /// GridLayout: A basic layout divides the available space into vertical columns of equal width and arranges a list of widgets using a row-first strategy.
 ///
@@ -512,15 +1149,44 @@ pub struct GridLayout {
   pub columns as "columns,omitempty,string": Int = 0
   /// The informational elements that are arranged into the columns row-first.
   pub widgets as "widgets,omitempty": List[Widget] = []
-  pub force_send_fields as "~forceSendFields,omitempty": List[GridLayoutField] = []
-  pub null_fields as "~nullFields,omitempty": List[GridLayoutField] = []
+  pub force_send_fields as "-": List[GridLayoutField] = []
+  pub null_fields as "-": List[GridLayoutField] = []
 } derive Json
 
 /// GridLayoutField: GridLayout's fields, for force_send_fields and null_fields.
 pub enum GridLayoutField {
-  Columns as "columns=\"0\""
-  Widgets as "widgets=[]"
-} derive Json
+  Columns
+  Widgets
+}
+
+fn grid_layout_field_entry(f: GridLayoutField) -> Str {
+  match f {
+    Columns => "columns=\"0\""
+    Widgets => "widgets=[]"
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: GridLayout) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  for c in m.widgets {
+    if c.body_marked() {
+      return true
+    }
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: GridLayout) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  o = gensupport.mark_field(o, "widgets", fn(x: json.Value) -> json.Value { gensupport.mark_list(x, fn(i: Int, e: json.Value) -> json.Value { m.widgets[i].body_mark(e) }) })
+  gensupport.mark(o, m.force_send_fields.map(grid_layout_field_entry), m.null_fields.map(grid_layout_field_entry))
+}
 
 /// HttpBody: Message that represents an arbitrary HTTP body. It should only be used for payload formats that can't be represented as JSON, such as raw binary or an HTML page.This message can be used both in streaming and non-streaming API methods in the request as well as the response.It can be used as a top-level request field, which is convenient if one wants to extract parameters from either the URL or HTTP template into the request fields and also want access to the raw HTTP body.Example: message GetResourceRequest { // A unique request id. string request_id = 1; // The raw HTTP body is bound to this field. google.api.HttpBody http_body = 2; } service ResourceService { rpc GetResource(GetResourceRequest) returns (google.api.HttpBody); rpc UpdateResource(google.api.HttpBody) returns (google.protobuf.Empty); } Example with streaming methods: service CaldavService { rpc GetCalendar(stream google.api.HttpBody) returns (stream google.api.HttpBody); rpc UpdateCalendar(stream google.api.HttpBody) returns (stream google.api.HttpBody); } Use of this type only changes how the request and response bodies are handled, all other features will continue to work unchanged.
 pub struct HttpBody {
@@ -540,15 +1206,44 @@ pub struct IncidentList {
   pub monitored_resources as "monitoredResources,omitempty": List[MonitoredResource] = []
   /// Optional. A list of alert policy names to filter the incident list by. Don't include the project ID prefix in the policy name. For example, use alertPolicies/utilization.
   pub policy_names as "policyNames,omitempty": List[Str] = []
-  pub force_send_fields as "~forceSendFields,omitempty": List[IncidentListField] = []
-  pub null_fields as "~nullFields,omitempty": List[IncidentListField] = []
+  pub force_send_fields as "-": List[IncidentListField] = []
+  pub null_fields as "-": List[IncidentListField] = []
 } derive Json
 
 /// IncidentListField: IncidentList's fields, for force_send_fields and null_fields.
 pub enum IncidentListField {
-  MonitoredResources as "monitoredResources=[]"
-  PolicyNames as "policyNames=[]"
-} derive Json
+  MonitoredResources
+  PolicyNames
+}
+
+fn incident_list_field_entry(f: IncidentListField) -> Str {
+  match f {
+    MonitoredResources => "monitoredResources=[]"
+    PolicyNames => "policyNames=[]"
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: IncidentList) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  for c in m.monitored_resources {
+    if c.body_marked() {
+      return true
+    }
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: IncidentList) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  o = gensupport.mark_field(o, "monitoredResources", fn(x: json.Value) -> json.Value { gensupport.mark_list(x, fn(i: Int, e: json.Value) -> json.Value { m.monitored_resources[i].body_mark(e) }) })
+  gensupport.mark(o, m.force_send_fields.map(incident_list_field_entry), m.null_fields.map(incident_list_field_entry))
+}
 
 /// Interval: Represents a time interval, encoded as a Timestamp start (inclusive) and a Timestamp end (exclusive).The start must be less than or equal to the end. When the start equals the end, the interval is empty (matches no time). When both start and end are unspecified, the interval matches any time.
 ///
@@ -558,15 +1253,38 @@ pub struct Interval {
   pub end_time as "endTime,omitempty": Str = ""
   /// Optional. Inclusive start of the interval.If specified, a Timestamp matching this interval will have to be the same or after the start.
   pub start_time as "startTime,omitempty": Str = ""
-  pub force_send_fields as "~forceSendFields,omitempty": List[IntervalField] = []
-  pub null_fields as "~nullFields,omitempty": List[IntervalField] = []
+  pub force_send_fields as "-": List[IntervalField] = []
+  pub null_fields as "-": List[IntervalField] = []
 } derive Json
 
 /// IntervalField: Interval's fields, for force_send_fields and null_fields.
 pub enum IntervalField {
-  EndTime as "endTime=\"\""
-  StartTime as "startTime=\"\""
-} derive Json
+  EndTime
+  StartTime
+}
+
+fn interval_field_entry(f: IntervalField) -> Str {
+  match f {
+    EndTime => "endTime=\"\""
+    StartTime => "startTime=\"\""
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: Interval) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: Interval) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  gensupport.mark(o, m.force_send_fields.map(interval_field_entry), m.null_fields.map(interval_field_entry))
+}
 
 /// ListDashboardsResponse: The ListDashboards request.
 pub struct ListDashboardsResponse {
@@ -590,15 +1308,38 @@ pub struct LogsPanel {
   pub filter as "filter,omitempty": Str = ""
   /// The names of logging resources to collect logs for. Currently projects and storage views are supported. If empty, the widget will default to the host project.
   pub resource_names as "resourceNames,omitempty": List[Str] = []
-  pub force_send_fields as "~forceSendFields,omitempty": List[LogsPanelField] = []
-  pub null_fields as "~nullFields,omitempty": List[LogsPanelField] = []
+  pub force_send_fields as "-": List[LogsPanelField] = []
+  pub null_fields as "-": List[LogsPanelField] = []
 } derive Json
 
 /// LogsPanelField: LogsPanel's fields, for force_send_fields and null_fields.
 pub enum LogsPanelField {
-  Filter as "filter=\"\""
-  ResourceNames as "resourceNames=[]"
-} derive Json
+  Filter
+  ResourceNames
+}
+
+fn logs_panel_field_entry(f: LogsPanelField) -> Str {
+  match f {
+    Filter => "filter=\"\""
+    ResourceNames => "resourceNames=[]"
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: LogsPanel) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: LogsPanel) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  gensupport.mark(o, m.force_send_fields.map(logs_panel_field_entry), m.null_fields.map(logs_panel_field_entry))
+}
 
 /// Measure: A chart measure. Measures represent a measured property in your chart data such as rainfall in inches, number of units sold, revenue gained, etc.
 ///
@@ -608,15 +1349,46 @@ pub struct Measure {
   pub aggregation_function as "aggregationFunction,omitempty": AggregationFunction? = None
   /// Required. The column name within in the dataset used for the measure.
   pub column as "column,omitempty": Str = ""
-  pub force_send_fields as "~forceSendFields,omitempty": List[MeasureField] = []
-  pub null_fields as "~nullFields,omitempty": List[MeasureField] = []
+  pub force_send_fields as "-": List[MeasureField] = []
+  pub null_fields as "-": List[MeasureField] = []
 } derive Json
 
 /// MeasureField: Measure's fields, for force_send_fields and null_fields.
 pub enum MeasureField {
-  AggregationFunction as "aggregationFunction"
-  Column as "column=\"\""
-} derive Json
+  AggregationFunction
+  Column
+}
+
+fn measure_field_entry(f: MeasureField) -> Str {
+  match f {
+    AggregationFunction => "aggregationFunction"
+    Column => "column=\"\""
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: Measure) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  if let Some(c) = m.aggregation_function {
+    if c.body_marked() {
+      return true
+    }
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: Measure) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  if let Some(c) = m.aggregation_function {
+    o = gensupport.mark_field(o, "aggregationFunction", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  gensupport.mark(o, m.force_send_fields.map(measure_field_entry), m.null_fields.map(measure_field_entry))
+}
 
 /// MetricsScope: Represents a Metrics Scope (https://cloud.google.com/monitoring/settings#concept-scope) in Cloud Monitoring, which specifies one or more Google projects and zero or more AWS accounts to monitor together.
 pub struct MetricsScope {
@@ -640,16 +1412,40 @@ pub struct MonitoredProject {
   pub is_tombstoned as "isTombstoned,omitempty": Bool = false
   /// Immutable. The resource name of the MonitoredProject. On input, the resource name includes the scoping project ID and monitored project ID. On output, it contains the equivalent project numbers. Example: locations/global/metricsScopes/{SCOPING_PROJECT_ID_OR_NUMBER}/projects/{MONITORED_PROJECT_ID_OR_NUMBER}
   pub name as "name,omitempty": Str = ""
-  pub force_send_fields as "~forceSendFields,omitempty": List[MonitoredProjectField] = []
-  pub null_fields as "~nullFields,omitempty": List[MonitoredProjectField] = []
+  pub force_send_fields as "-": List[MonitoredProjectField] = []
+  pub null_fields as "-": List[MonitoredProjectField] = []
 } derive Json
 
 /// MonitoredProjectField: MonitoredProject's fields, for force_send_fields and null_fields.
 pub enum MonitoredProjectField {
-  CreateTime as "createTime=\"\""
-  IsTombstoned as "isTombstoned=false"
-  Name as "name=\"\""
-} derive Json
+  CreateTime
+  IsTombstoned
+  Name
+}
+
+fn monitored_project_field_entry(f: MonitoredProjectField) -> Str {
+  match f {
+    CreateTime => "createTime=\"\""
+    IsTombstoned => "isTombstoned=false"
+    Name => "name=\"\""
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: MonitoredProject) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: MonitoredProject) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  gensupport.mark(o, m.force_send_fields.map(monitored_project_field_entry), m.null_fields.map(monitored_project_field_entry))
+}
 
 /// MonitoredResource: An object representing a resource that can be used for monitoring, logging, billing, or other purposes. Examples include virtual machine instances, databases, and storage devices such as disks. The type field identifies a MonitoredResourceDescriptor object that describes the resource's schema. Information in the labels field identifies the actual resource and its attributes according to the schema. For example, a particular Compute Engine VM instance could be represented by the following object, because the MonitoredResourceDescriptor for "gce_instance" has labels "project_id", "instance_id" and "zone": { "type": "gce_instance", "labels": { "project_id": "my-project", "instance_id": "12345678901234", "zone": "us-central1-a" }}
 ///
@@ -659,15 +1455,38 @@ pub struct MonitoredResource {
   pub labels as "labels,omitempty": Map[Str, Str] = {}
   /// Required. The monitored resource type. This field must match the type field of a MonitoredResourceDescriptor object. For example, the type of a Compute Engine VM instance is gce_instance. For a list of types, see Monitoring resource types (https://cloud.google.com/monitoring/api/resources) and Logging resource types (https://cloud.google.com/logging/docs/api/v2/resource-list).
   pub type_ as "type,omitempty": Str = ""
-  pub force_send_fields as "~forceSendFields,omitempty": List[MonitoredResourceField] = []
-  pub null_fields as "~nullFields,omitempty": List[MonitoredResourceField] = []
+  pub force_send_fields as "-": List[MonitoredResourceField] = []
+  pub null_fields as "-": List[MonitoredResourceField] = []
 } derive Json
 
 /// MonitoredResourceField: MonitoredResource's fields, for force_send_fields and null_fields.
 pub enum MonitoredResourceField {
-  Labels as "labels={}"
-  Type as "type=\"\""
-} derive Json
+  Labels
+  Type
+}
+
+fn monitored_resource_field_entry(f: MonitoredResourceField) -> Str {
+  match f {
+    Labels => "labels={}"
+    Type => "type=\"\""
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: MonitoredResource) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: MonitoredResource) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  gensupport.mark(o, m.force_send_fields.map(monitored_resource_field_entry), m.null_fields.map(monitored_resource_field_entry))
+}
 
 /// MosaicLayout: A mosaic layout divides the available space into a grid of blocks, and overlays the grid with tiles. Unlike GridLayout, tiles may span multiple grid blocks and can be placed at arbitrary locations in the grid.
 ///
@@ -677,15 +1496,44 @@ pub struct MosaicLayout {
   pub columns as "columns,omitempty": Int = 0
   /// The tiles to display.
   pub tiles as "tiles,omitempty": List[Tile] = []
-  pub force_send_fields as "~forceSendFields,omitempty": List[MosaicLayoutField] = []
-  pub null_fields as "~nullFields,omitempty": List[MosaicLayoutField] = []
+  pub force_send_fields as "-": List[MosaicLayoutField] = []
+  pub null_fields as "-": List[MosaicLayoutField] = []
 } derive Json
 
 /// MosaicLayoutField: MosaicLayout's fields, for force_send_fields and null_fields.
 pub enum MosaicLayoutField {
-  Columns as "columns=0"
-  Tiles as "tiles=[]"
-} derive Json
+  Columns
+  Tiles
+}
+
+fn mosaic_layout_field_entry(f: MosaicLayoutField) -> Str {
+  match f {
+    Columns => "columns=0"
+    Tiles => "tiles=[]"
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: MosaicLayout) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  for c in m.tiles {
+    if c.body_marked() {
+      return true
+    }
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: MosaicLayout) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  o = gensupport.mark_field(o, "tiles", fn(x: json.Value) -> json.Value { gensupport.mark_list(x, fn(i: Int, e: json.Value) -> json.Value { m.tiles[i].body_mark(e) }) })
+  gensupport.mark(o, m.force_send_fields.map(mosaic_layout_field_entry), m.null_fields.map(mosaic_layout_field_entry))
+}
 
 /// Operation: This resource represents a long-running operation that is the result of a network API call.
 pub struct Operation {
@@ -717,14 +1565,36 @@ pub struct OperationMetadata {
 pub struct OpsAnalyticsQuery {
   /// A SQL query to fetch time series, category series, or numeric series data.
   pub sql as "sql,omitempty": Str = ""
-  pub force_send_fields as "~forceSendFields,omitempty": List[OpsAnalyticsQueryField] = []
-  pub null_fields as "~nullFields,omitempty": List[OpsAnalyticsQueryField] = []
+  pub force_send_fields as "-": List[OpsAnalyticsQueryField] = []
+  pub null_fields as "-": List[OpsAnalyticsQueryField] = []
 } derive Json
 
 /// OpsAnalyticsQueryField: OpsAnalyticsQuery's fields, for force_send_fields and null_fields.
 pub enum OpsAnalyticsQueryField {
-  Sql as "sql=\"\""
-} derive Json
+  Sql
+}
+
+fn ops_analytics_query_field_entry(f: OpsAnalyticsQueryField) -> Str {
+  match f {
+    Sql => "sql=\"\""
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: OpsAnalyticsQuery) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: OpsAnalyticsQuery) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  gensupport.mark(o, m.force_send_fields.map(ops_analytics_query_field_entry), m.null_fields.map(ops_analytics_query_field_entry))
+}
 
 /// OptionModel: A protocol buffer option, which can be attached to a message, field, enumeration, etc.New usages of this message as an alternative to FileOptions, MessageOptions, FieldOptions, EnumOptions, EnumValueOptions, ServiceOptions, or MethodOptions are strongly discouraged.
 pub struct OptionModel {
@@ -742,15 +1612,38 @@ pub struct Parameter {
   pub double_value as "doubleValue,omitempty": Float = 0.0
   /// An integer parameter value.
   pub int_value as "intValue,omitempty,string": Int = 0
-  pub force_send_fields as "~forceSendFields,omitempty": List[ParameterField] = []
-  pub null_fields as "~nullFields,omitempty": List[ParameterField] = []
+  pub force_send_fields as "-": List[ParameterField] = []
+  pub null_fields as "-": List[ParameterField] = []
 } derive Json
 
 /// ParameterField: Parameter's fields, for force_send_fields and null_fields.
 pub enum ParameterField {
-  DoubleValue as "doubleValue=0"
-  IntValue as "intValue=\"0\""
-} derive Json
+  DoubleValue
+  IntValue
+}
+
+fn parameter_field_entry(f: ParameterField) -> Str {
+  match f {
+    DoubleValue => "doubleValue=0"
+    IntValue => "intValue=\"0\""
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: Parameter) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: Parameter) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  gensupport.mark(o, m.force_send_fields.map(parameter_field_entry), m.null_fields.map(parameter_field_entry))
+}
 
 /// PickTimeSeriesFilter: Describes a ranking-based time series filter. Each input time series is ranked with an aligner. The filter will allow up to num_time_series time series to pass through it, selecting them based on the relative ranking.For example, if ranking_method is METHOD_MEAN,direction is BOTTOM, and num_time_series is 3, then the 3 times series with the lowest mean values will pass through the filter.
 ///
@@ -764,17 +1657,50 @@ pub struct PickTimeSeriesFilter {
   pub num_time_series as "numTimeSeries,omitempty": Int = 0
   /// ranking_method is applied to each time series independently to produce the value which will be used to compare the time series to other time series.
   pub ranking_method as "rankingMethod,omitempty": Str = ""
-  pub force_send_fields as "~forceSendFields,omitempty": List[PickTimeSeriesFilterField] = []
-  pub null_fields as "~nullFields,omitempty": List[PickTimeSeriesFilterField] = []
+  pub force_send_fields as "-": List[PickTimeSeriesFilterField] = []
+  pub null_fields as "-": List[PickTimeSeriesFilterField] = []
 } derive Json
 
 /// PickTimeSeriesFilterField: PickTimeSeriesFilter's fields, for force_send_fields and null_fields.
 pub enum PickTimeSeriesFilterField {
-  Direction as "direction=\"\""
-  Interval as "interval"
-  NumTimeSeries as "numTimeSeries=0"
-  RankingMethod as "rankingMethod=\"\""
-} derive Json
+  Direction
+  Interval
+  NumTimeSeries
+  RankingMethod
+}
+
+fn pick_time_series_filter_field_entry(f: PickTimeSeriesFilterField) -> Str {
+  match f {
+    Direction => "direction=\"\""
+    Interval => "interval"
+    NumTimeSeries => "numTimeSeries=0"
+    RankingMethod => "rankingMethod=\"\""
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: PickTimeSeriesFilter) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  if let Some(c) = m.interval {
+    if c.body_marked() {
+      return true
+    }
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: PickTimeSeriesFilter) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  if let Some(c) = m.interval {
+    o = gensupport.mark_field(o, "interval", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  gensupport.mark(o, m.force_send_fields.map(pick_time_series_filter_field_entry), m.null_fields.map(pick_time_series_filter_field_entry))
+}
 
 /// PieChart: A widget that displays timeseries data as a pie or a donut.
 ///
@@ -786,16 +1712,46 @@ pub struct PieChart {
   pub data_sets as "dataSets,omitempty": List[PieChartDataSet] = []
   /// Optional. Indicates whether or not the pie chart should show slices' labels
   pub show_labels as "showLabels,omitempty": Bool = false
-  pub force_send_fields as "~forceSendFields,omitempty": List[PieChartField] = []
-  pub null_fields as "~nullFields,omitempty": List[PieChartField] = []
+  pub force_send_fields as "-": List[PieChartField] = []
+  pub null_fields as "-": List[PieChartField] = []
 } derive Json
 
 /// PieChartField: PieChart's fields, for force_send_fields and null_fields.
 pub enum PieChartField {
-  ChartType as "chartType=\"\""
-  DataSets as "dataSets=[]"
-  ShowLabels as "showLabels=false"
-} derive Json
+  ChartType
+  DataSets
+  ShowLabels
+}
+
+fn pie_chart_field_entry(f: PieChartField) -> Str {
+  match f {
+    ChartType => "chartType=\"\""
+    DataSets => "dataSets=[]"
+    ShowLabels => "showLabels=false"
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: PieChart) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  for c in m.data_sets {
+    if c.body_marked() {
+      return true
+    }
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: PieChart) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  o = gensupport.mark_field(o, "dataSets", fn(x: json.Value) -> json.Value { gensupport.mark_list(x, fn(i: Int, e: json.Value) -> json.Value { m.data_sets[i].body_mark(e) }) })
+  gensupport.mark(o, m.force_send_fields.map(pie_chart_field_entry), m.null_fields.map(pie_chart_field_entry))
+}
 
 /// PieChartDataSet: Groups a time series query definition.
 ///
@@ -811,18 +1767,64 @@ pub struct PieChartDataSet {
   pub slice_name_template as "sliceNameTemplate,omitempty": Str = ""
   /// Required. The query for the PieChart. See, google.monitoring.dashboard.v1.TimeSeriesQuery.
   pub time_series_query as "timeSeriesQuery,omitempty": TimeSeriesQuery? = None
-  pub force_send_fields as "~forceSendFields,omitempty": List[PieChartDataSetField] = []
-  pub null_fields as "~nullFields,omitempty": List[PieChartDataSetField] = []
+  pub force_send_fields as "-": List[PieChartDataSetField] = []
+  pub null_fields as "-": List[PieChartDataSetField] = []
 } derive Json
 
 /// PieChartDataSetField: PieChartDataSet's fields, for force_send_fields and null_fields.
 pub enum PieChartDataSetField {
-  Dimensions as "dimensions=[]"
-  Measures as "measures=[]"
-  MinAlignmentPeriod as "minAlignmentPeriod=\"\""
-  SliceNameTemplate as "sliceNameTemplate=\"\""
-  TimeSeriesQuery as "timeSeriesQuery"
-} derive Json
+  Dimensions
+  Measures
+  MinAlignmentPeriod
+  SliceNameTemplate
+  TimeSeriesQuery
+}
+
+fn pie_chart_data_set_field_entry(f: PieChartDataSetField) -> Str {
+  match f {
+    Dimensions => "dimensions=[]"
+    Measures => "measures=[]"
+    MinAlignmentPeriod => "minAlignmentPeriod=\"\""
+    SliceNameTemplate => "sliceNameTemplate=\"\""
+    TimeSeriesQuery => "timeSeriesQuery"
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: PieChartDataSet) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  for c in m.dimensions {
+    if c.body_marked() {
+      return true
+    }
+  }
+  for c in m.measures {
+    if c.body_marked() {
+      return true
+    }
+  }
+  if let Some(c) = m.time_series_query {
+    if c.body_marked() {
+      return true
+    }
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: PieChartDataSet) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  o = gensupport.mark_field(o, "dimensions", fn(x: json.Value) -> json.Value { gensupport.mark_list(x, fn(i: Int, e: json.Value) -> json.Value { m.dimensions[i].body_mark(e) }) })
+  o = gensupport.mark_field(o, "measures", fn(x: json.Value) -> json.Value { gensupport.mark_list(x, fn(i: Int, e: json.Value) -> json.Value { m.measures[i].body_mark(e) }) })
+  if let Some(c) = m.time_series_query {
+    o = gensupport.mark_field(o, "timeSeriesQuery", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  gensupport.mark(o, m.force_send_fields.map(pie_chart_data_set_field_entry), m.null_fields.map(pie_chart_data_set_field_entry))
+}
 
 /// QueryExemplarsRequest: QueryExemplarsRequest holds all parameters of the Prometheus upstream API for querying exemplars.
 ///
@@ -834,16 +1836,40 @@ pub struct QueryExemplarsRequest {
   pub query as "query,omitempty": Str = ""
   /// The start time to evaluate the query for. Either floating point UNIX seconds or RFC3339 formatted timestamp.
   pub start as "start,omitempty": Str = ""
-  pub force_send_fields as "~forceSendFields,omitempty": List[QueryExemplarsRequestField] = []
-  pub null_fields as "~nullFields,omitempty": List[QueryExemplarsRequestField] = []
+  pub force_send_fields as "-": List[QueryExemplarsRequestField] = []
+  pub null_fields as "-": List[QueryExemplarsRequestField] = []
 } derive Json
 
 /// QueryExemplarsRequestField: QueryExemplarsRequest's fields, for force_send_fields and null_fields.
 pub enum QueryExemplarsRequestField {
-  End as "end=\"\""
-  Query as "query=\"\""
-  Start as "start=\"\""
-} derive Json
+  End
+  Query
+  Start
+}
+
+fn query_exemplars_request_field_entry(f: QueryExemplarsRequestField) -> Str {
+  match f {
+    End => "end=\"\""
+    Query => "query=\"\""
+    Start => "start=\"\""
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: QueryExemplarsRequest) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: QueryExemplarsRequest) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  gensupport.mark(o, m.force_send_fields.map(query_exemplars_request_field_entry), m.null_fields.map(query_exemplars_request_field_entry))
+}
 
 /// QueryInstantRequest: QueryInstantRequest holds all parameters of the Prometheus upstream instant query API plus GCM specific parameters.
 ///
@@ -855,16 +1881,40 @@ pub struct QueryInstantRequest {
   pub time as "time,omitempty": Str = ""
   /// An upper bound timeout for the query. Either a Prometheus duration string (https://prometheus.io/docs/prometheus/latest/querying/basics/#time-durations) or floating point seconds. This non-standard encoding must be used for compatibility with the open source API. Clients may still implement timeouts at the connection level while ignoring this field.
   pub timeout as "timeout,omitempty": Str = ""
-  pub force_send_fields as "~forceSendFields,omitempty": List[QueryInstantRequestField] = []
-  pub null_fields as "~nullFields,omitempty": List[QueryInstantRequestField] = []
+  pub force_send_fields as "-": List[QueryInstantRequestField] = []
+  pub null_fields as "-": List[QueryInstantRequestField] = []
 } derive Json
 
 /// QueryInstantRequestField: QueryInstantRequest's fields, for force_send_fields and null_fields.
 pub enum QueryInstantRequestField {
-  Query as "query=\"\""
-  Time as "time=\"\""
-  Timeout as "timeout=\"\""
-} derive Json
+  Query
+  Time
+  Timeout
+}
+
+fn query_instant_request_field_entry(f: QueryInstantRequestField) -> Str {
+  match f {
+    Query => "query=\"\""
+    Time => "time=\"\""
+    Timeout => "timeout=\"\""
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: QueryInstantRequest) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: QueryInstantRequest) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  gensupport.mark(o, m.force_send_fields.map(query_instant_request_field_entry), m.null_fields.map(query_instant_request_field_entry))
+}
 
 /// QueryLabelsRequest: QueryLabelsRequest holds all parameters of the Prometheus upstream API for returning a list of label names.
 ///
@@ -876,16 +1926,40 @@ pub struct QueryLabelsRequest {
   pub match_ as "match,omitempty": Str = ""
   /// The start time to evaluate the query for. Either floating point UNIX seconds or RFC3339 formatted timestamp.
   pub start as "start,omitempty": Str = ""
-  pub force_send_fields as "~forceSendFields,omitempty": List[QueryLabelsRequestField] = []
-  pub null_fields as "~nullFields,omitempty": List[QueryLabelsRequestField] = []
+  pub force_send_fields as "-": List[QueryLabelsRequestField] = []
+  pub null_fields as "-": List[QueryLabelsRequestField] = []
 } derive Json
 
 /// QueryLabelsRequestField: QueryLabelsRequest's fields, for force_send_fields and null_fields.
 pub enum QueryLabelsRequestField {
-  End as "end=\"\""
-  Match as "match=\"\""
-  Start as "start=\"\""
-} derive Json
+  End
+  Match
+  Start
+}
+
+fn query_labels_request_field_entry(f: QueryLabelsRequestField) -> Str {
+  match f {
+    End => "end=\"\""
+    Match => "match=\"\""
+    Start => "start=\"\""
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: QueryLabelsRequest) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: QueryLabelsRequest) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  gensupport.mark(o, m.force_send_fields.map(query_labels_request_field_entry), m.null_fields.map(query_labels_request_field_entry))
+}
 
 /// QueryRangeRequest: QueryRangeRequest holds all parameters of the Prometheus upstream range query API plus GCM specific parameters.
 ///
@@ -901,18 +1975,44 @@ pub struct QueryRangeRequest {
   pub step as "step,omitempty": Str = ""
   /// An upper bound timeout for the query. Either a Prometheus duration string (https://prometheus.io/docs/prometheus/latest/querying/basics/#time-durations) or floating point seconds. This non-standard encoding must be used for compatibility with the open source API. Clients may still implement timeouts at the connection level while ignoring this field.
   pub timeout as "timeout,omitempty": Str = ""
-  pub force_send_fields as "~forceSendFields,omitempty": List[QueryRangeRequestField] = []
-  pub null_fields as "~nullFields,omitempty": List[QueryRangeRequestField] = []
+  pub force_send_fields as "-": List[QueryRangeRequestField] = []
+  pub null_fields as "-": List[QueryRangeRequestField] = []
 } derive Json
 
 /// QueryRangeRequestField: QueryRangeRequest's fields, for force_send_fields and null_fields.
 pub enum QueryRangeRequestField {
-  End as "end=\"\""
-  Query as "query=\"\""
-  Start as "start=\"\""
-  Step as "step=\"\""
-  Timeout as "timeout=\"\""
-} derive Json
+  End
+  Query
+  Start
+  Step
+  Timeout
+}
+
+fn query_range_request_field_entry(f: QueryRangeRequestField) -> Str {
+  match f {
+    End => "end=\"\""
+    Query => "query=\"\""
+    Start => "start=\"\""
+    Step => "step=\"\""
+    Timeout => "timeout=\"\""
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: QueryRangeRequest) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: QueryRangeRequest) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  gensupport.mark(o, m.force_send_fields.map(query_range_request_field_entry), m.null_fields.map(query_range_request_field_entry))
+}
 
 /// QuerySeriesRequest: QuerySeries holds all parameters of the Prometheus upstream API for querying series.
 ///
@@ -922,15 +2022,38 @@ pub struct QuerySeriesRequest {
   pub end as "end,omitempty": Str = ""
   /// The start time to evaluate the query for. Either floating point UNIX seconds or RFC3339 formatted timestamp.
   pub start as "start,omitempty": Str = ""
-  pub force_send_fields as "~forceSendFields,omitempty": List[QuerySeriesRequestField] = []
-  pub null_fields as "~nullFields,omitempty": List[QuerySeriesRequestField] = []
+  pub force_send_fields as "-": List[QuerySeriesRequestField] = []
+  pub null_fields as "-": List[QuerySeriesRequestField] = []
 } derive Json
 
 /// QuerySeriesRequestField: QuerySeriesRequest's fields, for force_send_fields and null_fields.
 pub enum QuerySeriesRequestField {
-  End as "end=\"\""
-  Start as "start=\"\""
-} derive Json
+  End
+  Start
+}
+
+fn query_series_request_field_entry(f: QuerySeriesRequestField) -> Str {
+  match f {
+    End => "end=\"\""
+    Start => "start=\"\""
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: QuerySeriesRequest) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: QuerySeriesRequest) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  gensupport.mark(o, m.force_send_fields.map(query_series_request_field_entry), m.null_fields.map(query_series_request_field_entry))
+}
 
 /// RatioPart: Describes a query to build the numerator or denominator of a TimeSeriesFilterRatio.
 ///
@@ -940,15 +2063,46 @@ pub struct RatioPart {
   pub aggregation as "aggregation,omitempty": Aggregation? = None
   /// Required. The monitoring filter (https://cloud.google.com/monitoring/api/v3/filters) that identifies the metric types, resources, and projects to query.
   pub filter as "filter,omitempty": Str = ""
-  pub force_send_fields as "~forceSendFields,omitempty": List[RatioPartField] = []
-  pub null_fields as "~nullFields,omitempty": List[RatioPartField] = []
+  pub force_send_fields as "-": List[RatioPartField] = []
+  pub null_fields as "-": List[RatioPartField] = []
 } derive Json
 
 /// RatioPartField: RatioPart's fields, for force_send_fields and null_fields.
 pub enum RatioPartField {
-  Aggregation as "aggregation"
-  Filter as "filter=\"\""
-} derive Json
+  Aggregation
+  Filter
+}
+
+fn ratio_part_field_entry(f: RatioPartField) -> Str {
+  match f {
+    Aggregation => "aggregation"
+    Filter => "filter=\"\""
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: RatioPart) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  if let Some(c) = m.aggregation {
+    if c.body_marked() {
+      return true
+    }
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: RatioPart) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  if let Some(c) = m.aggregation {
+    o = gensupport.mark_field(o, "aggregation", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  gensupport.mark(o, m.force_send_fields.map(ratio_part_field_entry), m.null_fields.map(ratio_part_field_entry))
+}
 
 /// Row: Defines the layout properties and content for a row.
 ///
@@ -958,15 +2112,44 @@ pub struct Row {
   pub weight as "weight,omitempty,string": Int = 0
   /// The display widgets arranged horizontally in this row.
   pub widgets as "widgets,omitempty": List[Widget] = []
-  pub force_send_fields as "~forceSendFields,omitempty": List[RowField] = []
-  pub null_fields as "~nullFields,omitempty": List[RowField] = []
+  pub force_send_fields as "-": List[RowField] = []
+  pub null_fields as "-": List[RowField] = []
 } derive Json
 
 /// RowField: Row's fields, for force_send_fields and null_fields.
 pub enum RowField {
-  Weight as "weight=\"0\""
-  Widgets as "widgets=[]"
-} derive Json
+  Weight
+  Widgets
+}
+
+fn row_field_entry(f: RowField) -> Str {
+  match f {
+    Weight => "weight=\"0\""
+    Widgets => "widgets=[]"
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: Row) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  for c in m.widgets {
+    if c.body_marked() {
+      return true
+    }
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: Row) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  o = gensupport.mark_field(o, "widgets", fn(x: json.Value) -> json.Value { gensupport.mark_list(x, fn(i: Int, e: json.Value) -> json.Value { m.widgets[i].body_mark(e) }) })
+  gensupport.mark(o, m.force_send_fields.map(row_field_entry), m.null_fields.map(row_field_entry))
+}
 
 /// RowLayout: A simplified layout that divides the available space into rows and arranges a set of widgets horizontally in each row.
 ///
@@ -974,14 +2157,42 @@ pub enum RowField {
 pub struct RowLayout {
   /// The rows of content to display.
   pub rows as "rows,omitempty": List[Row] = []
-  pub force_send_fields as "~forceSendFields,omitempty": List[RowLayoutField] = []
-  pub null_fields as "~nullFields,omitempty": List[RowLayoutField] = []
+  pub force_send_fields as "-": List[RowLayoutField] = []
+  pub null_fields as "-": List[RowLayoutField] = []
 } derive Json
 
 /// RowLayoutField: RowLayout's fields, for force_send_fields and null_fields.
 pub enum RowLayoutField {
-  Rows as "rows=[]"
-} derive Json
+  Rows
+}
+
+fn row_layout_field_entry(f: RowLayoutField) -> Str {
+  match f {
+    Rows => "rows=[]"
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: RowLayout) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  for c in m.rows {
+    if c.body_marked() {
+      return true
+    }
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: RowLayout) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  o = gensupport.mark_field(o, "rows", fn(x: json.Value) -> json.Value { gensupport.mark_list(x, fn(i: Int, e: json.Value) -> json.Value { m.rows[i].body_mark(e) }) })
+  gensupport.mark(o, m.force_send_fields.map(row_layout_field_entry), m.null_fields.map(row_layout_field_entry))
+}
 
 /// Scorecard: A widget showing the latest value of a metric, and how this value relates to one or more thresholds.
 ///
@@ -1003,21 +2214,98 @@ pub struct Scorecard {
   pub thresholds as "thresholds,omitempty": List[Threshold] = []
   /// Required. Fields for querying time series data from the Stackdriver metrics API.
   pub time_series_query as "timeSeriesQuery,omitempty": TimeSeriesQuery? = None
-  pub force_send_fields as "~forceSendFields,omitempty": List[ScorecardField] = []
-  pub null_fields as "~nullFields,omitempty": List[ScorecardField] = []
+  pub force_send_fields as "-": List[ScorecardField] = []
+  pub null_fields as "-": List[ScorecardField] = []
 } derive Json
 
 /// ScorecardField: Scorecard's fields, for force_send_fields and null_fields.
 pub enum ScorecardField {
-  BlankView as "blankView"
-  Breakdowns as "breakdowns=[]"
-  Dimensions as "dimensions=[]"
-  GaugeView as "gaugeView"
-  Measures as "measures=[]"
-  SparkChartView as "sparkChartView"
-  Thresholds as "thresholds=[]"
-  TimeSeriesQuery as "timeSeriesQuery"
-} derive Json
+  BlankView
+  Breakdowns
+  Dimensions
+  GaugeView
+  Measures
+  SparkChartView
+  Thresholds
+  TimeSeriesQuery
+}
+
+fn scorecard_field_entry(f: ScorecardField) -> Str {
+  match f {
+    BlankView => "blankView"
+    Breakdowns => "breakdowns=[]"
+    Dimensions => "dimensions=[]"
+    GaugeView => "gaugeView"
+    Measures => "measures=[]"
+    SparkChartView => "sparkChartView"
+    Thresholds => "thresholds=[]"
+    TimeSeriesQuery => "timeSeriesQuery"
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: Scorecard) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  for c in m.breakdowns {
+    if c.body_marked() {
+      return true
+    }
+  }
+  for c in m.dimensions {
+    if c.body_marked() {
+      return true
+    }
+  }
+  if let Some(c) = m.gauge_view {
+    if c.body_marked() {
+      return true
+    }
+  }
+  for c in m.measures {
+    if c.body_marked() {
+      return true
+    }
+  }
+  if let Some(c) = m.spark_chart_view {
+    if c.body_marked() {
+      return true
+    }
+  }
+  for c in m.thresholds {
+    if c.body_marked() {
+      return true
+    }
+  }
+  if let Some(c) = m.time_series_query {
+    if c.body_marked() {
+      return true
+    }
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: Scorecard) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  o = gensupport.mark_field(o, "breakdowns", fn(x: json.Value) -> json.Value { gensupport.mark_list(x, fn(i: Int, e: json.Value) -> json.Value { m.breakdowns[i].body_mark(e) }) })
+  o = gensupport.mark_field(o, "dimensions", fn(x: json.Value) -> json.Value { gensupport.mark_list(x, fn(i: Int, e: json.Value) -> json.Value { m.dimensions[i].body_mark(e) }) })
+  if let Some(c) = m.gauge_view {
+    o = gensupport.mark_field(o, "gaugeView", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  o = gensupport.mark_field(o, "measures", fn(x: json.Value) -> json.Value { gensupport.mark_list(x, fn(i: Int, e: json.Value) -> json.Value { m.measures[i].body_mark(e) }) })
+  if let Some(c) = m.spark_chart_view {
+    o = gensupport.mark_field(o, "sparkChartView", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  o = gensupport.mark_field(o, "thresholds", fn(x: json.Value) -> json.Value { gensupport.mark_list(x, fn(i: Int, e: json.Value) -> json.Value { m.thresholds[i].body_mark(e) }) })
+  if let Some(c) = m.time_series_query {
+    o = gensupport.mark_field(o, "timeSeriesQuery", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  gensupport.mark(o, m.force_send_fields.map(scorecard_field_entry), m.null_fields.map(scorecard_field_entry))
+}
 
 /// SectionHeader: A widget that defines a new section header. Sections populate a table of contents and allow easier navigation of long-form content.
 ///
@@ -1027,15 +2315,38 @@ pub struct SectionHeader {
   pub divider_below as "dividerBelow,omitempty": Bool = false
   /// The subtitle of the section
   pub subtitle as "subtitle,omitempty": Str = ""
-  pub force_send_fields as "~forceSendFields,omitempty": List[SectionHeaderField] = []
-  pub null_fields as "~nullFields,omitempty": List[SectionHeaderField] = []
+  pub force_send_fields as "-": List[SectionHeaderField] = []
+  pub null_fields as "-": List[SectionHeaderField] = []
 } derive Json
 
 /// SectionHeaderField: SectionHeader's fields, for force_send_fields and null_fields.
 pub enum SectionHeaderField {
-  DividerBelow as "dividerBelow=false"
-  Subtitle as "subtitle=\"\""
-} derive Json
+  DividerBelow
+  Subtitle
+}
+
+fn section_header_field_entry(f: SectionHeaderField) -> Str {
+  match f {
+    DividerBelow => "dividerBelow=false"
+    Subtitle => "subtitle=\"\""
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: SectionHeader) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: SectionHeader) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  gensupport.mark(o, m.force_send_fields.map(section_header_field_entry), m.null_fields.map(section_header_field_entry))
+}
 
 /// SingleViewGroup: A widget that groups the other widgets by using a dropdown menu. All widgets that are within the area spanned by the grouping widget are considered member widgets.
 ///
@@ -1043,14 +2354,36 @@ pub enum SectionHeaderField {
 pub struct SingleViewGroup {
   /// Optional. Determines how the widget selector will be displayed.
   pub display_type as "displayType,omitempty": Str = ""
-  pub force_send_fields as "~forceSendFields,omitempty": List[SingleViewGroupField] = []
-  pub null_fields as "~nullFields,omitempty": List[SingleViewGroupField] = []
+  pub force_send_fields as "-": List[SingleViewGroupField] = []
+  pub null_fields as "-": List[SingleViewGroupField] = []
 } derive Json
 
 /// SingleViewGroupField: SingleViewGroup's fields, for force_send_fields and null_fields.
 pub enum SingleViewGroupField {
-  DisplayType as "displayType=\"\""
-} derive Json
+  DisplayType
+}
+
+fn single_view_group_field_entry(f: SingleViewGroupField) -> Str {
+  match f {
+    DisplayType => "displayType=\"\""
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: SingleViewGroup) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: SingleViewGroup) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  gensupport.mark(o, m.force_send_fields.map(single_view_group_field_entry), m.null_fields.map(single_view_group_field_entry))
+}
 
 /// SourceContext: SourceContext represents information about the source of a protobuf element, like the file in which it is defined.
 pub struct SourceContext {
@@ -1066,15 +2399,38 @@ pub struct SpanAttributeFilter {
   pub key as "key,omitempty": Str = ""
   /// List of attribute values for given key. Multiple values will be OR'd together.
   pub value as "value,omitempty": List[Str] = []
-  pub force_send_fields as "~forceSendFields,omitempty": List[SpanAttributeFilterField] = []
-  pub null_fields as "~nullFields,omitempty": List[SpanAttributeFilterField] = []
+  pub force_send_fields as "-": List[SpanAttributeFilterField] = []
+  pub null_fields as "-": List[SpanAttributeFilterField] = []
 } derive Json
 
 /// SpanAttributeFilterField: SpanAttributeFilter's fields, for force_send_fields and null_fields.
 pub enum SpanAttributeFilterField {
-  Key as "key=\"\""
-  Value as "value=[]"
-} derive Json
+  Key
+  Value
+}
+
+fn span_attribute_filter_field_entry(f: SpanAttributeFilterField) -> Str {
+  match f {
+    Key => "key=\"\""
+    Value => "value=[]"
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: SpanAttributeFilter) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: SpanAttributeFilter) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  gensupport.mark(o, m.force_send_fields.map(span_attribute_filter_field_entry), m.null_fields.map(span_attribute_filter_field_entry))
+}
 
 /// SpanContext: The context of a span. This is attached to an Exemplar in Distribution values during aggregation.It contains the name of a span with format: projects/[PROJECT_ID_OR_NUMBER]/traces/[TRACE_ID]/spans/[SPAN_ID]
 pub struct SpanContext {
@@ -1108,24 +2464,62 @@ pub struct SpanFilters {
   pub services as "services,omitempty": List[Str] = []
   /// Optional. Filtering for spans containing one of the statuses in the list. Multiple values will be OR'd together.
   pub status as "status,omitempty": List[Str] = []
-  pub force_send_fields as "~forceSendFields,omitempty": List[SpanFiltersField] = []
-  pub null_fields as "~nullFields,omitempty": List[SpanFiltersField] = []
+  pub force_send_fields as "-": List[SpanFiltersField] = []
+  pub null_fields as "-": List[SpanFiltersField] = []
 } derive Json
 
 /// SpanFiltersField: SpanFilters's fields, for force_send_fields and null_fields.
 pub enum SpanFiltersField {
-  ApphubServices as "apphubServices=[]"
-  ApphubWorkloads as "apphubWorkloads=[]"
-  ApplicationIds as "applicationIds=[]"
-  Attributes as "attributes=[]"
-  DisplayNames as "displayNames=[]"
-  IsRootSpan as "isRootSpan=false"
-  Kinds as "kinds=[]"
-  MaxDuration as "maxDuration=\"\""
-  MinDuration as "minDuration=\"\""
-  Services as "services=[]"
-  Status as "status=[]"
-} derive Json
+  ApphubServices
+  ApphubWorkloads
+  ApplicationIds
+  Attributes
+  DisplayNames
+  IsRootSpan
+  Kinds
+  MaxDuration
+  MinDuration
+  Services
+  Status
+}
+
+fn span_filters_field_entry(f: SpanFiltersField) -> Str {
+  match f {
+    ApphubServices => "apphubServices=[]"
+    ApphubWorkloads => "apphubWorkloads=[]"
+    ApplicationIds => "applicationIds=[]"
+    Attributes => "attributes=[]"
+    DisplayNames => "displayNames=[]"
+    IsRootSpan => "isRootSpan=false"
+    Kinds => "kinds=[]"
+    MaxDuration => "maxDuration=\"\""
+    MinDuration => "minDuration=\"\""
+    Services => "services=[]"
+    Status => "status=[]"
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: SpanFilters) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  for c in m.attributes {
+    if c.body_marked() {
+      return true
+    }
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: SpanFilters) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  o = gensupport.mark_field(o, "attributes", fn(x: json.Value) -> json.Value { gensupport.mark_list(x, fn(i: Int, e: json.Value) -> json.Value { m.attributes[i].body_mark(e) }) })
+  gensupport.mark(o, m.force_send_fields.map(span_filters_field_entry), m.null_fields.map(span_filters_field_entry))
+}
 
 /// SparkChartView: A sparkChart is a small chart suitable for inclusion in a table-cell or inline in text. This message contains the configuration for a sparkChart to show up on a Scorecard, showing recent trends of the scorecard's timeseries.
 ///
@@ -1135,15 +2529,38 @@ pub struct SparkChartView {
   pub min_alignment_period as "minAlignmentPeriod,omitempty": Str = ""
   /// Required. The type of sparkchart to show in this chartView.
   pub spark_chart_type as "sparkChartType,omitempty": Str = ""
-  pub force_send_fields as "~forceSendFields,omitempty": List[SparkChartViewField] = []
-  pub null_fields as "~nullFields,omitempty": List[SparkChartViewField] = []
+  pub force_send_fields as "-": List[SparkChartViewField] = []
+  pub null_fields as "-": List[SparkChartViewField] = []
 } derive Json
 
 /// SparkChartViewField: SparkChartView's fields, for force_send_fields and null_fields.
 pub enum SparkChartViewField {
-  MinAlignmentPeriod as "minAlignmentPeriod=\"\""
-  SparkChartType as "sparkChartType=\"\""
-} derive Json
+  MinAlignmentPeriod
+  SparkChartType
+}
+
+fn spark_chart_view_field_entry(f: SparkChartViewField) -> Str {
+  match f {
+    MinAlignmentPeriod => "minAlignmentPeriod=\"\""
+    SparkChartType => "sparkChartType=\"\""
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: SparkChartView) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: SparkChartView) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  gensupport.mark(o, m.force_send_fields.map(spark_chart_view_field_entry), m.null_fields.map(spark_chart_view_field_entry))
+}
 
 /// StatisticalTimeSeriesFilter: A filter that ranks streams based on their statistical relation to other streams in a request. Note: This field is deprecated and completely ignored by the API.
 ///
@@ -1153,15 +2570,38 @@ pub struct StatisticalTimeSeriesFilter {
   pub num_time_series as "numTimeSeries,omitempty": Int = 0
   /// rankingMethod is applied to a set of time series, and then the produced value for each individual time series is used to compare a given time series to others. These are methods that cannot be applied stream-by-stream, but rather require the full context of a request to evaluate time series.
   pub ranking_method as "rankingMethod,omitempty": Str = ""
-  pub force_send_fields as "~forceSendFields,omitempty": List[StatisticalTimeSeriesFilterField] = []
-  pub null_fields as "~nullFields,omitempty": List[StatisticalTimeSeriesFilterField] = []
+  pub force_send_fields as "-": List[StatisticalTimeSeriesFilterField] = []
+  pub null_fields as "-": List[StatisticalTimeSeriesFilterField] = []
 } derive Json
 
 /// StatisticalTimeSeriesFilterField: StatisticalTimeSeriesFilter's fields, for force_send_fields and null_fields.
 pub enum StatisticalTimeSeriesFilterField {
-  NumTimeSeries as "numTimeSeries=0"
-  RankingMethod as "rankingMethod=\"\""
-} derive Json
+  NumTimeSeries
+  RankingMethod
+}
+
+fn statistical_time_series_filter_field_entry(f: StatisticalTimeSeriesFilterField) -> Str {
+  match f {
+    NumTimeSeries => "numTimeSeries=0"
+    RankingMethod => "rankingMethod=\"\""
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: StatisticalTimeSeriesFilter) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: StatisticalTimeSeriesFilter) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  gensupport.mark(o, m.force_send_fields.map(statistical_time_series_filter_field_entry), m.null_fields.map(statistical_time_series_filter_field_entry))
+}
 
 /// Status: The Status type defines a logical error model that is suitable for different programming environments, including REST APIs and RPC APIs. It is used by gRPC (https://github.com/grpc). Each Status message contains three pieces of data: error code, error message, and error details.You can find out more about this error model and how to work with it in the API Design Guide (https://cloud.google.com/apis/design/errors).
 pub struct Status {
@@ -1179,14 +2619,36 @@ pub struct Status {
 pub struct StringArray {
   /// The values of the array
   pub values as "values,omitempty": List[Str] = []
-  pub force_send_fields as "~forceSendFields,omitempty": List[StringArrayField] = []
-  pub null_fields as "~nullFields,omitempty": List[StringArrayField] = []
+  pub force_send_fields as "-": List[StringArrayField] = []
+  pub null_fields as "-": List[StringArrayField] = []
 } derive Json
 
 /// StringArrayField: StringArray's fields, for force_send_fields and null_fields.
 pub enum StringArrayField {
-  Values as "values=[]"
-} derive Json
+  Values
+}
+
+fn string_array_field_entry(f: StringArrayField) -> Str {
+  match f {
+    Values => "values=[]"
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: StringArray) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: StringArray) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  gensupport.mark(o, m.force_send_fields.map(string_array_field_entry), m.null_fields.map(string_array_field_entry))
+}
 
 /// TableDataSet: Groups a time series query definition with table options.
 ///
@@ -1200,17 +2662,58 @@ pub struct TableDataSet {
   pub table_template as "tableTemplate,omitempty": Str = ""
   /// Required. Fields for querying time series data from the Stackdriver metrics API.
   pub time_series_query as "timeSeriesQuery,omitempty": TimeSeriesQuery? = None
-  pub force_send_fields as "~forceSendFields,omitempty": List[TableDataSetField] = []
-  pub null_fields as "~nullFields,omitempty": List[TableDataSetField] = []
+  pub force_send_fields as "-": List[TableDataSetField] = []
+  pub null_fields as "-": List[TableDataSetField] = []
 } derive Json
 
 /// TableDataSetField: TableDataSet's fields, for force_send_fields and null_fields.
 pub enum TableDataSetField {
-  MinAlignmentPeriod as "minAlignmentPeriod=\"\""
-  TableDisplayOptions as "tableDisplayOptions"
-  TableTemplate as "tableTemplate=\"\""
-  TimeSeriesQuery as "timeSeriesQuery"
-} derive Json
+  MinAlignmentPeriod
+  TableDisplayOptions
+  TableTemplate
+  TimeSeriesQuery
+}
+
+fn table_data_set_field_entry(f: TableDataSetField) -> Str {
+  match f {
+    MinAlignmentPeriod => "minAlignmentPeriod=\"\""
+    TableDisplayOptions => "tableDisplayOptions"
+    TableTemplate => "tableTemplate=\"\""
+    TimeSeriesQuery => "timeSeriesQuery"
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: TableDataSet) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  if let Some(c) = m.table_display_options {
+    if c.body_marked() {
+      return true
+    }
+  }
+  if let Some(c) = m.time_series_query {
+    if c.body_marked() {
+      return true
+    }
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: TableDataSet) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  if let Some(c) = m.table_display_options {
+    o = gensupport.mark_field(o, "tableDisplayOptions", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  if let Some(c) = m.time_series_query {
+    o = gensupport.mark_field(o, "timeSeriesQuery", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  gensupport.mark(o, m.force_send_fields.map(table_data_set_field_entry), m.null_fields.map(table_data_set_field_entry))
+}
 
 /// TableDisplayOptions: Table display options that can be reused.
 ///
@@ -1218,14 +2721,36 @@ pub enum TableDataSetField {
 pub struct TableDisplayOptions {
   /// Optional. This field is unused and has been replaced by TimeSeriesTable.column_settings
   pub shown_columns as "shownColumns,omitempty": List[Str] = []
-  pub force_send_fields as "~forceSendFields,omitempty": List[TableDisplayOptionsField] = []
-  pub null_fields as "~nullFields,omitempty": List[TableDisplayOptionsField] = []
+  pub force_send_fields as "-": List[TableDisplayOptionsField] = []
+  pub null_fields as "-": List[TableDisplayOptionsField] = []
 } derive Json
 
 /// TableDisplayOptionsField: TableDisplayOptions's fields, for force_send_fields and null_fields.
 pub enum TableDisplayOptionsField {
-  ShownColumns as "shownColumns=[]"
-} derive Json
+  ShownColumns
+}
+
+fn table_display_options_field_entry(f: TableDisplayOptionsField) -> Str {
+  match f {
+    ShownColumns => "shownColumns=[]"
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: TableDisplayOptions) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: TableDisplayOptions) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  gensupport.mark(o, m.force_send_fields.map(table_display_options_field_entry), m.null_fields.map(table_display_options_field_entry))
+}
 
 /// TemplateVariableCondition: A condition whose evaluation is based on the value of a template variable.
 ///
@@ -1237,16 +2762,40 @@ pub struct TemplateVariableCondition {
   pub template_variable as "templateVariable,omitempty": Str = ""
   /// The value to compare the template variable to. For example, if the comparator is REGEX_FULL_MATCH, this field should contain a regex.
   pub template_variable_value as "templateVariableValue,omitempty": Str = ""
-  pub force_send_fields as "~forceSendFields,omitempty": List[TemplateVariableConditionField] = []
-  pub null_fields as "~nullFields,omitempty": List[TemplateVariableConditionField] = []
+  pub force_send_fields as "-": List[TemplateVariableConditionField] = []
+  pub null_fields as "-": List[TemplateVariableConditionField] = []
 } derive Json
 
 /// TemplateVariableConditionField: TemplateVariableCondition's fields, for force_send_fields and null_fields.
 pub enum TemplateVariableConditionField {
-  Comparator as "comparator=\"\""
-  TemplateVariable as "templateVariable=\"\""
-  TemplateVariableValue as "templateVariableValue=\"\""
-} derive Json
+  Comparator
+  TemplateVariable
+  TemplateVariableValue
+}
+
+fn template_variable_condition_field_entry(f: TemplateVariableConditionField) -> Str {
+  match f {
+    Comparator => "comparator=\"\""
+    TemplateVariable => "templateVariable=\"\""
+    TemplateVariableValue => "templateVariableValue=\"\""
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: TemplateVariableCondition) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: TemplateVariableCondition) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  gensupport.mark(o, m.force_send_fields.map(template_variable_condition_field_entry), m.null_fields.map(template_variable_condition_field_entry))
+}
 
 /// Text: A widget that displays textual content.
 ///
@@ -1258,16 +2807,48 @@ pub struct Text {
   pub format as "format,omitempty": Str = ""
   /// How the text is styled
   pub style as "style,omitempty": TextStyle? = None
-  pub force_send_fields as "~forceSendFields,omitempty": List[TextField] = []
-  pub null_fields as "~nullFields,omitempty": List[TextField] = []
+  pub force_send_fields as "-": List[TextField] = []
+  pub null_fields as "-": List[TextField] = []
 } derive Json
 
 /// TextField: Text's fields, for force_send_fields and null_fields.
 pub enum TextField {
-  Content as "content=\"\""
-  Format as "format=\"\""
-  Style as "style"
-} derive Json
+  Content
+  Format
+  Style
+}
+
+fn text_field_entry(f: TextField) -> Str {
+  match f {
+    Content => "content=\"\""
+    Format => "format=\"\""
+    Style => "style"
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: Text) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  if let Some(c) = m.style {
+    if c.body_marked() {
+      return true
+    }
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: Text) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  if let Some(c) = m.style {
+    o = gensupport.mark_field(o, "style", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  gensupport.mark(o, m.force_send_fields.map(text_field_entry), m.null_fields.map(text_field_entry))
+}
 
 /// TextStyle: Properties that determine how the title and content are styled
 ///
@@ -1287,20 +2868,48 @@ pub struct TextStyle {
   pub text_color as "textColor,omitempty": Str = ""
   /// The vertical alignment of both the title and content
   pub vertical_alignment as "verticalAlignment,omitempty": Str = ""
-  pub force_send_fields as "~forceSendFields,omitempty": List[TextStyleField] = []
-  pub null_fields as "~nullFields,omitempty": List[TextStyleField] = []
+  pub force_send_fields as "-": List[TextStyleField] = []
+  pub null_fields as "-": List[TextStyleField] = []
 } derive Json
 
 /// TextStyleField: TextStyle's fields, for force_send_fields and null_fields.
 pub enum TextStyleField {
-  BackgroundColor as "backgroundColor=\"\""
-  FontSize as "fontSize=\"\""
-  HorizontalAlignment as "horizontalAlignment=\"\""
-  Padding as "padding=\"\""
-  PointerLocation as "pointerLocation=\"\""
-  TextColor as "textColor=\"\""
-  VerticalAlignment as "verticalAlignment=\"\""
-} derive Json
+  BackgroundColor
+  FontSize
+  HorizontalAlignment
+  Padding
+  PointerLocation
+  TextColor
+  VerticalAlignment
+}
+
+fn text_style_field_entry(f: TextStyleField) -> Str {
+  match f {
+    BackgroundColor => "backgroundColor=\"\""
+    FontSize => "fontSize=\"\""
+    HorizontalAlignment => "horizontalAlignment=\"\""
+    Padding => "padding=\"\""
+    PointerLocation => "pointerLocation=\"\""
+    TextColor => "textColor=\"\""
+    VerticalAlignment => "verticalAlignment=\"\""
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: TextStyle) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: TextStyle) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  gensupport.mark(o, m.force_send_fields.map(text_style_field_entry), m.null_fields.map(text_style_field_entry))
+}
 
 /// Threshold: Defines a threshold for categorizing time series values.
 ///
@@ -1316,18 +2925,44 @@ pub struct Threshold {
   pub target_axis as "targetAxis,omitempty": Str = ""
   /// The value of the threshold. The value should be defined in the native scale of the metric.
   pub value as "value,omitempty": Float = 0.0
-  pub force_send_fields as "~forceSendFields,omitempty": List[ThresholdField] = []
-  pub null_fields as "~nullFields,omitempty": List[ThresholdField] = []
+  pub force_send_fields as "-": List[ThresholdField] = []
+  pub null_fields as "-": List[ThresholdField] = []
 } derive Json
 
 /// ThresholdField: Threshold's fields, for force_send_fields and null_fields.
 pub enum ThresholdField {
-  Color as "color=\"\""
-  Direction as "direction=\"\""
-  Label as "label=\"\""
-  TargetAxis as "targetAxis=\"\""
-  Value as "value=0"
-} derive Json
+  Color
+  Direction
+  Label
+  TargetAxis
+  Value
+}
+
+fn threshold_field_entry(f: ThresholdField) -> Str {
+  match f {
+    Color => "color=\"\""
+    Direction => "direction=\"\""
+    Label => "label=\"\""
+    TargetAxis => "targetAxis=\"\""
+    Value => "value=0"
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: Threshold) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: Threshold) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  gensupport.mark(o, m.force_send_fields.map(threshold_field_entry), m.null_fields.map(threshold_field_entry))
+}
 
 /// Tile: A single tile in the mosaic. The placement and size of the tile are configurable.
 ///
@@ -1343,18 +2978,52 @@ pub struct Tile {
   pub x_pos as "xPos,omitempty": Int = 0
   /// The zero-indexed position of the tile in grid blocks relative to the top edge of the grid. y_pos cannot be negative.
   pub y_pos as "yPos,omitempty": Int = 0
-  pub force_send_fields as "~forceSendFields,omitempty": List[TileField] = []
-  pub null_fields as "~nullFields,omitempty": List[TileField] = []
+  pub force_send_fields as "-": List[TileField] = []
+  pub null_fields as "-": List[TileField] = []
 } derive Json
 
 /// TileField: Tile's fields, for force_send_fields and null_fields.
 pub enum TileField {
-  Height as "height=0"
-  Widget as "widget"
-  Width as "width=0"
-  XPos as "xPos=0"
-  YPos as "yPos=0"
-} derive Json
+  Height
+  Widget
+  Width
+  XPos
+  YPos
+}
+
+fn tile_field_entry(f: TileField) -> Str {
+  match f {
+    Height => "height=0"
+    Widget => "widget"
+    Width => "width=0"
+    XPos => "xPos=0"
+    YPos => "yPos=0"
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: Tile) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  if let Some(c) = m.widget {
+    if c.body_marked() {
+      return true
+    }
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: Tile) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  if let Some(c) = m.widget {
+    o = gensupport.mark_field(o, "widget", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  gensupport.mark(o, m.force_send_fields.map(tile_field_entry), m.null_fields.map(tile_field_entry))
+}
 
 /// TimeRange: Represents a time range.
 ///
@@ -1364,15 +3033,46 @@ pub struct TimeRange {
   pub absolute_window as "absoluteWindow,omitempty": Interval? = None
   /// Optional. Specifies the duration used to shift the data relative to current time as the end time. The duration must be positive.
   pub relative_duration as "relativeDuration,omitempty": Str = ""
-  pub force_send_fields as "~forceSendFields,omitempty": List[TimeRangeField] = []
-  pub null_fields as "~nullFields,omitempty": List[TimeRangeField] = []
+  pub force_send_fields as "-": List[TimeRangeField] = []
+  pub null_fields as "-": List[TimeRangeField] = []
 } derive Json
 
 /// TimeRangeField: TimeRange's fields, for force_send_fields and null_fields.
 pub enum TimeRangeField {
-  AbsoluteWindow as "absoluteWindow"
-  RelativeDuration as "relativeDuration=\"\""
-} derive Json
+  AbsoluteWindow
+  RelativeDuration
+}
+
+fn time_range_field_entry(f: TimeRangeField) -> Str {
+  match f {
+    AbsoluteWindow => "absoluteWindow"
+    RelativeDuration => "relativeDuration=\"\""
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: TimeRange) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  if let Some(c) = m.absolute_window {
+    if c.body_marked() {
+      return true
+    }
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: TimeRange) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  if let Some(c) = m.absolute_window {
+    o = gensupport.mark_field(o, "absoluteWindow", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  gensupport.mark(o, m.force_send_fields.map(time_range_field_entry), m.null_fields.map(time_range_field_entry))
+}
 
 /// TimeSeriesFilter: A filter that defines a subset of time series data that is displayed in a widget. Time series data is fetched using the ListTimeSeries (https://cloud.google.com/monitoring/api/ref_v3/rest/v3/projects.timeSeries/list) method.
 ///
@@ -1388,18 +3088,76 @@ pub struct TimeSeriesFilter {
   pub secondary_aggregation as "secondaryAggregation,omitempty": Aggregation? = None
   /// Statistics based time series filter. Note: This field is deprecated and completely ignored by the API.
   pub statistical_time_series_filter as "statisticalTimeSeriesFilter,omitempty": StatisticalTimeSeriesFilter? = None
-  pub force_send_fields as "~forceSendFields,omitempty": List[TimeSeriesFilterField] = []
-  pub null_fields as "~nullFields,omitempty": List[TimeSeriesFilterField] = []
+  pub force_send_fields as "-": List[TimeSeriesFilterField] = []
+  pub null_fields as "-": List[TimeSeriesFilterField] = []
 } derive Json
 
 /// TimeSeriesFilterField: TimeSeriesFilter's fields, for force_send_fields and null_fields.
 pub enum TimeSeriesFilterField {
-  Aggregation as "aggregation"
-  Filter as "filter=\"\""
-  PickTimeSeriesFilter as "pickTimeSeriesFilter"
-  SecondaryAggregation as "secondaryAggregation"
-  StatisticalTimeSeriesFilter as "statisticalTimeSeriesFilter"
-} derive Json
+  Aggregation
+  Filter
+  PickTimeSeriesFilter
+  SecondaryAggregation
+  StatisticalTimeSeriesFilter
+}
+
+fn time_series_filter_field_entry(f: TimeSeriesFilterField) -> Str {
+  match f {
+    Aggregation => "aggregation"
+    Filter => "filter=\"\""
+    PickTimeSeriesFilter => "pickTimeSeriesFilter"
+    SecondaryAggregation => "secondaryAggregation"
+    StatisticalTimeSeriesFilter => "statisticalTimeSeriesFilter"
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: TimeSeriesFilter) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  if let Some(c) = m.aggregation {
+    if c.body_marked() {
+      return true
+    }
+  }
+  if let Some(c) = m.pick_time_series_filter {
+    if c.body_marked() {
+      return true
+    }
+  }
+  if let Some(c) = m.secondary_aggregation {
+    if c.body_marked() {
+      return true
+    }
+  }
+  if let Some(c) = m.statistical_time_series_filter {
+    if c.body_marked() {
+      return true
+    }
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: TimeSeriesFilter) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  if let Some(c) = m.aggregation {
+    o = gensupport.mark_field(o, "aggregation", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  if let Some(c) = m.pick_time_series_filter {
+    o = gensupport.mark_field(o, "pickTimeSeriesFilter", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  if let Some(c) = m.secondary_aggregation {
+    o = gensupport.mark_field(o, "secondaryAggregation", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  if let Some(c) = m.statistical_time_series_filter {
+    o = gensupport.mark_field(o, "statisticalTimeSeriesFilter", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  gensupport.mark(o, m.force_send_fields.map(time_series_filter_field_entry), m.null_fields.map(time_series_filter_field_entry))
+}
 
 /// TimeSeriesFilterRatio: A pair of time series filters that define a ratio computation. The output time series is the pair-wise division of each aligned element from the numerator and denominator time series.
 ///
@@ -1415,18 +3173,84 @@ pub struct TimeSeriesFilterRatio {
   pub secondary_aggregation as "secondaryAggregation,omitempty": Aggregation? = None
   /// Statistics based time series filter. Note: This field is deprecated and completely ignored by the API.
   pub statistical_time_series_filter as "statisticalTimeSeriesFilter,omitempty": StatisticalTimeSeriesFilter? = None
-  pub force_send_fields as "~forceSendFields,omitempty": List[TimeSeriesFilterRatioField] = []
-  pub null_fields as "~nullFields,omitempty": List[TimeSeriesFilterRatioField] = []
+  pub force_send_fields as "-": List[TimeSeriesFilterRatioField] = []
+  pub null_fields as "-": List[TimeSeriesFilterRatioField] = []
 } derive Json
 
 /// TimeSeriesFilterRatioField: TimeSeriesFilterRatio's fields, for force_send_fields and null_fields.
 pub enum TimeSeriesFilterRatioField {
-  Denominator as "denominator"
-  Numerator as "numerator"
-  PickTimeSeriesFilter as "pickTimeSeriesFilter"
-  SecondaryAggregation as "secondaryAggregation"
-  StatisticalTimeSeriesFilter as "statisticalTimeSeriesFilter"
-} derive Json
+  Denominator
+  Numerator
+  PickTimeSeriesFilter
+  SecondaryAggregation
+  StatisticalTimeSeriesFilter
+}
+
+fn time_series_filter_ratio_field_entry(f: TimeSeriesFilterRatioField) -> Str {
+  match f {
+    Denominator => "denominator"
+    Numerator => "numerator"
+    PickTimeSeriesFilter => "pickTimeSeriesFilter"
+    SecondaryAggregation => "secondaryAggregation"
+    StatisticalTimeSeriesFilter => "statisticalTimeSeriesFilter"
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: TimeSeriesFilterRatio) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  if let Some(c) = m.denominator {
+    if c.body_marked() {
+      return true
+    }
+  }
+  if let Some(c) = m.numerator {
+    if c.body_marked() {
+      return true
+    }
+  }
+  if let Some(c) = m.pick_time_series_filter {
+    if c.body_marked() {
+      return true
+    }
+  }
+  if let Some(c) = m.secondary_aggregation {
+    if c.body_marked() {
+      return true
+    }
+  }
+  if let Some(c) = m.statistical_time_series_filter {
+    if c.body_marked() {
+      return true
+    }
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: TimeSeriesFilterRatio) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  if let Some(c) = m.denominator {
+    o = gensupport.mark_field(o, "denominator", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  if let Some(c) = m.numerator {
+    o = gensupport.mark_field(o, "numerator", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  if let Some(c) = m.pick_time_series_filter {
+    o = gensupport.mark_field(o, "pickTimeSeriesFilter", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  if let Some(c) = m.secondary_aggregation {
+    o = gensupport.mark_field(o, "secondaryAggregation", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  if let Some(c) = m.statistical_time_series_filter {
+    o = gensupport.mark_field(o, "statisticalTimeSeriesFilter", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  gensupport.mark(o, m.force_send_fields.map(time_series_filter_ratio_field_entry), m.null_fields.map(time_series_filter_ratio_field_entry))
+}
 
 /// TimeSeriesQuery: TimeSeriesQuery collects the set of supported methods for querying time series data from the Stackdriver metrics API.
 ///
@@ -1448,21 +3272,82 @@ pub struct TimeSeriesQuery {
   pub trace_query as "traceQuery,omitempty": TraceQuery? = None
   /// The unit of data contained in fetched time series. If non-empty, this unit will override any unit that accompanies fetched data. The format is the same as the unit (https://cloud.google.com/monitoring/api/ref_v3/rest/v3/projects.metricDescriptors) field in MetricDescriptor.
   pub unit_override as "unitOverride,omitempty": Str = ""
-  pub force_send_fields as "~forceSendFields,omitempty": List[TimeSeriesQueryField] = []
-  pub null_fields as "~nullFields,omitempty": List[TimeSeriesQueryField] = []
+  pub force_send_fields as "-": List[TimeSeriesQueryField] = []
+  pub null_fields as "-": List[TimeSeriesQueryField] = []
 } derive Json
 
 /// TimeSeriesQueryField: TimeSeriesQuery's fields, for force_send_fields and null_fields.
 pub enum TimeSeriesQueryField {
-  OpsAnalyticsQuery as "opsAnalyticsQuery"
-  OutputFullDuration as "outputFullDuration=false"
-  PrometheusQuery as "prometheusQuery=\"\""
-  TimeSeriesFilter as "timeSeriesFilter"
-  TimeSeriesFilterRatio as "timeSeriesFilterRatio"
-  TimeSeriesQueryLanguage as "timeSeriesQueryLanguage=\"\""
-  TraceQuery as "traceQuery"
-  UnitOverride as "unitOverride=\"\""
-} derive Json
+  OpsAnalyticsQuery
+  OutputFullDuration
+  PrometheusQuery
+  TimeSeriesFilter
+  TimeSeriesFilterRatio
+  TimeSeriesQueryLanguage
+  TraceQuery
+  UnitOverride
+}
+
+fn time_series_query_field_entry(f: TimeSeriesQueryField) -> Str {
+  match f {
+    OpsAnalyticsQuery => "opsAnalyticsQuery"
+    OutputFullDuration => "outputFullDuration=false"
+    PrometheusQuery => "prometheusQuery=\"\""
+    TimeSeriesFilter => "timeSeriesFilter"
+    TimeSeriesFilterRatio => "timeSeriesFilterRatio"
+    TimeSeriesQueryLanguage => "timeSeriesQueryLanguage=\"\""
+    TraceQuery => "traceQuery"
+    UnitOverride => "unitOverride=\"\""
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: TimeSeriesQuery) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  if let Some(c) = m.ops_analytics_query {
+    if c.body_marked() {
+      return true
+    }
+  }
+  if let Some(c) = m.time_series_filter {
+    if c.body_marked() {
+      return true
+    }
+  }
+  if let Some(c) = m.time_series_filter_ratio {
+    if c.body_marked() {
+      return true
+    }
+  }
+  if let Some(c) = m.trace_query {
+    if c.body_marked() {
+      return true
+    }
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: TimeSeriesQuery) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  if let Some(c) = m.ops_analytics_query {
+    o = gensupport.mark_field(o, "opsAnalyticsQuery", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  if let Some(c) = m.time_series_filter {
+    o = gensupport.mark_field(o, "timeSeriesFilter", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  if let Some(c) = m.time_series_filter_ratio {
+    o = gensupport.mark_field(o, "timeSeriesFilterRatio", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  if let Some(c) = m.trace_query {
+    o = gensupport.mark_field(o, "traceQuery", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  gensupport.mark(o, m.force_send_fields.map(time_series_query_field_entry), m.null_fields.map(time_series_query_field_entry))
+}
 
 /// TimeSeriesTable: A table that displays time series data.
 ///
@@ -1474,16 +3359,52 @@ pub struct TimeSeriesTable {
   pub data_sets as "dataSets,omitempty": List[TableDataSet] = []
   /// Optional. Store rendering strategy
   pub metric_visualization as "metricVisualization,omitempty": Str = ""
-  pub force_send_fields as "~forceSendFields,omitempty": List[TimeSeriesTableField] = []
-  pub null_fields as "~nullFields,omitempty": List[TimeSeriesTableField] = []
+  pub force_send_fields as "-": List[TimeSeriesTableField] = []
+  pub null_fields as "-": List[TimeSeriesTableField] = []
 } derive Json
 
 /// TimeSeriesTableField: TimeSeriesTable's fields, for force_send_fields and null_fields.
 pub enum TimeSeriesTableField {
-  ColumnSettings as "columnSettings=[]"
-  DataSets as "dataSets=[]"
-  MetricVisualization as "metricVisualization=\"\""
-} derive Json
+  ColumnSettings
+  DataSets
+  MetricVisualization
+}
+
+fn time_series_table_field_entry(f: TimeSeriesTableField) -> Str {
+  match f {
+    ColumnSettings => "columnSettings=[]"
+    DataSets => "dataSets=[]"
+    MetricVisualization => "metricVisualization=\"\""
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: TimeSeriesTable) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  for c in m.column_settings {
+    if c.body_marked() {
+      return true
+    }
+  }
+  for c in m.data_sets {
+    if c.body_marked() {
+      return true
+    }
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: TimeSeriesTable) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  o = gensupport.mark_field(o, "columnSettings", fn(x: json.Value) -> json.Value { gensupport.mark_list(x, fn(i: Int, e: json.Value) -> json.Value { m.column_settings[i].body_mark(e) }) })
+  o = gensupport.mark_field(o, "dataSets", fn(x: json.Value) -> json.Value { gensupport.mark_list(x, fn(i: Int, e: json.Value) -> json.Value { m.data_sets[i].body_mark(e) }) })
+  gensupport.mark(o, m.force_send_fields.map(time_series_table_field_entry), m.null_fields.map(time_series_table_field_entry))
+}
 
 /// TraceQuery: LINT.IfChange Preview: Query for traces. This is a preview feature and may be subject to change before final release.
 ///
@@ -1495,16 +3416,48 @@ pub struct TraceQuery {
   pub span_data_value as "spanDataValue,omitempty": Str = ""
   /// First version of span filtering that we will support. Required.
   pub span_filters as "spanFilters,omitempty": SpanFilters? = None
-  pub force_send_fields as "~forceSendFields,omitempty": List[TraceQueryField] = []
-  pub null_fields as "~nullFields,omitempty": List[TraceQueryField] = []
+  pub force_send_fields as "-": List[TraceQueryField] = []
+  pub null_fields as "-": List[TraceQueryField] = []
 } derive Json
 
 /// TraceQueryField: TraceQuery's fields, for force_send_fields and null_fields.
 pub enum TraceQueryField {
-  ResourceContainer as "resourceContainer=\"\""
-  SpanDataValue as "spanDataValue=\"\""
-  SpanFilters as "spanFilters"
-} derive Json
+  ResourceContainer
+  SpanDataValue
+  SpanFilters
+}
+
+fn trace_query_field_entry(f: TraceQueryField) -> Str {
+  match f {
+    ResourceContainer => "resourceContainer=\"\""
+    SpanDataValue => "spanDataValue=\"\""
+    SpanFilters => "spanFilters"
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: TraceQuery) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  if let Some(c) = m.span_filters {
+    if c.body_marked() {
+      return true
+    }
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: TraceQuery) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  if let Some(c) = m.span_filters {
+    o = gensupport.mark_field(o, "spanFilters", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  gensupport.mark(o, m.force_send_fields.map(trace_query_field_entry), m.null_fields.map(trace_query_field_entry))
+}
 
 /// Treemap: A widget that displays hierarchical data as a treemap.
 ///
@@ -1514,15 +3467,44 @@ pub struct Treemap {
   pub data_sets as "dataSets,omitempty": List[TreemapDataSet] = []
   /// Required. Ordered labels representing the hierarchical treemap structure.
   pub treemap_hierarchy as "treemapHierarchy,omitempty": List[Str] = []
-  pub force_send_fields as "~forceSendFields,omitempty": List[TreemapField] = []
-  pub null_fields as "~nullFields,omitempty": List[TreemapField] = []
+  pub force_send_fields as "-": List[TreemapField] = []
+  pub null_fields as "-": List[TreemapField] = []
 } derive Json
 
 /// TreemapField: Treemap's fields, for force_send_fields and null_fields.
 pub enum TreemapField {
-  DataSets as "dataSets=[]"
-  TreemapHierarchy as "treemapHierarchy=[]"
-} derive Json
+  DataSets
+  TreemapHierarchy
+}
+
+fn treemap_field_entry(f: TreemapField) -> Str {
+  match f {
+    DataSets => "dataSets=[]"
+    TreemapHierarchy => "treemapHierarchy=[]"
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: Treemap) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  for c in m.data_sets {
+    if c.body_marked() {
+      return true
+    }
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: Treemap) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  o = gensupport.mark_field(o, "dataSets", fn(x: json.Value) -> json.Value { gensupport.mark_list(x, fn(i: Int, e: json.Value) -> json.Value { m.data_sets[i].body_mark(e) }) })
+  gensupport.mark(o, m.force_send_fields.map(treemap_field_entry), m.null_fields.map(treemap_field_entry))
+}
 
 /// TreemapDataSet: The data represented by the treemap. Needs to include the data itself, plus rules on how to organize it hierarchically.
 ///
@@ -1534,16 +3516,60 @@ pub struct TreemapDataSet {
   pub measures as "measures,omitempty": List[Measure] = []
   /// Required. The query that fetches the relevant data. See google.monitoring.dashboard.v1.TimeSeriesQuery
   pub time_series_query as "timeSeriesQuery,omitempty": TimeSeriesQuery? = None
-  pub force_send_fields as "~forceSendFields,omitempty": List[TreemapDataSetField] = []
-  pub null_fields as "~nullFields,omitempty": List[TreemapDataSetField] = []
+  pub force_send_fields as "-": List[TreemapDataSetField] = []
+  pub null_fields as "-": List[TreemapDataSetField] = []
 } derive Json
 
 /// TreemapDataSetField: TreemapDataSet's fields, for force_send_fields and null_fields.
 pub enum TreemapDataSetField {
-  Breakdowns as "breakdowns=[]"
-  Measures as "measures=[]"
-  TimeSeriesQuery as "timeSeriesQuery"
-} derive Json
+  Breakdowns
+  Measures
+  TimeSeriesQuery
+}
+
+fn treemap_data_set_field_entry(f: TreemapDataSetField) -> Str {
+  match f {
+    Breakdowns => "breakdowns=[]"
+    Measures => "measures=[]"
+    TimeSeriesQuery => "timeSeriesQuery"
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: TreemapDataSet) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  for c in m.breakdowns {
+    if c.body_marked() {
+      return true
+    }
+  }
+  for c in m.measures {
+    if c.body_marked() {
+      return true
+    }
+  }
+  if let Some(c) = m.time_series_query {
+    if c.body_marked() {
+      return true
+    }
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: TreemapDataSet) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  o = gensupport.mark_field(o, "breakdowns", fn(x: json.Value) -> json.Value { gensupport.mark_list(x, fn(i: Int, e: json.Value) -> json.Value { m.breakdowns[i].body_mark(e) }) })
+  o = gensupport.mark_field(o, "measures", fn(x: json.Value) -> json.Value { gensupport.mark_list(x, fn(i: Int, e: json.Value) -> json.Value { m.measures[i].body_mark(e) }) })
+  if let Some(c) = m.time_series_query {
+    o = gensupport.mark_field(o, "timeSeriesQuery", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  gensupport.mark(o, m.force_send_fields.map(treemap_data_set_field_entry), m.null_fields.map(treemap_data_set_field_entry))
+}
 
 /// Type: A protocol buffer message type.New usages of this message as an alternative to DescriptorProto are strongly discouraged. This message does not reliability preserve all information necessary to model the schema and preserve semantics. Instead make use of FileDescriptorSet which preserves the necessary information.
 pub struct Type {
@@ -1569,14 +3595,44 @@ pub struct Type {
 pub struct VisibilityCondition {
   /// A condition whose evaluation is based on the value of a template variable.
   pub template_variable_condition as "templateVariableCondition,omitempty": TemplateVariableCondition? = None
-  pub force_send_fields as "~forceSendFields,omitempty": List[VisibilityConditionField] = []
-  pub null_fields as "~nullFields,omitempty": List[VisibilityConditionField] = []
+  pub force_send_fields as "-": List[VisibilityConditionField] = []
+  pub null_fields as "-": List[VisibilityConditionField] = []
 } derive Json
 
 /// VisibilityConditionField: VisibilityCondition's fields, for force_send_fields and null_fields.
 pub enum VisibilityConditionField {
-  TemplateVariableCondition as "templateVariableCondition"
-} derive Json
+  TemplateVariableCondition
+}
+
+fn visibility_condition_field_entry(f: VisibilityConditionField) -> Str {
+  match f {
+    TemplateVariableCondition => "templateVariableCondition"
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: VisibilityCondition) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  if let Some(c) = m.template_variable_condition {
+    if c.body_marked() {
+      return true
+    }
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: VisibilityCondition) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  if let Some(c) = m.template_variable_condition {
+    o = gensupport.mark_field(o, "templateVariableCondition", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  gensupport.mark(o, m.force_send_fields.map(visibility_condition_field_entry), m.null_fields.map(visibility_condition_field_entry))
+}
 
 /// Widget: Widget contains a single dashboard component and configuration of how to present the component in the dashboard.
 ///
@@ -1620,32 +3676,200 @@ pub struct Widget {
   pub visibility_condition as "visibilityCondition,omitempty": VisibilityCondition? = None
   /// A chart of time series data.
   pub xy_chart as "xyChart,omitempty": XyChart? = None
-  pub force_send_fields as "~forceSendFields,omitempty": List[WidgetField] = []
-  pub null_fields as "~nullFields,omitempty": List[WidgetField] = []
+  pub force_send_fields as "-": List[WidgetField] = []
+  pub null_fields as "-": List[WidgetField] = []
 } derive Json
 
 /// WidgetField: Widget's fields, for force_send_fields and null_fields.
 pub enum WidgetField {
-  AlertChart as "alertChart"
-  Blank as "blank"
-  CollapsibleGroup as "collapsibleGroup"
-  ErrorReportingPanel as "errorReportingPanel"
-  FilterControl as "filterControl"
-  Id as "id=\"\""
-  IncidentList as "incidentList"
-  LogsPanel as "logsPanel"
-  PieChart as "pieChart"
-  Scorecard as "scorecard"
-  SectionHeader as "sectionHeader"
-  SingleViewGroup as "singleViewGroup"
-  Text as "text"
-  TimeRange as "timeRange"
-  TimeSeriesTable as "timeSeriesTable"
-  Title as "title=\"\""
-  Treemap as "treemap"
-  VisibilityCondition as "visibilityCondition"
-  XyChart as "xyChart"
-} derive Json
+  AlertChart
+  Blank
+  CollapsibleGroup
+  ErrorReportingPanel
+  FilterControl
+  Id
+  IncidentList
+  LogsPanel
+  PieChart
+  Scorecard
+  SectionHeader
+  SingleViewGroup
+  Text
+  TimeRange
+  TimeSeriesTable
+  Title
+  Treemap
+  VisibilityCondition
+  XyChart
+}
+
+fn widget_field_entry(f: WidgetField) -> Str {
+  match f {
+    AlertChart => "alertChart"
+    Blank => "blank"
+    CollapsibleGroup => "collapsibleGroup"
+    ErrorReportingPanel => "errorReportingPanel"
+    FilterControl => "filterControl"
+    Id => "id=\"\""
+    IncidentList => "incidentList"
+    LogsPanel => "logsPanel"
+    PieChart => "pieChart"
+    Scorecard => "scorecard"
+    SectionHeader => "sectionHeader"
+    SingleViewGroup => "singleViewGroup"
+    Text => "text"
+    TimeRange => "timeRange"
+    TimeSeriesTable => "timeSeriesTable"
+    Title => "title=\"\""
+    Treemap => "treemap"
+    VisibilityCondition => "visibilityCondition"
+    XyChart => "xyChart"
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: Widget) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  if let Some(c) = m.alert_chart {
+    if c.body_marked() {
+      return true
+    }
+  }
+  if let Some(c) = m.collapsible_group {
+    if c.body_marked() {
+      return true
+    }
+  }
+  if let Some(c) = m.error_reporting_panel {
+    if c.body_marked() {
+      return true
+    }
+  }
+  if let Some(c) = m.filter_control {
+    if c.body_marked() {
+      return true
+    }
+  }
+  if let Some(c) = m.incident_list {
+    if c.body_marked() {
+      return true
+    }
+  }
+  if let Some(c) = m.logs_panel {
+    if c.body_marked() {
+      return true
+    }
+  }
+  if let Some(c) = m.pie_chart {
+    if c.body_marked() {
+      return true
+    }
+  }
+  if let Some(c) = m.scorecard {
+    if c.body_marked() {
+      return true
+    }
+  }
+  if let Some(c) = m.section_header {
+    if c.body_marked() {
+      return true
+    }
+  }
+  if let Some(c) = m.single_view_group {
+    if c.body_marked() {
+      return true
+    }
+  }
+  if let Some(c) = m.text {
+    if c.body_marked() {
+      return true
+    }
+  }
+  if let Some(c) = m.time_range {
+    if c.body_marked() {
+      return true
+    }
+  }
+  if let Some(c) = m.time_series_table {
+    if c.body_marked() {
+      return true
+    }
+  }
+  if let Some(c) = m.treemap {
+    if c.body_marked() {
+      return true
+    }
+  }
+  if let Some(c) = m.visibility_condition {
+    if c.body_marked() {
+      return true
+    }
+  }
+  if let Some(c) = m.xy_chart {
+    if c.body_marked() {
+      return true
+    }
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: Widget) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  if let Some(c) = m.alert_chart {
+    o = gensupport.mark_field(o, "alertChart", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  if let Some(c) = m.collapsible_group {
+    o = gensupport.mark_field(o, "collapsibleGroup", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  if let Some(c) = m.error_reporting_panel {
+    o = gensupport.mark_field(o, "errorReportingPanel", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  if let Some(c) = m.filter_control {
+    o = gensupport.mark_field(o, "filterControl", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  if let Some(c) = m.incident_list {
+    o = gensupport.mark_field(o, "incidentList", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  if let Some(c) = m.logs_panel {
+    o = gensupport.mark_field(o, "logsPanel", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  if let Some(c) = m.pie_chart {
+    o = gensupport.mark_field(o, "pieChart", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  if let Some(c) = m.scorecard {
+    o = gensupport.mark_field(o, "scorecard", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  if let Some(c) = m.section_header {
+    o = gensupport.mark_field(o, "sectionHeader", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  if let Some(c) = m.single_view_group {
+    o = gensupport.mark_field(o, "singleViewGroup", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  if let Some(c) = m.text {
+    o = gensupport.mark_field(o, "text", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  if let Some(c) = m.time_range {
+    o = gensupport.mark_field(o, "timeRange", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  if let Some(c) = m.time_series_table {
+    o = gensupport.mark_field(o, "timeSeriesTable", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  if let Some(c) = m.treemap {
+    o = gensupport.mark_field(o, "treemap", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  if let Some(c) = m.visibility_condition {
+    o = gensupport.mark_field(o, "visibilityCondition", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  if let Some(c) = m.xy_chart {
+    o = gensupport.mark_field(o, "xyChart", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  gensupport.mark(o, m.force_send_fields.map(widget_field_entry), m.null_fields.map(widget_field_entry))
+}
 
 /// XyChart: A chart that displays data on a 2D (X and Y axes) plane.
 ///
@@ -1665,17 +3889,89 @@ pub struct XyChart {
   pub y2_axis as "y2Axis,omitempty": Axis? = None
   /// The properties applied to the y-axis.
   pub y_axis as "yAxis,omitempty": Axis? = None
-  pub force_send_fields as "~forceSendFields,omitempty": List[XyChartField] = []
-  pub null_fields as "~nullFields,omitempty": List[XyChartField] = []
+  pub force_send_fields as "-": List[XyChartField] = []
+  pub null_fields as "-": List[XyChartField] = []
 } derive Json
 
 /// XyChartField: XyChart's fields, for force_send_fields and null_fields.
 pub enum XyChartField {
-  ChartOptions as "chartOptions"
-  DataSets as "dataSets=[]"
-  Thresholds as "thresholds=[]"
-  TimeshiftDuration as "timeshiftDuration=\"\""
-  XAxis as "xAxis"
-  Y2Axis as "y2Axis"
-  YAxis as "yAxis"
-} derive Json
+  ChartOptions
+  DataSets
+  Thresholds
+  TimeshiftDuration
+  XAxis
+  Y2Axis
+  YAxis
+}
+
+fn xy_chart_field_entry(f: XyChartField) -> Str {
+  match f {
+    ChartOptions => "chartOptions"
+    DataSets => "dataSets=[]"
+    Thresholds => "thresholds=[]"
+    TimeshiftDuration => "timeshiftDuration=\"\""
+    XAxis => "xAxis"
+    Y2Axis => "y2Axis"
+    YAxis => "yAxis"
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: XyChart) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  if let Some(c) = m.chart_options {
+    if c.body_marked() {
+      return true
+    }
+  }
+  for c in m.data_sets {
+    if c.body_marked() {
+      return true
+    }
+  }
+  for c in m.thresholds {
+    if c.body_marked() {
+      return true
+    }
+  }
+  if let Some(c) = m.x_axis {
+    if c.body_marked() {
+      return true
+    }
+  }
+  if let Some(c) = m.y2_axis {
+    if c.body_marked() {
+      return true
+    }
+  }
+  if let Some(c) = m.y_axis {
+    if c.body_marked() {
+      return true
+    }
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: XyChart) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  if let Some(c) = m.chart_options {
+    o = gensupport.mark_field(o, "chartOptions", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  o = gensupport.mark_field(o, "dataSets", fn(x: json.Value) -> json.Value { gensupport.mark_list(x, fn(i: Int, e: json.Value) -> json.Value { m.data_sets[i].body_mark(e) }) })
+  o = gensupport.mark_field(o, "thresholds", fn(x: json.Value) -> json.Value { gensupport.mark_list(x, fn(i: Int, e: json.Value) -> json.Value { m.thresholds[i].body_mark(e) }) })
+  if let Some(c) = m.x_axis {
+    o = gensupport.mark_field(o, "xAxis", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  if let Some(c) = m.y2_axis {
+    o = gensupport.mark_field(o, "y2Axis", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  if let Some(c) = m.y_axis {
+    o = gensupport.mark_field(o, "yAxis", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  gensupport.mark(o, m.force_send_fields.map(xy_chart_field_entry), m.null_fields.map(xy_chart_field_entry))
+}

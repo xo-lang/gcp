@@ -2,6 +2,7 @@
 // DO NOT EDIT.
 
 use std/json
+use github.com/xo-lang/gcp/gensupport
 
 /// AuditConfig: Specifies the audit configuration for a service. The configuration determines which permission types are logged, and what identities, if any, are exempted from logging. An AuditConfig must have one or more AuditLogConfigs. If there are AuditConfigs for both `allServices` and a specific service, the union of the two AuditConfigs is used for that service: the log_types specified in each AuditConfig are enabled, and the exempted_members in each AuditLogConfig are exempted. Example Policy with multiple AuditConfigs: { "audit_configs": [ { "service": "allServices", "audit_log_configs": [ { "log_type": "DATA_READ", "exempted_members": [ "user:jose@example.com" ] }, { "log_type": "DATA_WRITE" }, { "log_type": "ADMIN_READ" } ] }, { "service": "sampleservice.googleapis.com", "audit_log_configs": [ { "log_type": "DATA_READ" }, { "log_type": "DATA_WRITE", "exempted_members": [ "user:aliya@example.com" ] } ] } ] } For sampleservice, this policy enables DATA_READ, DATA_WRITE and ADMIN_READ logging. It also exempts `jose@example.com` from DATA_READ logging, and `aliya@example.com` from DATA_WRITE logging.
 ///
@@ -11,15 +12,44 @@ pub struct AuditConfig {
   pub audit_log_configs as "auditLogConfigs,omitempty": List[AuditLogConfig] = []
   /// Specifies a service that will be enabled for audit logging. For example, `storage.googleapis.com`, `cloudsql.googleapis.com`. `allServices` is a special value that covers all services.
   pub service as "service,omitempty": Str = ""
-  pub force_send_fields as "~forceSendFields,omitempty": List[AuditConfigField] = []
-  pub null_fields as "~nullFields,omitempty": List[AuditConfigField] = []
+  pub force_send_fields as "-": List[AuditConfigField] = []
+  pub null_fields as "-": List[AuditConfigField] = []
 } derive Json
 
 /// AuditConfigField: AuditConfig's fields, for force_send_fields and null_fields.
 pub enum AuditConfigField {
-  AuditLogConfigs as "auditLogConfigs=[]"
-  Service as "service=\"\""
-} derive Json
+  AuditLogConfigs
+  Service
+}
+
+fn audit_config_field_entry(f: AuditConfigField) -> Str {
+  match f {
+    AuditLogConfigs => "auditLogConfigs=[]"
+    Service => "service=\"\""
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: AuditConfig) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  for c in m.audit_log_configs {
+    if c.body_marked() {
+      return true
+    }
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: AuditConfig) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  o = gensupport.mark_field(o, "auditLogConfigs", fn(x: json.Value) -> json.Value { gensupport.mark_list(x, fn(i: Int, e: json.Value) -> json.Value { m.audit_log_configs[i].body_mark(e) }) })
+  gensupport.mark(o, m.force_send_fields.map(audit_config_field_entry), m.null_fields.map(audit_config_field_entry))
+}
 
 /// AuditLogConfig: Provides the configuration for logging a type of permissions. Example: { "audit_log_configs": [ { "log_type": "DATA_READ", "exempted_members": [ "user:jose@example.com" ] }, { "log_type": "DATA_WRITE" } ] } This enables 'DATA_READ' and 'DATA_WRITE' logging, while exempting jose@example.com from DATA_READ logging.
 ///
@@ -29,15 +59,38 @@ pub struct AuditLogConfig {
   pub exempted_members as "exemptedMembers,omitempty": List[Str] = []
   /// The log type that this config enables.
   pub log_type as "logType,omitempty": Str = ""
-  pub force_send_fields as "~forceSendFields,omitempty": List[AuditLogConfigField] = []
-  pub null_fields as "~nullFields,omitempty": List[AuditLogConfigField] = []
+  pub force_send_fields as "-": List[AuditLogConfigField] = []
+  pub null_fields as "-": List[AuditLogConfigField] = []
 } derive Json
 
 /// AuditLogConfigField: AuditLogConfig's fields, for force_send_fields and null_fields.
 pub enum AuditLogConfigField {
-  ExemptedMembers as "exemptedMembers=[]"
-  LogType as "logType=\"\""
-} derive Json
+  ExemptedMembers
+  LogType
+}
+
+fn audit_log_config_field_entry(f: AuditLogConfigField) -> Str {
+  match f {
+    ExemptedMembers => "exemptedMembers=[]"
+    LogType => "logType=\"\""
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: AuditLogConfig) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: AuditLogConfig) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  gensupport.mark(o, m.force_send_fields.map(audit_log_config_field_entry), m.null_fields.map(audit_log_config_field_entry))
+}
 
 /// Binding: Associates `members`, or principals, with a `role`.
 ///
@@ -49,16 +102,48 @@ pub struct Binding {
   pub members as "members,omitempty": List[Str] = []
   /// Role that is assigned to the list of `members`, or principals. For example, `roles/viewer`, `roles/editor`, or `roles/owner`. For an overview of the IAM roles and permissions, see the [IAM documentation](https://cloud.google.com/iam/docs/roles-overview). For a list of the available pre-defined roles, see [here](https://cloud.google.com/iam/docs/understanding-roles).
   pub role as "role,omitempty": Str = ""
-  pub force_send_fields as "~forceSendFields,omitempty": List[BindingField] = []
-  pub null_fields as "~nullFields,omitempty": List[BindingField] = []
+  pub force_send_fields as "-": List[BindingField] = []
+  pub null_fields as "-": List[BindingField] = []
 } derive Json
 
 /// BindingField: Binding's fields, for force_send_fields and null_fields.
 pub enum BindingField {
-  Condition as "condition"
-  Members as "members=[]"
-  Role as "role=\"\""
-} derive Json
+  Condition
+  Members
+  Role
+}
+
+fn binding_field_entry(f: BindingField) -> Str {
+  match f {
+    Condition => "condition"
+    Members => "members=[]"
+    Role => "role=\"\""
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: Binding) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  if let Some(c) = m.condition {
+    if c.body_marked() {
+      return true
+    }
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: Binding) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  if let Some(c) = m.condition {
+    o = gensupport.mark_field(o, "condition", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  gensupport.mark(o, m.force_send_fields.map(binding_field_entry), m.null_fields.map(binding_field_entry))
+}
 
 /// Boundary: A Boundary is a collection of projects defined by a filtering criteria on an organization or a folder.
 ///
@@ -80,21 +165,58 @@ pub struct Boundary {
   pub state as "state,omitempty": Str = ""
   /// Output only. The most recent time this Boundary was modified.
   pub update_time as "updateTime,omitempty": Str = ""
-  pub force_send_fields as "~forceSendFields,omitempty": List[BoundaryField] = []
-  pub null_fields as "~nullFields,omitempty": List[BoundaryField] = []
+  pub force_send_fields as "-": List[BoundaryField] = []
+  pub null_fields as "-": List[BoundaryField] = []
 } derive Json
 
 /// BoundaryField: Boundary's fields, for force_send_fields and null_fields.
 pub enum BoundaryField {
-  CreateTime as "createTime=\"\""
-  DisplayName as "displayName=\"\""
-  Etag as "etag=\"\""
-  ManagementProject as "managementProject=\"\""
-  Name as "name=\"\""
-  ResourceFilter as "resourceFilter"
-  State as "state=\"\""
-  UpdateTime as "updateTime=\"\""
-} derive Json
+  CreateTime
+  DisplayName
+  Etag
+  ManagementProject
+  Name
+  ResourceFilter
+  State
+  UpdateTime
+}
+
+fn boundary_field_entry(f: BoundaryField) -> Str {
+  match f {
+    CreateTime => "createTime=\"\""
+    DisplayName => "displayName=\"\""
+    Etag => "etag=\"\""
+    ManagementProject => "managementProject=\"\""
+    Name => "name=\"\""
+    ResourceFilter => "resourceFilter"
+    State => "state=\"\""
+    UpdateTime => "updateTime=\"\""
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: Boundary) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  if let Some(c) = m.resource_filter {
+    if c.body_marked() {
+      return true
+    }
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: Boundary) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  if let Some(c) = m.resource_filter {
+    o = gensupport.mark_field(o, "resourceFilter", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  gensupport.mark(o, m.force_send_fields.map(boundary_field_entry), m.null_fields.map(boundary_field_entry))
+}
 
 /// BoundaryConfig: A BoundaryConfig defines the common configurations regarding Boundaries defined under a parent CRM node (Folder or Organization), such as the partitioning tag key.
 ///
@@ -108,17 +230,42 @@ pub struct BoundaryConfig {
   pub tag_key as "tagKey,omitempty": Str = ""
   /// Output only. The most recent time this BoundaryConfig was modified.
   pub update_time as "updateTime,omitempty": Str = ""
-  pub force_send_fields as "~forceSendFields,omitempty": List[BoundaryConfigField] = []
-  pub null_fields as "~nullFields,omitempty": List[BoundaryConfigField] = []
+  pub force_send_fields as "-": List[BoundaryConfigField] = []
+  pub null_fields as "-": List[BoundaryConfigField] = []
 } derive Json
 
 /// BoundaryConfigField: BoundaryConfig's fields, for force_send_fields and null_fields.
 pub enum BoundaryConfigField {
-  Etag as "etag=\"\""
-  Name as "name=\"\""
-  TagKey as "tagKey=\"\""
-  UpdateTime as "updateTime=\"\""
-} derive Json
+  Etag
+  Name
+  TagKey
+  UpdateTime
+}
+
+fn boundary_config_field_entry(f: BoundaryConfigField) -> Str {
+  match f {
+    Etag => "etag=\"\""
+    Name => "name=\"\""
+    TagKey => "tagKey=\"\""
+    UpdateTime => "updateTime=\"\""
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: BoundaryConfig) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: BoundaryConfig) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  gensupport.mark(o, m.force_send_fields.map(boundary_config_field_entry), m.null_fields.map(boundary_config_field_entry))
+}
 
 /// Capability: Representation of a Capability.
 ///
@@ -128,15 +275,38 @@ pub struct Capability {
   pub name as "name,omitempty": Str = ""
   /// Required. The configured value of the capability at the given parent resource.
   pub value as "value,omitempty": Bool = false
-  pub force_send_fields as "~forceSendFields,omitempty": List[CapabilityField] = []
-  pub null_fields as "~nullFields,omitempty": List[CapabilityField] = []
+  pub force_send_fields as "-": List[CapabilityField] = []
+  pub null_fields as "-": List[CapabilityField] = []
 } derive Json
 
 /// CapabilityField: Capability's fields, for force_send_fields and null_fields.
 pub enum CapabilityField {
-  Name as "name=\"\""
-  Value as "value=false"
-} derive Json
+  Name
+  Value
+}
+
+fn capability_field_entry(f: CapabilityField) -> Str {
+  match f {
+    Name => "name=\"\""
+    Value => "value=false"
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: Capability) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: Capability) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  gensupport.mark(o, m.force_send_fields.map(capability_field_entry), m.null_fields.map(capability_field_entry))
+}
 
 /// CapabilityConfig: A CapabilityConfig allows managing experiences like applications and agents on a logical administrative perimeter of Projects (Boundary).
 ///
@@ -160,22 +330,52 @@ pub struct CapabilityConfig {
   pub types as "types,omitempty": List[Str] = []
   /// Output only. The most recent time this CapabilityConfig was modified.
   pub update_time as "updateTime,omitempty": Str = ""
-  pub force_send_fields as "~forceSendFields,omitempty": List[CapabilityConfigField] = []
-  pub null_fields as "~nullFields,omitempty": List[CapabilityConfigField] = []
+  pub force_send_fields as "-": List[CapabilityConfigField] = []
+  pub null_fields as "-": List[CapabilityConfigField] = []
 } derive Json
 
 /// CapabilityConfigField: CapabilityConfig's fields, for force_send_fields and null_fields.
 pub enum CapabilityConfigField {
-  Boundaries as "boundaries=[]"
-  CreateTime as "createTime=\"\""
-  DisplayName as "displayName=\"\""
-  Etag as "etag=\"\""
-  ManagementProject as "managementProject=\"\""
-  Name as "name=\"\""
-  State as "state=\"\""
-  Types as "types=[]"
-  UpdateTime as "updateTime=\"\""
-} derive Json
+  Boundaries
+  CreateTime
+  DisplayName
+  Etag
+  ManagementProject
+  Name
+  State
+  Types
+  UpdateTime
+}
+
+fn capability_config_field_entry(f: CapabilityConfigField) -> Str {
+  match f {
+    Boundaries => "boundaries=[]"
+    CreateTime => "createTime=\"\""
+    DisplayName => "displayName=\"\""
+    Etag => "etag=\"\""
+    ManagementProject => "managementProject=\"\""
+    Name => "name=\"\""
+    State => "state=\"\""
+    Types => "types=[]"
+    UpdateTime => "updateTime=\"\""
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: CapabilityConfig) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: CapabilityConfig) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  gensupport.mark(o, m.force_send_fields.map(capability_config_field_entry), m.null_fields.map(capability_config_field_entry))
+}
 
 /// CloudresourcemanagerGoogleCloudResourcemanagerV2alpha1FolderOperation: Metadata describing a long running folder operation
 pub struct CloudresourcemanagerGoogleCloudResourcemanagerV2alpha1FolderOperation {
@@ -311,17 +511,42 @@ pub struct Expr {
   pub location as "location,omitempty": Str = ""
   /// Optional. Title for the expression, i.e. a short string describing its purpose. This can be used e.g. in UIs which allow to enter the expression.
   pub title as "title,omitempty": Str = ""
-  pub force_send_fields as "~forceSendFields,omitempty": List[ExprField] = []
-  pub null_fields as "~nullFields,omitempty": List[ExprField] = []
+  pub force_send_fields as "-": List[ExprField] = []
+  pub null_fields as "-": List[ExprField] = []
 } derive Json
 
 /// ExprField: Expr's fields, for force_send_fields and null_fields.
 pub enum ExprField {
-  Description as "description=\"\""
-  Expression as "expression=\"\""
-  Location as "location=\"\""
-  Title as "title=\"\""
-} derive Json
+  Description
+  Expression
+  Location
+  Title
+}
+
+fn expr_field_entry(f: ExprField) -> Str {
+  match f {
+    Description => "description=\"\""
+    Expression => "expression=\"\""
+    Location => "location=\"\""
+    Title => "title=\"\""
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: Expr) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: Expr) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  gensupport.mark(o, m.force_send_fields.map(expr_field_entry), m.null_fields.map(expr_field_entry))
+}
 
 /// FetchResourceSemanticsResponse: Response message for FetchResourceSemantics.
 pub struct FetchResourceSemanticsResponse {
@@ -357,24 +582,56 @@ pub struct Folder {
   pub tags as "tags,omitempty": Map[Str, Str] = {}
   /// Output only. Timestamp when the folder was last modified.
   pub update_time as "updateTime,omitempty": Str = ""
-  pub force_send_fields as "~forceSendFields,omitempty": List[FolderField] = []
-  pub null_fields as "~nullFields,omitempty": List[FolderField] = []
+  pub force_send_fields as "-": List[FolderField] = []
+  pub null_fields as "-": List[FolderField] = []
 } derive Json
 
 /// FolderField: Folder's fields, for force_send_fields and null_fields.
 pub enum FolderField {
-  ConfiguredCapabilities as "configuredCapabilities=[]"
-  CreateTime as "createTime=\"\""
-  DeleteTime as "deleteTime=\"\""
-  DisplayName as "displayName=\"\""
-  Etag as "etag=\"\""
-  ManagementProject as "managementProject=\"\""
-  Name as "name=\"\""
-  Parent as "parent=\"\""
-  State as "state=\"\""
-  Tags as "tags={}"
-  UpdateTime as "updateTime=\"\""
-} derive Json
+  ConfiguredCapabilities
+  CreateTime
+  DeleteTime
+  DisplayName
+  Etag
+  ManagementProject
+  Name
+  Parent
+  State
+  Tags
+  UpdateTime
+}
+
+fn folder_field_entry(f: FolderField) -> Str {
+  match f {
+    ConfiguredCapabilities => "configuredCapabilities=[]"
+    CreateTime => "createTime=\"\""
+    DeleteTime => "deleteTime=\"\""
+    DisplayName => "displayName=\"\""
+    Etag => "etag=\"\""
+    ManagementProject => "managementProject=\"\""
+    Name => "name=\"\""
+    Parent => "parent=\"\""
+    State => "state=\"\""
+    Tags => "tags={}"
+    UpdateTime => "updateTime=\"\""
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: Folder) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: Folder) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  gensupport.mark(o, m.force_send_fields.map(folder_field_entry), m.null_fields.map(folder_field_entry))
+}
 
 /// FolderOperation: Metadata describing a long running folder operation
 pub struct FolderOperation {
@@ -400,14 +657,44 @@ pub struct FolderOperationError {
 pub struct GetIamPolicyRequest {
   /// OPTIONAL: A `GetPolicyOptions` object for specifying options to `GetIamPolicy`.
   pub options as "options,omitempty": GetPolicyOptions? = None
-  pub force_send_fields as "~forceSendFields,omitempty": List[GetIamPolicyRequestField] = []
-  pub null_fields as "~nullFields,omitempty": List[GetIamPolicyRequestField] = []
+  pub force_send_fields as "-": List[GetIamPolicyRequestField] = []
+  pub null_fields as "-": List[GetIamPolicyRequestField] = []
 } derive Json
 
 /// GetIamPolicyRequestField: GetIamPolicyRequest's fields, for force_send_fields and null_fields.
 pub enum GetIamPolicyRequestField {
-  Options as "options"
-} derive Json
+  Options
+}
+
+fn get_iam_policy_request_field_entry(f: GetIamPolicyRequestField) -> Str {
+  match f {
+    Options => "options"
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: GetIamPolicyRequest) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  if let Some(c) = m.options {
+    if c.body_marked() {
+      return true
+    }
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: GetIamPolicyRequest) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  if let Some(c) = m.options {
+    o = gensupport.mark_field(o, "options", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  gensupport.mark(o, m.force_send_fields.map(get_iam_policy_request_field_entry), m.null_fields.map(get_iam_policy_request_field_entry))
+}
 
 /// GetPolicyOptions: Encapsulates settings provided to GetIamPolicy.
 ///
@@ -415,14 +702,36 @@ pub enum GetIamPolicyRequestField {
 pub struct GetPolicyOptions {
   /// Optional. The maximum policy version that will be used to format the policy. Valid values are 0, 1, and 3. Requests specifying an invalid value will be rejected. Requests for policies with any conditional role bindings must specify version 3. Policies with no conditional role bindings may specify any valid value or leave the field unset. The policy in the response might use the policy version that you specified, or it might use a lower policy version. For example, if you specify version 3, but the policy has no conditional role bindings, the response uses version 1. To learn which resources support conditions in their IAM policies, see the [IAM documentation](https://cloud.google.com/iam/help/conditions/resource-policies).
   pub requested_policy_version as "requestedPolicyVersion,omitempty": Int = 0
-  pub force_send_fields as "~forceSendFields,omitempty": List[GetPolicyOptionsField] = []
-  pub null_fields as "~nullFields,omitempty": List[GetPolicyOptionsField] = []
+  pub force_send_fields as "-": List[GetPolicyOptionsField] = []
+  pub null_fields as "-": List[GetPolicyOptionsField] = []
 } derive Json
 
 /// GetPolicyOptionsField: GetPolicyOptions's fields, for force_send_fields and null_fields.
 pub enum GetPolicyOptionsField {
-  RequestedPolicyVersion as "requestedPolicyVersion=0"
-} derive Json
+  RequestedPolicyVersion
+}
+
+fn get_policy_options_field_entry(f: GetPolicyOptionsField) -> Str {
+  match f {
+    RequestedPolicyVersion => "requestedPolicyVersion=0"
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: GetPolicyOptions) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: GetPolicyOptions) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  gensupport.mark(o, m.force_send_fields.map(get_policy_options_field_entry), m.null_fields.map(get_policy_options_field_entry))
+}
 
 /// Lien: A Lien represents an encumbrance on the actions that can be performed on a resource.
 ///
@@ -440,19 +749,46 @@ pub struct Lien {
   pub reason as "reason,omitempty": Str = ""
   /// The types of operations which should be blocked as a result of this Lien. Each value should correspond to an IAM permission. The server will validate the permissions against those for which Liens are supported. An empty list is meaningless and will be rejected. Example: ['resourcemanager.projects.delete']
   pub restrictions as "restrictions,omitempty": List[Str] = []
-  pub force_send_fields as "~forceSendFields,omitempty": List[LienField] = []
-  pub null_fields as "~nullFields,omitempty": List[LienField] = []
+  pub force_send_fields as "-": List[LienField] = []
+  pub null_fields as "-": List[LienField] = []
 } derive Json
 
 /// LienField: Lien's fields, for force_send_fields and null_fields.
 pub enum LienField {
-  CreateTime as "createTime=\"\""
-  Name as "name=\"\""
-  Origin as "origin=\"\""
-  Parent as "parent=\"\""
-  Reason as "reason=\"\""
-  Restrictions as "restrictions=[]"
-} derive Json
+  CreateTime
+  Name
+  Origin
+  Parent
+  Reason
+  Restrictions
+}
+
+fn lien_field_entry(f: LienField) -> Str {
+  match f {
+    CreateTime => "createTime=\"\""
+    Name => "name=\"\""
+    Origin => "origin=\"\""
+    Parent => "parent=\"\""
+    Reason => "reason=\"\""
+    Restrictions => "restrictions=[]"
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: Lien) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: Lien) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  gensupport.mark(o, m.force_send_fields.map(lien_field_entry), m.null_fields.map(lien_field_entry))
+}
 
 /// ListBoundariesResponse: A page of the response received from the ListBoundaries method. A paginated response where more pages are available has `next_page_token` set. This token can be used in a subsequent request to retrieve the next page. NOTE: A response may contain fewer elements than the request `page_size` and still have a `next_page_token`.
 pub struct ListBoundariesResponse {
@@ -550,14 +886,36 @@ pub struct MoveFolderMetadata {
 pub struct MoveFolderRequest {
   /// Required. The resource name of the folder or organization which should be the folder's new parent. Must be of the form `folders/{folder_id}` or `organizations/{org_id}`.
   pub destination_parent as "destinationParent,omitempty": Str = ""
-  pub force_send_fields as "~forceSendFields,omitempty": List[MoveFolderRequestField] = []
-  pub null_fields as "~nullFields,omitempty": List[MoveFolderRequestField] = []
+  pub force_send_fields as "-": List[MoveFolderRequestField] = []
+  pub null_fields as "-": List[MoveFolderRequestField] = []
 } derive Json
 
 /// MoveFolderRequestField: MoveFolderRequest's fields, for force_send_fields and null_fields.
 pub enum MoveFolderRequestField {
-  DestinationParent as "destinationParent=\"\""
-} derive Json
+  DestinationParent
+}
+
+fn move_folder_request_field_entry(f: MoveFolderRequestField) -> Str {
+  match f {
+    DestinationParent => "destinationParent=\"\""
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: MoveFolderRequest) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: MoveFolderRequest) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  gensupport.mark(o, m.force_send_fields.map(move_folder_request_field_entry), m.null_fields.map(move_folder_request_field_entry))
+}
 
 /// MoveProjectMetadata: A status object which is used as the `metadata` field for the Operation returned by MoveProject.
 pub struct MoveProjectMetadata {} derive Json
@@ -568,14 +926,36 @@ pub struct MoveProjectMetadata {} derive Json
 pub struct MoveProjectRequest {
   /// Required. The new parent to move the Project under.
   pub destination_parent as "destinationParent,omitempty": Str = ""
-  pub force_send_fields as "~forceSendFields,omitempty": List[MoveProjectRequestField] = []
-  pub null_fields as "~nullFields,omitempty": List[MoveProjectRequestField] = []
+  pub force_send_fields as "-": List[MoveProjectRequestField] = []
+  pub null_fields as "-": List[MoveProjectRequestField] = []
 } derive Json
 
 /// MoveProjectRequestField: MoveProjectRequest's fields, for force_send_fields and null_fields.
 pub enum MoveProjectRequestField {
-  DestinationParent as "destinationParent=\"\""
-} derive Json
+  DestinationParent
+}
+
+fn move_project_request_field_entry(f: MoveProjectRequestField) -> Str {
+  match f {
+    DestinationParent => "destinationParent=\"\""
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: MoveProjectRequest) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: MoveProjectRequest) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  gensupport.mark(o, m.force_send_fields.map(move_project_request_field_entry), m.null_fields.map(move_project_request_field_entry))
+}
 
 /// Operation: This resource represents a long-running operation that is the result of a network API call.
 pub struct Operation {
@@ -623,17 +1003,54 @@ pub struct Policy {
   pub etag as "etag,omitempty": Str = ""
   /// Specifies the format of the policy. Valid values are `0`, `1`, and `3`. Requests that specify an invalid value are rejected. Any operation that affects conditional role bindings must specify version `3`. This requirement applies to the following operations: * Getting a policy that includes a conditional role binding * Adding a conditional role binding to a policy * Changing a conditional role binding in a policy * Removing any role binding, with or without a condition, from a policy that includes conditions **Important:** If you use IAM Conditions, you must include the `etag` field whenever you call `setIamPolicy`. If you omit this field, then IAM allows you to overwrite a version `3` policy with a version `1` policy, and all of the conditions in the version `3` policy are lost. If a policy does not include any conditions, operations on that policy may specify any valid version or leave the field unset. To learn which resources support conditions in their IAM policies, see the [IAM documentation](https://cloud.google.com/iam/help/conditions/resource-policies).
   pub version as "version,omitempty": Int = 0
-  pub force_send_fields as "~forceSendFields,omitempty": List[PolicyField] = []
-  pub null_fields as "~nullFields,omitempty": List[PolicyField] = []
+  pub force_send_fields as "-": List[PolicyField] = []
+  pub null_fields as "-": List[PolicyField] = []
 } derive Json
 
 /// PolicyField: Policy's fields, for force_send_fields and null_fields.
 pub enum PolicyField {
-  AuditConfigs as "auditConfigs=[]"
-  Bindings as "bindings=[]"
-  Etag as "etag=\"\""
-  Version as "version=0"
-} derive Json
+  AuditConfigs
+  Bindings
+  Etag
+  Version
+}
+
+fn policy_field_entry(f: PolicyField) -> Str {
+  match f {
+    AuditConfigs => "auditConfigs=[]"
+    Bindings => "bindings=[]"
+    Etag => "etag=\"\""
+    Version => "version=0"
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: Policy) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  for c in m.audit_configs {
+    if c.body_marked() {
+      return true
+    }
+  }
+  for c in m.bindings {
+    if c.body_marked() {
+      return true
+    }
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: Policy) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  o = gensupport.mark_field(o, "auditConfigs", fn(x: json.Value) -> json.Value { gensupport.mark_list(x, fn(i: Int, e: json.Value) -> json.Value { m.audit_configs[i].body_mark(e) }) })
+  o = gensupport.mark_field(o, "bindings", fn(x: json.Value) -> json.Value { gensupport.mark_list(x, fn(i: Int, e: json.Value) -> json.Value { m.bindings[i].body_mark(e) }) })
+  gensupport.mark(o, m.force_send_fields.map(policy_field_entry), m.null_fields.map(policy_field_entry))
+}
 
 /// Project: A project is a high-level Google Cloud entity. It is a container for ACLs, APIs, App Engine Apps, VMs, and other Google Cloud Platform resources.
 ///
@@ -667,27 +1084,62 @@ pub struct Project {
   pub tags as "tags,omitempty": Map[Str, Str] = {}
   /// Output only. The most recent time this resource was modified.
   pub update_time as "updateTime,omitempty": Str = ""
-  pub force_send_fields as "~forceSendFields,omitempty": List[ProjectField] = []
-  pub null_fields as "~nullFields,omitempty": List[ProjectField] = []
+  pub force_send_fields as "-": List[ProjectField] = []
+  pub null_fields as "-": List[ProjectField] = []
 } derive Json
 
 /// ProjectField: Project's fields, for force_send_fields and null_fields.
 pub enum ProjectField {
-  ConfiguredCapabilities as "configuredCapabilities=[]"
-  CreateTime as "createTime=\"\""
-  DeleteTime as "deleteTime=\"\""
-  DisplayName as "displayName=\"\""
-  Etag as "etag=\"\""
-  IsManagementProject as "isManagementProject=false"
-  Labels as "labels={}"
-  ManagementType as "managementType=\"\""
-  Name as "name=\"\""
-  Parent as "parent=\"\""
-  ProjectId as "projectId=\"\""
-  State as "state=\"\""
-  Tags as "tags={}"
-  UpdateTime as "updateTime=\"\""
-} derive Json
+  ConfiguredCapabilities
+  CreateTime
+  DeleteTime
+  DisplayName
+  Etag
+  IsManagementProject
+  Labels
+  ManagementType
+  Name
+  Parent
+  ProjectId
+  State
+  Tags
+  UpdateTime
+}
+
+fn project_field_entry(f: ProjectField) -> Str {
+  match f {
+    ConfiguredCapabilities => "configuredCapabilities=[]"
+    CreateTime => "createTime=\"\""
+    DeleteTime => "deleteTime=\"\""
+    DisplayName => "displayName=\"\""
+    Etag => "etag=\"\""
+    IsManagementProject => "isManagementProject=false"
+    Labels => "labels={}"
+    ManagementType => "managementType=\"\""
+    Name => "name=\"\""
+    Parent => "parent=\"\""
+    ProjectId => "projectId=\"\""
+    State => "state=\"\""
+    Tags => "tags={}"
+    UpdateTime => "updateTime=\"\""
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: Project) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: Project) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  gensupport.mark(o, m.force_send_fields.map(project_field_entry), m.null_fields.map(project_field_entry))
+}
 
 /// ProjectCreationStatus: A status object which is used as the `metadata` field for the Operation returned by CreateProject. It provides insight for when significant phases of Project creation have completed.
 pub struct ProjectCreationStatus {
@@ -705,14 +1157,44 @@ pub struct ProjectCreationStatus {
 pub struct ResourceFilter {
   /// A tag based filter. A project must match it to be included.
   pub tag_filter as "tagFilter,omitempty": TagFilter? = None
-  pub force_send_fields as "~forceSendFields,omitempty": List[ResourceFilterField] = []
-  pub null_fields as "~nullFields,omitempty": List[ResourceFilterField] = []
+  pub force_send_fields as "-": List[ResourceFilterField] = []
+  pub null_fields as "-": List[ResourceFilterField] = []
 } derive Json
 
 /// ResourceFilterField: ResourceFilter's fields, for force_send_fields and null_fields.
 pub enum ResourceFilterField {
-  TagFilter as "tagFilter"
-} derive Json
+  TagFilter
+}
+
+fn resource_filter_field_entry(f: ResourceFilterField) -> Str {
+  match f {
+    TagFilter => "tagFilter"
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: ResourceFilter) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  if let Some(c) = m.tag_filter {
+    if c.body_marked() {
+      return true
+    }
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: ResourceFilter) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  if let Some(c) = m.tag_filter {
+    o = gensupport.mark_field(o, "tagFilter", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  gensupport.mark(o, m.force_send_fields.map(resource_filter_field_entry), m.null_fields.map(resource_filter_field_entry))
+}
 
 /// SearchFoldersResponse: The response message for searching folders.
 pub struct SearchFoldersResponse {
@@ -746,15 +1228,46 @@ pub struct SetIamPolicyRequest {
   pub policy as "policy,omitempty": Policy? = None
   /// OPTIONAL: A FieldMask specifying which fields of the policy to modify. Only the fields in the mask will be modified. If no mask is provided, the following default mask is used: `paths: "bindings, etag"`
   pub update_mask as "updateMask,omitempty": Str = ""
-  pub force_send_fields as "~forceSendFields,omitempty": List[SetIamPolicyRequestField] = []
-  pub null_fields as "~nullFields,omitempty": List[SetIamPolicyRequestField] = []
+  pub force_send_fields as "-": List[SetIamPolicyRequestField] = []
+  pub null_fields as "-": List[SetIamPolicyRequestField] = []
 } derive Json
 
 /// SetIamPolicyRequestField: SetIamPolicyRequest's fields, for force_send_fields and null_fields.
 pub enum SetIamPolicyRequestField {
-  Policy as "policy"
-  UpdateMask as "updateMask=\"\""
-} derive Json
+  Policy
+  UpdateMask
+}
+
+fn set_iam_policy_request_field_entry(f: SetIamPolicyRequestField) -> Str {
+  match f {
+    Policy => "policy"
+    UpdateMask => "updateMask=\"\""
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: SetIamPolicyRequest) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  if let Some(c) = m.policy {
+    if c.body_marked() {
+      return true
+    }
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: SetIamPolicyRequest) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  if let Some(c) = m.policy {
+    o = gensupport.mark_field(o, "policy", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  gensupport.mark(o, m.force_send_fields.map(set_iam_policy_request_field_entry), m.null_fields.map(set_iam_policy_request_field_entry))
+}
 
 /// Status: The `Status` type defines a logical error model that is suitable for different programming environments, including REST APIs and RPC APIs. It is used by [gRPC](https://github.com/grpc). Each `Status` message contains three pieces of data: error code, error message, and error details. You can find out more about this error model and how to work with it in the [API Design Guide](https://cloud.google.com/apis/design/errors).
 pub struct Status {
@@ -778,17 +1291,42 @@ pub struct TagBinding {
   pub tag_value as "tagValue,omitempty": Str = ""
   /// The namespaced name for the TagValue of the TagBinding. Must be in the format `{parent_id}/{tag_key_short_name}/{short_name}`. For methods that support TagValue namespaced name, only one of tag_value_namespaced_name or tag_value may be filled. Requests with both fields will be rejected.
   pub tag_value_namespaced_name as "tagValueNamespacedName,omitempty": Str = ""
-  pub force_send_fields as "~forceSendFields,omitempty": List[TagBindingField] = []
-  pub null_fields as "~nullFields,omitempty": List[TagBindingField] = []
+  pub force_send_fields as "-": List[TagBindingField] = []
+  pub null_fields as "-": List[TagBindingField] = []
 } derive Json
 
 /// TagBindingField: TagBinding's fields, for force_send_fields and null_fields.
 pub enum TagBindingField {
-  Name as "name=\"\""
-  Parent as "parent=\"\""
-  TagValue as "tagValue=\"\""
-  TagValueNamespacedName as "tagValueNamespacedName=\"\""
-} derive Json
+  Name
+  Parent
+  TagValue
+  TagValueNamespacedName
+}
+
+fn tag_binding_field_entry(f: TagBindingField) -> Str {
+  match f {
+    Name => "name=\"\""
+    Parent => "parent=\"\""
+    TagValue => "tagValue=\"\""
+    TagValueNamespacedName => "tagValueNamespacedName=\"\""
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: TagBinding) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: TagBinding) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  gensupport.mark(o, m.force_send_fields.map(tag_binding_field_entry), m.null_fields.map(tag_binding_field_entry))
+}
 
 /// TagBindingCollection: Represents a collection of tags directly bound to a GCP resource.
 ///
@@ -802,17 +1340,42 @@ pub struct TagBindingCollection {
   pub name as "name,omitempty": Str = ""
   /// Tag keys/values directly bound to this resource, specified in namespaced format. For example: "123/environment": "production"
   pub tags as "tags,omitempty": Map[Str, Str] = {}
-  pub force_send_fields as "~forceSendFields,omitempty": List[TagBindingCollectionField] = []
-  pub null_fields as "~nullFields,omitempty": List[TagBindingCollectionField] = []
+  pub force_send_fields as "-": List[TagBindingCollectionField] = []
+  pub null_fields as "-": List[TagBindingCollectionField] = []
 } derive Json
 
 /// TagBindingCollectionField: TagBindingCollection's fields, for force_send_fields and null_fields.
 pub enum TagBindingCollectionField {
-  Etag as "etag=\"\""
-  FullResourceName as "fullResourceName=\"\""
-  Name as "name=\"\""
-  Tags as "tags={}"
-} derive Json
+  Etag
+  FullResourceName
+  Name
+  Tags
+}
+
+fn tag_binding_collection_field_entry(f: TagBindingCollectionField) -> Str {
+  match f {
+    Etag => "etag=\"\""
+    FullResourceName => "fullResourceName=\"\""
+    Name => "name=\"\""
+    Tags => "tags={}"
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: TagBindingCollection) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: TagBindingCollection) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  gensupport.mark(o, m.force_send_fields.map(tag_binding_collection_field_entry), m.null_fields.map(tag_binding_collection_field_entry))
+}
 
 /// TagFilter: Matches projects based on a specific tag key and a specific tag value.
 ///
@@ -822,15 +1385,38 @@ pub struct TagFilter {
   pub tag_key as "tagKey,omitempty": Str = ""
   /// Required. The allowed value for the tag key. A project matches this tag filter if its effective tag value for the given `tag_key` matches this value. Format: short name of the tag value. Example: `production` or `staging`.
   pub tag_value as "tagValue,omitempty": Str = ""
-  pub force_send_fields as "~forceSendFields,omitempty": List[TagFilterField] = []
-  pub null_fields as "~nullFields,omitempty": List[TagFilterField] = []
+  pub force_send_fields as "-": List[TagFilterField] = []
+  pub null_fields as "-": List[TagFilterField] = []
 } derive Json
 
 /// TagFilterField: TagFilter's fields, for force_send_fields and null_fields.
 pub enum TagFilterField {
-  TagKey as "tagKey=\"\""
-  TagValue as "tagValue=\"\""
-} derive Json
+  TagKey
+  TagValue
+}
+
+fn tag_filter_field_entry(f: TagFilterField) -> Str {
+  match f {
+    TagKey => "tagKey=\"\""
+    TagValue => "tagValue=\"\""
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: TagFilter) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: TagFilter) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  gensupport.mark(o, m.force_send_fields.map(tag_filter_field_entry), m.null_fields.map(tag_filter_field_entry))
+}
 
 /// TagHold: A TagHold represents the use of a TagValue that is not captured by TagBindings. If a TagValue has any TagHolds, deletion will be blocked. This resource is intended to be created in the same cloud location as the `holder`.
 ///
@@ -846,18 +1432,44 @@ pub struct TagHold {
   pub name as "name,omitempty": Str = ""
   /// Optional. An optional string representing the origin of this request. This field should include human-understandable information to distinguish origins from each other. Must be less than 200 characters. E.g. `migs-35678234`
   pub origin as "origin,omitempty": Str = ""
-  pub force_send_fields as "~forceSendFields,omitempty": List[TagHoldField] = []
-  pub null_fields as "~nullFields,omitempty": List[TagHoldField] = []
+  pub force_send_fields as "-": List[TagHoldField] = []
+  pub null_fields as "-": List[TagHoldField] = []
 } derive Json
 
 /// TagHoldField: TagHold's fields, for force_send_fields and null_fields.
 pub enum TagHoldField {
-  CreateTime as "createTime=\"\""
-  HelpLink as "helpLink=\"\""
-  Holder as "holder=\"\""
-  Name as "name=\"\""
-  Origin as "origin=\"\""
-} derive Json
+  CreateTime
+  HelpLink
+  Holder
+  Name
+  Origin
+}
+
+fn tag_hold_field_entry(f: TagHoldField) -> Str {
+  match f {
+    CreateTime => "createTime=\"\""
+    HelpLink => "helpLink=\"\""
+    Holder => "holder=\"\""
+    Name => "name=\"\""
+    Origin => "origin=\"\""
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: TagHold) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: TagHold) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  gensupport.mark(o, m.force_send_fields.map(tag_hold_field_entry), m.null_fields.map(tag_hold_field_entry))
+}
 
 /// TagKey: A TagKey, used to group a set of TagValues.
 ///
@@ -885,24 +1497,56 @@ pub struct TagKey {
   pub short_name as "shortName,omitempty": Str = ""
   /// Output only. Update time.
   pub update_time as "updateTime,omitempty": Str = ""
-  pub force_send_fields as "~forceSendFields,omitempty": List[TagKeyField] = []
-  pub null_fields as "~nullFields,omitempty": List[TagKeyField] = []
+  pub force_send_fields as "-": List[TagKeyField] = []
+  pub null_fields as "-": List[TagKeyField] = []
 } derive Json
 
 /// TagKeyField: TagKey's fields, for force_send_fields and null_fields.
 pub enum TagKeyField {
-  AllowedValuesRegex as "allowedValuesRegex=\"\""
-  CreateTime as "createTime=\"\""
-  Description as "description=\"\""
-  Etag as "etag=\"\""
-  Name as "name=\"\""
-  NamespacedName as "namespacedName=\"\""
-  Parent as "parent=\"\""
-  Purpose as "purpose=\"\""
-  PurposeData as "purposeData={}"
-  ShortName as "shortName=\"\""
-  UpdateTime as "updateTime=\"\""
-} derive Json
+  AllowedValuesRegex
+  CreateTime
+  Description
+  Etag
+  Name
+  NamespacedName
+  Parent
+  Purpose
+  PurposeData
+  ShortName
+  UpdateTime
+}
+
+fn tag_key_field_entry(f: TagKeyField) -> Str {
+  match f {
+    AllowedValuesRegex => "allowedValuesRegex=\"\""
+    CreateTime => "createTime=\"\""
+    Description => "description=\"\""
+    Etag => "etag=\"\""
+    Name => "name=\"\""
+    NamespacedName => "namespacedName=\"\""
+    Parent => "parent=\"\""
+    Purpose => "purpose=\"\""
+    PurposeData => "purposeData={}"
+    ShortName => "shortName=\"\""
+    UpdateTime => "updateTime=\"\""
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: TagKey) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: TagKey) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  gensupport.mark(o, m.force_send_fields.map(tag_key_field_entry), m.null_fields.map(tag_key_field_entry))
+}
 
 /// TagValue: A TagValue is a child of a particular TagKey. This is used to group cloud resources for the purpose of controlling them using policies.
 ///
@@ -924,21 +1568,50 @@ pub struct TagValue {
   pub short_name as "shortName,omitempty": Str = ""
   /// Output only. Update time.
   pub update_time as "updateTime,omitempty": Str = ""
-  pub force_send_fields as "~forceSendFields,omitempty": List[TagValueField] = []
-  pub null_fields as "~nullFields,omitempty": List[TagValueField] = []
+  pub force_send_fields as "-": List[TagValueField] = []
+  pub null_fields as "-": List[TagValueField] = []
 } derive Json
 
 /// TagValueField: TagValue's fields, for force_send_fields and null_fields.
 pub enum TagValueField {
-  CreateTime as "createTime=\"\""
-  Description as "description=\"\""
-  Etag as "etag=\"\""
-  Name as "name=\"\""
-  NamespacedName as "namespacedName=\"\""
-  Parent as "parent=\"\""
-  ShortName as "shortName=\"\""
-  UpdateTime as "updateTime=\"\""
-} derive Json
+  CreateTime
+  Description
+  Etag
+  Name
+  NamespacedName
+  Parent
+  ShortName
+  UpdateTime
+}
+
+fn tag_value_field_entry(f: TagValueField) -> Str {
+  match f {
+    CreateTime => "createTime=\"\""
+    Description => "description=\"\""
+    Etag => "etag=\"\""
+    Name => "name=\"\""
+    NamespacedName => "namespacedName=\"\""
+    Parent => "parent=\"\""
+    ShortName => "shortName=\"\""
+    UpdateTime => "updateTime=\"\""
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: TagValue) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: TagValue) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  gensupport.mark(o, m.force_send_fields.map(tag_value_field_entry), m.null_fields.map(tag_value_field_entry))
+}
 
 /// TestIamPermissionsRequest: Request message for `TestIamPermissions` method.
 ///
@@ -946,14 +1619,36 @@ pub enum TagValueField {
 pub struct TestIamPermissionsRequest {
   /// The set of permissions to check for the `resource`. Permissions with wildcards (such as `*` or `storage.*`) are not allowed. For more information see [IAM Overview](https://cloud.google.com/iam/docs/overview#permissions).
   pub permissions as "permissions,omitempty": List[Str] = []
-  pub force_send_fields as "~forceSendFields,omitempty": List[TestIamPermissionsRequestField] = []
-  pub null_fields as "~nullFields,omitempty": List[TestIamPermissionsRequestField] = []
+  pub force_send_fields as "-": List[TestIamPermissionsRequestField] = []
+  pub null_fields as "-": List[TestIamPermissionsRequestField] = []
 } derive Json
 
 /// TestIamPermissionsRequestField: TestIamPermissionsRequest's fields, for force_send_fields and null_fields.
 pub enum TestIamPermissionsRequestField {
-  Permissions as "permissions=[]"
-} derive Json
+  Permissions
+}
+
+fn test_iam_permissions_request_field_entry(f: TestIamPermissionsRequestField) -> Str {
+  match f {
+    Permissions => "permissions=[]"
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: TestIamPermissionsRequest) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: TestIamPermissionsRequest) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  gensupport.mark(o, m.force_send_fields.map(test_iam_permissions_request_field_entry), m.null_fields.map(test_iam_permissions_request_field_entry))
+}
 
 /// TestIamPermissionsResponse: Response message for `TestIamPermissions` method.
 pub struct TestIamPermissionsResponse {

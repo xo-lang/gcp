@@ -147,6 +147,9 @@ pub struct Gen {
   /// reaches: their models get force_send_fields and null_fields
   /// (decision 0013).
   requests: Map[Str, Bool] = {}
+  /// The Xo names of the request models that carry force_send_fields
+  /// and null_fields (decision 0013).
+  req_types: Map[Str, Bool] = {}
   report: List[Str] = []
   /// Each generated method, for the Go vectors.
   pub infos: List[MInfo] = []
@@ -380,6 +383,12 @@ pub fn generate(doc: json.Value, header: Str) -> Module {
     }
   }
   g.requests = request_schemas(g)
+  for (n, _) in g.requests {
+    let rs = g.schemas.get(n) ?? json.Value.Null
+    if kind(rs) == "struct" && rs.get("variant").is_none() && fields_of(rs.get("properties")).len() > 0 {
+      g.req_types[g.xo_name(n)] = true
+    }
+  }
   let names = g.schemas.keys().sort()
   var models = ""
   var nschemas = 0
@@ -400,7 +409,7 @@ pub fn generate(doc: json.Value, header: Str) -> Module {
   }
   models = field_enum_names(models)
   let svc = g.service_text(header)
-  let mi = imports(models, ["std/json"])
+  let mi = imports(models, ["std/json", "github.com/xo-lang/gcp/gensupport"])
   models = header + (if mi == "" { "" } else { "\n" + mi }) + models
   Module{models: models, service: svc.0, report: g.report, methods: svc.1, schemas: nschemas, infos: g.infos}
 }
@@ -546,6 +555,10 @@ fn (var g: Gen) struct_text(name: Str, s: json.Value) -> Str {
   }
   var out = "\n" + doc_lines("", desc) + "pub struct ${tn} {\n"
   var variants = ""
+  var arms = ""
+  // body_marked and body_mark's lines, for the request models in a field
+  var marked = ""
+  var marks = ""
   // Go's field names, from a pool holding its own fields first
   var np = Pool{}
   np.get("ForceSendFields")
@@ -576,12 +589,43 @@ fn (var g: Gen) struct_text(name: Str, s: json.Value) -> Str {
     // Go's IsIntAsString: the integer travels as a JSON string
     let wire = if kind(ps) == "simple" && ty.t == "Int" && is_int_as_string(ps) { ",string" } else { "" }
     out = out + "  pub ${fname} as \"${esc(p)},omitempty${wire}\": ${t} = ${z}\n"
-    variants = variants + "  ${pname} as \"${esc(field_entry(p, ty.t, ty.opt, wire))}\"\n"
+    variants = variants + "  ${pname}\n"
+    arms = arms + "    ${pname} => \"${esc(field_entry(p, ty.t, ty.opt, wire))}\"\n"
+    let key = esc(p)
+    if g.req_types.contains(ty.t) {
+      if ty.opt {
+        marked = marked + "  if let Some(c) = m.${fname} {\n    if c.body_marked() {\n      return true\n    }\n  }\n"
+        marks = marks + "  if let Some(c) = m.${fname} {\n    o = gensupport.mark_field(o, \"${key}\", fn(x: json.Value) -> json.Value { c.body_mark(x) })\n  }\n"
+      } else {
+        marked = marked + "  if m.${fname}.body_marked() {\n    return true\n  }\n"
+        marks = marks + "  o = gensupport.mark_field(o, \"${key}\", fn(x: json.Value) -> json.Value { m.${fname}.body_mark(x) })\n"
+      }
+    } else if let Some(et) = ty.t.cut_prefix("List[") {
+      let e = et.trim_suffix("]")
+      if g.req_types.contains(e) {
+        marked = marked + "  for c in m.${fname} {\n    if c.body_marked() {\n      return true\n    }\n  }\n"
+        marks = marks + "  o = gensupport.mark_field(o, \"${key}\", fn(x: json.Value) -> json.Value { gensupport.mark_list(x, fn(i: Int, e: json.Value) -> json.Value { m.${fname}[i].body_mark(e) }) })\n"
+      }
+    } else if let Some(et) = ty.t.cut_prefix("Map[Str, ") {
+      let e = et.trim_suffix("]")
+      if g.req_types.contains(e) {
+        marked = marked + "  for (_, c) in m.${fname} {\n    if c.body_marked() {\n      return true\n    }\n  }\n"
+        marks = marks + "  o = gensupport.mark_field(o, \"${key}\", fn(x: json.Value) -> json.Value { gensupport.mark_map(x, fn(k: Str, e: json.Value) -> json.Value {\n    match m.${fname}.get(k) {\n      Some(c) => c.body_mark(e)\n      None => e\n    }\n  }) })\n"
+      }
+    }
   }
   if req {
-    out = out + "  pub ${force_f} as \"~forceSendFields,omitempty\": List[${ftn}] = []\n"
-    out = out + "  pub ${null_f} as \"~nullFields,omitempty\": List[${ftn}] = []\n"
-    out = out + "} derive Json\n\n" + doc_lines("", "${ftn}: ${tn}'s fields, for force_send_fields and null_fields.") + "pub enum ${ftn} {\n" + variants + "} derive Json\n"
+    out = out + "  pub ${force_f} as \"-\": List[${ftn}] = []\n"
+    out = out + "  pub ${null_f} as \"-\": List[${ftn}] = []\n"
+    // the lists are skipped by every derive (`as "-"`, xo decision
+    // 0622); body_mark gives json_body their entries, one match each
+    let fk = "${snake(tn)}_field_entry"
+    out = out + "} derive Json\n\n" + doc_lines("", "${ftn}: ${tn}'s fields, for force_send_fields and null_fields.") + "pub enum ${ftn} {\n" + variants + "}\n\n"
+    out = out + "fn ${fk}(f: ${ftn}) -> Str {\n  match f {\n" + arms + "  }\n}\n\n"
+    out = out + "/// body_marked: whether m, or a model in it, sets force_send_fields or\n/// null_fields (decision 0013; the service's request bodies ask).\n"
+    out = out + "pub fn (m: ${tn}) body_marked() -> Bool {\n  if m.${force_f}.len() > 0 || m.${null_f}.len() > 0 {\n    return true\n  }\n" + marked + "  false\n}\n\n"
+    out = out + "/// body_mark: v, m's JSON, with the force and null entries of m and of\n/// the models in it, for gensupport.apply_fields (decision 0013).\n"
+    out = out + "pub fn (m: ${tn}) body_mark(v: json.Value) -> json.Value {\n  var o = v\n" + marks + "  gensupport.mark(o, m.${force_f}.map(${fk}), m.${null_f}.map(${fk}))\n}\n"
     return out
   }
   if out.ends_with(" {\n") {
@@ -1058,7 +1102,7 @@ fn (var g: Gen) method_text(tn: Str, core: Str, full: Str, mn: Str, m: json.Valu
     let b = body_arg ?? Arg{api: "", name: "", t: "", location: ""}
     // ml.projects.predict sends its HttpBody's data as it is, already
     // JSON (google-api-go-generator's special case for this method)
-    body = if raw_request { b.name } else if proto_request { "${b.name}.encode().bytes()" } else if id == "ml.projects.predict" { "(${b.name}.http_body.map(fn(h: GoogleApiHttpBody) -> Str { h.data }) ?? \"\").bytes()" } else { "gensupport.json_body(${b.name}, data_wrapper: ${wrapper})" }
+    body = if raw_request { b.name } else if proto_request { "${b.name}.encode().bytes()" } else if id == "ml.projects.predict" { "(${b.name}.http_body.map(fn(h: GoogleApiHttpBody) -> Str { h.data }) ?? \"\").bytes()" } else if g.req_types.contains(b.t) { "gensupport.json_body(${b.name}, data_wrapper: ${wrapper}, marks: if ${b.name}.body_marked() { Some(${b.name}.body_mark(gensupport.body_value(${b.name}))) } else { None })" } else { "gensupport.json_body(${b.name}, data_wrapper: ${wrapper})" }
   }
   let send_at = out.len()
   out = out + "  let resp = r.${core}.client.send(gensupport.Request{method: \"${http_method}\", url: u, query: q, headers: hs, body: ${body}})?\n"

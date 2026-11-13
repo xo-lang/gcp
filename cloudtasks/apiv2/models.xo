@@ -2,6 +2,7 @@
 // DO NOT EDIT.
 
 use std/json
+use github.com/xo-lang/gcp/gensupport
 
 /// AppEngineHttpRequest: App Engine HTTP request. The message defines the HTTP request that is sent to an App Engine app when the task is dispatched. Using AppEngineHttpRequest requires [`appengine.applications.get`](https://cloud.google.com/appengine/docs/admin-api/access-control) Google IAM permission for the project and the following scope: `https://www.googleapis.com/auth/cloud-platform` The task will be delivered to the App Engine app which belongs to the same project as the queue. For more information, see [How Requests are Routed](https://cloud.google.com/appengine/docs/standard/python/how-requests-are-routed) and how routing is affected by [dispatch files](https://cloud.google.com/appengine/docs/python/config/dispatchref). Traffic is encrypted during transport and never leaves Google datacenters. Because this traffic is carried over a communication mechanism internal to Google, you cannot explicitly set the protocol (for example, HTTP or HTTPS). The request to the handler, however, will appear to have used the HTTP protocol. The AppEngineRouting used to construct the URL that the task is delivered to can be set at the queue-level or task-level: * If app_engine_routing_override is set on the queue, this value is used for all tasks in the queue, no matter what the setting is for the task-level app_engine_routing. The `url` that the task will be sent to is: * `url =` host `+` relative_uri Tasks can be dispatched to secure app handlers, unsecure app handlers, and URIs restricted with [`login: admin`](https://cloud.google.com/appengine/docs/standard/python/config/appref). Because tasks are not run as any user, they cannot be dispatched to URIs restricted with [`login: required`](https://cloud.google.com/appengine/docs/standard/python/config/appref) Task dispatches also do not follow redirects. The task attempt has succeeded if the app's request handler returns an HTTP response code in the range [`200` - `299`]. The task attempt has failed if the app's handler returns a non-2xx response code or Cloud Tasks does not receive response before the deadline. Failed tasks will be retried according to the retry configuration. `503` (Service Unavailable) is considered an App Engine system error instead of an application error and will cause Cloud Tasks' traffic congestion control to temporarily throttle the queue's dispatches. Unlike other types of task targets, a `429` (Too Many Requests) response from an app handler does not cause traffic congestion control to throttle the queue.
 ///
@@ -17,18 +18,52 @@ pub struct AppEngineHttpRequest {
   pub http_method as "httpMethod,omitempty": Str = ""
   /// The relative URI. The relative URI must begin with "/" and must be a valid HTTP relative URI. It can contain a path and query string arguments. If the relative URI is empty, then the root path "/" will be used. No spaces are allowed, and the maximum length allowed is 2083 characters.
   pub relative_uri as "relativeUri,omitempty": Str = ""
-  pub force_send_fields as "~forceSendFields,omitempty": List[AppEngineHttpRequestField] = []
-  pub null_fields as "~nullFields,omitempty": List[AppEngineHttpRequestField] = []
+  pub force_send_fields as "-": List[AppEngineHttpRequestField] = []
+  pub null_fields as "-": List[AppEngineHttpRequestField] = []
 } derive Json
 
 /// AppEngineHttpRequestField: AppEngineHttpRequest's fields, for force_send_fields and null_fields.
 pub enum AppEngineHttpRequestField {
-  AppEngineRouting as "appEngineRouting"
-  Body as "body=\"\""
-  Headers as "headers={}"
-  HttpMethod as "httpMethod=\"\""
-  RelativeUri as "relativeUri=\"\""
-} derive Json
+  AppEngineRouting
+  Body
+  Headers
+  HttpMethod
+  RelativeUri
+}
+
+fn app_engine_http_request_field_entry(f: AppEngineHttpRequestField) -> Str {
+  match f {
+    AppEngineRouting => "appEngineRouting"
+    Body => "body=\"\""
+    Headers => "headers={}"
+    HttpMethod => "httpMethod=\"\""
+    RelativeUri => "relativeUri=\"\""
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: AppEngineHttpRequest) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  if let Some(c) = m.app_engine_routing {
+    if c.body_marked() {
+      return true
+    }
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: AppEngineHttpRequest) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  if let Some(c) = m.app_engine_routing {
+    o = gensupport.mark_field(o, "appEngineRouting", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  gensupport.mark(o, m.force_send_fields.map(app_engine_http_request_field_entry), m.null_fields.map(app_engine_http_request_field_entry))
+}
 
 /// AppEngineRouting: App Engine Routing. Defines routing characteristics specific to App Engine - service, version, and instance. For more information about services, versions, and instances see [An Overview of App Engine](https://cloud.google.com/appengine/docs/python/an-overview-of-app-engine), [Microservices Architecture on Google App Engine](https://cloud.google.com/appengine/docs/python/microservices-on-app-engine), [App Engine Standard request routing](https://cloud.google.com/appengine/docs/standard/python/how-requests-are-routed), and [App Engine Flex request routing](https://cloud.google.com/appengine/docs/flexible/python/how-requests-are-routed). Using AppEngineRouting requires [`appengine.applications.get`](https://cloud.google.com/appengine/docs/admin-api/access-control) Google IAM permission for the project and the following scope: `https://www.googleapis.com/auth/cloud-platform`
 ///
@@ -42,17 +77,42 @@ pub struct AppEngineRouting {
   pub service as "service,omitempty": Str = ""
   /// App version. By default, the task is sent to the version which is the default version when the task is attempted. For some queues or tasks which were created using the App Engine Task Queue API, host is not parsable into service, version, and instance. For example, some tasks which were created using the App Engine SDK use a custom domain name; custom domains are not parsed by Cloud Tasks. If host is not parsable, then service, version, and instance are the empty string.
   pub version as "version,omitempty": Str = ""
-  pub force_send_fields as "~forceSendFields,omitempty": List[AppEngineRoutingField] = []
-  pub null_fields as "~nullFields,omitempty": List[AppEngineRoutingField] = []
+  pub force_send_fields as "-": List[AppEngineRoutingField] = []
+  pub null_fields as "-": List[AppEngineRoutingField] = []
 } derive Json
 
 /// AppEngineRoutingField: AppEngineRouting's fields, for force_send_fields and null_fields.
 pub enum AppEngineRoutingField {
-  Host as "host=\"\""
-  Instance as "instance=\"\""
-  Service as "service=\"\""
-  Version as "version=\"\""
-} derive Json
+  Host
+  Instance
+  Service
+  Version
+}
+
+fn app_engine_routing_field_entry(f: AppEngineRoutingField) -> Str {
+  match f {
+    Host => "host=\"\""
+    Instance => "instance=\"\""
+    Service => "service=\"\""
+    Version => "version=\"\""
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: AppEngineRouting) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: AppEngineRouting) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  gensupport.mark(o, m.force_send_fields.map(app_engine_routing_field_entry), m.null_fields.map(app_engine_routing_field_entry))
+}
 
 /// Attempt: The status of a task attempt.
 ///
@@ -66,17 +126,50 @@ pub struct Attempt {
   pub response_time as "responseTime,omitempty": Str = ""
   /// Output only. The time that this attempt was scheduled. `schedule_time` will be truncated to the nearest microsecond.
   pub schedule_time as "scheduleTime,omitempty": Str = ""
-  pub force_send_fields as "~forceSendFields,omitempty": List[AttemptField] = []
-  pub null_fields as "~nullFields,omitempty": List[AttemptField] = []
+  pub force_send_fields as "-": List[AttemptField] = []
+  pub null_fields as "-": List[AttemptField] = []
 } derive Json
 
 /// AttemptField: Attempt's fields, for force_send_fields and null_fields.
 pub enum AttemptField {
-  DispatchTime as "dispatchTime=\"\""
-  ResponseStatus as "responseStatus"
-  ResponseTime as "responseTime=\"\""
-  ScheduleTime as "scheduleTime=\"\""
-} derive Json
+  DispatchTime
+  ResponseStatus
+  ResponseTime
+  ScheduleTime
+}
+
+fn attempt_field_entry(f: AttemptField) -> Str {
+  match f {
+    DispatchTime => "dispatchTime=\"\""
+    ResponseStatus => "responseStatus"
+    ResponseTime => "responseTime=\"\""
+    ScheduleTime => "scheduleTime=\"\""
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: Attempt) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  if let Some(c) = m.response_status {
+    if c.body_marked() {
+      return true
+    }
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: Attempt) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  if let Some(c) = m.response_status {
+    o = gensupport.mark_field(o, "responseStatus", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  gensupport.mark(o, m.force_send_fields.map(attempt_field_entry), m.null_fields.map(attempt_field_entry))
+}
 
 /// BatchCreateTasksRequest: Request message for [BatchCreateTasks].
 ///
@@ -86,15 +179,44 @@ pub struct BatchCreateTasksRequest {
   pub request_id as "requestId,omitempty": Str = ""
   /// Required. The list of requests to create tasks. The queue specified in parent field of each CreateTaskRequest will be the same. This validation happens on the client side as well as in the handler. BatchCreateTasksRequest.parent will also be the same value as the individual `CreateTaskRequest.parent`. The maximum number of requests is 100.
   pub requests as "requests,omitempty": List[CreateTaskRequest] = []
-  pub force_send_fields as "~forceSendFields,omitempty": List[BatchCreateTasksRequestField] = []
-  pub null_fields as "~nullFields,omitempty": List[BatchCreateTasksRequestField] = []
+  pub force_send_fields as "-": List[BatchCreateTasksRequestField] = []
+  pub null_fields as "-": List[BatchCreateTasksRequestField] = []
 } derive Json
 
 /// BatchCreateTasksRequestField: BatchCreateTasksRequest's fields, for force_send_fields and null_fields.
 pub enum BatchCreateTasksRequestField {
-  RequestId as "requestId=\"\""
-  Requests as "requests=[]"
-} derive Json
+  RequestId
+  Requests
+}
+
+fn batch_create_tasks_request_field_entry(f: BatchCreateTasksRequestField) -> Str {
+  match f {
+    RequestId => "requestId=\"\""
+    Requests => "requests=[]"
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: BatchCreateTasksRequest) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  for c in m.requests {
+    if c.body_marked() {
+      return true
+    }
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: BatchCreateTasksRequest) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  o = gensupport.mark_field(o, "requests", fn(x: json.Value) -> json.Value { gensupport.mark_list(x, fn(i: Int, e: json.Value) -> json.Value { m.requests[i].body_mark(e) }) })
+  gensupport.mark(o, m.force_send_fields.map(batch_create_tasks_request_field_entry), m.null_fields.map(batch_create_tasks_request_field_entry))
+}
 
 /// BatchDeleteTasksRequest: Request message for deleting a batch of tasks using BatchDeleteTasks.
 ///
@@ -104,15 +226,38 @@ pub struct BatchDeleteTasksRequest {
   pub names as "names,omitempty": List[Str] = []
   /// Optional. This field will be used to identify the long running operation, avoiding duplication when user retries. If not provided, then a UUID will be generated at server side.
   pub request_id as "requestId,omitempty": Str = ""
-  pub force_send_fields as "~forceSendFields,omitempty": List[BatchDeleteTasksRequestField] = []
-  pub null_fields as "~nullFields,omitempty": List[BatchDeleteTasksRequestField] = []
+  pub force_send_fields as "-": List[BatchDeleteTasksRequestField] = []
+  pub null_fields as "-": List[BatchDeleteTasksRequestField] = []
 } derive Json
 
 /// BatchDeleteTasksRequestField: BatchDeleteTasksRequest's fields, for force_send_fields and null_fields.
 pub enum BatchDeleteTasksRequestField {
-  Names as "names=[]"
-  RequestId as "requestId=\"\""
-} derive Json
+  Names
+  RequestId
+}
+
+fn batch_delete_tasks_request_field_entry(f: BatchDeleteTasksRequestField) -> Str {
+  match f {
+    Names => "names=[]"
+    RequestId => "requestId=\"\""
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: BatchDeleteTasksRequest) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: BatchDeleteTasksRequest) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  gensupport.mark(o, m.force_send_fields.map(batch_delete_tasks_request_field_entry), m.null_fields.map(batch_delete_tasks_request_field_entry))
+}
 
 /// Binding: Associates `members`, or principals, with a `role`.
 ///
@@ -124,16 +269,48 @@ pub struct Binding {
   pub members as "members,omitempty": List[Str] = []
   /// Role that is assigned to the list of `members`, or principals. For example, `roles/viewer`, `roles/editor`, or `roles/owner`. For an overview of the IAM roles and permissions, see the [IAM documentation](https://cloud.google.com/iam/docs/roles-overview). For a list of the available pre-defined roles, see [here](https://cloud.google.com/iam/docs/understanding-roles).
   pub role as "role,omitempty": Str = ""
-  pub force_send_fields as "~forceSendFields,omitempty": List[BindingField] = []
-  pub null_fields as "~nullFields,omitempty": List[BindingField] = []
+  pub force_send_fields as "-": List[BindingField] = []
+  pub null_fields as "-": List[BindingField] = []
 } derive Json
 
 /// BindingField: Binding's fields, for force_send_fields and null_fields.
 pub enum BindingField {
-  Condition as "condition"
-  Members as "members=[]"
-  Role as "role=\"\""
-} derive Json
+  Condition
+  Members
+  Role
+}
+
+fn binding_field_entry(f: BindingField) -> Str {
+  match f {
+    Condition => "condition"
+    Members => "members=[]"
+    Role => "role=\"\""
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: Binding) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  if let Some(c) = m.condition {
+    if c.body_marked() {
+      return true
+    }
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: Binding) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  if let Some(c) = m.condition {
+    o = gensupport.mark_field(o, "condition", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  gensupport.mark(o, m.force_send_fields.map(binding_field_entry), m.null_fields.map(binding_field_entry))
+}
 
 /// BufferTaskRequest: Request message for BufferTask.
 ///
@@ -141,14 +318,44 @@ pub enum BindingField {
 pub struct BufferTaskRequest {
   /// Optional. Body of the HTTP request. The body can take any generic value. The value is written to the HttpRequest of the [Task].
   pub body as "body,omitempty": HttpBody? = None
-  pub force_send_fields as "~forceSendFields,omitempty": List[BufferTaskRequestField] = []
-  pub null_fields as "~nullFields,omitempty": List[BufferTaskRequestField] = []
+  pub force_send_fields as "-": List[BufferTaskRequestField] = []
+  pub null_fields as "-": List[BufferTaskRequestField] = []
 } derive Json
 
 /// BufferTaskRequestField: BufferTaskRequest's fields, for force_send_fields and null_fields.
 pub enum BufferTaskRequestField {
-  Body as "body"
-} derive Json
+  Body
+}
+
+fn buffer_task_request_field_entry(f: BufferTaskRequestField) -> Str {
+  match f {
+    Body => "body"
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: BufferTaskRequest) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  if let Some(c) = m.body {
+    if c.body_marked() {
+      return true
+    }
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: BufferTaskRequest) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  if let Some(c) = m.body {
+    o = gensupport.mark_field(o, "body", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  gensupport.mark(o, m.force_send_fields.map(buffer_task_request_field_entry), m.null_fields.map(buffer_task_request_field_entry))
+}
 
 /// BufferTaskResponse: Response message for BufferTask.
 pub struct BufferTaskResponse {
@@ -164,15 +371,38 @@ pub struct CmekConfig {
   pub kms_key as "kmsKey,omitempty": Str = ""
   /// Output only. The config resource name which includes the project and location and must end in 'cmekConfig', in the format `projects/PROJECT_ID/locations/LOCATION_ID/cmekConfig`
   pub name as "name,omitempty": Str = ""
-  pub force_send_fields as "~forceSendFields,omitempty": List[CmekConfigField] = []
-  pub null_fields as "~nullFields,omitempty": List[CmekConfigField] = []
+  pub force_send_fields as "-": List[CmekConfigField] = []
+  pub null_fields as "-": List[CmekConfigField] = []
 } derive Json
 
 /// CmekConfigField: CmekConfig's fields, for force_send_fields and null_fields.
 pub enum CmekConfigField {
-  KmsKey as "kmsKey=\"\""
-  Name as "name=\"\""
-} derive Json
+  KmsKey
+  Name
+}
+
+fn cmek_config_field_entry(f: CmekConfigField) -> Str {
+  match f {
+    KmsKey => "kmsKey=\"\""
+    Name => "name=\"\""
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: CmekConfig) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: CmekConfig) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  gensupport.mark(o, m.force_send_fields.map(cmek_config_field_entry), m.null_fields.map(cmek_config_field_entry))
+}
 
 /// CreateTaskRequest: Request message for CreateTask.
 ///
@@ -184,16 +414,48 @@ pub struct CreateTaskRequest {
   pub response_view as "responseView,omitempty": Str = ""
   /// Required. The task to add. Task names have the following format: `projects/PROJECT_ID/locations/LOCATION_ID/queues/QUEUE_ID/tasks/TASK_ID`. The user can optionally specify a task name. If a name is not specified then the system will generate a random unique task id, which will be set in the task returned in the response. If schedule_time is not set or is in the past then Cloud Tasks will set it to the current time. Task De-duplication: Explicitly specifying a task ID enables task de-duplication. If a task's ID is identical to that of an existing task or a task that was deleted or executed recently then the call will fail with ALREADY_EXISTS. The IDs of deleted tasks are not immediately available for reuse. It can take up to 24 hours (or 9 days if the task's queue was created using a queue.yaml or queue.xml) for the task ID to be released and made available again. Because there is an extra lookup cost to identify duplicate task names, these CreateTask calls have significantly increased latency. Using hashed strings for the task id or for the prefix of the task id is recommended. Choosing task ids that are sequential or have sequential prefixes, for example using a timestamp, causes an increase in latency and error rates in all task commands. The infrastructure relies on an approximately uniform distribution of task ids to store and serve tasks efficiently.
   pub task as "task,omitempty": Task? = None
-  pub force_send_fields as "~forceSendFields,omitempty": List[CreateTaskRequestField] = []
-  pub null_fields as "~nullFields,omitempty": List[CreateTaskRequestField] = []
+  pub force_send_fields as "-": List[CreateTaskRequestField] = []
+  pub null_fields as "-": List[CreateTaskRequestField] = []
 } derive Json
 
 /// CreateTaskRequestField: CreateTaskRequest's fields, for force_send_fields and null_fields.
 pub enum CreateTaskRequestField {
-  Parent as "parent=\"\""
-  ResponseView as "responseView=\"\""
-  Task as "task"
-} derive Json
+  Parent
+  ResponseView
+  Task
+}
+
+fn create_task_request_field_entry(f: CreateTaskRequestField) -> Str {
+  match f {
+    Parent => "parent=\"\""
+    ResponseView => "responseView=\"\""
+    Task => "task"
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: CreateTaskRequest) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  if let Some(c) = m.task {
+    if c.body_marked() {
+      return true
+    }
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: CreateTaskRequest) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  if let Some(c) = m.task {
+    o = gensupport.mark_field(o, "task", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  gensupport.mark(o, m.force_send_fields.map(create_task_request_field_entry), m.null_fields.map(create_task_request_field_entry))
+}
 
 /// Empty: A generic empty message that you can re-use to avoid defining duplicated empty messages in your APIs. A typical example is to use it as the request or the response type of an API method. For instance: service Foo { rpc Bar(google.protobuf.Empty) returns (google.protobuf.Empty); }
 pub struct Empty {} derive Json
@@ -210,17 +472,42 @@ pub struct Expr {
   pub location as "location,omitempty": Str = ""
   /// Optional. Title for the expression, i.e. a short string describing its purpose. This can be used e.g. in UIs which allow to enter the expression.
   pub title as "title,omitempty": Str = ""
-  pub force_send_fields as "~forceSendFields,omitempty": List[ExprField] = []
-  pub null_fields as "~nullFields,omitempty": List[ExprField] = []
+  pub force_send_fields as "-": List[ExprField] = []
+  pub null_fields as "-": List[ExprField] = []
 } derive Json
 
 /// ExprField: Expr's fields, for force_send_fields and null_fields.
 pub enum ExprField {
-  Description as "description=\"\""
-  Expression as "expression=\"\""
-  Location as "location=\"\""
-  Title as "title=\"\""
-} derive Json
+  Description
+  Expression
+  Location
+  Title
+}
+
+fn expr_field_entry(f: ExprField) -> Str {
+  match f {
+    Description => "description=\"\""
+    Expression => "expression=\"\""
+    Location => "location=\"\""
+    Title => "title=\"\""
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: Expr) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: Expr) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  gensupport.mark(o, m.force_send_fields.map(expr_field_entry), m.null_fields.map(expr_field_entry))
+}
 
 /// GetIamPolicyRequest: Request message for `GetIamPolicy` method.
 ///
@@ -228,14 +515,44 @@ pub enum ExprField {
 pub struct GetIamPolicyRequest {
   /// OPTIONAL: A `GetPolicyOptions` object for specifying options to `GetIamPolicy`.
   pub options as "options,omitempty": GetPolicyOptions? = None
-  pub force_send_fields as "~forceSendFields,omitempty": List[GetIamPolicyRequestField] = []
-  pub null_fields as "~nullFields,omitempty": List[GetIamPolicyRequestField] = []
+  pub force_send_fields as "-": List[GetIamPolicyRequestField] = []
+  pub null_fields as "-": List[GetIamPolicyRequestField] = []
 } derive Json
 
 /// GetIamPolicyRequestField: GetIamPolicyRequest's fields, for force_send_fields and null_fields.
 pub enum GetIamPolicyRequestField {
-  Options as "options"
-} derive Json
+  Options
+}
+
+fn get_iam_policy_request_field_entry(f: GetIamPolicyRequestField) -> Str {
+  match f {
+    Options => "options"
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: GetIamPolicyRequest) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  if let Some(c) = m.options {
+    if c.body_marked() {
+      return true
+    }
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: GetIamPolicyRequest) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  if let Some(c) = m.options {
+    o = gensupport.mark_field(o, "options", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  gensupport.mark(o, m.force_send_fields.map(get_iam_policy_request_field_entry), m.null_fields.map(get_iam_policy_request_field_entry))
+}
 
 /// GetPolicyOptions: Encapsulates settings provided to GetIamPolicy.
 ///
@@ -243,14 +560,36 @@ pub enum GetIamPolicyRequestField {
 pub struct GetPolicyOptions {
   /// Optional. The maximum policy version that will be used to format the policy. Valid values are 0, 1, and 3. Requests specifying an invalid value will be rejected. Requests for policies with any conditional role bindings must specify version 3. Policies with no conditional role bindings may specify any valid value or leave the field unset. The policy in the response might use the policy version that you specified, or it might use a lower policy version. For example, if you specify version 3, but the policy has no conditional role bindings, the response uses version 1. To learn which resources support conditions in their IAM policies, see the [IAM documentation](https://cloud.google.com/iam/help/conditions/resource-policies).
   pub requested_policy_version as "requestedPolicyVersion,omitempty": Int = 0
-  pub force_send_fields as "~forceSendFields,omitempty": List[GetPolicyOptionsField] = []
-  pub null_fields as "~nullFields,omitempty": List[GetPolicyOptionsField] = []
+  pub force_send_fields as "-": List[GetPolicyOptionsField] = []
+  pub null_fields as "-": List[GetPolicyOptionsField] = []
 } derive Json
 
 /// GetPolicyOptionsField: GetPolicyOptions's fields, for force_send_fields and null_fields.
 pub enum GetPolicyOptionsField {
-  RequestedPolicyVersion as "requestedPolicyVersion=0"
-} derive Json
+  RequestedPolicyVersion
+}
+
+fn get_policy_options_field_entry(f: GetPolicyOptionsField) -> Str {
+  match f {
+    RequestedPolicyVersion => "requestedPolicyVersion=0"
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: GetPolicyOptions) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: GetPolicyOptions) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  gensupport.mark(o, m.force_send_fields.map(get_policy_options_field_entry), m.null_fields.map(get_policy_options_field_entry))
+}
 
 /// Header: Defines a header message. A header can have a key and a value.
 ///
@@ -260,15 +599,38 @@ pub struct Header {
   pub key as "key,omitempty": Str = ""
   /// The Value of the header.
   pub value as "value,omitempty": Str = ""
-  pub force_send_fields as "~forceSendFields,omitempty": List[HeaderField] = []
-  pub null_fields as "~nullFields,omitempty": List[HeaderField] = []
+  pub force_send_fields as "-": List[HeaderField] = []
+  pub null_fields as "-": List[HeaderField] = []
 } derive Json
 
 /// HeaderField: Header's fields, for force_send_fields and null_fields.
 pub enum HeaderField {
-  Key as "key=\"\""
-  Value as "value=\"\""
-} derive Json
+  Key
+  Value
+}
+
+fn header_field_entry(f: HeaderField) -> Str {
+  match f {
+    Key => "key=\"\""
+    Value => "value=\"\""
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: Header) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: Header) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  gensupport.mark(o, m.force_send_fields.map(header_field_entry), m.null_fields.map(header_field_entry))
+}
 
 /// HeaderOverride: Wraps the Header object.
 ///
@@ -276,14 +638,44 @@ pub enum HeaderField {
 pub struct HeaderOverride {
   /// Header embodying a key and a value. Do not put business sensitive or personally identifying data in the HTTP Header Override Configuration or other similar fields in accordance with Section 12 (Resource Fields) of the [Service Specific Terms](https://cloud.google.com/terms/service-terms).
   pub header as "header,omitempty": Header? = None
-  pub force_send_fields as "~forceSendFields,omitempty": List[HeaderOverrideField] = []
-  pub null_fields as "~nullFields,omitempty": List[HeaderOverrideField] = []
+  pub force_send_fields as "-": List[HeaderOverrideField] = []
+  pub null_fields as "-": List[HeaderOverrideField] = []
 } derive Json
 
 /// HeaderOverrideField: HeaderOverride's fields, for force_send_fields and null_fields.
 pub enum HeaderOverrideField {
-  Header as "header"
-} derive Json
+  Header
+}
+
+fn header_override_field_entry(f: HeaderOverrideField) -> Str {
+  match f {
+    Header => "header"
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: HeaderOverride) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  if let Some(c) = m.header {
+    if c.body_marked() {
+      return true
+    }
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: HeaderOverride) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  if let Some(c) = m.header {
+    o = gensupport.mark_field(o, "header", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  gensupport.mark(o, m.force_send_fields.map(header_override_field_entry), m.null_fields.map(header_override_field_entry))
+}
 
 /// HttpBody: Message that represents an arbitrary HTTP body. It should only be used for payload formats that can't be represented as JSON, such as raw binary or an HTML page. This message can be used both in streaming and non-streaming API methods in the request as well as the response. It can be used as a top-level request field, which is convenient if one wants to extract parameters from either the URL or HTTP template into the request fields and also want access to the raw HTTP body. Example: message GetResourceRequest { // A unique request id. string request_id = 1; // The raw HTTP body is bound to this field. google.api.HttpBody http_body = 2; } service ResourceService { rpc GetResource(GetResourceRequest) returns (google.api.HttpBody); rpc UpdateResource(google.api.HttpBody) returns (google.protobuf.Empty); } Example with streaming methods: service CaldavService { rpc GetCalendar(stream google.api.HttpBody) returns (stream google.api.HttpBody); rpc UpdateCalendar(stream google.api.HttpBody) returns (stream google.api.HttpBody); } Use of this type only changes how the request and response bodies are handled, all other features will continue to work unchanged.
 ///
@@ -295,16 +687,40 @@ pub struct HttpBody {
   pub data as "data,omitempty": Str = ""
   /// Application specific response metadata. Must be set in the first response for streaming APIs.
   pub extensions as "extensions,omitempty": List[json.Value] = []
-  pub force_send_fields as "~forceSendFields,omitempty": List[HttpBodyField] = []
-  pub null_fields as "~nullFields,omitempty": List[HttpBodyField] = []
+  pub force_send_fields as "-": List[HttpBodyField] = []
+  pub null_fields as "-": List[HttpBodyField] = []
 } derive Json
 
 /// HttpBodyField: HttpBody's fields, for force_send_fields and null_fields.
 pub enum HttpBodyField {
-  ContentType as "contentType=\"\""
-  Data as "data=\"\""
-  Extensions as "extensions=[]"
-} derive Json
+  ContentType
+  Data
+  Extensions
+}
+
+fn http_body_field_entry(f: HttpBodyField) -> Str {
+  match f {
+    ContentType => "contentType=\"\""
+    Data => "data=\"\""
+    Extensions => "extensions=[]"
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: HttpBody) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: HttpBody) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  gensupport.mark(o, m.force_send_fields.map(http_body_field_entry), m.null_fields.map(http_body_field_entry))
+}
 
 /// HttpRequest: HTTP request. The task will be pushed to the worker as an HTTP request. If the worker or the redirected worker acknowledges the task by returning a successful HTTP response code ([`200` - `299`]), the task will be removed from the queue. If any other HTTP response code is returned or no response is received, the task will be retried according to the following: * User-specified throttling: retry configuration, rate limits, and the queue's state. * System throttling: To prevent the worker from overloading, Cloud Tasks may temporarily reduce the queue's effective rate. User-specified settings will not be changed. System throttling happens because: * Cloud Tasks backs off on all errors. Normally the backoff specified in rate limits will be used. But if the worker returns `429` (Too Many Requests), `503` (Service Unavailable), or the rate of errors is high, Cloud Tasks will use a higher backoff rate. The retry specified in the `Retry-After` HTTP response header is considered. * To prevent traffic spikes and to smooth sudden increases in traffic, dispatches ramp up slowly when the queue is newly created or idle and if large numbers of tasks suddenly become available to dispatch (due to spikes in create task rates, the queue being unpaused, or many tasks that are scheduled at the same time).
 ///
@@ -322,19 +738,62 @@ pub struct HttpRequest {
   pub oidc_token as "oidcToken,omitempty": OidcToken? = None
   /// Required. The full url path that the request will be sent to. This string must begin with either "http://" or "https://". Some examples are: `http://acme.com` and `https://acme.com/sales:8080`. Cloud Tasks will encode some characters for safety and compatibility. The maximum allowed URL length is 2083 characters after encoding. The `Location` header response from a redirect response [`300` - `399`] may be followed. The redirect is not counted as a separate attempt.
   pub url as "url,omitempty": Str = ""
-  pub force_send_fields as "~forceSendFields,omitempty": List[HttpRequestField] = []
-  pub null_fields as "~nullFields,omitempty": List[HttpRequestField] = []
+  pub force_send_fields as "-": List[HttpRequestField] = []
+  pub null_fields as "-": List[HttpRequestField] = []
 } derive Json
 
 /// HttpRequestField: HttpRequest's fields, for force_send_fields and null_fields.
 pub enum HttpRequestField {
-  Body as "body=\"\""
-  Headers as "headers={}"
-  HttpMethod as "httpMethod=\"\""
-  OauthToken as "oauthToken"
-  OidcToken as "oidcToken"
-  Url as "url=\"\""
-} derive Json
+  Body
+  Headers
+  HttpMethod
+  OauthToken
+  OidcToken
+  Url
+}
+
+fn http_request_field_entry(f: HttpRequestField) -> Str {
+  match f {
+    Body => "body=\"\""
+    Headers => "headers={}"
+    HttpMethod => "httpMethod=\"\""
+    OauthToken => "oauthToken"
+    OidcToken => "oidcToken"
+    Url => "url=\"\""
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: HttpRequest) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  if let Some(c) = m.oauth_token {
+    if c.body_marked() {
+      return true
+    }
+  }
+  if let Some(c) = m.oidc_token {
+    if c.body_marked() {
+      return true
+    }
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: HttpRequest) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  if let Some(c) = m.oauth_token {
+    o = gensupport.mark_field(o, "oauthToken", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  if let Some(c) = m.oidc_token {
+    o = gensupport.mark_field(o, "oidcToken", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  gensupport.mark(o, m.force_send_fields.map(http_request_field_entry), m.null_fields.map(http_request_field_entry))
+}
 
 /// HttpTarget: HTTP target. When specified at the Queue level, all tasks with HttpRequest are overridden according to the target.
 ///
@@ -350,18 +809,74 @@ pub struct HttpTarget {
   pub oidc_token as "oidcToken,omitempty": OidcToken? = None
   /// URI override. When specified, overrides the execution URI for all the tasks in the queue.
   pub uri_override as "uriOverride,omitempty": UriOverride? = None
-  pub force_send_fields as "~forceSendFields,omitempty": List[HttpTargetField] = []
-  pub null_fields as "~nullFields,omitempty": List[HttpTargetField] = []
+  pub force_send_fields as "-": List[HttpTargetField] = []
+  pub null_fields as "-": List[HttpTargetField] = []
 } derive Json
 
 /// HttpTargetField: HttpTarget's fields, for force_send_fields and null_fields.
 pub enum HttpTargetField {
-  HeaderOverrides as "headerOverrides=[]"
-  HttpMethod as "httpMethod=\"\""
-  OauthToken as "oauthToken"
-  OidcToken as "oidcToken"
-  UriOverride as "uriOverride"
-} derive Json
+  HeaderOverrides
+  HttpMethod
+  OauthToken
+  OidcToken
+  UriOverride
+}
+
+fn http_target_field_entry(f: HttpTargetField) -> Str {
+  match f {
+    HeaderOverrides => "headerOverrides=[]"
+    HttpMethod => "httpMethod=\"\""
+    OauthToken => "oauthToken"
+    OidcToken => "oidcToken"
+    UriOverride => "uriOverride"
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: HttpTarget) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  for c in m.header_overrides {
+    if c.body_marked() {
+      return true
+    }
+  }
+  if let Some(c) = m.oauth_token {
+    if c.body_marked() {
+      return true
+    }
+  }
+  if let Some(c) = m.oidc_token {
+    if c.body_marked() {
+      return true
+    }
+  }
+  if let Some(c) = m.uri_override {
+    if c.body_marked() {
+      return true
+    }
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: HttpTarget) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  o = gensupport.mark_field(o, "headerOverrides", fn(x: json.Value) -> json.Value { gensupport.mark_list(x, fn(i: Int, e: json.Value) -> json.Value { m.header_overrides[i].body_mark(e) }) })
+  if let Some(c) = m.oauth_token {
+    o = gensupport.mark_field(o, "oauthToken", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  if let Some(c) = m.oidc_token {
+    o = gensupport.mark_field(o, "oidcToken", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  if let Some(c) = m.uri_override {
+    o = gensupport.mark_field(o, "uriOverride", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  gensupport.mark(o, m.force_send_fields.map(http_target_field_entry), m.null_fields.map(http_target_field_entry))
+}
 
 /// ListLocationsResponse: The response message for Locations.ListLocations.
 pub struct ListLocationsResponse {
@@ -409,15 +924,38 @@ pub struct OAuthToken {
   pub scope as "scope,omitempty": Str = ""
   /// [Service account email](https://cloud.google.com/iam/docs/service-accounts) to be used for generating OAuth token. The service account must be within the same project as the queue. The caller must have iam.serviceAccounts.actAs permission for the service account.
   pub service_account_email as "serviceAccountEmail,omitempty": Str = ""
-  pub force_send_fields as "~forceSendFields,omitempty": List[OAuthTokenField] = []
-  pub null_fields as "~nullFields,omitempty": List[OAuthTokenField] = []
+  pub force_send_fields as "-": List[OAuthTokenField] = []
+  pub null_fields as "-": List[OAuthTokenField] = []
 } derive Json
 
 /// OAuthTokenField: OAuthToken's fields, for force_send_fields and null_fields.
 pub enum OAuthTokenField {
-  Scope as "scope=\"\""
-  ServiceAccountEmail as "serviceAccountEmail=\"\""
-} derive Json
+  Scope
+  ServiceAccountEmail
+}
+
+fn o_auth_token_field_entry(f: OAuthTokenField) -> Str {
+  match f {
+    Scope => "scope=\"\""
+    ServiceAccountEmail => "serviceAccountEmail=\"\""
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: OAuthToken) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: OAuthToken) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  gensupport.mark(o, m.force_send_fields.map(o_auth_token_field_entry), m.null_fields.map(o_auth_token_field_entry))
+}
 
 /// OidcToken: Contains information needed for generating an [OpenID Connect token](https://developers.google.com/identity/protocols/OpenIDConnect). This type of authorization can be used for many scenarios, including calling Cloud Run, or endpoints where you intend to validate the token yourself.
 ///
@@ -427,15 +965,38 @@ pub struct OidcToken {
   pub audience as "audience,omitempty": Str = ""
   /// [Service account email](https://cloud.google.com/iam/docs/service-accounts) to be used for generating OIDC token. The service account must be within the same project as the queue. The caller must have iam.serviceAccounts.actAs permission for the service account.
   pub service_account_email as "serviceAccountEmail,omitempty": Str = ""
-  pub force_send_fields as "~forceSendFields,omitempty": List[OidcTokenField] = []
-  pub null_fields as "~nullFields,omitempty": List[OidcTokenField] = []
+  pub force_send_fields as "-": List[OidcTokenField] = []
+  pub null_fields as "-": List[OidcTokenField] = []
 } derive Json
 
 /// OidcTokenField: OidcToken's fields, for force_send_fields and null_fields.
 pub enum OidcTokenField {
-  Audience as "audience=\"\""
-  ServiceAccountEmail as "serviceAccountEmail=\"\""
-} derive Json
+  Audience
+  ServiceAccountEmail
+}
+
+fn oidc_token_field_entry(f: OidcTokenField) -> Str {
+  match f {
+    Audience => "audience=\"\""
+    ServiceAccountEmail => "serviceAccountEmail=\"\""
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: OidcToken) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: OidcToken) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  gensupport.mark(o, m.force_send_fields.map(oidc_token_field_entry), m.null_fields.map(oidc_token_field_entry))
+}
 
 /// Operation: This resource represents a long-running operation that is the result of a network API call.
 pub struct Operation {
@@ -457,14 +1018,36 @@ pub struct Operation {
 pub struct PathOverride {
   /// The URI path (e.g., /users/1234). Default is an empty string.
   pub path as "path,omitempty": Str = ""
-  pub force_send_fields as "~forceSendFields,omitempty": List[PathOverrideField] = []
-  pub null_fields as "~nullFields,omitempty": List[PathOverrideField] = []
+  pub force_send_fields as "-": List[PathOverrideField] = []
+  pub null_fields as "-": List[PathOverrideField] = []
 } derive Json
 
 /// PathOverrideField: PathOverride's fields, for force_send_fields and null_fields.
 pub enum PathOverrideField {
-  Path as "path=\"\""
-} derive Json
+  Path
+}
+
+fn path_override_field_entry(f: PathOverrideField) -> Str {
+  match f {
+    Path => "path=\"\""
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: PathOverride) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: PathOverride) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  gensupport.mark(o, m.force_send_fields.map(path_override_field_entry), m.null_fields.map(path_override_field_entry))
+}
 
 /// PauseQueueRequest: Request message for PauseQueue.
 pub struct PauseQueueRequest {} derive Json
@@ -479,16 +1062,46 @@ pub struct Policy {
   pub etag as "etag,omitempty": Str = ""
   /// Specifies the format of the policy. Valid values are `0`, `1`, and `3`. Requests that specify an invalid value are rejected. Any operation that affects conditional role bindings must specify version `3`. This requirement applies to the following operations: * Getting a policy that includes a conditional role binding * Adding a conditional role binding to a policy * Changing a conditional role binding in a policy * Removing any role binding, with or without a condition, from a policy that includes conditions **Important:** If you use IAM Conditions, you must include the `etag` field whenever you call `setIamPolicy`. If you omit this field, then IAM allows you to overwrite a version `3` policy with a version `1` policy, and all of the conditions in the version `3` policy are lost. If a policy does not include any conditions, operations on that policy may specify any valid version or leave the field unset. To learn which resources support conditions in their IAM policies, see the [IAM documentation](https://cloud.google.com/iam/help/conditions/resource-policies).
   pub version as "version,omitempty": Int = 0
-  pub force_send_fields as "~forceSendFields,omitempty": List[PolicyField] = []
-  pub null_fields as "~nullFields,omitempty": List[PolicyField] = []
+  pub force_send_fields as "-": List[PolicyField] = []
+  pub null_fields as "-": List[PolicyField] = []
 } derive Json
 
 /// PolicyField: Policy's fields, for force_send_fields and null_fields.
 pub enum PolicyField {
-  Bindings as "bindings=[]"
-  Etag as "etag=\"\""
-  Version as "version=0"
-} derive Json
+  Bindings
+  Etag
+  Version
+}
+
+fn policy_field_entry(f: PolicyField) -> Str {
+  match f {
+    Bindings => "bindings=[]"
+    Etag => "etag=\"\""
+    Version => "version=0"
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: Policy) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  for c in m.bindings {
+    if c.body_marked() {
+      return true
+    }
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: Policy) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  o = gensupport.mark_field(o, "bindings", fn(x: json.Value) -> json.Value { gensupport.mark_list(x, fn(i: Int, e: json.Value) -> json.Value { m.bindings[i].body_mark(e) }) })
+  gensupport.mark(o, m.force_send_fields.map(policy_field_entry), m.null_fields.map(policy_field_entry))
+}
 
 /// PurgeQueueRequest: Request message for PurgeQueue.
 pub struct PurgeQueueRequest {} derive Json
@@ -499,14 +1112,36 @@ pub struct PurgeQueueRequest {} derive Json
 pub struct QueryOverride {
   /// The query parameters (e.g., qparam1=123&qparam2=456). Default is an empty string.
   pub query_params as "queryParams,omitempty": Str = ""
-  pub force_send_fields as "~forceSendFields,omitempty": List[QueryOverrideField] = []
-  pub null_fields as "~nullFields,omitempty": List[QueryOverrideField] = []
+  pub force_send_fields as "-": List[QueryOverrideField] = []
+  pub null_fields as "-": List[QueryOverrideField] = []
 } derive Json
 
 /// QueryOverrideField: QueryOverride's fields, for force_send_fields and null_fields.
 pub enum QueryOverrideField {
-  QueryParams as "queryParams=\"\""
-} derive Json
+  QueryParams
+}
+
+fn query_override_field_entry(f: QueryOverrideField) -> Str {
+  match f {
+    QueryParams => "queryParams=\"\""
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: QueryOverride) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: QueryOverride) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  gensupport.mark(o, m.force_send_fields.map(query_override_field_entry), m.null_fields.map(query_override_field_entry))
+}
 
 /// Queue: A queue is a container of related tasks. Queues are configured to manage how those tasks are dispatched. Configurable properties include rate limits, retry options, queue types, and others.
 ///
@@ -528,21 +1163,90 @@ pub struct Queue {
   pub stackdriver_logging_config as "stackdriverLoggingConfig,omitempty": StackdriverLoggingConfig? = None
   /// Output only. The state of the queue. `state` can only be changed by calling PauseQueue, ResumeQueue, or uploading [queue.yaml/xml](https://cloud.google.com/appengine/docs/python/config/queueref). UpdateQueue cannot be used to change `state`.
   pub state as "state,omitempty": Str = ""
-  pub force_send_fields as "~forceSendFields,omitempty": List[QueueField] = []
-  pub null_fields as "~nullFields,omitempty": List[QueueField] = []
+  pub force_send_fields as "-": List[QueueField] = []
+  pub null_fields as "-": List[QueueField] = []
 } derive Json
 
 /// QueueField: Queue's fields, for force_send_fields and null_fields.
 pub enum QueueField {
-  AppEngineRoutingOverride as "appEngineRoutingOverride"
-  HttpTarget as "httpTarget"
-  Name as "name=\"\""
-  PurgeTime as "purgeTime=\"\""
-  RateLimits as "rateLimits"
-  RetryConfig as "retryConfig"
-  StackdriverLoggingConfig as "stackdriverLoggingConfig"
-  State as "state=\"\""
-} derive Json
+  AppEngineRoutingOverride
+  HttpTarget
+  Name
+  PurgeTime
+  RateLimits
+  RetryConfig
+  StackdriverLoggingConfig
+  State
+}
+
+fn queue_field_entry(f: QueueField) -> Str {
+  match f {
+    AppEngineRoutingOverride => "appEngineRoutingOverride"
+    HttpTarget => "httpTarget"
+    Name => "name=\"\""
+    PurgeTime => "purgeTime=\"\""
+    RateLimits => "rateLimits"
+    RetryConfig => "retryConfig"
+    StackdriverLoggingConfig => "stackdriverLoggingConfig"
+    State => "state=\"\""
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: Queue) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  if let Some(c) = m.app_engine_routing_override {
+    if c.body_marked() {
+      return true
+    }
+  }
+  if let Some(c) = m.http_target {
+    if c.body_marked() {
+      return true
+    }
+  }
+  if let Some(c) = m.rate_limits {
+    if c.body_marked() {
+      return true
+    }
+  }
+  if let Some(c) = m.retry_config {
+    if c.body_marked() {
+      return true
+    }
+  }
+  if let Some(c) = m.stackdriver_logging_config {
+    if c.body_marked() {
+      return true
+    }
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: Queue) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  if let Some(c) = m.app_engine_routing_override {
+    o = gensupport.mark_field(o, "appEngineRoutingOverride", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  if let Some(c) = m.http_target {
+    o = gensupport.mark_field(o, "httpTarget", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  if let Some(c) = m.rate_limits {
+    o = gensupport.mark_field(o, "rateLimits", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  if let Some(c) = m.retry_config {
+    o = gensupport.mark_field(o, "retryConfig", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  if let Some(c) = m.stackdriver_logging_config {
+    o = gensupport.mark_field(o, "stackdriverLoggingConfig", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  gensupport.mark(o, m.force_send_fields.map(queue_field_entry), m.null_fields.map(queue_field_entry))
+}
 
 /// RateLimits: Rate limits. This message determines the maximum rate that tasks can be dispatched by a queue, regardless of whether the dispatch is a first task attempt or a retry. Note: The debugging command, RunTask, will run a task even if the queue has reached its RateLimits.
 ///
@@ -554,16 +1258,40 @@ pub struct RateLimits {
   pub max_concurrent_dispatches as "maxConcurrentDispatches,omitempty": Int = 0
   /// The maximum rate at which tasks are dispatched from this queue. If unspecified when the queue is created, Cloud Tasks will pick the default. The maximum allowed value is 500. This field has the same meaning as [rate in queue.yaml/xml](https://cloud.google.com/appengine/docs/standard/python/config/queueref#rate).
   pub max_dispatches_per_second as "maxDispatchesPerSecond,omitempty": Float = 0.0
-  pub force_send_fields as "~forceSendFields,omitempty": List[RateLimitsField] = []
-  pub null_fields as "~nullFields,omitempty": List[RateLimitsField] = []
+  pub force_send_fields as "-": List[RateLimitsField] = []
+  pub null_fields as "-": List[RateLimitsField] = []
 } derive Json
 
 /// RateLimitsField: RateLimits's fields, for force_send_fields and null_fields.
 pub enum RateLimitsField {
-  MaxBurstSize as "maxBurstSize=0"
-  MaxConcurrentDispatches as "maxConcurrentDispatches=0"
-  MaxDispatchesPerSecond as "maxDispatchesPerSecond=0"
-} derive Json
+  MaxBurstSize
+  MaxConcurrentDispatches
+  MaxDispatchesPerSecond
+}
+
+fn rate_limits_field_entry(f: RateLimitsField) -> Str {
+  match f {
+    MaxBurstSize => "maxBurstSize=0"
+    MaxConcurrentDispatches => "maxConcurrentDispatches=0"
+    MaxDispatchesPerSecond => "maxDispatchesPerSecond=0"
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: RateLimits) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: RateLimits) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  gensupport.mark(o, m.force_send_fields.map(rate_limits_field_entry), m.null_fields.map(rate_limits_field_entry))
+}
 
 /// ResumeQueueRequest: Request message for ResumeQueue.
 pub struct ResumeQueueRequest {} derive Json
@@ -582,18 +1310,44 @@ pub struct RetryConfig {
   pub max_retry_duration as "maxRetryDuration,omitempty": Str = ""
   /// A task will be scheduled for retry between min_backoff and max_backoff duration after it fails, if the queue's RetryConfig specifies that the task should be retried. The value must be given as a string that indicates the length of time (in seconds) followed by `s` (for "seconds"). For more information on the format, see the documentation for [Duration](https://protobuf.dev/reference/protobuf/google.protobuf/#duration). `min_backoff` will be truncated to the nearest second. If unspecified when the queue is created, Cloud Tasks will pick the default. This field has the same meaning as [min_backoff_seconds in queue.yaml/xml](https://cloud.google.com/appengine/docs/standard/python/config/queueref#retry_parameters).
   pub min_backoff as "minBackoff,omitempty": Str = ""
-  pub force_send_fields as "~forceSendFields,omitempty": List[RetryConfigField] = []
-  pub null_fields as "~nullFields,omitempty": List[RetryConfigField] = []
+  pub force_send_fields as "-": List[RetryConfigField] = []
+  pub null_fields as "-": List[RetryConfigField] = []
 } derive Json
 
 /// RetryConfigField: RetryConfig's fields, for force_send_fields and null_fields.
 pub enum RetryConfigField {
-  MaxAttempts as "maxAttempts=0"
-  MaxBackoff as "maxBackoff=\"\""
-  MaxDoublings as "maxDoublings=0"
-  MaxRetryDuration as "maxRetryDuration=\"\""
-  MinBackoff as "minBackoff=\"\""
-} derive Json
+  MaxAttempts
+  MaxBackoff
+  MaxDoublings
+  MaxRetryDuration
+  MinBackoff
+}
+
+fn retry_config_field_entry(f: RetryConfigField) -> Str {
+  match f {
+    MaxAttempts => "maxAttempts=0"
+    MaxBackoff => "maxBackoff=\"\""
+    MaxDoublings => "maxDoublings=0"
+    MaxRetryDuration => "maxRetryDuration=\"\""
+    MinBackoff => "minBackoff=\"\""
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: RetryConfig) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: RetryConfig) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  gensupport.mark(o, m.force_send_fields.map(retry_config_field_entry), m.null_fields.map(retry_config_field_entry))
+}
 
 /// RunTaskRequest: Request message for forcing a task to run now using RunTask.
 ///
@@ -601,14 +1355,36 @@ pub enum RetryConfigField {
 pub struct RunTaskRequest {
   /// The response_view specifies which subset of the Task will be returned. By default response_view is BASIC; not all information is retrieved by default because some data, such as payloads, might be desirable to return only when needed because of its large size or because of the sensitivity of data that it contains. Authorization for FULL requires `cloudtasks.tasks.fullView` [Google IAM](https://cloud.google.com/iam/) permission on the Task resource.
   pub response_view as "responseView,omitempty": Str = ""
-  pub force_send_fields as "~forceSendFields,omitempty": List[RunTaskRequestField] = []
-  pub null_fields as "~nullFields,omitempty": List[RunTaskRequestField] = []
+  pub force_send_fields as "-": List[RunTaskRequestField] = []
+  pub null_fields as "-": List[RunTaskRequestField] = []
 } derive Json
 
 /// RunTaskRequestField: RunTaskRequest's fields, for force_send_fields and null_fields.
 pub enum RunTaskRequestField {
-  ResponseView as "responseView=\"\""
-} derive Json
+  ResponseView
+}
+
+fn run_task_request_field_entry(f: RunTaskRequestField) -> Str {
+  match f {
+    ResponseView => "responseView=\"\""
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: RunTaskRequest) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: RunTaskRequest) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  gensupport.mark(o, m.force_send_fields.map(run_task_request_field_entry), m.null_fields.map(run_task_request_field_entry))
+}
 
 /// SetIamPolicyRequest: Request message for `SetIamPolicy` method.
 ///
@@ -616,14 +1392,44 @@ pub enum RunTaskRequestField {
 pub struct SetIamPolicyRequest {
   /// REQUIRED: The complete policy to be applied to the `resource`. The size of the policy is limited to a few 10s of KB. An empty policy is a valid policy but certain Google Cloud services (such as Projects) might reject them.
   pub policy as "policy,omitempty": Policy? = None
-  pub force_send_fields as "~forceSendFields,omitempty": List[SetIamPolicyRequestField] = []
-  pub null_fields as "~nullFields,omitempty": List[SetIamPolicyRequestField] = []
+  pub force_send_fields as "-": List[SetIamPolicyRequestField] = []
+  pub null_fields as "-": List[SetIamPolicyRequestField] = []
 } derive Json
 
 /// SetIamPolicyRequestField: SetIamPolicyRequest's fields, for force_send_fields and null_fields.
 pub enum SetIamPolicyRequestField {
-  Policy as "policy"
-} derive Json
+  Policy
+}
+
+fn set_iam_policy_request_field_entry(f: SetIamPolicyRequestField) -> Str {
+  match f {
+    Policy => "policy"
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: SetIamPolicyRequest) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  if let Some(c) = m.policy {
+    if c.body_marked() {
+      return true
+    }
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: SetIamPolicyRequest) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  if let Some(c) = m.policy {
+    o = gensupport.mark_field(o, "policy", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  gensupport.mark(o, m.force_send_fields.map(set_iam_policy_request_field_entry), m.null_fields.map(set_iam_policy_request_field_entry))
+}
 
 /// StackdriverLoggingConfig: Configuration options for writing logs to [Stackdriver Logging](https://cloud.google.com/logging/docs/).
 ///
@@ -631,14 +1437,36 @@ pub enum SetIamPolicyRequestField {
 pub struct StackdriverLoggingConfig {
   /// Specifies the fraction of operations to write to [Stackdriver Logging](https://cloud.google.com/logging/docs/). This field may contain any value between 0.0 and 1.0, inclusive. 0.0 is the default and means that no operations are logged.
   pub sampling_ratio as "samplingRatio,omitempty": Float = 0.0
-  pub force_send_fields as "~forceSendFields,omitempty": List[StackdriverLoggingConfigField] = []
-  pub null_fields as "~nullFields,omitempty": List[StackdriverLoggingConfigField] = []
+  pub force_send_fields as "-": List[StackdriverLoggingConfigField] = []
+  pub null_fields as "-": List[StackdriverLoggingConfigField] = []
 } derive Json
 
 /// StackdriverLoggingConfigField: StackdriverLoggingConfig's fields, for force_send_fields and null_fields.
 pub enum StackdriverLoggingConfigField {
-  SamplingRatio as "samplingRatio=0"
-} derive Json
+  SamplingRatio
+}
+
+fn stackdriver_logging_config_field_entry(f: StackdriverLoggingConfigField) -> Str {
+  match f {
+    SamplingRatio => "samplingRatio=0"
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: StackdriverLoggingConfig) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: StackdriverLoggingConfig) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  gensupport.mark(o, m.force_send_fields.map(stackdriver_logging_config_field_entry), m.null_fields.map(stackdriver_logging_config_field_entry))
+}
 
 /// Status: The `Status` type defines a logical error model that is suitable for different programming environments, including REST APIs and RPC APIs. It is used by [gRPC](https://github.com/grpc). Each `Status` message contains three pieces of data: error code, error message, and error details. You can find out more about this error model and how to work with it in the [API Design Guide](https://cloud.google.com/apis/design/errors).
 ///
@@ -650,16 +1478,40 @@ pub struct Status {
   pub details as "details,omitempty": List[json.Value] = []
   /// A developer-facing error message, which should be in English. Any user-facing error message should be localized and sent in the google.rpc.Status.details field, or localized by the client.
   pub message as "message,omitempty": Str = ""
-  pub force_send_fields as "~forceSendFields,omitempty": List[StatusField] = []
-  pub null_fields as "~nullFields,omitempty": List[StatusField] = []
+  pub force_send_fields as "-": List[StatusField] = []
+  pub null_fields as "-": List[StatusField] = []
 } derive Json
 
 /// StatusField: Status's fields, for force_send_fields and null_fields.
 pub enum StatusField {
-  Code as "code=0"
-  Details as "details=[]"
-  Message as "message=\"\""
-} derive Json
+  Code
+  Details
+  Message
+}
+
+fn status_field_entry(f: StatusField) -> Str {
+  match f {
+    Code => "code=0"
+    Details => "details=[]"
+    Message => "message=\"\""
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: Status) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: Status) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  gensupport.mark(o, m.force_send_fields.map(status_field_entry), m.null_fields.map(status_field_entry))
+}
 
 /// Task: A unit of scheduled work.
 ///
@@ -689,25 +1541,98 @@ pub struct Task {
   pub schedule_time as "scheduleTime,omitempty": Str = ""
   /// Output only. The view specifies which subset of the Task has been returned.
   pub view as "view,omitempty": Str = ""
-  pub force_send_fields as "~forceSendFields,omitempty": List[TaskField] = []
-  pub null_fields as "~nullFields,omitempty": List[TaskField] = []
+  pub force_send_fields as "-": List[TaskField] = []
+  pub null_fields as "-": List[TaskField] = []
 } derive Json
 
 /// TaskField: Task's fields, for force_send_fields and null_fields.
 pub enum TaskField {
-  AppEngineHttpRequest as "appEngineHttpRequest"
-  CreateTime as "createTime=\"\""
-  DispatchCount as "dispatchCount=0"
-  DispatchDeadline as "dispatchDeadline=\"\""
-  FirstAttempt as "firstAttempt"
-  HttpRequest as "httpRequest"
-  LastAttempt as "lastAttempt"
-  Name as "name=\"\""
-  ResponseCount as "responseCount=0"
-  RetryConfig as "retryConfig"
-  ScheduleTime as "scheduleTime=\"\""
-  View as "view=\"\""
-} derive Json
+  AppEngineHttpRequest
+  CreateTime
+  DispatchCount
+  DispatchDeadline
+  FirstAttempt
+  HttpRequest
+  LastAttempt
+  Name
+  ResponseCount
+  RetryConfig
+  ScheduleTime
+  View
+}
+
+fn task_field_entry(f: TaskField) -> Str {
+  match f {
+    AppEngineHttpRequest => "appEngineHttpRequest"
+    CreateTime => "createTime=\"\""
+    DispatchCount => "dispatchCount=0"
+    DispatchDeadline => "dispatchDeadline=\"\""
+    FirstAttempt => "firstAttempt"
+    HttpRequest => "httpRequest"
+    LastAttempt => "lastAttempt"
+    Name => "name=\"\""
+    ResponseCount => "responseCount=0"
+    RetryConfig => "retryConfig"
+    ScheduleTime => "scheduleTime=\"\""
+    View => "view=\"\""
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: Task) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  if let Some(c) = m.app_engine_http_request {
+    if c.body_marked() {
+      return true
+    }
+  }
+  if let Some(c) = m.first_attempt {
+    if c.body_marked() {
+      return true
+    }
+  }
+  if let Some(c) = m.http_request {
+    if c.body_marked() {
+      return true
+    }
+  }
+  if let Some(c) = m.last_attempt {
+    if c.body_marked() {
+      return true
+    }
+  }
+  if let Some(c) = m.retry_config {
+    if c.body_marked() {
+      return true
+    }
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: Task) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  if let Some(c) = m.app_engine_http_request {
+    o = gensupport.mark_field(o, "appEngineHttpRequest", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  if let Some(c) = m.first_attempt {
+    o = gensupport.mark_field(o, "firstAttempt", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  if let Some(c) = m.http_request {
+    o = gensupport.mark_field(o, "httpRequest", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  if let Some(c) = m.last_attempt {
+    o = gensupport.mark_field(o, "lastAttempt", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  if let Some(c) = m.retry_config {
+    o = gensupport.mark_field(o, "retryConfig", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  gensupport.mark(o, m.force_send_fields.map(task_field_entry), m.null_fields.map(task_field_entry))
+}
 
 /// TestIamPermissionsRequest: Request message for `TestIamPermissions` method.
 ///
@@ -715,14 +1640,36 @@ pub enum TaskField {
 pub struct TestIamPermissionsRequest {
   /// The set of permissions to check for the `resource`. Permissions with wildcards (such as `*` or `storage.*`) are not allowed. For more information see [IAM Overview](https://cloud.google.com/iam/docs/overview#permissions).
   pub permissions as "permissions,omitempty": List[Str] = []
-  pub force_send_fields as "~forceSendFields,omitempty": List[TestIamPermissionsRequestField] = []
-  pub null_fields as "~nullFields,omitempty": List[TestIamPermissionsRequestField] = []
+  pub force_send_fields as "-": List[TestIamPermissionsRequestField] = []
+  pub null_fields as "-": List[TestIamPermissionsRequestField] = []
 } derive Json
 
 /// TestIamPermissionsRequestField: TestIamPermissionsRequest's fields, for force_send_fields and null_fields.
 pub enum TestIamPermissionsRequestField {
-  Permissions as "permissions=[]"
-} derive Json
+  Permissions
+}
+
+fn test_iam_permissions_request_field_entry(f: TestIamPermissionsRequestField) -> Str {
+  match f {
+    Permissions => "permissions=[]"
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: TestIamPermissionsRequest) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: TestIamPermissionsRequest) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  gensupport.mark(o, m.force_send_fields.map(test_iam_permissions_request_field_entry), m.null_fields.map(test_iam_permissions_request_field_entry))
+}
 
 /// TestIamPermissionsResponse: Response message for `TestIamPermissions` method.
 pub struct TestIamPermissionsResponse {
@@ -746,16 +1693,59 @@ pub struct UriOverride {
   pub scheme as "scheme,omitempty": Str = ""
   /// URI Override Enforce Mode When specified, determines the Target UriOverride mode. If not specified, it defaults to ALWAYS.
   pub uri_override_enforce_mode as "uriOverrideEnforceMode,omitempty": Str = ""
-  pub force_send_fields as "~forceSendFields,omitempty": List[UriOverrideField] = []
-  pub null_fields as "~nullFields,omitempty": List[UriOverrideField] = []
+  pub force_send_fields as "-": List[UriOverrideField] = []
+  pub null_fields as "-": List[UriOverrideField] = []
 } derive Json
 
 /// UriOverrideField: UriOverride's fields, for force_send_fields and null_fields.
 pub enum UriOverrideField {
-  Host as "host=\"\""
-  PathOverride as "pathOverride"
-  Port as "port=\"0\""
-  QueryOverride as "queryOverride"
-  Scheme as "scheme=\"\""
-  UriOverrideEnforceMode as "uriOverrideEnforceMode=\"\""
-} derive Json
+  Host
+  PathOverride
+  Port
+  QueryOverride
+  Scheme
+  UriOverrideEnforceMode
+}
+
+fn uri_override_field_entry(f: UriOverrideField) -> Str {
+  match f {
+    Host => "host=\"\""
+    PathOverride => "pathOverride"
+    Port => "port=\"0\""
+    QueryOverride => "queryOverride"
+    Scheme => "scheme=\"\""
+    UriOverrideEnforceMode => "uriOverrideEnforceMode=\"\""
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: UriOverride) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  if let Some(c) = m.path_override {
+    if c.body_marked() {
+      return true
+    }
+  }
+  if let Some(c) = m.query_override {
+    if c.body_marked() {
+      return true
+    }
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: UriOverride) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  if let Some(c) = m.path_override {
+    o = gensupport.mark_field(o, "pathOverride", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  if let Some(c) = m.query_override {
+    o = gensupport.mark_field(o, "queryOverride", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  gensupport.mark(o, m.force_send_fields.map(uri_override_field_entry), m.null_fields.map(uri_override_field_entry))
+}

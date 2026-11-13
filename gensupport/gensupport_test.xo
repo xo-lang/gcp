@@ -109,8 +109,10 @@ struct Ev {
   null_fields as "~nullFields,omitempty": List[EvField] = []
 } derive Json
 
+// these test models hold their lists in their JSON, as a generated
+// model's body_mark puts them
 fn body(v: Ev) -> Str {
-  json_body(v).to_str_lossy()
+  json_body(v, marks: Some(json.to_value(v))).to_str_lossy()
 }
 
 test "a forced field goes in empty, a null field as null, sorted as Go's map" {
@@ -128,7 +130,18 @@ test "a forced field goes in empty, a null field as null, sorted as Go's map" {
 test "a forced field of a model inside a list" {
   let ev = Ev{summary: "s", overrides: [Reminder{method: "popup", minutes: 0, force_send_fields: [ReminderField.Minutes]}, Reminder{method: "email", minutes: 10}]}
   expect(body(ev)) == "{\"summary\":\"s\",\"overrides\":[{\"method\":\"popup\",\"minutes\":0},{\"method\":\"email\",\"minutes\":10}]}\n"
-  expect(json_body(ev, data_wrapper: true).to_str_lossy()) == "{\"data\": {\"summary\":\"s\",\"overrides\":[{\"method\":\"popup\",\"minutes\":0},{\"method\":\"email\",\"minutes\":10}]}\n}"
+  expect(json_body(ev, data_wrapper: true, marks: Some(json.to_value(ev))).to_str_lossy()) == "{\"data\": {\"summary\":\"s\",\"overrides\":[{\"method\":\"popup\",\"minutes\":0},{\"method\":\"email\",\"minutes\":10}]}\n}"
+}
+
+test "mark puts a model's entries in place of any there" {
+  let v = json.to_value(Ev{summary: "s", force_send_fields: [EvField.Summary]})
+  expect(mark(v, ["attendees=[]"], ["conferenceData"]).encode()) == "{\"summary\":\"s\",\"~forceSendFields\":[\"attendees=[]\"],\"~nullFields\":[\"conferenceData\"]}"
+  expect(mark(v, [], []).encode()) == "{\"summary\":\"s\"}"
+  let l = json.parse_value("[{\"a\":1},{\"a\":2}]")?
+  expect(mark_list(l, fn(i: Int, x: json.Value) -> json.Value { if i == 1 { mark(x, ["b=0"], []) } else { x } }).encode()) == "[{\"a\":1},{\"a\":2,\"~forceSendFields\":[\"b=0\"]}]"
+  let o = json.parse_value("{\"k\":{\"a\":1},\"z\":2}")?
+  expect(mark_field(o, "k", fn(x: json.Value) -> json.Value { mark(x, [], ["a"]) }).encode()) == "{\"k\":{\"a\":1,\"~nullFields\":[\"a\"]},\"z\":2}"
+  expect(mark_map(o, fn(k: Str, x: json.Value) -> json.Value { if k == "z" { json.Value.Null } else { x } }).encode()) == "{\"k\":{\"a\":1},\"z\":null}"
 }
 
 test "the lists stay out of a decoded model's JSON and an unset one's" {

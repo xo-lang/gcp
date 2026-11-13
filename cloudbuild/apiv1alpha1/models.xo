@@ -2,6 +2,7 @@
 // DO NOT EDIT.
 
 use std/json
+use github.com/xo-lang/gcp/gensupport
 
 /// ApprovalConfig: ApprovalConfig describes configuration for manual approval of a build.
 pub struct ApprovalConfig {
@@ -455,16 +456,40 @@ pub struct Network {
   pub project_id as "projectId,omitempty": Str = ""
   /// Subnetwork on which the workers are created. "default" subnetwork is used if empty.
   pub subnetwork as "subnetwork,omitempty": Str = ""
-  pub force_send_fields as "~forceSendFields,omitempty": List[NetworkField] = []
-  pub null_fields as "~nullFields,omitempty": List[NetworkField] = []
+  pub force_send_fields as "-": List[NetworkField] = []
+  pub null_fields as "-": List[NetworkField] = []
 } derive Json
 
 /// NetworkField: Network's fields, for force_send_fields and null_fields.
 pub enum NetworkField {
-  Network as "network=\"\""
-  ProjectId as "projectId=\"\""
-  Subnetwork as "subnetwork=\"\""
-} derive Json
+  Network
+  ProjectId
+  Subnetwork
+}
+
+fn network_field_entry(f: NetworkField) -> Str {
+  match f {
+    Network => "network=\"\""
+    ProjectId => "projectId=\"\""
+    Subnetwork => "subnetwork=\"\""
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: Network) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: Network) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  gensupport.mark(o, m.force_send_fields.map(network_field_entry), m.null_fields.map(network_field_entry))
+}
 
 /// Notification: Notification is the container which holds the data that is relevant to this particular notification.
 pub struct Notification {
@@ -846,17 +871,50 @@ pub struct WorkerConfig {
   pub network as "network,omitempty": Network? = None
   /// The tag applied to the worker, and the same tag used by the firewall rule. It is used to identify the Cloud Build workers among other VMs. The default value for tag is `worker`.
   pub tag as "tag,omitempty": Str = ""
-  pub force_send_fields as "~forceSendFields,omitempty": List[WorkerConfigField] = []
-  pub null_fields as "~nullFields,omitempty": List[WorkerConfigField] = []
+  pub force_send_fields as "-": List[WorkerConfigField] = []
+  pub null_fields as "-": List[WorkerConfigField] = []
 } derive Json
 
 /// WorkerConfigField: WorkerConfig's fields, for force_send_fields and null_fields.
 pub enum WorkerConfigField {
-  DiskSizeGb as "diskSizeGb=\"0\""
-  MachineType as "machineType=\"\""
-  Network as "network"
-  Tag as "tag=\"\""
-} derive Json
+  DiskSizeGb
+  MachineType
+  Network
+  Tag
+}
+
+fn worker_config_field_entry(f: WorkerConfigField) -> Str {
+  match f {
+    DiskSizeGb => "diskSizeGb=\"0\""
+    MachineType => "machineType=\"\""
+    Network => "network"
+    Tag => "tag=\"\""
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: WorkerConfig) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  if let Some(c) = m.network {
+    if c.body_marked() {
+      return true
+    }
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: WorkerConfig) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  if let Some(c) = m.network {
+    o = gensupport.mark_field(o, "network", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  gensupport.mark(o, m.force_send_fields.map(worker_config_field_entry), m.null_fields.map(worker_config_field_entry))
+}
 
 /// WorkerPool: Configuration for a WorkerPool to run the builds. Workers are machines that Cloud Build uses to run your builds. By default, all workers run in a project owned by Cloud Build. To have full control over the workers that execute your builds -- such as enabling them to access private resources on your private network -- you can request Cloud Build to run the workers in your own project by creating a custom workers pool.
 ///
@@ -882,20 +940,59 @@ pub struct WorkerPool {
   pub worker_config as "workerConfig,omitempty": WorkerConfig? = None
   /// Total number of workers to be created across all requested regions.
   pub worker_count as "workerCount,omitempty,string": Int = 0
-  pub force_send_fields as "~forceSendFields,omitempty": List[WorkerPoolField] = []
-  pub null_fields as "~nullFields,omitempty": List[WorkerPoolField] = []
+  pub force_send_fields as "-": List[WorkerPoolField] = []
+  pub null_fields as "-": List[WorkerPoolField] = []
 } derive Json
 
 /// WorkerPoolField: WorkerPool's fields, for force_send_fields and null_fields.
 pub enum WorkerPoolField {
-  CreateTime as "createTime=\"\""
-  DeleteTime as "deleteTime=\"\""
-  Name as "name=\"\""
-  ProjectId as "projectId=\"\""
-  Regions as "regions=[]"
-  ServiceAccountEmail as "serviceAccountEmail=\"\""
-  Status as "status=\"\""
-  UpdateTime as "updateTime=\"\""
-  WorkerConfig as "workerConfig"
-  WorkerCount as "workerCount=\"0\""
-} derive Json
+  CreateTime
+  DeleteTime
+  Name
+  ProjectId
+  Regions
+  ServiceAccountEmail
+  Status
+  UpdateTime
+  WorkerConfig
+  WorkerCount
+}
+
+fn worker_pool_field_entry(f: WorkerPoolField) -> Str {
+  match f {
+    CreateTime => "createTime=\"\""
+    DeleteTime => "deleteTime=\"\""
+    Name => "name=\"\""
+    ProjectId => "projectId=\"\""
+    Regions => "regions=[]"
+    ServiceAccountEmail => "serviceAccountEmail=\"\""
+    Status => "status=\"\""
+    UpdateTime => "updateTime=\"\""
+    WorkerConfig => "workerConfig"
+    WorkerCount => "workerCount=\"0\""
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: WorkerPool) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  if let Some(c) = m.worker_config {
+    if c.body_marked() {
+      return true
+    }
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: WorkerPool) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  if let Some(c) = m.worker_config {
+    o = gensupport.mark_field(o, "workerConfig", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  gensupport.mark(o, m.force_send_fields.map(worker_pool_field_entry), m.null_fields.map(worker_pool_field_entry))
+}

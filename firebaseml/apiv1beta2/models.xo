@@ -2,6 +2,7 @@
 // DO NOT EDIT.
 
 use std/json
+use github.com/xo-lang/gcp/gensupport
 
 /// DownloadModelResponse: The response for downloading a model to device.
 pub struct DownloadModelResponse {
@@ -50,23 +51,76 @@ pub struct Model {
   pub tflite_model as "tfliteModel,omitempty": TfLiteModel? = None
   /// Output only. Timestamp when this model was updated in Firebase ML.
   pub update_time as "updateTime,omitempty": Str = ""
-  pub force_send_fields as "~forceSendFields,omitempty": List[ModelField] = []
-  pub null_fields as "~nullFields,omitempty": List[ModelField] = []
+  pub force_send_fields as "-": List[ModelField] = []
+  pub null_fields as "-": List[ModelField] = []
 } derive Json
 
 /// ModelField: Model's fields, for force_send_fields and null_fields.
 pub enum ModelField {
-  ActiveOperations as "activeOperations=[]"
-  CreateTime as "createTime=\"\""
-  DisplayName as "displayName=\"\""
-  Etag as "etag=\"\""
-  ModelHash as "modelHash=\"\""
-  Name as "name=\"\""
-  State as "state"
-  Tags as "tags=[]"
-  TfliteModel as "tfliteModel"
-  UpdateTime as "updateTime=\"\""
-} derive Json
+  ActiveOperations
+  CreateTime
+  DisplayName
+  Etag
+  ModelHash
+  Name
+  State
+  Tags
+  TfliteModel
+  UpdateTime
+}
+
+fn model_field_entry(f: ModelField) -> Str {
+  match f {
+    ActiveOperations => "activeOperations=[]"
+    CreateTime => "createTime=\"\""
+    DisplayName => "displayName=\"\""
+    Etag => "etag=\"\""
+    ModelHash => "modelHash=\"\""
+    Name => "name=\"\""
+    State => "state"
+    Tags => "tags=[]"
+    TfliteModel => "tfliteModel"
+    UpdateTime => "updateTime=\"\""
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: Model) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  for c in m.active_operations {
+    if c.body_marked() {
+      return true
+    }
+  }
+  if let Some(c) = m.state {
+    if c.body_marked() {
+      return true
+    }
+  }
+  if let Some(c) = m.tflite_model {
+    if c.body_marked() {
+      return true
+    }
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: Model) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  o = gensupport.mark_field(o, "activeOperations", fn(x: json.Value) -> json.Value { gensupport.mark_list(x, fn(i: Int, e: json.Value) -> json.Value { m.active_operations[i].body_mark(e) }) })
+  if let Some(c) = m.state {
+    o = gensupport.mark_field(o, "state", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  if let Some(c) = m.tflite_model {
+    o = gensupport.mark_field(o, "tfliteModel", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  gensupport.mark(o, m.force_send_fields.map(model_field_entry), m.null_fields.map(model_field_entry))
+}
 
 /// ModelOperationMetadata: This is returned in the longrunning operations for create/update.
 pub struct ModelOperationMetadata {
@@ -83,15 +137,46 @@ pub struct ModelState {
   pub published as "published,omitempty": Bool = false
   /// Output only. Indicates the latest validation error on the model if any. A model may have validation errors if there were problems during the model creation/update. e.g. in the case of a TfLiteModel, if a tflite model file was missing or in the wrong format. This field will be empty for valid models.
   pub validation_error as "validationError,omitempty": Status? = None
-  pub force_send_fields as "~forceSendFields,omitempty": List[ModelStateField] = []
-  pub null_fields as "~nullFields,omitempty": List[ModelStateField] = []
+  pub force_send_fields as "-": List[ModelStateField] = []
+  pub null_fields as "-": List[ModelStateField] = []
 } derive Json
 
 /// ModelStateField: ModelState's fields, for force_send_fields and null_fields.
 pub enum ModelStateField {
-  Published as "published=false"
-  ValidationError as "validationError"
-} derive Json
+  Published
+  ValidationError
+}
+
+fn model_state_field_entry(f: ModelStateField) -> Str {
+  match f {
+    Published => "published=false"
+    ValidationError => "validationError"
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: ModelState) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  if let Some(c) = m.validation_error {
+    if c.body_marked() {
+      return true
+    }
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: ModelState) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  if let Some(c) = m.validation_error {
+    o = gensupport.mark_field(o, "validationError", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  gensupport.mark(o, m.force_send_fields.map(model_state_field_entry), m.null_fields.map(model_state_field_entry))
+}
 
 /// Operation: This resource represents a long-running operation that is the result of a network API call.
 ///
@@ -107,18 +192,52 @@ pub struct Operation {
   pub name as "name,omitempty": Str = ""
   /// The normal, successful response of the operation. If the original method returns no data on success, such as `Delete`, the response is `google.protobuf.Empty`. If the original method is standard `Get`/`Create`/`Update`, the response should be the resource. For other methods, the response should have the type `XxxResponse`, where `Xxx` is the original method name. For example, if the original method name is `TakeSnapshot()`, the inferred response type is `TakeSnapshotResponse`.
   pub response as "response,omitempty": json.Value? = None
-  pub force_send_fields as "~forceSendFields,omitempty": List[OperationField] = []
-  pub null_fields as "~nullFields,omitempty": List[OperationField] = []
+  pub force_send_fields as "-": List[OperationField] = []
+  pub null_fields as "-": List[OperationField] = []
 } derive Json
 
 /// OperationField: Operation's fields, for force_send_fields and null_fields.
 pub enum OperationField {
-  Done as "done=false"
-  Error as "error"
-  Metadata as "metadata"
-  Name as "name=\"\""
-  Response as "response"
-} derive Json
+  Done
+  Error
+  Metadata
+  Name
+  Response
+}
+
+fn operation_field_entry(f: OperationField) -> Str {
+  match f {
+    Done => "done=false"
+    Error => "error"
+    Metadata => "metadata"
+    Name => "name=\"\""
+    Response => "response"
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: Operation) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  if let Some(c) = m.error {
+    if c.body_marked() {
+      return true
+    }
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: Operation) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  if let Some(c) = m.error {
+    o = gensupport.mark_field(o, "error", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  gensupport.mark(o, m.force_send_fields.map(operation_field_entry), m.null_fields.map(operation_field_entry))
+}
 
 /// Status: The `Status` type defines a logical error model that is suitable for different programming environments, including REST APIs and RPC APIs. It is used by [gRPC](https://github.com/grpc). Each `Status` message contains three pieces of data: error code, error message, and error details. You can find out more about this error model and how to work with it in the [API Design Guide](https://cloud.google.com/apis/design/errors).
 ///
@@ -130,16 +249,40 @@ pub struct Status {
   pub details as "details,omitempty": List[json.Value] = []
   /// A developer-facing error message, which should be in English. Any user-facing error message should be localized and sent in the google.rpc.Status.details field, or localized by the client.
   pub message as "message,omitempty": Str = ""
-  pub force_send_fields as "~forceSendFields,omitempty": List[StatusField] = []
-  pub null_fields as "~nullFields,omitempty": List[StatusField] = []
+  pub force_send_fields as "-": List[StatusField] = []
+  pub null_fields as "-": List[StatusField] = []
 } derive Json
 
 /// StatusField: Status's fields, for force_send_fields and null_fields.
 pub enum StatusField {
-  Code as "code=0"
-  Details as "details=[]"
-  Message as "message=\"\""
-} derive Json
+  Code
+  Details
+  Message
+}
+
+fn status_field_entry(f: StatusField) -> Str {
+  match f {
+    Code => "code=0"
+    Details => "details=[]"
+    Message => "message=\"\""
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: Status) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: Status) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  gensupport.mark(o, m.force_send_fields.map(status_field_entry), m.null_fields.map(status_field_entry))
+}
 
 /// TfLiteModel: Information that is specific to TfLite models.
 ///
@@ -151,13 +294,37 @@ pub struct TfLiteModel {
   pub gcs_tflite_uri as "gcsTfliteUri,omitempty": Str = ""
   /// Output only. The size of the TFLite model
   pub size_bytes as "sizeBytes,omitempty": Str = ""
-  pub force_send_fields as "~forceSendFields,omitempty": List[TfLiteModelField] = []
-  pub null_fields as "~nullFields,omitempty": List[TfLiteModelField] = []
+  pub force_send_fields as "-": List[TfLiteModelField] = []
+  pub null_fields as "-": List[TfLiteModelField] = []
 } derive Json
 
 /// TfLiteModelField: TfLiteModel's fields, for force_send_fields and null_fields.
 pub enum TfLiteModelField {
-  AutomlModel as "automlModel=\"\""
-  GcsTfliteUri as "gcsTfliteUri=\"\""
-  SizeBytes as "sizeBytes=\"\""
-} derive Json
+  AutomlModel
+  GcsTfliteUri
+  SizeBytes
+}
+
+fn tf_lite_model_field_entry(f: TfLiteModelField) -> Str {
+  match f {
+    AutomlModel => "automlModel=\"\""
+    GcsTfliteUri => "gcsTfliteUri=\"\""
+    SizeBytes => "sizeBytes=\"\""
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: TfLiteModel) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: TfLiteModel) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  gensupport.mark(o, m.force_send_fields.map(tf_lite_model_field_entry), m.null_fields.map(tf_lite_model_field_entry))
+}

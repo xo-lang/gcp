@@ -2,6 +2,7 @@
 // DO NOT EDIT.
 
 use std/json
+use github.com/xo-lang/gcp/gensupport
 
 /// AuditConfig: Specifies the audit configuration for a service. The configuration determines which permission types are logged, and what identities, if any, are exempted from logging. An AuditConfig must have one or more AuditLogConfigs. If there are AuditConfigs for both `allServices` and a specific service, the union of the two AuditConfigs is used for that service: the log_types specified in each AuditConfig are enabled, and the exempted_members in each AuditLogConfig are exempted. Example Policy with multiple AuditConfigs: { "audit_configs": [ { "service": "allServices", "audit_log_configs": [ { "log_type": "DATA_READ", "exempted_members": [ "user:jose@example.com" ] }, { "log_type": "DATA_WRITE" }, { "log_type": "ADMIN_READ" } ] }, { "service": "sampleservice.googleapis.com", "audit_log_configs": [ { "log_type": "DATA_READ" }, { "log_type": "DATA_WRITE", "exempted_members": [ "user:aliya@example.com" ] } ] } ] } For sampleservice, this policy enables DATA_READ, DATA_WRITE and ADMIN_READ logging. It also exempts `jose@example.com` from DATA_READ logging, and `aliya@example.com` from DATA_WRITE logging.
 ///
@@ -11,15 +12,44 @@ pub struct AuditConfig {
   pub audit_log_configs as "auditLogConfigs,omitempty": List[AuditLogConfig] = []
   /// Specifies a service that will be enabled for audit logging. For example, `storage.googleapis.com`, `cloudsql.googleapis.com`. `allServices` is a special value that covers all services.
   pub service as "service,omitempty": Str = ""
-  pub force_send_fields as "~forceSendFields,omitempty": List[AuditConfigField] = []
-  pub null_fields as "~nullFields,omitempty": List[AuditConfigField] = []
+  pub force_send_fields as "-": List[AuditConfigField] = []
+  pub null_fields as "-": List[AuditConfigField] = []
 } derive Json
 
 /// AuditConfigField: AuditConfig's fields, for force_send_fields and null_fields.
 pub enum AuditConfigField {
-  AuditLogConfigs as "auditLogConfigs=[]"
-  Service as "service=\"\""
-} derive Json
+  AuditLogConfigs
+  Service
+}
+
+fn audit_config_field_entry(f: AuditConfigField) -> Str {
+  match f {
+    AuditLogConfigs => "auditLogConfigs=[]"
+    Service => "service=\"\""
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: AuditConfig) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  for c in m.audit_log_configs {
+    if c.body_marked() {
+      return true
+    }
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: AuditConfig) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  o = gensupport.mark_field(o, "auditLogConfigs", fn(x: json.Value) -> json.Value { gensupport.mark_list(x, fn(i: Int, e: json.Value) -> json.Value { m.audit_log_configs[i].body_mark(e) }) })
+  gensupport.mark(o, m.force_send_fields.map(audit_config_field_entry), m.null_fields.map(audit_config_field_entry))
+}
 
 /// AuditLogConfig: Provides the configuration for logging a type of permissions. Example: { "audit_log_configs": [ { "log_type": "DATA_READ", "exempted_members": [ "user:jose@example.com" ] }, { "log_type": "DATA_WRITE" } ] } This enables 'DATA_READ' and 'DATA_WRITE' logging, while exempting jose@example.com from DATA_READ logging.
 ///
@@ -29,15 +59,38 @@ pub struct AuditLogConfig {
   pub exempted_members as "exemptedMembers,omitempty": List[Str] = []
   /// The log type that this config enables.
   pub log_type as "logType,omitempty": Str = ""
-  pub force_send_fields as "~forceSendFields,omitempty": List[AuditLogConfigField] = []
-  pub null_fields as "~nullFields,omitempty": List[AuditLogConfigField] = []
+  pub force_send_fields as "-": List[AuditLogConfigField] = []
+  pub null_fields as "-": List[AuditLogConfigField] = []
 } derive Json
 
 /// AuditLogConfigField: AuditLogConfig's fields, for force_send_fields and null_fields.
 pub enum AuditLogConfigField {
-  ExemptedMembers as "exemptedMembers=[]"
-  LogType as "logType=\"\""
-} derive Json
+  ExemptedMembers
+  LogType
+}
+
+fn audit_log_config_field_entry(f: AuditLogConfigField) -> Str {
+  match f {
+    ExemptedMembers => "exemptedMembers=[]"
+    LogType => "logType=\"\""
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: AuditLogConfig) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: AuditLogConfig) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  gensupport.mark(o, m.force_send_fields.map(audit_log_config_field_entry), m.null_fields.map(audit_log_config_field_entry))
+}
 
 /// Binding: Associates `members`, or principals, with a `role`.
 ///
@@ -49,16 +102,48 @@ pub struct Binding {
   pub members as "members,omitempty": List[Str] = []
   /// Role that is assigned to the list of `members`, or principals. For example, `roles/viewer`, `roles/editor`, or `roles/owner`. For an overview of the IAM roles and permissions, see the [IAM documentation](https://cloud.google.com/iam/docs/roles-overview). For a list of the available pre-defined roles, see [here](https://cloud.google.com/iam/docs/understanding-roles).
   pub role as "role,omitempty": Str = ""
-  pub force_send_fields as "~forceSendFields,omitempty": List[BindingField] = []
-  pub null_fields as "~nullFields,omitempty": List[BindingField] = []
+  pub force_send_fields as "-": List[BindingField] = []
+  pub null_fields as "-": List[BindingField] = []
 } derive Json
 
 /// BindingField: Binding's fields, for force_send_fields and null_fields.
 pub enum BindingField {
-  Condition as "condition"
-  Members as "members=[]"
-  Role as "role=\"\""
-} derive Json
+  Condition
+  Members
+  Role
+}
+
+fn binding_field_entry(f: BindingField) -> Str {
+  match f {
+    Condition => "condition"
+    Members => "members=[]"
+    Role => "role=\"\""
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: Binding) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  if let Some(c) = m.condition {
+    if c.body_marked() {
+      return true
+    }
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: Binding) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  if let Some(c) = m.condition {
+    o = gensupport.mark_field(o, "condition", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  gensupport.mark(o, m.force_send_fields.map(binding_field_entry), m.null_fields.map(binding_field_entry))
+}
 
 /// BulkInsertOperationStatus:
 ///
@@ -74,18 +159,44 @@ pub struct BulkInsertOperationStatus {
   pub status as "status,omitempty": Str = ""
   /// [Output Only] Count of VMs originally planned to be created.
   pub target_vm_count as "targetVmCount,omitempty": Int = 0
-  pub force_send_fields as "~forceSendFields,omitempty": List[BulkInsertOperationStatusField] = []
-  pub null_fields as "~nullFields,omitempty": List[BulkInsertOperationStatusField] = []
+  pub force_send_fields as "-": List[BulkInsertOperationStatusField] = []
+  pub null_fields as "-": List[BulkInsertOperationStatusField] = []
 } derive Json
 
 /// BulkInsertOperationStatusField: BulkInsertOperationStatus's fields, for force_send_fields and null_fields.
 pub enum BulkInsertOperationStatusField {
-  CreatedVmCount as "createdVmCount=0"
-  DeletedVmCount as "deletedVmCount=0"
-  FailedToCreateVmCount as "failedToCreateVmCount=0"
-  Status as "status=\"\""
-  TargetVmCount as "targetVmCount=0"
-} derive Json
+  CreatedVmCount
+  DeletedVmCount
+  FailedToCreateVmCount
+  Status
+  TargetVmCount
+}
+
+fn bulk_insert_operation_status_field_entry(f: BulkInsertOperationStatusField) -> Str {
+  match f {
+    CreatedVmCount => "createdVmCount=0"
+    DeletedVmCount => "deletedVmCount=0"
+    FailedToCreateVmCount => "failedToCreateVmCount=0"
+    Status => "status=\"\""
+    TargetVmCount => "targetVmCount=0"
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: BulkInsertOperationStatus) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: BulkInsertOperationStatus) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  gensupport.mark(o, m.force_send_fields.map(bulk_insert_operation_status_field_entry), m.null_fields.map(bulk_insert_operation_status_field_entry))
+}
 
 /// ConfigFile:
 ///
@@ -93,14 +204,36 @@ pub enum BulkInsertOperationStatusField {
 pub struct ConfigFile {
   /// The contents of the file.
   pub content as "content,omitempty": Str = ""
-  pub force_send_fields as "~forceSendFields,omitempty": List[ConfigFileField] = []
-  pub null_fields as "~nullFields,omitempty": List[ConfigFileField] = []
+  pub force_send_fields as "-": List[ConfigFileField] = []
+  pub null_fields as "-": List[ConfigFileField] = []
 } derive Json
 
 /// ConfigFileField: ConfigFile's fields, for force_send_fields and null_fields.
 pub enum ConfigFileField {
-  Content as "content=\"\""
-} derive Json
+  Content
+}
+
+fn config_file_field_entry(f: ConfigFileField) -> Str {
+  match f {
+    Content => "content=\"\""
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: ConfigFile) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: ConfigFile) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  gensupport.mark(o, m.force_send_fields.map(config_file_field_entry), m.null_fields.map(config_file_field_entry))
+}
 
 /// DebugInfo: Describes additional debugging info.
 ///
@@ -110,15 +243,38 @@ pub struct DebugInfo {
   pub detail as "detail,omitempty": Str = ""
   /// The stack trace entries indicating where the error occurred.
   pub stack_entries as "stackEntries,omitempty": List[Str] = []
-  pub force_send_fields as "~forceSendFields,omitempty": List[DebugInfoField] = []
-  pub null_fields as "~nullFields,omitempty": List[DebugInfoField] = []
+  pub force_send_fields as "-": List[DebugInfoField] = []
+  pub null_fields as "-": List[DebugInfoField] = []
 } derive Json
 
 /// DebugInfoField: DebugInfo's fields, for force_send_fields and null_fields.
 pub enum DebugInfoField {
-  Detail as "detail=\"\""
-  StackEntries as "stackEntries=[]"
-} derive Json
+  Detail
+  StackEntries
+}
+
+fn debug_info_field_entry(f: DebugInfoField) -> Str {
+  match f {
+    Detail => "detail=\"\""
+    StackEntries => "stackEntries=[]"
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: DebugInfo) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: DebugInfo) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  gensupport.mark(o, m.force_send_fields.map(debug_info_field_entry), m.null_fields.map(debug_info_field_entry))
+}
 
 /// Deployment:
 ///
@@ -147,25 +303,88 @@ pub struct Deployment {
   pub update as "update,omitempty": DeploymentUpdate? = None
   /// Output only. Update timestamp in RFC3339 text format.
   pub update_time as "updateTime,omitempty": Str = ""
-  pub force_send_fields as "~forceSendFields,omitempty": List[DeploymentField] = []
-  pub null_fields as "~nullFields,omitempty": List[DeploymentField] = []
+  pub force_send_fields as "-": List[DeploymentField] = []
+  pub null_fields as "-": List[DeploymentField] = []
 } derive Json
 
 /// DeploymentField: Deployment's fields, for force_send_fields and null_fields.
 pub enum DeploymentField {
-  Description as "description=\"\""
-  Fingerprint as "fingerprint=\"\""
-  Id as "id=\"0\""
-  InsertTime as "insertTime=\"\""
-  Labels as "labels=[]"
-  Manifest as "manifest=\"\""
-  Name as "name=\"\""
-  Operation as "operation"
-  SelfLink as "selfLink=\"\""
-  Target as "target"
-  Update as "update"
-  UpdateTime as "updateTime=\"\""
-} derive Json
+  Description
+  Fingerprint
+  Id
+  InsertTime
+  Labels
+  Manifest
+  Name
+  Operation
+  SelfLink
+  Target
+  Update
+  UpdateTime
+}
+
+fn deployment_field_entry(f: DeploymentField) -> Str {
+  match f {
+    Description => "description=\"\""
+    Fingerprint => "fingerprint=\"\""
+    Id => "id=\"0\""
+    InsertTime => "insertTime=\"\""
+    Labels => "labels=[]"
+    Manifest => "manifest=\"\""
+    Name => "name=\"\""
+    Operation => "operation"
+    SelfLink => "selfLink=\"\""
+    Target => "target"
+    Update => "update"
+    UpdateTime => "updateTime=\"\""
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: Deployment) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  for c in m.labels {
+    if c.body_marked() {
+      return true
+    }
+  }
+  if let Some(c) = m.operation {
+    if c.body_marked() {
+      return true
+    }
+  }
+  if let Some(c) = m.target_ {
+    if c.body_marked() {
+      return true
+    }
+  }
+  if let Some(c) = m.update {
+    if c.body_marked() {
+      return true
+    }
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: Deployment) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  o = gensupport.mark_field(o, "labels", fn(x: json.Value) -> json.Value { gensupport.mark_list(x, fn(i: Int, e: json.Value) -> json.Value { m.labels[i].body_mark(e) }) })
+  if let Some(c) = m.operation {
+    o = gensupport.mark_field(o, "operation", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  if let Some(c) = m.target_ {
+    o = gensupport.mark_field(o, "target", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  if let Some(c) = m.update {
+    o = gensupport.mark_field(o, "update", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  gensupport.mark(o, m.force_send_fields.map(deployment_field_entry), m.null_fields.map(deployment_field_entry))
+}
 
 /// DeploymentLabelEntry: Label object for Deployments
 ///
@@ -175,15 +394,38 @@ pub struct DeploymentLabelEntry {
   pub key as "key,omitempty": Str = ""
   /// Value of the label
   pub value as "value,omitempty": Str = ""
-  pub force_send_fields as "~forceSendFields,omitempty": List[DeploymentLabelEntryField] = []
-  pub null_fields as "~nullFields,omitempty": List[DeploymentLabelEntryField] = []
+  pub force_send_fields as "-": List[DeploymentLabelEntryField] = []
+  pub null_fields as "-": List[DeploymentLabelEntryField] = []
 } derive Json
 
 /// DeploymentLabelEntryField: DeploymentLabelEntry's fields, for force_send_fields and null_fields.
 pub enum DeploymentLabelEntryField {
-  Key as "key=\"\""
-  Value as "value=\"\""
-} derive Json
+  Key
+  Value
+}
+
+fn deployment_label_entry_field_entry(f: DeploymentLabelEntryField) -> Str {
+  match f {
+    Key => "key=\"\""
+    Value => "value=\"\""
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: DeploymentLabelEntry) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: DeploymentLabelEntry) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  gensupport.mark(o, m.force_send_fields.map(deployment_label_entry_field_entry), m.null_fields.map(deployment_label_entry_field_entry))
+}
 
 /// DeploymentUpdate:
 ///
@@ -195,16 +437,46 @@ pub struct DeploymentUpdate {
   pub labels as "labels,omitempty": List[DeploymentUpdateLabelEntry] = []
   /// Output only. URL of the manifest representing the update configuration of this deployment.
   pub manifest as "manifest,omitempty": Str = ""
-  pub force_send_fields as "~forceSendFields,omitempty": List[DeploymentUpdateField] = []
-  pub null_fields as "~nullFields,omitempty": List[DeploymentUpdateField] = []
+  pub force_send_fields as "-": List[DeploymentUpdateField] = []
+  pub null_fields as "-": List[DeploymentUpdateField] = []
 } derive Json
 
 /// DeploymentUpdateField: DeploymentUpdate's fields, for force_send_fields and null_fields.
 pub enum DeploymentUpdateField {
-  Description as "description=\"\""
-  Labels as "labels=[]"
-  Manifest as "manifest=\"\""
-} derive Json
+  Description
+  Labels
+  Manifest
+}
+
+fn deployment_update_field_entry(f: DeploymentUpdateField) -> Str {
+  match f {
+    Description => "description=\"\""
+    Labels => "labels=[]"
+    Manifest => "manifest=\"\""
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: DeploymentUpdate) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  for c in m.labels {
+    if c.body_marked() {
+      return true
+    }
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: DeploymentUpdate) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  o = gensupport.mark_field(o, "labels", fn(x: json.Value) -> json.Value { gensupport.mark_list(x, fn(i: Int, e: json.Value) -> json.Value { m.labels[i].body_mark(e) }) })
+  gensupport.mark(o, m.force_send_fields.map(deployment_update_field_entry), m.null_fields.map(deployment_update_field_entry))
+}
 
 /// DeploymentUpdateLabelEntry: Label object for DeploymentUpdate
 ///
@@ -214,15 +486,38 @@ pub struct DeploymentUpdateLabelEntry {
   pub key as "key,omitempty": Str = ""
   /// Value of the label
   pub value as "value,omitempty": Str = ""
-  pub force_send_fields as "~forceSendFields,omitempty": List[DeploymentUpdateLabelEntryField] = []
-  pub null_fields as "~nullFields,omitempty": List[DeploymentUpdateLabelEntryField] = []
+  pub force_send_fields as "-": List[DeploymentUpdateLabelEntryField] = []
+  pub null_fields as "-": List[DeploymentUpdateLabelEntryField] = []
 } derive Json
 
 /// DeploymentUpdateLabelEntryField: DeploymentUpdateLabelEntry's fields, for force_send_fields and null_fields.
 pub enum DeploymentUpdateLabelEntryField {
-  Key as "key=\"\""
-  Value as "value=\"\""
-} derive Json
+  Key
+  Value
+}
+
+fn deployment_update_label_entry_field_entry(f: DeploymentUpdateLabelEntryField) -> Str {
+  match f {
+    Key => "key=\"\""
+    Value => "value=\"\""
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: DeploymentUpdateLabelEntry) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: DeploymentUpdateLabelEntry) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  gensupport.mark(o, m.force_send_fields.map(deployment_update_label_entry_field_entry), m.null_fields.map(deployment_update_label_entry_field_entry))
+}
 
 /// DeploymentsCancelPreviewRequest:
 ///
@@ -230,14 +525,36 @@ pub enum DeploymentUpdateLabelEntryField {
 pub struct DeploymentsCancelPreviewRequest {
   /// Specifies a fingerprint for `cancelPreview()` requests. A fingerprint is a randomly generated value that must be provided in `cancelPreview()` requests to perform optimistic locking. This ensures optimistic concurrency so that the deployment does not have conflicting requests (e.g. if someone attempts to make a new update request while another user attempts to cancel a preview, this would prevent one of the requests). The fingerprint is initially generated by Deployment Manager and changes after every request to modify a deployment. To get the latest fingerprint value, perform a `get()` request on the deployment.
   pub fingerprint as "fingerprint,omitempty": Str = ""
-  pub force_send_fields as "~forceSendFields,omitempty": List[DeploymentsCancelPreviewRequestField] = []
-  pub null_fields as "~nullFields,omitempty": List[DeploymentsCancelPreviewRequestField] = []
+  pub force_send_fields as "-": List[DeploymentsCancelPreviewRequestField] = []
+  pub null_fields as "-": List[DeploymentsCancelPreviewRequestField] = []
 } derive Json
 
 /// DeploymentsCancelPreviewRequestField: DeploymentsCancelPreviewRequest's fields, for force_send_fields and null_fields.
 pub enum DeploymentsCancelPreviewRequestField {
-  Fingerprint as "fingerprint=\"\""
-} derive Json
+  Fingerprint
+}
+
+fn deployments_cancel_preview_request_field_entry(f: DeploymentsCancelPreviewRequestField) -> Str {
+  match f {
+    Fingerprint => "fingerprint=\"\""
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: DeploymentsCancelPreviewRequest) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: DeploymentsCancelPreviewRequest) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  gensupport.mark(o, m.force_send_fields.map(deployments_cancel_preview_request_field_entry), m.null_fields.map(deployments_cancel_preview_request_field_entry))
+}
 
 /// DeploymentsListResponse: A response containing a partial list of deployments and a page token used to build the next request if the request has been truncated.
 pub struct DeploymentsListResponse {
@@ -253,14 +570,36 @@ pub struct DeploymentsListResponse {
 pub struct DeploymentsStopRequest {
   /// Specifies a fingerprint for `stop()` requests. A fingerprint is a randomly generated value that must be provided in `stop()` requests to perform optimistic locking. This ensures optimistic concurrency so that the deployment does not have conflicting requests (e.g. if someone attempts to make a new update request while another user attempts to stop an ongoing update request, this would prevent a collision). The fingerprint is initially generated by Deployment Manager and changes after every request to modify a deployment. To get the latest fingerprint value, perform a `get()` request on the deployment.
   pub fingerprint as "fingerprint,omitempty": Str = ""
-  pub force_send_fields as "~forceSendFields,omitempty": List[DeploymentsStopRequestField] = []
-  pub null_fields as "~nullFields,omitempty": List[DeploymentsStopRequestField] = []
+  pub force_send_fields as "-": List[DeploymentsStopRequestField] = []
+  pub null_fields as "-": List[DeploymentsStopRequestField] = []
 } derive Json
 
 /// DeploymentsStopRequestField: DeploymentsStopRequest's fields, for force_send_fields and null_fields.
 pub enum DeploymentsStopRequestField {
-  Fingerprint as "fingerprint=\"\""
-} derive Json
+  Fingerprint
+}
+
+fn deployments_stop_request_field_entry(f: DeploymentsStopRequestField) -> Str {
+  match f {
+    Fingerprint => "fingerprint=\"\""
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: DeploymentsStopRequest) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: DeploymentsStopRequest) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  gensupport.mark(o, m.force_send_fields.map(deployments_stop_request_field_entry), m.null_fields.map(deployments_stop_request_field_entry))
+}
 
 /// ErrorInfo: Describes the cause of the error with structured details. Example of an error when contacting the "pubsub.googleapis.com" API when it is not enabled: { "reason": "API_DISABLED" "domain": "googleapis.com" "metadata": { "resource": "projects/123", "service": "pubsub.googleapis.com" } } This response indicates that the pubsub.googleapis.com API is not enabled. Example of an error that is returned when attempting to create a Spanner instance in a region that is out of stock: { "reason": "STOCKOUT" "domain": "spanner.googleapis.com", "metadata": { "availableRegions": "us-central1,us-east2" } }
 ///
@@ -272,16 +611,40 @@ pub struct ErrorInfo {
   pub metadatas as "metadatas,omitempty": Map[Str, Str] = {}
   /// The reason of the error. This is a constant value that identifies the proximate cause of the error. Error reasons are unique within a particular domain of errors. This should be at most 63 characters and match a regular expression of `A-Z+[A-Z0-9]`, which represents UPPER_SNAKE_CASE.
   pub reason as "reason,omitempty": Str = ""
-  pub force_send_fields as "~forceSendFields,omitempty": List[ErrorInfoField] = []
-  pub null_fields as "~nullFields,omitempty": List[ErrorInfoField] = []
+  pub force_send_fields as "-": List[ErrorInfoField] = []
+  pub null_fields as "-": List[ErrorInfoField] = []
 } derive Json
 
 /// ErrorInfoField: ErrorInfo's fields, for force_send_fields and null_fields.
 pub enum ErrorInfoField {
-  Domain as "domain=\"\""
-  Metadatas as "metadatas={}"
-  Reason as "reason=\"\""
-} derive Json
+  Domain
+  Metadatas
+  Reason
+}
+
+fn error_info_field_entry(f: ErrorInfoField) -> Str {
+  match f {
+    Domain => "domain=\"\""
+    Metadatas => "metadatas={}"
+    Reason => "reason=\"\""
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: ErrorInfo) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: ErrorInfo) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  gensupport.mark(o, m.force_send_fields.map(error_info_field_entry), m.null_fields.map(error_info_field_entry))
+}
 
 /// Expr: Represents a textual expression in the Common Expression Language (CEL) syntax. CEL is a C-like expression language. The syntax and semantics of CEL are documented at https://github.com/google/cel-spec. Example (Comparison): title: "Summary size limit" description: "Determines if a summary is less than 100 chars" expression: "document.summary.size() < 100" Example (Equality): title: "Requestor is owner" description: "Determines if requestor is the document owner" expression: "document.owner == request.auth.claims.email" Example (Logic): title: "Public documents" description: "Determine whether the document should be publicly visible" expression: "document.type != 'private' && document.type != 'internal'" Example (Data Manipulation): title: "Notification string" description: "Create a notification string with a timestamp." expression: "'New message received at ' + string(document.create_time)" The exact variables and functions that may be referenced within an expression are determined by the service that evaluates it. See the service documentation for additional information.
 ///
@@ -295,17 +658,42 @@ pub struct Expr {
   pub location as "location,omitempty": Str = ""
   /// Optional. Title for the expression, i.e. a short string describing its purpose. This can be used e.g. in UIs which allow to enter the expression.
   pub title as "title,omitempty": Str = ""
-  pub force_send_fields as "~forceSendFields,omitempty": List[ExprField] = []
-  pub null_fields as "~nullFields,omitempty": List[ExprField] = []
+  pub force_send_fields as "-": List[ExprField] = []
+  pub null_fields as "-": List[ExprField] = []
 } derive Json
 
 /// ExprField: Expr's fields, for force_send_fields and null_fields.
 pub enum ExprField {
-  Description as "description=\"\""
-  Expression as "expression=\"\""
-  Location as "location=\"\""
-  Title as "title=\"\""
-} derive Json
+  Description
+  Expression
+  Location
+  Title
+}
+
+fn expr_field_entry(f: ExprField) -> Str {
+  match f {
+    Description => "description=\"\""
+    Expression => "expression=\"\""
+    Location => "location=\"\""
+    Title => "title=\"\""
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: Expr) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: Expr) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  gensupport.mark(o, m.force_send_fields.map(expr_field_entry), m.null_fields.map(expr_field_entry))
+}
 
 /// FirewallPolicyRuleOperationMetadata: Metadata for FirewallPolicyRule operations.
 ///
@@ -313,14 +701,36 @@ pub enum ExprField {
 pub struct FirewallPolicyRuleOperationMetadata {
   /// Output only. [Output Only] The priority allocated for the firewall policy rule if query parameters specified minPriority/maxPriority.
   pub allocated_priority as "allocatedPriority,omitempty": Int = 0
-  pub force_send_fields as "~forceSendFields,omitempty": List[FirewallPolicyRuleOperationMetadataField] = []
-  pub null_fields as "~nullFields,omitempty": List[FirewallPolicyRuleOperationMetadataField] = []
+  pub force_send_fields as "-": List[FirewallPolicyRuleOperationMetadataField] = []
+  pub null_fields as "-": List[FirewallPolicyRuleOperationMetadataField] = []
 } derive Json
 
 /// FirewallPolicyRuleOperationMetadataField: FirewallPolicyRuleOperationMetadata's fields, for force_send_fields and null_fields.
 pub enum FirewallPolicyRuleOperationMetadataField {
-  AllocatedPriority as "allocatedPriority=0"
-} derive Json
+  AllocatedPriority
+}
+
+fn firewall_policy_rule_operation_metadata_field_entry(f: FirewallPolicyRuleOperationMetadataField) -> Str {
+  match f {
+    AllocatedPriority => "allocatedPriority=0"
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: FirewallPolicyRuleOperationMetadata) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: FirewallPolicyRuleOperationMetadata) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  gensupport.mark(o, m.force_send_fields.map(firewall_policy_rule_operation_metadata_field_entry), m.null_fields.map(firewall_policy_rule_operation_metadata_field_entry))
+}
 
 /// GetHealthOperationMetadata: Metadata for GetHealth operations.
 ///
@@ -328,14 +738,44 @@ pub enum FirewallPolicyRuleOperationMetadataField {
 pub struct GetHealthOperationMetadata {
   /// Output only. The health information.
   pub health_info as "healthInfo,omitempty": GetHealthOperationMetadataHealthInfo? = None
-  pub force_send_fields as "~forceSendFields,omitempty": List[GetHealthOperationMetadataField] = []
-  pub null_fields as "~nullFields,omitempty": List[GetHealthOperationMetadataField] = []
+  pub force_send_fields as "-": List[GetHealthOperationMetadataField] = []
+  pub null_fields as "-": List[GetHealthOperationMetadataField] = []
 } derive Json
 
 /// GetHealthOperationMetadataField: GetHealthOperationMetadata's fields, for force_send_fields and null_fields.
 pub enum GetHealthOperationMetadataField {
-  HealthInfo as "healthInfo"
-} derive Json
+  HealthInfo
+}
+
+fn get_health_operation_metadata_field_entry(f: GetHealthOperationMetadataField) -> Str {
+  match f {
+    HealthInfo => "healthInfo"
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: GetHealthOperationMetadata) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  if let Some(c) = m.health_info {
+    if c.body_marked() {
+      return true
+    }
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: GetHealthOperationMetadata) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  if let Some(c) = m.health_info {
+    o = gensupport.mark_field(o, "healthInfo", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  gensupport.mark(o, m.force_send_fields.map(get_health_operation_metadata_field_entry), m.null_fields.map(get_health_operation_metadata_field_entry))
+}
 
 /// GetHealthOperationMetadataHealthInfo: Health information.
 ///
@@ -351,32 +791,88 @@ pub struct GetHealthOperationMetadataHealthInfo {
   pub unhealthy_reason as "unhealthyReason,omitempty": Str = ""
   /// Output only. The time when health info was updated.
   pub update_time as "updateTime,omitempty": Str = ""
-  pub force_send_fields as "~forceSendFields,omitempty": List[GetHealthOperationMetadataHealthInfoField] = []
-  pub null_fields as "~nullFields,omitempty": List[GetHealthOperationMetadataHealthInfoField] = []
+  pub force_send_fields as "-": List[GetHealthOperationMetadataHealthInfoField] = []
+  pub null_fields as "-": List[GetHealthOperationMetadataHealthInfoField] = []
 } derive Json
 
 /// GetHealthOperationMetadataHealthInfoField: GetHealthOperationMetadataHealthInfo's fields, for force_send_fields and null_fields.
 pub enum GetHealthOperationMetadataHealthInfoField {
-  AvailabilitySloStatus as "availabilitySloStatus=\"\""
-  HealthStatus as "healthStatus=\"\""
-  RepairCategory as "repairCategory=\"\""
-  UnhealthyReason as "unhealthyReason=\"\""
-  UpdateTime as "updateTime=\"\""
-} derive Json
+  AvailabilitySloStatus
+  HealthStatus
+  RepairCategory
+  UnhealthyReason
+  UpdateTime
+}
+
+fn get_health_operation_metadata_health_info_field_entry(f: GetHealthOperationMetadataHealthInfoField) -> Str {
+  match f {
+    AvailabilitySloStatus => "availabilitySloStatus=\"\""
+    HealthStatus => "healthStatus=\"\""
+    RepairCategory => "repairCategory=\"\""
+    UnhealthyReason => "unhealthyReason=\"\""
+    UpdateTime => "updateTime=\"\""
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: GetHealthOperationMetadataHealthInfo) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: GetHealthOperationMetadataHealthInfo) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  gensupport.mark(o, m.force_send_fields.map(get_health_operation_metadata_health_info_field_entry), m.null_fields.map(get_health_operation_metadata_health_info_field_entry))
+}
 
 /// GetVersionOperationMetadata:
 ///
 /// In a request body, force_send_fields are sent even when empty and null_fields as null (decision 0013).
 pub struct GetVersionOperationMetadata {
   pub inline_sbom_info as "inlineSbomInfo,omitempty": GetVersionOperationMetadataSbomInfo? = None
-  pub force_send_fields as "~forceSendFields,omitempty": List[GetVersionOperationMetadataField] = []
-  pub null_fields as "~nullFields,omitempty": List[GetVersionOperationMetadataField] = []
+  pub force_send_fields as "-": List[GetVersionOperationMetadataField] = []
+  pub null_fields as "-": List[GetVersionOperationMetadataField] = []
 } derive Json
 
 /// GetVersionOperationMetadataField: GetVersionOperationMetadata's fields, for force_send_fields and null_fields.
 pub enum GetVersionOperationMetadataField {
-  InlineSbomInfo as "inlineSbomInfo"
-} derive Json
+  InlineSbomInfo
+}
+
+fn get_version_operation_metadata_field_entry(f: GetVersionOperationMetadataField) -> Str {
+  match f {
+    InlineSbomInfo => "inlineSbomInfo"
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: GetVersionOperationMetadata) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  if let Some(c) = m.inline_sbom_info {
+    if c.body_marked() {
+      return true
+    }
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: GetVersionOperationMetadata) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  if let Some(c) = m.inline_sbom_info {
+    o = gensupport.mark_field(o, "inlineSbomInfo", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  gensupport.mark(o, m.force_send_fields.map(get_version_operation_metadata_field_entry), m.null_fields.map(get_version_operation_metadata_field_entry))
+}
 
 /// GetVersionOperationMetadataSbomInfo:
 ///
@@ -386,15 +882,38 @@ pub struct GetVersionOperationMetadataSbomInfo {
   pub current_component_versions as "currentComponentVersions,omitempty": Map[Str, Str] = {}
   /// A mapping of components to their target versions or other appropriate identifiers.
   pub target_component_versions as "targetComponentVersions,omitempty": Map[Str, Str] = {}
-  pub force_send_fields as "~forceSendFields,omitempty": List[GetVersionOperationMetadataSbomInfoField] = []
-  pub null_fields as "~nullFields,omitempty": List[GetVersionOperationMetadataSbomInfoField] = []
+  pub force_send_fields as "-": List[GetVersionOperationMetadataSbomInfoField] = []
+  pub null_fields as "-": List[GetVersionOperationMetadataSbomInfoField] = []
 } derive Json
 
 /// GetVersionOperationMetadataSbomInfoField: GetVersionOperationMetadataSbomInfo's fields, for force_send_fields and null_fields.
 pub enum GetVersionOperationMetadataSbomInfoField {
-  CurrentComponentVersions as "currentComponentVersions={}"
-  TargetComponentVersions as "targetComponentVersions={}"
-} derive Json
+  CurrentComponentVersions
+  TargetComponentVersions
+}
+
+fn get_version_operation_metadata_sbom_info_field_entry(f: GetVersionOperationMetadataSbomInfoField) -> Str {
+  match f {
+    CurrentComponentVersions => "currentComponentVersions={}"
+    TargetComponentVersions => "targetComponentVersions={}"
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: GetVersionOperationMetadataSbomInfo) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: GetVersionOperationMetadataSbomInfo) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  gensupport.mark(o, m.force_send_fields.map(get_version_operation_metadata_sbom_info_field_entry), m.null_fields.map(get_version_operation_metadata_sbom_info_field_entry))
+}
 
 /// GlobalSetPolicyRequest:
 ///
@@ -408,17 +927,56 @@ pub struct GlobalSetPolicyRequest {
   pub policy as "policy,omitempty": Policy? = None
   /// Update mask for the policy.
   pub update_mask as "updateMask,omitempty": Str = ""
-  pub force_send_fields as "~forceSendFields,omitempty": List[GlobalSetPolicyRequestField] = []
-  pub null_fields as "~nullFields,omitempty": List[GlobalSetPolicyRequestField] = []
+  pub force_send_fields as "-": List[GlobalSetPolicyRequestField] = []
+  pub null_fields as "-": List[GlobalSetPolicyRequestField] = []
 } derive Json
 
 /// GlobalSetPolicyRequestField: GlobalSetPolicyRequest's fields, for force_send_fields and null_fields.
 pub enum GlobalSetPolicyRequestField {
-  Bindings as "bindings=[]"
-  Etag as "etag=\"\""
-  Policy as "policy"
-  UpdateMask as "updateMask=\"\""
-} derive Json
+  Bindings
+  Etag
+  Policy
+  UpdateMask
+}
+
+fn global_set_policy_request_field_entry(f: GlobalSetPolicyRequestField) -> Str {
+  match f {
+    Bindings => "bindings=[]"
+    Etag => "etag=\"\""
+    Policy => "policy"
+    UpdateMask => "updateMask=\"\""
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: GlobalSetPolicyRequest) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  for c in m.bindings {
+    if c.body_marked() {
+      return true
+    }
+  }
+  if let Some(c) = m.policy {
+    if c.body_marked() {
+      return true
+    }
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: GlobalSetPolicyRequest) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  o = gensupport.mark_field(o, "bindings", fn(x: json.Value) -> json.Value { gensupport.mark_list(x, fn(i: Int, e: json.Value) -> json.Value { m.bindings[i].body_mark(e) }) })
+  if let Some(c) = m.policy {
+    o = gensupport.mark_field(o, "policy", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  gensupport.mark(o, m.force_send_fields.map(global_set_policy_request_field_entry), m.null_fields.map(global_set_policy_request_field_entry))
+}
 
 /// Help: Provides links to documentation or for performing an out of band action. For example, if a quota check failed with an error indicating the calling project hasn't enabled the accessed service, this can contain a URL pointing directly to the right place in the developer console to flip the bit.
 ///
@@ -426,14 +984,42 @@ pub enum GlobalSetPolicyRequestField {
 pub struct Help {
   /// URL(s) pointing to additional information on handling the current error.
   pub links as "links,omitempty": List[HelpLink] = []
-  pub force_send_fields as "~forceSendFields,omitempty": List[HelpField] = []
-  pub null_fields as "~nullFields,omitempty": List[HelpField] = []
+  pub force_send_fields as "-": List[HelpField] = []
+  pub null_fields as "-": List[HelpField] = []
 } derive Json
 
 /// HelpField: Help's fields, for force_send_fields and null_fields.
 pub enum HelpField {
-  Links as "links=[]"
-} derive Json
+  Links
+}
+
+fn help_field_entry(f: HelpField) -> Str {
+  match f {
+    Links => "links=[]"
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: Help) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  for c in m.links {
+    if c.body_marked() {
+      return true
+    }
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: Help) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  o = gensupport.mark_field(o, "links", fn(x: json.Value) -> json.Value { gensupport.mark_list(x, fn(i: Int, e: json.Value) -> json.Value { m.links[i].body_mark(e) }) })
+  gensupport.mark(o, m.force_send_fields.map(help_field_entry), m.null_fields.map(help_field_entry))
+}
 
 /// HelpLink: Describes a URL link.
 ///
@@ -443,15 +1029,38 @@ pub struct HelpLink {
   pub description as "description,omitempty": Str = ""
   /// The URL of the link.
   pub url as "url,omitempty": Str = ""
-  pub force_send_fields as "~forceSendFields,omitempty": List[HelpLinkField] = []
-  pub null_fields as "~nullFields,omitempty": List[HelpLinkField] = []
+  pub force_send_fields as "-": List[HelpLinkField] = []
+  pub null_fields as "-": List[HelpLinkField] = []
 } derive Json
 
 /// HelpLinkField: HelpLink's fields, for force_send_fields and null_fields.
 pub enum HelpLinkField {
-  Description as "description=\"\""
-  Url as "url=\"\""
-} derive Json
+  Description
+  Url
+}
+
+fn help_link_field_entry(f: HelpLinkField) -> Str {
+  match f {
+    Description => "description=\"\""
+    Url => "url=\"\""
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: HelpLink) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: HelpLink) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  gensupport.mark(o, m.force_send_fields.map(help_link_field_entry), m.null_fields.map(help_link_field_entry))
+}
 
 /// ImportFile:
 ///
@@ -461,15 +1070,38 @@ pub struct ImportFile {
   pub content as "content,omitempty": Str = ""
   /// The name of the file.
   pub name as "name,omitempty": Str = ""
-  pub force_send_fields as "~forceSendFields,omitempty": List[ImportFileField] = []
-  pub null_fields as "~nullFields,omitempty": List[ImportFileField] = []
+  pub force_send_fields as "-": List[ImportFileField] = []
+  pub null_fields as "-": List[ImportFileField] = []
 } derive Json
 
 /// ImportFileField: ImportFile's fields, for force_send_fields and null_fields.
 pub enum ImportFileField {
-  Content as "content=\"\""
-  Name as "name=\"\""
-} derive Json
+  Content
+  Name
+}
+
+fn import_file_field_entry(f: ImportFileField) -> Str {
+  match f {
+    Content => "content=\"\""
+    Name => "name=\"\""
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: ImportFile) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: ImportFile) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  gensupport.mark(o, m.force_send_fields.map(import_file_field_entry), m.null_fields.map(import_file_field_entry))
+}
 
 /// InstancesBulkInsertOperationMetadata:
 ///
@@ -479,15 +1111,49 @@ pub struct InstancesBulkInsertOperationMetadata {
   pub machine_type as "machineType,omitempty": Str = ""
   /// Status information per location (location name is key). Example key: zones/us-central1-a
   pub per_location_status as "perLocationStatus,omitempty": Map[Str, BulkInsertOperationStatus] = {}
-  pub force_send_fields as "~forceSendFields,omitempty": List[InstancesBulkInsertOperationMetadataField] = []
-  pub null_fields as "~nullFields,omitempty": List[InstancesBulkInsertOperationMetadataField] = []
+  pub force_send_fields as "-": List[InstancesBulkInsertOperationMetadataField] = []
+  pub null_fields as "-": List[InstancesBulkInsertOperationMetadataField] = []
 } derive Json
 
 /// InstancesBulkInsertOperationMetadataField: InstancesBulkInsertOperationMetadata's fields, for force_send_fields and null_fields.
 pub enum InstancesBulkInsertOperationMetadataField {
-  MachineType as "machineType=\"\""
-  PerLocationStatus as "perLocationStatus={}"
-} derive Json
+  MachineType
+  PerLocationStatus
+}
+
+fn instances_bulk_insert_operation_metadata_field_entry(f: InstancesBulkInsertOperationMetadataField) -> Str {
+  match f {
+    MachineType => "machineType=\"\""
+    PerLocationStatus => "perLocationStatus={}"
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: InstancesBulkInsertOperationMetadata) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  for (_, c) in m.per_location_status {
+    if c.body_marked() {
+      return true
+    }
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: InstancesBulkInsertOperationMetadata) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  o = gensupport.mark_field(o, "perLocationStatus", fn(x: json.Value) -> json.Value { gensupport.mark_map(x, fn(k: Str, e: json.Value) -> json.Value {
+    match m.per_location_status.get(k) {
+      Some(c) => c.body_mark(e)
+      None => e
+    }
+  }) })
+  gensupport.mark(o, m.force_send_fields.map(instances_bulk_insert_operation_metadata_field_entry), m.null_fields.map(instances_bulk_insert_operation_metadata_field_entry))
+}
 
 /// InstancesTroubleshootOperationMetadata: [Output Only] Operation metadata for instances.troubleshoot.
 ///
@@ -495,14 +1161,36 @@ pub enum InstancesBulkInsertOperationMetadataField {
 pub struct InstancesTroubleshootOperationMetadata {
   /// Output only. [Output Only] Serialized output of the troubleshooting diagnostic run.
   pub troubleshoot_output as "troubleshootOutput,omitempty": Str = ""
-  pub force_send_fields as "~forceSendFields,omitempty": List[InstancesTroubleshootOperationMetadataField] = []
-  pub null_fields as "~nullFields,omitempty": List[InstancesTroubleshootOperationMetadataField] = []
+  pub force_send_fields as "-": List[InstancesTroubleshootOperationMetadataField] = []
+  pub null_fields as "-": List[InstancesTroubleshootOperationMetadataField] = []
 } derive Json
 
 /// InstancesTroubleshootOperationMetadataField: InstancesTroubleshootOperationMetadata's fields, for force_send_fields and null_fields.
 pub enum InstancesTroubleshootOperationMetadataField {
-  TroubleshootOutput as "troubleshootOutput=\"\""
-} derive Json
+  TroubleshootOutput
+}
+
+fn instances_troubleshoot_operation_metadata_field_entry(f: InstancesTroubleshootOperationMetadataField) -> Str {
+  match f {
+    TroubleshootOutput => "troubleshootOutput=\"\""
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: InstancesTroubleshootOperationMetadata) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: InstancesTroubleshootOperationMetadata) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  gensupport.mark(o, m.force_send_fields.map(instances_troubleshoot_operation_metadata_field_entry), m.null_fields.map(instances_troubleshoot_operation_metadata_field_entry))
+}
 
 /// LocalizedMessage: Provides a localized error message that is safe to return to the user which can be attached to an RPC error.
 ///
@@ -512,15 +1200,38 @@ pub struct LocalizedMessage {
   pub locale as "locale,omitempty": Str = ""
   /// The localized error message in the above locale.
   pub message as "message,omitempty": Str = ""
-  pub force_send_fields as "~forceSendFields,omitempty": List[LocalizedMessageField] = []
-  pub null_fields as "~nullFields,omitempty": List[LocalizedMessageField] = []
+  pub force_send_fields as "-": List[LocalizedMessageField] = []
+  pub null_fields as "-": List[LocalizedMessageField] = []
 } derive Json
 
 /// LocalizedMessageField: LocalizedMessage's fields, for force_send_fields and null_fields.
 pub enum LocalizedMessageField {
-  Locale as "locale=\"\""
-  Message as "message=\"\""
-} derive Json
+  Locale
+  Message
+}
+
+fn localized_message_field_entry(f: LocalizedMessageField) -> Str {
+  match f {
+    Locale => "locale=\"\""
+    Message => "message=\"\""
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: LocalizedMessage) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: LocalizedMessage) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  gensupport.mark(o, m.force_send_fields.map(localized_message_field_entry), m.null_fields.map(localized_message_field_entry))
+}
 
 /// Manifest:
 pub struct Manifest {
@@ -621,46 +1332,178 @@ pub struct Operation {
   pub warnings as "warnings,omitempty": List[OperationWarnings] = []
   /// [Output Only] The URL of the zone where the operation resides. Only applicable when performing per-zone operations.
   pub zone as "zone,omitempty": Str = ""
-  pub force_send_fields as "~forceSendFields,omitempty": List[OperationField] = []
-  pub null_fields as "~nullFields,omitempty": List[OperationField] = []
+  pub force_send_fields as "-": List[OperationField] = []
+  pub null_fields as "-": List[OperationField] = []
 } derive Json
 
 /// OperationField: Operation's fields, for force_send_fields and null_fields.
 pub enum OperationField {
-  ClientOperationId as "clientOperationId=\"\""
-  CreationTimestamp as "creationTimestamp=\"\""
-  Description as "description=\"\""
-  Details as "details"
-  EndTime as "endTime=\"\""
-  Error as "error"
-  FirewallPolicyRuleOperationMetadata as "firewallPolicyRuleOperationMetadata"
-  GetHealthOperationMetadata as "getHealthOperationMetadata"
-  GetVersionOperationMetadata as "getVersionOperationMetadata"
-  HttpErrorMessage as "httpErrorMessage=\"\""
-  HttpErrorStatusCode as "httpErrorStatusCode=0"
-  Id as "id=\"0\""
-  InsertTime as "insertTime=\"\""
-  InstancesBulkInsertOperationMetadata as "instancesBulkInsertOperationMetadata"
-  InstancesTroubleshootOperationMetadata as "instancesTroubleshootOperationMetadata"
-  Kind as "kind=\"\""
-  Name as "name=\"\""
-  OperationGroupId as "operationGroupId=\"\""
-  OperationType as "operationType=\"\""
-  Progress as "progress=0"
-  Region as "region=\"\""
-  SelfLink as "selfLink=\"\""
-  SelfLinkWithId as "selfLinkWithId=\"\""
-  SetAutoscalerLinkOperationMetadata as "setAutoscalerLinkOperationMetadata"
-  SetCommonInstanceMetadataOperationMetadata as "setCommonInstanceMetadataOperationMetadata"
-  StartTime as "startTime=\"\""
-  Status as "status=\"\""
-  StatusMessage as "statusMessage=\"\""
-  TargetId as "targetId=\"0\""
-  TargetLink as "targetLink=\"\""
-  User as "user=\"\""
-  Warnings as "warnings=[]"
-  Zone as "zone=\"\""
-} derive Json
+  ClientOperationId
+  CreationTimestamp
+  Description
+  Details
+  EndTime
+  Error
+  FirewallPolicyRuleOperationMetadata
+  GetHealthOperationMetadata
+  GetVersionOperationMetadata
+  HttpErrorMessage
+  HttpErrorStatusCode
+  Id
+  InsertTime
+  InstancesBulkInsertOperationMetadata
+  InstancesTroubleshootOperationMetadata
+  Kind
+  Name
+  OperationGroupId
+  OperationType
+  Progress
+  Region
+  SelfLink
+  SelfLinkWithId
+  SetAutoscalerLinkOperationMetadata
+  SetCommonInstanceMetadataOperationMetadata
+  StartTime
+  Status
+  StatusMessage
+  TargetId
+  TargetLink
+  User
+  Warnings
+  Zone
+}
+
+fn operation_field_entry(f: OperationField) -> Str {
+  match f {
+    ClientOperationId => "clientOperationId=\"\""
+    CreationTimestamp => "creationTimestamp=\"\""
+    Description => "description=\"\""
+    Details => "details"
+    EndTime => "endTime=\"\""
+    Error => "error"
+    FirewallPolicyRuleOperationMetadata => "firewallPolicyRuleOperationMetadata"
+    GetHealthOperationMetadata => "getHealthOperationMetadata"
+    GetVersionOperationMetadata => "getVersionOperationMetadata"
+    HttpErrorMessage => "httpErrorMessage=\"\""
+    HttpErrorStatusCode => "httpErrorStatusCode=0"
+    Id => "id=\"0\""
+    InsertTime => "insertTime=\"\""
+    InstancesBulkInsertOperationMetadata => "instancesBulkInsertOperationMetadata"
+    InstancesTroubleshootOperationMetadata => "instancesTroubleshootOperationMetadata"
+    Kind => "kind=\"\""
+    Name => "name=\"\""
+    OperationGroupId => "operationGroupId=\"\""
+    OperationType => "operationType=\"\""
+    Progress => "progress=0"
+    Region => "region=\"\""
+    SelfLink => "selfLink=\"\""
+    SelfLinkWithId => "selfLinkWithId=\"\""
+    SetAutoscalerLinkOperationMetadata => "setAutoscalerLinkOperationMetadata"
+    SetCommonInstanceMetadataOperationMetadata => "setCommonInstanceMetadataOperationMetadata"
+    StartTime => "startTime=\"\""
+    Status => "status=\"\""
+    StatusMessage => "statusMessage=\"\""
+    TargetId => "targetId=\"0\""
+    TargetLink => "targetLink=\"\""
+    User => "user=\"\""
+    Warnings => "warnings=[]"
+    Zone => "zone=\"\""
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: Operation) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  if let Some(c) = m.details {
+    if c.body_marked() {
+      return true
+    }
+  }
+  if let Some(c) = m.error {
+    if c.body_marked() {
+      return true
+    }
+  }
+  if let Some(c) = m.firewall_policy_rule_operation_metadata {
+    if c.body_marked() {
+      return true
+    }
+  }
+  if let Some(c) = m.get_health_operation_metadata {
+    if c.body_marked() {
+      return true
+    }
+  }
+  if let Some(c) = m.get_version_operation_metadata {
+    if c.body_marked() {
+      return true
+    }
+  }
+  if let Some(c) = m.instances_bulk_insert_operation_metadata {
+    if c.body_marked() {
+      return true
+    }
+  }
+  if let Some(c) = m.instances_troubleshoot_operation_metadata {
+    if c.body_marked() {
+      return true
+    }
+  }
+  if let Some(c) = m.set_autoscaler_link_operation_metadata {
+    if c.body_marked() {
+      return true
+    }
+  }
+  if let Some(c) = m.set_common_instance_metadata_operation_metadata {
+    if c.body_marked() {
+      return true
+    }
+  }
+  for c in m.warnings {
+    if c.body_marked() {
+      return true
+    }
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: Operation) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  if let Some(c) = m.details {
+    o = gensupport.mark_field(o, "details", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  if let Some(c) = m.error {
+    o = gensupport.mark_field(o, "error", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  if let Some(c) = m.firewall_policy_rule_operation_metadata {
+    o = gensupport.mark_field(o, "firewallPolicyRuleOperationMetadata", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  if let Some(c) = m.get_health_operation_metadata {
+    o = gensupport.mark_field(o, "getHealthOperationMetadata", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  if let Some(c) = m.get_version_operation_metadata {
+    o = gensupport.mark_field(o, "getVersionOperationMetadata", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  if let Some(c) = m.instances_bulk_insert_operation_metadata {
+    o = gensupport.mark_field(o, "instancesBulkInsertOperationMetadata", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  if let Some(c) = m.instances_troubleshoot_operation_metadata {
+    o = gensupport.mark_field(o, "instancesTroubleshootOperationMetadata", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  if let Some(c) = m.set_autoscaler_link_operation_metadata {
+    o = gensupport.mark_field(o, "setAutoscalerLinkOperationMetadata", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  if let Some(c) = m.set_common_instance_metadata_operation_metadata {
+    o = gensupport.mark_field(o, "setCommonInstanceMetadataOperationMetadata", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  o = gensupport.mark_field(o, "warnings", fn(x: json.Value) -> json.Value { gensupport.mark_list(x, fn(i: Int, e: json.Value) -> json.Value { m.warnings[i].body_mark(e) }) })
+  gensupport.mark(o, m.force_send_fields.map(operation_field_entry), m.null_fields.map(operation_field_entry))
+}
 
 /// OperationError: [Output Only] If errors are generated during processing of the operation, this field will be populated.
 ///
@@ -668,14 +1511,42 @@ pub enum OperationField {
 pub struct OperationError {
   /// [Output Only] The array of errors encountered while processing this operation.
   pub errors as "errors,omitempty": List[OperationErrorErrors] = []
-  pub force_send_fields as "~forceSendFields,omitempty": List[OperationErrorField] = []
-  pub null_fields as "~nullFields,omitempty": List[OperationErrorField] = []
+  pub force_send_fields as "-": List[OperationErrorField] = []
+  pub null_fields as "-": List[OperationErrorField] = []
 } derive Json
 
 /// OperationErrorField: OperationError's fields, for force_send_fields and null_fields.
 pub enum OperationErrorField {
-  Errors as "errors=[]"
-} derive Json
+  Errors
+}
+
+fn operation_error_field_entry(f: OperationErrorField) -> Str {
+  match f {
+    Errors => "errors=[]"
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: OperationError) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  for c in m.errors {
+    if c.body_marked() {
+      return true
+    }
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: OperationError) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  o = gensupport.mark_field(o, "errors", fn(x: json.Value) -> json.Value { gensupport.mark_list(x, fn(i: Int, e: json.Value) -> json.Value { m.errors[i].body_mark(e) }) })
+  gensupport.mark(o, m.force_send_fields.map(operation_error_field_entry), m.null_fields.map(operation_error_field_entry))
+}
 
 /// OperationErrorErrors: Represents a single error encountered during the processing of an operation.
 ///
@@ -693,19 +1564,60 @@ pub struct OperationErrorErrors {
   pub location as "location,omitempty": Str = ""
   /// [Output Only] An optional, human-readable error message.
   pub message as "message,omitempty": Str = ""
-  pub force_send_fields as "~forceSendFields,omitempty": List[OperationErrorErrorsField] = []
-  pub null_fields as "~nullFields,omitempty": List[OperationErrorErrorsField] = []
+  pub force_send_fields as "-": List[OperationErrorErrorsField] = []
+  pub null_fields as "-": List[OperationErrorErrorsField] = []
 } derive Json
 
 /// OperationErrorErrorsField: OperationErrorErrors's fields, for force_send_fields and null_fields.
 pub enum OperationErrorErrorsField {
-  Arguments as "arguments=[]"
-  Code as "code=\"\""
-  DebugInfo as "debugInfo"
-  ErrorDetails as "errorDetails=[]"
-  Location as "location=\"\""
-  Message as "message=\"\""
-} derive Json
+  Arguments
+  Code
+  DebugInfo
+  ErrorDetails
+  Location
+  Message
+}
+
+fn operation_error_errors_field_entry(f: OperationErrorErrorsField) -> Str {
+  match f {
+    Arguments => "arguments=[]"
+    Code => "code=\"\""
+    DebugInfo => "debugInfo"
+    ErrorDetails => "errorDetails=[]"
+    Location => "location=\"\""
+    Message => "message=\"\""
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: OperationErrorErrors) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  if let Some(c) = m.debug_info {
+    if c.body_marked() {
+      return true
+    }
+  }
+  for c in m.error_details {
+    if c.body_marked() {
+      return true
+    }
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: OperationErrorErrors) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  if let Some(c) = m.debug_info {
+    o = gensupport.mark_field(o, "debugInfo", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  o = gensupport.mark_field(o, "errorDetails", fn(x: json.Value) -> json.Value { gensupport.mark_list(x, fn(i: Int, e: json.Value) -> json.Value { m.error_details[i].body_mark(e) }) })
+  gensupport.mark(o, m.force_send_fields.map(operation_error_errors_field_entry), m.null_fields.map(operation_error_errors_field_entry))
+}
 
 /// OperationErrorErrorsErrorDetails: Container for structured error details providing additional context specific to the encountered error code.
 ///
@@ -719,17 +1631,74 @@ pub struct OperationErrorErrorsErrorDetails {
   pub localized_message as "localizedMessage,omitempty": LocalizedMessage? = None
   /// Details about quota limits and metrics when a quota is exceeded.
   pub quota_info as "quotaInfo,omitempty": QuotaExceededInfo? = None
-  pub force_send_fields as "~forceSendFields,omitempty": List[OperationErrorErrorsErrorDetailsField] = []
-  pub null_fields as "~nullFields,omitempty": List[OperationErrorErrorsErrorDetailsField] = []
+  pub force_send_fields as "-": List[OperationErrorErrorsErrorDetailsField] = []
+  pub null_fields as "-": List[OperationErrorErrorsErrorDetailsField] = []
 } derive Json
 
 /// OperationErrorErrorsErrorDetailsField: OperationErrorErrorsErrorDetails's fields, for force_send_fields and null_fields.
 pub enum OperationErrorErrorsErrorDetailsField {
-  ErrorInfo as "errorInfo"
-  Help as "help"
-  LocalizedMessage as "localizedMessage"
-  QuotaInfo as "quotaInfo"
-} derive Json
+  ErrorInfo
+  Help
+  LocalizedMessage
+  QuotaInfo
+}
+
+fn operation_error_errors_error_details_field_entry(f: OperationErrorErrorsErrorDetailsField) -> Str {
+  match f {
+    ErrorInfo => "errorInfo"
+    Help => "help"
+    LocalizedMessage => "localizedMessage"
+    QuotaInfo => "quotaInfo"
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: OperationErrorErrorsErrorDetails) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  if let Some(c) = m.error_info {
+    if c.body_marked() {
+      return true
+    }
+  }
+  if let Some(c) = m.help {
+    if c.body_marked() {
+      return true
+    }
+  }
+  if let Some(c) = m.localized_message {
+    if c.body_marked() {
+      return true
+    }
+  }
+  if let Some(c) = m.quota_info {
+    if c.body_marked() {
+      return true
+    }
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: OperationErrorErrorsErrorDetails) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  if let Some(c) = m.error_info {
+    o = gensupport.mark_field(o, "errorInfo", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  if let Some(c) = m.help {
+    o = gensupport.mark_field(o, "help", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  if let Some(c) = m.localized_message {
+    o = gensupport.mark_field(o, "localizedMessage", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  if let Some(c) = m.quota_info {
+    o = gensupport.mark_field(o, "quotaInfo", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  gensupport.mark(o, m.force_send_fields.map(operation_error_errors_error_details_field_entry), m.null_fields.map(operation_error_errors_error_details_field_entry))
+}
 
 /// OperationWarnings:
 ///
@@ -741,16 +1710,46 @@ pub struct OperationWarnings {
   pub data as "data,omitempty": List[OperationWarningsData] = []
   /// [Output Only] A human-readable description of the warning code.
   pub message as "message,omitempty": Str = ""
-  pub force_send_fields as "~forceSendFields,omitempty": List[OperationWarningsField] = []
-  pub null_fields as "~nullFields,omitempty": List[OperationWarningsField] = []
+  pub force_send_fields as "-": List[OperationWarningsField] = []
+  pub null_fields as "-": List[OperationWarningsField] = []
 } derive Json
 
 /// OperationWarningsField: OperationWarnings's fields, for force_send_fields and null_fields.
 pub enum OperationWarningsField {
-  Code as "code=\"\""
-  Data as "data=[]"
-  Message as "message=\"\""
-} derive Json
+  Code
+  Data
+  Message
+}
+
+fn operation_warnings_field_entry(f: OperationWarningsField) -> Str {
+  match f {
+    Code => "code=\"\""
+    Data => "data=[]"
+    Message => "message=\"\""
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: OperationWarnings) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  for c in m.data {
+    if c.body_marked() {
+      return true
+    }
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: OperationWarnings) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  o = gensupport.mark_field(o, "data", fn(x: json.Value) -> json.Value { gensupport.mark_list(x, fn(i: Int, e: json.Value) -> json.Value { m.data[i].body_mark(e) }) })
+  gensupport.mark(o, m.force_send_fields.map(operation_warnings_field_entry), m.null_fields.map(operation_warnings_field_entry))
+}
 
 /// OperationWarningsData:
 ///
@@ -760,15 +1759,38 @@ pub struct OperationWarningsData {
   pub key as "key,omitempty": Str = ""
   /// [Output Only] A warning data value corresponding to the key.
   pub value as "value,omitempty": Str = ""
-  pub force_send_fields as "~forceSendFields,omitempty": List[OperationWarningsDataField] = []
-  pub null_fields as "~nullFields,omitempty": List[OperationWarningsDataField] = []
+  pub force_send_fields as "-": List[OperationWarningsDataField] = []
+  pub null_fields as "-": List[OperationWarningsDataField] = []
 } derive Json
 
 /// OperationWarningsDataField: OperationWarningsData's fields, for force_send_fields and null_fields.
 pub enum OperationWarningsDataField {
-  Key as "key=\"\""
-  Value as "value=\"\""
-} derive Json
+  Key
+  Value
+}
+
+fn operation_warnings_data_field_entry(f: OperationWarningsDataField) -> Str {
+  match f {
+    Key => "key=\"\""
+    Value => "value=\"\""
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: OperationWarningsData) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: OperationWarningsData) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  gensupport.mark(o, m.force_send_fields.map(operation_warnings_data_field_entry), m.null_fields.map(operation_warnings_data_field_entry))
+}
 
 /// OperationDetails:
 ///
@@ -778,15 +1800,38 @@ pub struct OperationDetails {
   pub data as "data,omitempty": json.Value? = None
   /// Human or AI readable details on execution of the operation.
   pub message as "message,omitempty": Str = ""
-  pub force_send_fields as "~forceSendFields,omitempty": List[OperationDetailsField] = []
-  pub null_fields as "~nullFields,omitempty": List[OperationDetailsField] = []
+  pub force_send_fields as "-": List[OperationDetailsField] = []
+  pub null_fields as "-": List[OperationDetailsField] = []
 } derive Json
 
 /// OperationDetailsField: OperationDetails's fields, for force_send_fields and null_fields.
 pub enum OperationDetailsField {
-  Data as "data"
-  Message as "message=\"\""
-} derive Json
+  Data
+  Message
+}
+
+fn operation_details_field_entry(f: OperationDetailsField) -> Str {
+  match f {
+    Data => "data"
+    Message => "message=\"\""
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: OperationDetails) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: OperationDetails) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  gensupport.mark(o, m.force_send_fields.map(operation_details_field_entry), m.null_fields.map(operation_details_field_entry))
+}
 
 /// OperationsListResponse: A response containing a partial list of operations and a page token used to build the next request if the request has been truncated.
 pub struct OperationsListResponse {
@@ -808,17 +1853,54 @@ pub struct Policy {
   pub etag as "etag,omitempty": Str = ""
   /// Specifies the format of the policy. Valid values are `0`, `1`, and `3`. Requests that specify an invalid value are rejected. Any operation that affects conditional role bindings must specify version `3`. This requirement applies to the following operations: * Getting a policy that includes a conditional role binding * Adding a conditional role binding to a policy * Changing a conditional role binding in a policy * Removing any role binding, with or without a condition, from a policy that includes conditions **Important:** If you use IAM Conditions, you must include the `etag` field whenever you call `setIamPolicy`. If you omit this field, then IAM allows you to overwrite a version `3` policy with a version `1` policy, and all of the conditions in the version `3` policy are lost. If a policy does not include any conditions, operations on that policy may specify any valid version or leave the field unset. To learn which resources support conditions in their IAM policies, see the [IAM documentation](https://cloud.google.com/iam/help/conditions/resource-policies).
   pub version as "version,omitempty": Int = 0
-  pub force_send_fields as "~forceSendFields,omitempty": List[PolicyField] = []
-  pub null_fields as "~nullFields,omitempty": List[PolicyField] = []
+  pub force_send_fields as "-": List[PolicyField] = []
+  pub null_fields as "-": List[PolicyField] = []
 } derive Json
 
 /// PolicyField: Policy's fields, for force_send_fields and null_fields.
 pub enum PolicyField {
-  AuditConfigs as "auditConfigs=[]"
-  Bindings as "bindings=[]"
-  Etag as "etag=\"\""
-  Version as "version=0"
-} derive Json
+  AuditConfigs
+  Bindings
+  Etag
+  Version
+}
+
+fn policy_field_entry(f: PolicyField) -> Str {
+  match f {
+    AuditConfigs => "auditConfigs=[]"
+    Bindings => "bindings=[]"
+    Etag => "etag=\"\""
+    Version => "version=0"
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: Policy) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  for c in m.audit_configs {
+    if c.body_marked() {
+      return true
+    }
+  }
+  for c in m.bindings {
+    if c.body_marked() {
+      return true
+    }
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: Policy) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  o = gensupport.mark_field(o, "auditConfigs", fn(x: json.Value) -> json.Value { gensupport.mark_list(x, fn(i: Int, e: json.Value) -> json.Value { m.audit_configs[i].body_mark(e) }) })
+  o = gensupport.mark_field(o, "bindings", fn(x: json.Value) -> json.Value { gensupport.mark_list(x, fn(i: Int, e: json.Value) -> json.Value { m.bindings[i].body_mark(e) }) })
+  gensupport.mark(o, m.force_send_fields.map(policy_field_entry), m.null_fields.map(policy_field_entry))
+}
 
 /// QuotaExceededInfo: Additional details for quota exceeded error for resource quota.
 ///
@@ -836,19 +1918,46 @@ pub struct QuotaExceededInfo {
   pub metric_name as "metricName,omitempty": Str = ""
   /// Rollout status of the future quota limit.
   pub rollout_status as "rolloutStatus,omitempty": Str = ""
-  pub force_send_fields as "~forceSendFields,omitempty": List[QuotaExceededInfoField] = []
-  pub null_fields as "~nullFields,omitempty": List[QuotaExceededInfoField] = []
+  pub force_send_fields as "-": List[QuotaExceededInfoField] = []
+  pub null_fields as "-": List[QuotaExceededInfoField] = []
 } derive Json
 
 /// QuotaExceededInfoField: QuotaExceededInfo's fields, for force_send_fields and null_fields.
 pub enum QuotaExceededInfoField {
-  Dimensions as "dimensions={}"
-  FutureLimit as "futureLimit=0"
-  Limit as "limit=0"
-  LimitName as "limitName=\"\""
-  MetricName as "metricName=\"\""
-  RolloutStatus as "rolloutStatus=\"\""
-} derive Json
+  Dimensions
+  FutureLimit
+  Limit
+  LimitName
+  MetricName
+  RolloutStatus
+}
+
+fn quota_exceeded_info_field_entry(f: QuotaExceededInfoField) -> Str {
+  match f {
+    Dimensions => "dimensions={}"
+    FutureLimit => "futureLimit=0"
+    Limit => "limit=0"
+    LimitName => "limitName=\"\""
+    MetricName => "metricName=\"\""
+    RolloutStatus => "rolloutStatus=\"\""
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: QuotaExceededInfo) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: QuotaExceededInfo) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  gensupport.mark(o, m.force_send_fields.map(quota_exceeded_info_field_entry), m.null_fields.map(quota_exceeded_info_field_entry))
+}
 
 /// Resource:
 pub struct Resource {
@@ -989,15 +2098,38 @@ pub struct SetAutoscalerLinkOperationMetadata {
   pub zonal_igm_ids as "zonalIgmIds,omitempty": List[Str] = []
   /// Map of zone to an ID of the zonal IGM belonging to the RMIG.
   pub zone_to_igm_ids as "zoneToIgmIds,omitempty": Map[Str, Str] = {}
-  pub force_send_fields as "~forceSendFields,omitempty": List[SetAutoscalerLinkOperationMetadataField] = []
-  pub null_fields as "~nullFields,omitempty": List[SetAutoscalerLinkOperationMetadataField] = []
+  pub force_send_fields as "-": List[SetAutoscalerLinkOperationMetadataField] = []
+  pub null_fields as "-": List[SetAutoscalerLinkOperationMetadataField] = []
 } derive Json
 
 /// SetAutoscalerLinkOperationMetadataField: SetAutoscalerLinkOperationMetadata's fields, for force_send_fields and null_fields.
 pub enum SetAutoscalerLinkOperationMetadataField {
-  ZonalIgmIds as "zonalIgmIds=[]"
-  ZoneToIgmIds as "zoneToIgmIds={}"
-} derive Json
+  ZonalIgmIds
+  ZoneToIgmIds
+}
+
+fn set_autoscaler_link_operation_metadata_field_entry(f: SetAutoscalerLinkOperationMetadataField) -> Str {
+  match f {
+    ZonalIgmIds => "zonalIgmIds=[]"
+    ZoneToIgmIds => "zoneToIgmIds={}"
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: SetAutoscalerLinkOperationMetadata) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: SetAutoscalerLinkOperationMetadata) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  gensupport.mark(o, m.force_send_fields.map(set_autoscaler_link_operation_metadata_field_entry), m.null_fields.map(set_autoscaler_link_operation_metadata_field_entry))
+}
 
 /// SetCommonInstanceMetadataOperationMetadata:
 ///
@@ -1007,15 +2139,49 @@ pub struct SetCommonInstanceMetadataOperationMetadata {
   pub client_operation_id as "clientOperationId,omitempty": Str = ""
   /// [Output Only] Status information per location (location name is key). Example key: zones/us-central1-a
   pub per_location_operations as "perLocationOperations,omitempty": Map[Str, SetCommonInstanceMetadataOperationMetadataPerLocationOperationInfo] = {}
-  pub force_send_fields as "~forceSendFields,omitempty": List[SetCommonInstanceMetadataOperationMetadataField] = []
-  pub null_fields as "~nullFields,omitempty": List[SetCommonInstanceMetadataOperationMetadataField] = []
+  pub force_send_fields as "-": List[SetCommonInstanceMetadataOperationMetadataField] = []
+  pub null_fields as "-": List[SetCommonInstanceMetadataOperationMetadataField] = []
 } derive Json
 
 /// SetCommonInstanceMetadataOperationMetadataField: SetCommonInstanceMetadataOperationMetadata's fields, for force_send_fields and null_fields.
 pub enum SetCommonInstanceMetadataOperationMetadataField {
-  ClientOperationId as "clientOperationId=\"\""
-  PerLocationOperations as "perLocationOperations={}"
-} derive Json
+  ClientOperationId
+  PerLocationOperations
+}
+
+fn set_common_instance_metadata_operation_metadata_field_entry(f: SetCommonInstanceMetadataOperationMetadataField) -> Str {
+  match f {
+    ClientOperationId => "clientOperationId=\"\""
+    PerLocationOperations => "perLocationOperations={}"
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: SetCommonInstanceMetadataOperationMetadata) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  for (_, c) in m.per_location_operations {
+    if c.body_marked() {
+      return true
+    }
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: SetCommonInstanceMetadataOperationMetadata) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  o = gensupport.mark_field(o, "perLocationOperations", fn(x: json.Value) -> json.Value { gensupport.mark_map(x, fn(k: Str, e: json.Value) -> json.Value {
+    match m.per_location_operations.get(k) {
+      Some(c) => c.body_mark(e)
+      None => e
+    }
+  }) })
+  gensupport.mark(o, m.force_send_fields.map(set_common_instance_metadata_operation_metadata_field_entry), m.null_fields.map(set_common_instance_metadata_operation_metadata_field_entry))
+}
 
 /// SetCommonInstanceMetadataOperationMetadataPerLocationOperationInfo:
 ///
@@ -1025,15 +2191,46 @@ pub struct SetCommonInstanceMetadataOperationMetadataPerLocationOperationInfo {
   pub error as "error,omitempty": Status? = None
   /// [Output Only] Status of the action, which can be one of the following: `PROPAGATING`, `PROPAGATED`, `ABANDONED`, `FAILED`, or `DONE`.
   pub state as "state,omitempty": Str = ""
-  pub force_send_fields as "~forceSendFields,omitempty": List[SetCommonInstanceMetadataOperationMetadataPerLocationOperationInfoField] = []
-  pub null_fields as "~nullFields,omitempty": List[SetCommonInstanceMetadataOperationMetadataPerLocationOperationInfoField] = []
+  pub force_send_fields as "-": List[SetCommonInstanceMetadataOperationMetadataPerLocationOperationInfoField] = []
+  pub null_fields as "-": List[SetCommonInstanceMetadataOperationMetadataPerLocationOperationInfoField] = []
 } derive Json
 
 /// SetCommonInstanceMetadataOperationMetadataPerLocationOperationInfoField: SetCommonInstanceMetadataOperationMetadataPerLocationOperationInfo's fields, for force_send_fields and null_fields.
 pub enum SetCommonInstanceMetadataOperationMetadataPerLocationOperationInfoField {
-  Error as "error"
-  State as "state=\"\""
-} derive Json
+  Error
+  State
+}
+
+fn set_common_instance_metadata_operation_metadata_per_location_operation_info_field_entry(f: SetCommonInstanceMetadataOperationMetadataPerLocationOperationInfoField) -> Str {
+  match f {
+    Error => "error"
+    State => "state=\"\""
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: SetCommonInstanceMetadataOperationMetadataPerLocationOperationInfo) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  if let Some(c) = m.error {
+    if c.body_marked() {
+      return true
+    }
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: SetCommonInstanceMetadataOperationMetadataPerLocationOperationInfo) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  if let Some(c) = m.error {
+    o = gensupport.mark_field(o, "error", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  gensupport.mark(o, m.force_send_fields.map(set_common_instance_metadata_operation_metadata_per_location_operation_info_field_entry), m.null_fields.map(set_common_instance_metadata_operation_metadata_per_location_operation_info_field_entry))
+}
 
 /// Status: The `Status` type defines a logical error model that is suitable for different programming environments, including REST APIs and RPC APIs. It is used by [gRPC](https://github.com/grpc). Each `Status` message contains three pieces of data: error code, error message, and error details. You can find out more about this error model and how to work with it in the [API Design Guide](https://cloud.google.com/apis/design/errors).
 ///
@@ -1045,16 +2242,40 @@ pub struct Status {
   pub details as "details,omitempty": List[json.Value] = []
   /// A developer-facing error message, which should be in English. Any user-facing error message should be localized and sent in the google.rpc.Status.details field, or localized by the client.
   pub message as "message,omitempty": Str = ""
-  pub force_send_fields as "~forceSendFields,omitempty": List[StatusField] = []
-  pub null_fields as "~nullFields,omitempty": List[StatusField] = []
+  pub force_send_fields as "-": List[StatusField] = []
+  pub null_fields as "-": List[StatusField] = []
 } derive Json
 
 /// StatusField: Status's fields, for force_send_fields and null_fields.
 pub enum StatusField {
-  Code as "code=0"
-  Details as "details=[]"
-  Message as "message=\"\""
-} derive Json
+  Code
+  Details
+  Message
+}
+
+fn status_field_entry(f: StatusField) -> Str {
+  match f {
+    Code => "code=0"
+    Details => "details=[]"
+    Message => "message=\"\""
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: Status) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: Status) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  gensupport.mark(o, m.force_send_fields.map(status_field_entry), m.null_fields.map(status_field_entry))
+}
 
 /// TargetConfiguration:
 ///
@@ -1064,15 +2285,52 @@ pub struct TargetConfiguration {
   pub config as "config,omitempty": ConfigFile? = None
   /// Specifies any files to import for this configuration. This can be used to import templates or other files. For example, you might import a text file in order to use the file in a template.
   pub imports as "imports,omitempty": List[ImportFile] = []
-  pub force_send_fields as "~forceSendFields,omitempty": List[TargetConfigurationField] = []
-  pub null_fields as "~nullFields,omitempty": List[TargetConfigurationField] = []
+  pub force_send_fields as "-": List[TargetConfigurationField] = []
+  pub null_fields as "-": List[TargetConfigurationField] = []
 } derive Json
 
 /// TargetConfigurationField: TargetConfiguration's fields, for force_send_fields and null_fields.
 pub enum TargetConfigurationField {
-  Config as "config"
-  Imports as "imports=[]"
-} derive Json
+  Config
+  Imports
+}
+
+fn target_configuration_field_entry(f: TargetConfigurationField) -> Str {
+  match f {
+    Config => "config"
+    Imports => "imports=[]"
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: TargetConfiguration) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  if let Some(c) = m.config {
+    if c.body_marked() {
+      return true
+    }
+  }
+  for c in m.imports {
+    if c.body_marked() {
+      return true
+    }
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: TargetConfiguration) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  if let Some(c) = m.config {
+    o = gensupport.mark_field(o, "config", fn(x: json.Value) -> json.Value { c.body_mark(x) })
+  }
+  o = gensupport.mark_field(o, "imports", fn(x: json.Value) -> json.Value { gensupport.mark_list(x, fn(i: Int, e: json.Value) -> json.Value { m.imports[i].body_mark(e) }) })
+  gensupport.mark(o, m.force_send_fields.map(target_configuration_field_entry), m.null_fields.map(target_configuration_field_entry))
+}
 
 /// TestPermissionsRequest:
 ///
@@ -1080,14 +2338,36 @@ pub enum TargetConfigurationField {
 pub struct TestPermissionsRequest {
   /// The set of permissions to check for the 'resource'. Permissions with wildcards (such as '*' or 'storage.*') are not allowed.
   pub permissions as "permissions,omitempty": List[Str] = []
-  pub force_send_fields as "~forceSendFields,omitempty": List[TestPermissionsRequestField] = []
-  pub null_fields as "~nullFields,omitempty": List[TestPermissionsRequestField] = []
+  pub force_send_fields as "-": List[TestPermissionsRequestField] = []
+  pub null_fields as "-": List[TestPermissionsRequestField] = []
 } derive Json
 
 /// TestPermissionsRequestField: TestPermissionsRequest's fields, for force_send_fields and null_fields.
 pub enum TestPermissionsRequestField {
-  Permissions as "permissions=[]"
-} derive Json
+  Permissions
+}
+
+fn test_permissions_request_field_entry(f: TestPermissionsRequestField) -> Str {
+  match f {
+    Permissions => "permissions=[]"
+  }
+}
+
+/// body_marked: whether m, or a model in it, sets force_send_fields or
+/// null_fields (decision 0013; the service's request bodies ask).
+pub fn (m: TestPermissionsRequest) body_marked() -> Bool {
+  if m.force_send_fields.len() > 0 || m.null_fields.len() > 0 {
+    return true
+  }
+  false
+}
+
+/// body_mark: v, m's JSON, with the force and null entries of m and of
+/// the models in it, for gensupport.apply_fields (decision 0013).
+pub fn (m: TestPermissionsRequest) body_mark(v: json.Value) -> json.Value {
+  var o = v
+  gensupport.mark(o, m.force_send_fields.map(test_permissions_request_field_entry), m.null_fields.map(test_permissions_request_field_entry))
+}
 
 /// TestPermissionsResponse:
 pub struct TestPermissionsResponse {
