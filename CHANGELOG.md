@@ -7,6 +7,14 @@ touches. Release notes: [docs/releases](docs/releases).
 
 ## Unreleased
 
+## v0.2.0
+
+The second release: the root, `storage`, `bigquery` and all 667 API
+modules at their `apivN` paths, tagged v0.2.0 at one commit, each
+requiring the root (and `storage` and `bigquery` their API modules) at
+v0.2.0 (notes: [docs/releases/v0.2.0.md](docs/releases/v0.2.0.md)).
+Requires Xo 0.51.0 or later.
+
 - **Feature** (decision 0013): a request body can send empty values and
   null. Every model a request can hold has `force_send_fields` and
   `null_fields` (Go's ForceSendFields and NullFields), typed by a
