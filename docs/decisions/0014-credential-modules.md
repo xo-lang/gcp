@@ -1,7 +1,11 @@
 # 0014: Credential discovery in modules of its own (gcp, aws, azure)
 
-Status: Proposed (2026-11-13, aws-43 for the lead). A breaking module
-layout change in gcp and aws: the owner decides before any code.
+Status: Accepted (owner, 2026-11-14, through the lead): the rule holds
+for gcp, aws and azure; gcp v0.3.0 and aws v0.3.0 are the breaking
+releases that carry it; aws's SessionCache and retrieve go into the root
+`aws` package (Go's layout) unless the effects gate shows that widens
+the root, in which case `aws/credcache`, with the reason recorded here.
+Proposed 2026-11-13 by aws-43 for the lead.
 
 ## Context
 
@@ -115,10 +119,8 @@ own**, at the directory it has today, as Go's SDKs place it.
 - The gates gain the effects check, which also catches any future
   widening of a generated module.
 
-## Open questions for the owner
+## Owner's answers (2026-11-14)
 
-1. Approve the rule for all three SDKs, and gcp v0.3.0 and aws v0.3.0
-   as the breaking releases that carry it?
-2. aws: move `SessionCache` and `retrieve` into the root `aws`
-   package (Go's layout), or into a small root package
-   (`aws/credcache`)?
+1. Yes, for all three SDKs, with gcp v0.3.0 and aws v0.3.0.
+2. The root `aws` package, unless the effects gate shows it widens the
+   root; then `aws/credcache`, noted here.

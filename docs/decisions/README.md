@@ -18,4 +18,4 @@ deleted.
 - [0011](0011-bigquery.md): cloud.google.com/go/bigquery's REST client in four Go-vectored steps (client and metadata, values, queries and rows, the other jobs); the Storage Read API, managed writer and GAPIC subpackages wait for gRPC; rows without reflection (Proposed, 2026-11-11)
 - [0012](0012-apiv-paths.md): generated modules name the API version `apivN` (`bigquery/apiv2`, `storage/apiv1`), one generator rule for all 667, so a `/v2` path is not read as a semver major (Accepted, 2026-11-11)
 - [0013](0013-force-send-null-fields.md): request models get typed force_send_fields and null_fields (Go's ForceSendFields and NullFields), applied by gensupport.json_body, so a PATCH can send [], null, false and 0 (Accepted, 2026-11-12)
-- [0014](0014-credential-modules.md): Proposed: credential and configuration discovery in modules of its own in gcp and aws (azure already), so root and API modules reach only clock, net.dial, rand
+- [0014](0014-credential-modules.md): credential and configuration discovery in modules of its own in gcp and aws (azure already), so root and API modules reach only clock, net.dial, rand
