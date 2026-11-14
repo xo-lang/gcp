@@ -7,6 +7,18 @@ touches. Release notes: [docs/releases](docs/releases).
 
 ## Unreleased
 
+## v0.3.1
+
+`auth.ComputeProvider.client` is `auth.MetadataSource`, an interface
+with `fetch(suffix)`, which `metadata.Client` has (new `fetch`, `get`
+with the error as text). The root no longer requires `compute/metadata`,
+so a program that does not use `auth/credentials` has no module with
+`env` or `fs.read` in its xo.lock (v0.3.0 still listed
+`compute/metadata` with them, required by the root). Callers of
+`auth.compute(metadata_client, ...)` are unchanged. The compute token
+tests moved to `auth/credentials`. Notes:
+[docs/releases/v0.3.1.md](docs/releases/v0.3.1.md).
+
 ## v0.3.0
 
 The third release: the root, `storage`, `bigquery`, the new

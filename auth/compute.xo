@@ -4,7 +4,6 @@
 
 use std/json
 use std/url
-use github.com/xo-lang/gcp/compute/metadata
 
 const COMPUTE_TOKEN_URI: Str = "instance/service-accounts/default/token"
 
@@ -14,10 +13,20 @@ struct MetadataToken {
   token_type: Str = ""
 } derive Json
 
+/// What `ComputeProvider` asks the metadata server through: the body at
+/// a path under computeMetadata/v1/. `metadata.Client` (module
+/// `github.com/xo-lang/gcp/compute/metadata`) is one. An interface, so
+/// the root does not require that module, whose `env` and `fs.read`
+/// (finding the server, detecting GCE) a program then accepts only when
+/// it uses it (decision 0014).
+pub interface MetadataSource {
+  fn fetch(self, suffix: Str) -> Str ! Str uses (net.dial, clock, rand)
+}
+
 /// The metadata server's default service account token (Go's
 /// computeProvider), without a cache.
 pub struct ComputeProvider {
-  pub client: metadata.Client
+  pub client: MetadataSource
   pub clock: Clock
   /// The scopes asked for; none for the account's own.
   pub scopes: List[Str] = []
@@ -30,7 +39,7 @@ pub fn (p: ComputeProvider) token() -> Token ! AuthErr uses (net.dial, clock, ra
     v.set("scopes", p.scopes.join(","))
     uri = "${uri}?${v.encode()}"
   }
-  let body = p.client.get(uri) ?? e => return Err(AuthErr{msg: "credentials: cannot fetch token: ${e.display()}"})
+  let body = p.client.fetch(uri) ?? e => return Err(AuthErr{msg: "credentials: cannot fetch token: ${e}"})
   let res = json.decode_str[MetadataToken](body) ?? e => return Err(AuthErr{msg: "credentials: invalid token JSON from metadata: ${e.msg}"})
   if res.expires_in == 0 || res.access_token == "" {
     return Err(AuthErr{msg: "credentials: incomplete token received from metadata"})
@@ -41,6 +50,6 @@ pub fn (p: ComputeProvider) token() -> Token ! AuthErr uses (net.dial, clock, ra
 
 /// The metadata server's tokens behind the cache (Go's
 /// computeTokenProvider).
-pub fn compute(client: metadata.Client, clock: Clock, scopes: List[Str] = [], opts: CachedOptions = CachedOptions{}) -> CachedTokenProvider[()] {
+pub fn compute(client: MetadataSource, clock: Clock, scopes: List[Str] = [], opts: CachedOptions = CachedOptions{}) -> CachedTokenProvider[()] {
   cached(ComputeProvider{client: client, clock: clock, scopes: scopes}, clock, opts)
 }

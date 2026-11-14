@@ -57,6 +57,12 @@ XO
 "$xo" get github.com/xo-lang/gcp@"$v" github.com/xo-lang/gcp/storage/apiv1@"$v" > "$work/get.out" 2>&1 || { echo "check-release: FAIL xo get"; tail -5 "$work/get.out"; exit 1; }
 "$xo" check --workspace=off . > "$work/app.out" 2>&1 || { echo "check-release: FAIL app"; tail -5 "$work/app.out"; exit 1; }
 echo "check-release: an app got the root and storage/v1 at $v and checks"
+# decision 0014: without auth/credentials, nothing that reads the
+# environment or files is required at all (v0.3.0's root required
+# compute/metadata for auth.compute)
+if grep -q 'compute/metadata\|auth/credentials' xo.lock; then
+  echo "check-release: FAIL an app of the root and storage/v1 requires compute/metadata or auth/credentials:"; grep 'effects' xo.lock; exit 1
+fi
 # decision 0014: the root and the API modules reach only what a request
 # needs; credential discovery is its own module, and the wider set shows
 # there alone
