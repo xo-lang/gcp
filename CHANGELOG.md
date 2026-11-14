@@ -23,8 +23,8 @@ or later.
   `xo get github.com/xo-lang/gcp/auth/credentials@v0.3.0`.
   `auth.compute` (the metadata server's tokens) stays in the root and
   takes a `metadata.Client`; the root requires `compute/metadata`,
-  whose `env` read (`GCE_METADATA_HOST`) is in its constructor, outside
-  the root's reach.
+  whose `env` and `fs.read` (`GCE_METADATA_HOST`, and `on_gce`'s
+  `/sys/class/dmi/id/product_name`) show on that module's line alone.
 
 ## v0.2.0
 

@@ -64,7 +64,7 @@ echo "check-release: an app got the root and storage/v1 at $v and checks"
 for m in github.com/xo-lang/gcp github.com/xo-lang/gcp/storage/apiv1 github.com/xo-lang/gcp/compute/metadata; do
   fx=$(awk -v m="$m" '$1 == m && $2 == "effects" { print $3 }' xo.lock)
   want=clock,net.dial,rand
-  [ "$m" = github.com/xo-lang/gcp/compute/metadata ] && want=clock,env,net.dial,rand
+  [ "$m" = github.com/xo-lang/gcp/compute/metadata ] && want=clock,env,fs.read,net.dial,rand
   [ "$fx" = "$want" ] || { echo "check-release: FAIL $m effects '$fx', want $want (decision 0014)"; exit 1; }
 done
 echo "check-release: effects: $(awk '$2 == "effects" { printf "%s %s; ", $1, $3 }' xo.lock)"
