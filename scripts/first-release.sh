@@ -8,7 +8,7 @@
 # With --push it creates annotated tags at HEAD and pushes them to
 # $TAG_REMOTE (origin by default); scripts/check-release.sh does that
 # against a scratch bare clone first.
-# Usage: scripts/first-release.sh v0.1.0 [--push]
+# Usage: scripts/first-release.sh vX.Y.Z [--push] (refuses when vX.Y.Z tags exist here or on the remote; v0.2.0 was the first release after v0.1.0)
 set -eu
 cd "$(dirname "$0")/.."
 v=${1-}
@@ -20,8 +20,8 @@ if [ -n "$(git status --porcelain)" ]; then
   echo "first-release: the working tree is not clean" >&2
   exit 1
 fi
-if [ -n "$(git tag -l 'v*' '*/v*')" ]; then
-  echo "first-release: tags exist already" >&2
+if [ -n "$(git tag -l "$v" "*/$v")" ] || [ -n "$(git ls-remote --tags "$remote" "refs/tags/$v" "refs/tags/*/$v")" ]; then
+  echo "first-release: $v tags exist already (here or on $remote)" >&2
   exit 1
 fi
 tmp=$(mktemp -d)
