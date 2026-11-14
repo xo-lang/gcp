@@ -29,7 +29,11 @@ trap 'rm -rf "$tmp"' EXIT
 git ls-files '*xo.mod' | sed 's#/*xo.mod$##' | grep -vx codegen | grep -v '^$' > "$tmp/mods"
 : > "$tmp/err"
 while read -r m; do
-  grep -qx "require github.com/xo-lang/gcp $v" "$m/xo.mod" || echo "$m/xo.mod does not require the root $v" >> "$tmp/err"
+  # a module that uses no gcp package (compute/metadata, decision 0014)
+  # needs no root
+  if [ "$m" != . ] && grep -qh '^use github.com/xo-lang/gcp' "$m"/*.xo 2>/dev/null; then
+    grep -qx "require github.com/xo-lang/gcp $v" "$m/xo.mod" || echo "$m/xo.mod does not require the root $v" >> "$tmp/err"
+  fi
   grep -x 'require github.com/xo-lang/gcp/.*' "$m/xo.mod" | while read -r _ p ver; do
     d=${p#github.com/xo-lang/gcp/}
     [ "$ver" = "$v" ] || echo "$m/xo.mod requires $p $ver, not $v" >> "$tmp/err"

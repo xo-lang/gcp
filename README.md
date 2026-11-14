@@ -40,15 +40,21 @@ against local fakes. The records in
 
 ## Install
 
-Every module is tagged v0.2.0 (with Xo 0.51.0). Get the API versions
+Every module is tagged v0.3.0 (with Xo 0.51.0). Get the API versions
 your program uses; each requires the root:
 
-    xo get github.com/xo-lang/gcp@v0.2.0
-    xo get github.com/xo-lang/gcp/storage/apiv1@v0.2.0
+    xo get github.com/xo-lang/gcp@v0.3.0
+    xo get github.com/xo-lang/gcp/storage/apiv1@v0.3.0
+
+Credential discovery (Application Default Credentials, credential files,
+the metadata server) is its own module, so a program that passes its own
+token never takes on reading the environment or files (decision 0014):
+
+    xo get github.com/xo-lang/gcp/auth/credentials@v0.3.0
 
 Requires Xo 0.51.0 or later (decision 0013's `as "-"` lists, xo decision 0622). Release notes:
-[docs/releases/v0.2.0.md](docs/releases/v0.2.0.md) (v0.1.0:
-[docs/releases/v0.1.0.md](docs/releases/v0.1.0.md)).
+[docs/releases/v0.3.0.md](docs/releases/v0.3.0.md) (earlier:
+[v0.2.0](docs/releases/v0.2.0.md), [v0.1.0](docs/releases/v0.1.0.md)).
 
 ## Empty values and null in a request
 

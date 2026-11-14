@@ -7,6 +7,14 @@ touches. Release notes: [docs/releases](docs/releases).
 
 ## Unreleased
 
+## v0.3.0
+
+The third release: the root, `storage`, `bigquery`, the new
+`auth/credentials` and `compute/metadata` modules and all 667 API
+modules, tagged v0.3.0 at one commit (notes:
+[docs/releases/v0.3.0.md](docs/releases/v0.3.0.md)). Requires Xo 0.51.0
+or later.
+
 - **Breaking** (decision 0014): `auth/credentials` and `compute/metadata`
   are modules of their own, so the root module's effects are
   `clock,net.dial,rand` again (v0.2.0 added `env` and `fs.read` from

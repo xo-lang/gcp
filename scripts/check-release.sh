@@ -57,4 +57,15 @@ XO
 "$xo" get github.com/xo-lang/gcp@"$v" github.com/xo-lang/gcp/storage/apiv1@"$v" > "$work/get.out" 2>&1 || { echo "check-release: FAIL xo get"; tail -5 "$work/get.out"; exit 1; }
 "$xo" check --workspace=off . > "$work/app.out" 2>&1 || { echo "check-release: FAIL app"; tail -5 "$work/app.out"; exit 1; }
 echo "check-release: an app got the root and storage/v1 at $v and checks"
+# decision 0014: the root and the API modules reach only what a request
+# needs; credential discovery is its own module, and the wider set shows
+# there alone
+"$xo" get github.com/xo-lang/gcp/auth/credentials@"$v" > "$work/get2.out" 2>&1 || { echo "check-release: FAIL xo get auth/credentials"; tail -5 "$work/get2.out"; exit 1; }
+for m in github.com/xo-lang/gcp github.com/xo-lang/gcp/storage/apiv1 github.com/xo-lang/gcp/compute/metadata; do
+  fx=$(awk -v m="$m" '$1 == m && $2 == "effects" { print $3 }' xo.lock)
+  want=clock,net.dial,rand
+  [ "$m" = github.com/xo-lang/gcp/compute/metadata ] && want=clock,env,net.dial,rand
+  [ "$fx" = "$want" ] || { echo "check-release: FAIL $m effects '$fx', want $want (decision 0014)"; exit 1; }
+done
+echo "check-release: effects: $(awk '$2 == "effects" { printf "%s %s; ", $1, $3 }' xo.lock)"
 [ $fails -eq 0 ]

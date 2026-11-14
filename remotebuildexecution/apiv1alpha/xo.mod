@@ -1,4 +1,4 @@
 module github.com/xo-lang/gcp/remotebuildexecution/apiv1alpha
 edition preview
 
-require github.com/xo-lang/gcp v0.2.0
+require github.com/xo-lang/gcp v0.3.0
