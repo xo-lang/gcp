@@ -7,6 +7,17 @@ touches. Release notes: [docs/releases](docs/releases).
 
 ## Unreleased
 
+- **Breaking** (decision 0014): `auth/credentials` and `compute/metadata`
+  are modules of their own, so the root module's effects are
+  `clock,net.dial,rand` again (v0.2.0 added `env` and `fs.read` from
+  credential discovery). Import paths do not change; a program that
+  uses Application Default Credentials or credential files adds
+  `xo get github.com/xo-lang/gcp/auth/credentials@v0.3.0`.
+  `auth.compute` (the metadata server's tokens) stays in the root and
+  takes a `metadata.Client`; the root requires `compute/metadata`,
+  whose `env` read (`GCE_METADATA_HOST`) is in its constructor, outside
+  the root's reach.
+
 ## v0.2.0
 
 The second release: the root, `storage`, `bigquery` and all 667 API
