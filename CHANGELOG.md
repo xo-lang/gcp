@@ -7,6 +7,14 @@ touches. Release notes: [docs/releases](docs/releases).
 
 ## Unreleased
 
+## storage v0.3.2
+
+Fix (`storage` module): the retry check of `http.ClientErr` ends in a
+wildcard arm, so storage builds on Xo 0.51 and 0.52 (`InvalidUrl`,
+`Canceled` and 0.52's `ClientErr.Tls`, which 0.51 reports as `Protocol`,
+are not retried, as before) (#1). Only `storage` is tagged; the root and
+the other modules stay at v0.3.1.
+
 ## v0.3.1
 
 `auth.ComputeProvider.client` is `auth.MetadataSource`, an interface
