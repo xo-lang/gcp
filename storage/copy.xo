@@ -23,7 +23,7 @@ pub struct Copier[fx: Effects] {
   pub destination_kms_key_name: Str = ""
   /// Called after each call with the bytes copied so far and the total
   /// (Go's ProgressFunc).
-  pub progress: (fn(Int, Int))? = None
+  pub progress: (fn(Int, Int) uses sync)? = None
   /// The bytes the service copies per call, 0 for its own choice (Go's
   /// maxBytesRewrittenPerCall, which only tests set).
   pub max_bytes_per_call: Int = 0
@@ -85,7 +85,7 @@ pub fn (var cp: Copier[fx]) run() -> ObjectAttrs ! StorageErr uses (net.dial, cl
     }
     q.set("alt", "json")
     q.set("prettyPrint", "false")
-    let res = c.run(cp.dst.retry, idempotent, fn(h: List[(Str, Str)]) -> Rewritten ! gensupport.CallErr uses net.dial, clock, rand, fx {
+    let res = c.run(cp.dst.retry, idempotent, fn(h: List[(Str, Str)]) -> Rewritten ! gensupport.CallErr uses net.dial, clock, rand, fx, sync {
       let hs: List[(Str, Str)] = [("Content-Type", "application/json")] + h
       let resp = c.core.client.send(gensupport.Request{method: "POST", url: target, query: q, headers: hs, body: body})?
       gensupport.check(resp)?
@@ -199,7 +199,7 @@ pub fn (cm: Composer[fx]) run() -> ObjectAttrs ! StorageErr uses (net.dial, cloc
   }
   let c = cm.dst.c
   let target = googleapi.expand(googleapi.resolve_relative(c.core.base_path, "b/{destinationBucket}/o/{destinationObject}/compose"), {"destinationBucket": cm.dst.bucket, "destinationObject": cm.dst.object})
-  let got = c.run(cm.dst.retry, idempotent, fn(h: List[(Str, Str)]) -> raw.Object ! gensupport.CallErr uses net.dial, clock, rand, fx {
+  let got = c.run(cm.dst.retry, idempotent, fn(h: List[(Str, Str)]) -> raw.Object ! gensupport.CallErr uses net.dial, clock, rand, fx, sync {
     let hs: List[(Str, Str)] = [("Content-Type", "application/json")] + h
     let resp = c.core.client.send(gensupport.Request{method: "POST", url: target, query: q, headers: hs, body: body})?
     gensupport.check(resp)?

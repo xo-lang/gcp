@@ -51,7 +51,7 @@ fn (s: URLStyle) path(bucket: Str, object: Str) -> Str {
 }
 
 /// A signer (Go's SignBytes): given the bytes, their signature.
-pub type Signer = fn(Bytes) -> Bytes ! StorageErr
+pub type Signer = fn(Bytes) -> Bytes ! StorageErr uses sync
 
 /// Go's SignedURLOptions. Exactly one of private_key and sign_bytes is
 /// set; expires is required.
@@ -342,14 +342,14 @@ fn parse_rsa_key(key: Bytes) -> crypto.PrivateKey ! StorageErr {
 }
 
 /// A signed URL for the object (Go's SignedURL), at the clock's time.
-pub fn signed_url(clock: Clock, rand: Rand, bucket: Str, object: Str, opts: SignedURLOptions) -> Str ! StorageErr uses (clock, rand) {
+pub fn signed_url(clock: Clock[clock], rand: Rand[rand], bucket: Str, object: Str, opts: SignedURLOptions) -> Str ! StorageErr uses (clock, rand) {
   let now = clock.now()
   let o = validate_signed(opts, now)?
   sign_validated(rand, bucket, object, o, now, o.sign_bytes)
 }
 
 /// Signs validated options with the key, else with sign.
-fn sign_validated[fx: Effects](rand: Rand, bucket: Str, object: Str, opts: SignedURLOptions, now: Time, sign: (fn(Bytes) -> Bytes ! StorageErr uses fx)?) -> Str ! StorageErr uses (rand, fx) {
+fn sign_validated[fx: Effects](rand: Rand[rand], bucket: Str, object: Str, opts: SignedURLOptions, now: Time, sign: (fn(Bytes) -> Bytes ! StorageErr uses fx)?) -> Str ! StorageErr uses (rand, fx) {
   var o = opts
   o.headers = if o.scheme is SigningScheme.V4 { v4_headers(o.headers) } else { v2_headers(o.headers) }
   if let Some(pk) = o.private_key {
@@ -454,11 +454,11 @@ fn (c: Cond) write(var w: json.JsonWriter) {
 
 /// A signed V4 POST policy for the object (Go's
 /// GenerateSignedPostPolicyV4), at the clock's time.
-pub fn generate_signed_post_policy_v4(clock: Clock, rand: Rand, bucket: Str, object: Str, opts: PostPolicyV4Options) -> PostPolicyV4 ! StorageErr uses (clock, rand) {
+pub fn generate_signed_post_policy_v4(clock: Clock[clock], rand: Rand[rand], bucket: Str, object: Str, opts: PostPolicyV4Options) -> PostPolicyV4 ! StorageErr uses (clock, rand) {
   post_policy(rand, bucket, object, opts, clock.now(), opts.sign_raw_bytes)
 }
 
-fn post_policy[fx: Effects](rand: Rand, bucket: Str, object: Str, opts: PostPolicyV4Options, now: Time, raw_signer: (fn(Bytes) -> Bytes ! StorageErr uses fx)?) -> PostPolicyV4 ! StorageErr uses (rand, fx) {
+fn post_policy[fx: Effects](rand: Rand[rand], bucket: Str, object: Str, opts: PostPolicyV4Options, now: Time, raw_signer: (fn(Bytes) -> Bytes ! StorageErr uses fx)?) -> PostPolicyV4 ! StorageErr uses (rand, fx) {
   if bucket == "" {
     return Err(invalid("storage: bucket must be non-empty"))
   }
@@ -625,7 +625,7 @@ fn (b: BucketHandle[fx]) sign_blob(email: Str, data: Bytes) -> Bytes ! StorageEr
   w.str(base64.encode(data, base64.Base64.Std))
   w.object_end()
   let body = w.finish()
-  let res = c.run(b.retry, true, fn(_h: List[(Str, Str)]) -> SignBlobResponse ! gensupport.CallErr uses net.dial, clock, rand, fx {
+  let res = c.run(b.retry, true, fn(_h: List[(Str, Str)]) -> SignBlobResponse ! gensupport.CallErr uses net.dial, clock, rand, fx, sync {
     let resp = c.core.client.send(gensupport.Request{method: "POST", url: target, query: q, headers: [("Content-Type", "application/json")], body: body})?
     gensupport.check(resp)?
     gensupport.decode[SignBlobResponse](resp)
@@ -669,7 +669,7 @@ pub fn (b: BucketHandle[fx]) signed_url(object: Str, opts: SignedURLOptions) -> 
       var p = o
       p.sign_bytes = Some(fn(x: Bytes) -> Bytes ! StorageErr { Ok(x) })
       let v = validate_signed(p, now)?
-      return sign_validated(b.c.rand, b.name, object, v, now, Some(fn(x: Bytes) -> Bytes ! StorageErr uses net.dial, clock, rand, fx { b.sign_blob(email, x) }))
+      return sign_validated(b.c.rand, b.name, object, v, now, Some(fn(x: Bytes) -> Bytes ! StorageErr uses net.dial, clock, rand, fx, sync { b.sign_blob(email, x) }))
     }
   }
   let v = validate_signed(o, now)?
@@ -695,7 +695,7 @@ pub fn (b: BucketHandle[fx]) generate_signed_post_policy_v4(object: Str, opts: P
     o.private_key = b.creds_key()
     if o.private_key.is_none() {
       let email = o.google_access_id
-      return post_policy(b.c.rand, b.name, object, o, now, Some(fn(x: Bytes) -> Bytes ! StorageErr uses net.dial, clock, rand, fx { b.sign_blob(email, x) }))
+      return post_policy(b.c.rand, b.name, object, o, now, Some(fn(x: Bytes) -> Bytes ! StorageErr uses net.dial, clock, rand, fx, sync { b.sign_blob(email, x) }))
     }
   }
   post_policy(b.c.rand, b.name, object, o, now, o.sign_raw_bytes)

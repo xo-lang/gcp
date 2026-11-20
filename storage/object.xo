@@ -374,7 +374,7 @@ fn opt_str(s: Str) -> Str? { if s.is_empty() { None } else { Some(s) } }
 pub fn (o: ObjectHandle[fx]) attrs() -> ObjectAttrs ! StorageErr uses (net.dial, clock, rand, fx) {
   o.validate()?
   let p = cond_params("Attrs", o.gen, o.conds)?
-  let got = o.c.run(o.retry, true, fn(h: List[(Str, Str)]) -> raw.Object ! gensupport.CallErr uses net.dial, clock, rand, fx {
+  let got = o.c.run(o.retry, true, fn(h: List[(Str, Str)]) -> raw.Object ! gensupport.CallErr uses net.dial, clock, rand, fx, sync {
     o.c.svc.objects.get(o.bucket, o.object, raw.ObjectsGetOptions{generation: p.generation, if_generation_match: p.if_generation_match, if_generation_not_match: p.if_generation_not_match, if_metageneration_match: p.if_metageneration_match, if_metageneration_not_match: p.if_metageneration_not_match, projection: Some("full"), soft_deleted: if o.want_soft_deleted { Some(true) } else { None }, user_project: opt_str(o.user_project), headers: h})
   }) ?? e => return Err(object_err(e))
   Ok(new_object(got))
@@ -420,7 +420,7 @@ pub fn (o: ObjectHandle[fx]) update(u: ObjectAttrsToUpdate) -> ObjectAttrs ! Sto
   q.set("prettyPrint", "false")
   let body = json_bytes(update_body(o.bucket, u))
   let target = googleapi.expand(googleapi.resolve_relative(o.c.core.base_path, "b/{bucket}/o/{object}"), {"bucket": o.bucket, "object": o.object})
-  let got = o.c.run(o.retry, idempotent, fn(h: List[(Str, Str)]) -> raw.Object ! gensupport.CallErr uses net.dial, clock, rand, fx {
+  let got = o.c.run(o.retry, idempotent, fn(h: List[(Str, Str)]) -> raw.Object ! gensupport.CallErr uses net.dial, clock, rand, fx, sync {
     var hs: List[(Str, Str)] = [("Content-Type", "application/json")]
     hs = hs + h
     let resp = o.c.core.client.send(gensupport.Request{method: "PATCH", url: target, query: q, headers: hs, body: body})?
@@ -439,7 +439,7 @@ pub fn (o: ObjectHandle[fx]) delete() -> () ! StorageErr uses (net.dial, clock, 
     Some(c) => c.generation_match != 0
     None => false
   }
-  o.c.run(o.retry, idempotent, fn(h: List[(Str, Str)]) -> () ! gensupport.CallErr uses net.dial, clock, rand, fx {
+  o.c.run(o.retry, idempotent, fn(h: List[(Str, Str)]) -> () ! gensupport.CallErr uses net.dial, clock, rand, fx, sync {
     o.c.svc.objects.delete(o.bucket, o.object, raw.ObjectsDeleteOptions{generation: p.generation, if_generation_match: p.if_generation_match, if_generation_not_match: p.if_generation_not_match, if_metageneration_match: p.if_metageneration_match, if_metageneration_not_match: p.if_metageneration_not_match, user_project: opt_str(o.user_project), headers: h})
   }) ?? e => return Err(object_err(e))
   Ok(())

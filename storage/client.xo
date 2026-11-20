@@ -156,8 +156,8 @@ pub fn emulator_host(env: Env) -> Str uses env { env.get(EMULATOR_HOST_ENV) ?? "
 pub struct Client[fx: Effects] {
   svc: raw.Service[fx]
   core: gensupport.Core[fx]
-  clock: Clock
-  rand: Rand
+  clock: Clock[clock]
+  rand: Rand[rand]
   retry: Retry
   /// The XML API's base, where reads go: the endpoint's scheme and host
   /// (Go's xmlHost and scheme).
@@ -188,7 +188,7 @@ fn host_base(ep: Str) -> Str {
 
 /// The client (Go's NewClient over HTTP): its endpoint is the options'
 /// endpoint, else the emulator's, else https://storage.googleapis.com/storage/v1/.
-pub fn new_client[fx: Effects](net: Net, clock: Clock, rand: Rand, opts: ClientOptions[fx] = ClientOptions{}) -> Client[fx] {
+pub fn new_client[fx: Effects](net: Net, clock: Clock[clock], rand: Rand[rand], opts: ClientOptions[fx] = ClientOptions{}) -> Client[fx] {
   var o = opts.service
   if opts.emulator_host != "" {
     let h = opts.emulator_host
@@ -210,7 +210,7 @@ pub fn (c: Client[fx]) bucket(name: Str) -> BucketHandle[fx] {
 /// The email of the project's Cloud Storage service account (Go's
 /// ServiceAccount).
 pub fn (c: Client[fx]) service_account(project: Str) -> Str ! StorageErr uses (net.dial, clock, rand, fx) {
-  let sa = c.run(c.retry, true, fn(h: List[(Str, Str)]) -> raw.ServiceAccount ! gensupport.CallErr uses net.dial, clock, rand, fx {
+  let sa = c.run(c.retry, true, fn(h: List[(Str, Str)]) -> raw.ServiceAccount ! gensupport.CallErr uses net.dial, clock, rand, fx, sync {
     c.svc.projects.service_account.get(project, raw.ProjectsServiceAccountGetOptions{headers: h})
   }) ?? e => return Err(call_err(e))
   Ok(sa.email_address)
@@ -275,7 +275,7 @@ fn attempt_headers(id: Str, attempt: Int) -> List[(Str, Str)] {
 /// Go's run: calls f with each attempt's headers until it succeeds, its
 /// error is not retried (the policy, idempotent, should_retry), or
 /// max_attempts is reached, pausing by the backoff between attempts.
-fn (c: Client[fx]) run[T](retry: Retry, idempotent: Bool, f: fn(List[(Str, Str)]) -> T ! gensupport.CallErr uses (net.dial, clock, rand, fx)) -> T ! RunErr uses (net.dial, clock, rand, fx) {
+fn (c: Client[fx]) run[T](retry: Retry, idempotent: Bool, f: fn(List[(Str, Str)]) -> T ! gensupport.CallErr uses (net.dial, clock, rand, fx, sync)) -> T ! RunErr uses (net.dial, clock, rand, fx) {
   let id = uuid.v4(c.rand).display()
   var attempt = 1
   let retries = match retry.policy {

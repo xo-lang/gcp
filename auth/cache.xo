@@ -33,14 +33,14 @@ struct CacheState {
 /// its expiry (Go's cachedTokenProvider).
 pub struct CachedTokenProvider[fx: Effects] {
   inner: TokenProvider[fx]
-  clock: Clock
+  clock: Clock[clock]
   early: Duration
   tasks: task.Group?
   state: Mutex[CacheState]
 }
 
 /// `p` behind a cache (Go's auth.NewCachedTokenProvider).
-pub fn cached[fx: Effects](p: TokenProvider[fx], clock: Clock, opts: CachedOptions = CachedOptions{}) -> CachedTokenProvider[fx] {
+pub fn cached[fx: Effects](p: TokenProvider[fx], clock: Clock[clock], opts: CachedOptions = CachedOptions{}) -> CachedTokenProvider[fx] {
   let early = if opts.expire_early > 0s { opts.expire_early } else { DEFAULT_EXPIRY_DELTA }
   CachedTokenProvider{inner: p, clock: clock, early: early, tasks: opts.tasks, state: Mutex[CacheState].new(CacheState{})}
 }
@@ -96,7 +96,7 @@ pub fn (c: CachedTokenProvider[fx]) token() -> Token ! AuthErr uses (net.dial, c
           (s.token, go)
         })
         if start {
-          g.spawn_background(fn() uses net.dial, clock, rand, fx {
+          g.spawn_background(fn() uses net.dial, clock, rand, fx, sync {
             let r = c.inner.token()
             c.state.with(fn(var s: CacheState) {
               s.running = false
@@ -118,7 +118,7 @@ pub fn (c: CachedTokenProvider[fx]) token() -> Token ! AuthErr uses (net.dial, c
 fn (c: CachedTokenProvider[fx]) blocking() -> Token ! AuthErr uses (net.dial, clock, rand, fx) {
   // the outcome is the closure's value, so clearing refresh_err is kept
   // when the fetch fails
-  let r = c.state.with(fn(var s: CacheState) -> Result[Token, AuthErr] uses net.dial, clock, rand, fx {
+  let r = c.state.with(fn(var s: CacheState) -> Result[Token, AuthErr] uses net.dial, clock, rand, fx, sync {
     s.refresh_err = false
     if let Some(t) = s.token {
       if fresh(t, c.clock.now(), c.early) {

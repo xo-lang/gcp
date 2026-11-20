@@ -275,7 +275,7 @@ pub fn (b: BucketHandle[fx]) lock_retention_policy() -> () ! StorageErr uses (ne
     Some(c) => c.metageneration_match
     None => 0
   }
-  let _r = b.c.run(b.retry, true, fn(h: List[(Str, Str)]) -> raw.Bucket ! gensupport.CallErr uses net.dial, clock, rand, fx {
+  let _r = b.c.run(b.retry, true, fn(h: List[(Str, Str)]) -> raw.Bucket ! gensupport.CallErr uses net.dial, clock, rand, fx, sync {
     b.c.svc.buckets.lock_retention_policy(b.name, m, raw.BucketsLockRetentionPolicyOptions{headers: h})
   }) ?? e => return Err(call_err(e))
   Ok(())
@@ -309,7 +309,7 @@ pub fn (o: ObjectHandle[fx]) restore(opts: RestoreOptions = RestoreOptions{}) ->
   o.validate()?
   let p = cond_params("RestoreObject", -1, o.conds)?
   let gen = if o.gen == -1 { 0 } else { o.gen }
-  let got = o.c.run(o.retry, true, fn(h: List[(Str, Str)]) -> raw.Object ! gensupport.CallErr uses net.dial, clock, rand, fx {
+  let got = o.c.run(o.retry, true, fn(h: List[(Str, Str)]) -> raw.Object ! gensupport.CallErr uses net.dial, clock, rand, fx, sync {
     o.c.svc.objects.restore(o.bucket, o.object, gen, raw.ObjectsRestoreOptions{copy_source_acl: if opts.copy_source_acl { Some(true) } else { None }, if_generation_match: p.if_generation_match, if_generation_not_match: p.if_generation_not_match, if_metageneration_match: p.if_metageneration_match, if_metageneration_not_match: p.if_metageneration_not_match, user_project: opt_str(o.user_project), headers: h})
   }) ?? e => return Err(object_err(e))
   Ok(new_object(got))
@@ -328,7 +328,7 @@ pub fn (o: ObjectHandle[fx]) move(dst: MoveObjectDestination) -> ObjectAttrs ! S
   o.validate()?
   let dp = cond_params("MoveObjectDestination", -1, dst.conditions)?
   let sp = cond_params("MoveObjectSource", -1, o.conds)?
-  let got = o.c.run(o.retry, true, fn(h: List[(Str, Str)]) -> raw.Object ! gensupport.CallErr uses net.dial, clock, rand, fx {
+  let got = o.c.run(o.retry, true, fn(h: List[(Str, Str)]) -> raw.Object ! gensupport.CallErr uses net.dial, clock, rand, fx, sync {
     o.c.svc.objects.move(o.bucket, o.object, dst.object, raw.ObjectsMoveOptions{if_generation_match: dp.if_generation_match, if_generation_not_match: dp.if_generation_not_match, if_metageneration_match: dp.if_metageneration_match, if_metageneration_not_match: dp.if_metageneration_not_match, if_source_generation_match: sp.if_generation_match, if_source_generation_not_match: sp.if_generation_not_match, if_source_metageneration_match: sp.if_metageneration_match, if_source_metageneration_not_match: sp.if_metageneration_not_match, user_project: opt_str(o.user_project), headers: h})
   }) ?? e => return Err(object_err(e))
   Ok(new_object(got))

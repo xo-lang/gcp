@@ -68,12 +68,12 @@ pub struct Options2LO {
 pub struct TwoLegged {
   opts: Options2LO
   http: http.Client
-  clock: Clock
-  rand: Rand
+  clock: Clock[clock]
+  rand: Rand[rand]
 }
 
 /// Go's New2LOTokenProvider, with its option checks.
-pub fn two_legged(net: Net, clock: Clock, rand: Rand, opts: Options2LO) -> TwoLegged ! AuthErr {
+pub fn two_legged(net: Net, clock: Clock[clock], rand: Rand[rand], opts: Options2LO) -> TwoLegged ! AuthErr {
   if opts.email == "" {
     return Err(AuthErr{msg: "auth: email must be provided"})
   }
@@ -118,11 +118,11 @@ pub struct RefreshToken {
   opts: Options3LO
   current: Mutex[Str]
   http: http.Client
-  clock: Clock
+  clock: Clock[clock]
 }
 
 /// Go's New3LOTokenProvider checks for a refresh token.
-pub fn refresh_token(net: Net, clock: Clock, opts: Options3LO) -> RefreshToken ! AuthErr {
+pub fn refresh_token(net: Net, clock: Clock[clock], opts: Options3LO) -> RefreshToken ! AuthErr {
   if opts.client_id == "" {
     return Err(AuthErr{msg: "auth: client ID must be provided"})
   }
@@ -139,7 +139,7 @@ pub fn refresh_token(net: Net, clock: Clock, opts: Options3LO) -> RefreshToken !
 }
 
 pub fn (p: RefreshToken) token() -> Token ! AuthErr uses (net.dial, clock) {
-  let r = p.current.with(fn(var rt: Str) -> Result[Token, AuthErr] uses net.dial, clock {
+  let r = p.current.with(fn(var rt: Str) -> Result[Token, AuthErr] uses net.dial, clock, sync {
     if rt == "" {
       return Err(AuthErr{msg: "auth: token expired and refresh token is not set"})
     }
@@ -159,7 +159,7 @@ pub fn (p: RefreshToken) token() -> Token ! AuthErr uses (net.dial, clock) {
 }
 
 /// Go's fetchToken: the token and any refresh token in the response.
-fn fetch_token(c: http.Client, clock: Clock, u: Str, v: url.Values) -> (Result[Token, AuthErr], Str) uses (net.dial, clock) {
+fn fetch_token(c: http.Client, clock: Clock[clock], u: Str, v: url.Values) -> (Result[Token, AuthErr], Str) uses (net.dial, clock) {
   let resp = match post_form(c, u, v) {
     Ok(r) => r
     Err(e) => return (Err(AuthErr{msg: e.display()}), "")

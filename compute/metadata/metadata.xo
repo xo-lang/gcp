@@ -47,12 +47,12 @@ pub struct Client {
   http: http.Client
   /// The host requests go to.
   pub host: Str
-  clock: Clock
-  rand: Rand
+  clock: Clock[clock]
+  rand: Rand[rand]
 }
 
 /// The client for the host env names (Go's metadata.NewClient).
-pub fn new_client(env: Env, net: Net, clock: Clock, rand: Rand) -> Client uses env {
+pub fn new_client(env: Env, net: Net, clock: Clock[clock], rand: Rand[rand]) -> Client uses env {
   let h = env.get(METADATA_HOST_ENV) ?? ""
   // Go's default client: a five second limit per request
   Client{http: http.client(net, 5s), host: if h == "" { METADATA_IP } else { h }, clock: clock, rand: rand}
@@ -177,15 +177,15 @@ fn probe_dns(net: Net) -> Bool uses net.dial {
 /// and the first answer is the result, or, when the DMI product name says
 /// Google, a first false waits up to five seconds for the other probe.
 /// Go memoizes the answer per process; a caller keeps it.
-pub fn on_gce(env: Env, fs: Fs, net: Net, clock: Clock) -> Bool uses (env, fs.read, net.dial, clock) {
+pub fn on_gce(env: Env, fs: Fs, net: Net, clock: Clock[clock]) -> Bool uses (env, fs.read, net.dial, clock) {
   if host_set(env) {
     return true
   }
   let try_harder = system_info_suggests_gce(fs)
   scope s {
     let ch = Chan[Bool].new(2)
-    s.spawn_background(fn() uses net.dial { ch.send(probe_http(net)) })
-    s.spawn_background(fn() uses net.dial { ch.send(probe_dns(net)) })
+    s.spawn_background(fn() uses net.dial, sync { ch.send(probe_http(net)) })
+    s.spawn_background(fn() uses net.dial, sync { ch.send(probe_dns(net)) })
     let first = ch.recv() ?? false
     if first || !try_harder {
       first

@@ -533,7 +533,7 @@ pub fn (b: BucketHandle[fx]) retryer(r: Retry) -> BucketHandle[fx] {
 /// The bucket's attributes (Go's Attrs).
 pub fn (b: BucketHandle[fx]) attrs() -> BucketAttrs ! StorageErr uses (net.dial, clock, rand, fx) {
   let (m, nm) = bucket_cond_params("httpStorageClient.GetBucket", b.conds)?
-  let got = b.c.run(b.retry, true, fn(h: List[(Str, Str)]) -> raw.Bucket ! gensupport.CallErr uses net.dial, clock, rand, fx {
+  let got = b.c.run(b.retry, true, fn(h: List[(Str, Str)]) -> raw.Bucket ! gensupport.CallErr uses net.dial, clock, rand, fx, sync {
     b.c.svc.buckets.get(b.name, raw.BucketsGetOptions{if_metageneration_match: m, if_metageneration_not_match: nm, projection: Some("full"), user_project: opt_str(b.user_project), headers: h})
   }) ?? e => return Err(bucket_err(e))
   new_bucket(got)
@@ -562,7 +562,7 @@ pub fn (b: BucketHandle[fx]) create(project: Str, attrs: BucketAttrs? = None) ->
   q.set("prettyPrint", "false")
   let body = json_bytes(create_body(b.name, attrs))
   let target = googleapi.resolve_relative(b.c.core.base_path, "b")
-  let _r = b.c.run(b.retry, true, fn(h: List[(Str, Str)]) -> raw.Bucket ! gensupport.CallErr uses net.dial, clock, rand, fx {
+  let _r = b.c.run(b.retry, true, fn(h: List[(Str, Str)]) -> raw.Bucket ! gensupport.CallErr uses net.dial, clock, rand, fx, sync {
     var hs: List[(Str, Str)] = [("Content-Type", "application/json")]
     hs = hs + h
     let resp = b.c.core.client.send(gensupport.Request{method: "POST", url: target, query: q, headers: hs, body: body})?
@@ -602,7 +602,7 @@ pub fn (b: BucketHandle[fx]) update(u: BucketAttrsToUpdate) -> BucketAttrs ! Sto
   q.set("prettyPrint", "false")
   let body = json_bytes(bucket_update_body(u))
   let target = googleapi.expand(googleapi.resolve_relative(b.c.core.base_path, "b/{bucket}"), {"bucket": b.name})
-  let got = b.c.run(b.retry, idempotent, fn(h: List[(Str, Str)]) -> raw.Bucket ! gensupport.CallErr uses net.dial, clock, rand, fx {
+  let got = b.c.run(b.retry, idempotent, fn(h: List[(Str, Str)]) -> raw.Bucket ! gensupport.CallErr uses net.dial, clock, rand, fx, sync {
     var hs: List[(Str, Str)] = [("Content-Type", "application/json")]
     hs = hs + h
     let resp = b.c.core.client.send(gensupport.Request{method: "PATCH", url: target, query: q, headers: hs, body: body})?
@@ -616,7 +616,7 @@ pub fn (b: BucketHandle[fx]) update(u: BucketAttrsToUpdate) -> BucketAttrs ! Sto
 /// leaves it.
 pub fn (b: BucketHandle[fx]) delete() -> () ! StorageErr uses (net.dial, clock, rand, fx) {
   let (m, nm) = bucket_cond_params("httpStorageClient.DeleteBucket", b.conds)?
-  b.c.run(b.retry, true, fn(h: List[(Str, Str)]) -> () ! gensupport.CallErr uses net.dial, clock, rand, fx {
+  b.c.run(b.retry, true, fn(h: List[(Str, Str)]) -> () ! gensupport.CallErr uses net.dial, clock, rand, fx, sync {
     b.c.svc.buckets.delete(b.name, raw.BucketsDeleteOptions{if_metageneration_match: m, if_metageneration_not_match: nm, user_project: opt_str(b.user_project), headers: h})
   }) ?? e => return Err(call_err(e))
   Ok(())
@@ -690,7 +690,7 @@ pub fn (var it: ObjectIterator[fx]) next() -> ObjectAttrs? ! StorageErr uses (ne
     let b = it.b
     let q = it.q
     let tok = it.token
-    let page = b.c.run(b.retry, true, fn(h: List[(Str, Str)]) -> raw.Objects ! gensupport.CallErr uses net.dial, clock, rand, fx {
+    let page = b.c.run(b.retry, true, fn(h: List[(Str, Str)]) -> raw.Objects ! gensupport.CallErr uses net.dial, clock, rand, fx, sync {
       b.c.svc.objects.list(b.name, raw.ObjectsListOptions{delimiter: Some(q.delimiter), end_offset: Some(q.end_offset), filter: opt_str(q.filter), include_folders_as_prefixes: Some(q.include_folders_as_prefixes), include_trailing_delimiter: Some(q.include_trailing_delimiter), match_glob: Some(q.match_glob), page_token: Some(tok), prefix: Some(q.prefix), projection: Some("full"), soft_deleted: if q.soft_deleted { Some(true) } else { None }, start_offset: Some(q.start_offset), user_project: opt_str(b.user_project), versions: Some(q.versions), fields: if q.fields.is_empty() { [] } else { [q.fields] }, headers: h})
     })
     let p = match page {
@@ -745,7 +745,7 @@ pub fn (var it: BucketIterator[fx]) next() -> BucketAttrs? ! StorageErr uses (ne
     let project = it.project
     let prefix = it.prefix
     let tok = it.token
-    let page = c.run(c.retry, true, fn(h: List[(Str, Str)]) -> raw.Buckets ! gensupport.CallErr uses net.dial, clock, rand, fx {
+    let page = c.run(c.retry, true, fn(h: List[(Str, Str)]) -> raw.Buckets ! gensupport.CallErr uses net.dial, clock, rand, fx, sync {
       c.svc.buckets.list(project, raw.BucketsListOptions{page_token: Some(tok), prefix: Some(prefix), projection: Some("full"), return_partial_success: Some(false), headers: h})
     })
     let p = match page {

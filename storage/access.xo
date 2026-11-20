@@ -63,21 +63,21 @@ pub fn (a: ACLHandle[fx]) list() -> List[ACLRule] ! StorageErr uses (net.dial, c
   let up = opt_str(a.user_project)
   var out: List[ACLRule] = []
   if a.object != "" {
-    let r = a.c.run(a.retry, true, fn(h: List[(Str, Str)]) -> raw.ObjectAccessControls ! gensupport.CallErr uses net.dial, clock, rand, fx {
+    let r = a.c.run(a.retry, true, fn(h: List[(Str, Str)]) -> raw.ObjectAccessControls ! gensupport.CallErr uses net.dial, clock, rand, fx, sync {
       a.c.svc.object_access_controls.list(a.bucket, a.object, raw.ObjectAccessControlsListOptions{user_project: up, headers: h})
     }) ?? e => return Err(call_err(e))
     for x in r.items {
       out.push(object_rule(x))
     }
   } else if a.is_default {
-    let r = a.c.run(a.retry, true, fn(h: List[(Str, Str)]) -> raw.ObjectAccessControls ! gensupport.CallErr uses net.dial, clock, rand, fx {
+    let r = a.c.run(a.retry, true, fn(h: List[(Str, Str)]) -> raw.ObjectAccessControls ! gensupport.CallErr uses net.dial, clock, rand, fx, sync {
       a.c.svc.default_object_access_controls.list(a.bucket, raw.DefaultObjectAccessControlsListOptions{user_project: up, headers: h})
     }) ?? e => return Err(call_err(e))
     for x in r.items {
       out.push(object_rule(x))
     }
   } else {
-    let r = a.c.run(a.retry, true, fn(h: List[(Str, Str)]) -> raw.BucketAccessControls ! gensupport.CallErr uses net.dial, clock, rand, fx {
+    let r = a.c.run(a.retry, true, fn(h: List[(Str, Str)]) -> raw.BucketAccessControls ! gensupport.CallErr uses net.dial, clock, rand, fx, sync {
       a.c.svc.bucket_access_controls.list(a.bucket, raw.BucketAccessControlsListOptions{user_project: up, headers: h})
     }) ?? e => return Err(call_err(e))
     for x in r.items {
@@ -92,7 +92,7 @@ pub fn (a: ACLHandle[fx]) set(entity: Str, role: Str) -> () ! StorageErr uses (n
   let up = opt_str(a.user_project)
   if a.object != "" || a.is_default {
     let body = raw.ObjectAccessControl{bucket: a.bucket, entity: entity, role: role}
-    a.c.run(a.retry, false, fn(h: List[(Str, Str)]) -> () ! gensupport.CallErr uses net.dial, clock, rand, fx {
+    a.c.run(a.retry, false, fn(h: List[(Str, Str)]) -> () ! gensupport.CallErr uses net.dial, clock, rand, fx, sync {
       if a.object != "" {
         a.c.svc.object_access_controls.update(a.bucket, a.object, entity, body, raw.ObjectAccessControlsUpdateOptions{user_project: up, headers: h})?
       } else {
@@ -103,7 +103,7 @@ pub fn (a: ACLHandle[fx]) set(entity: Str, role: Str) -> () ! StorageErr uses (n
     return Ok(())
   }
   let body = raw.BucketAccessControl{bucket: a.bucket, entity: entity, role: role}
-  a.c.run(a.retry, false, fn(h: List[(Str, Str)]) -> () ! gensupport.CallErr uses net.dial, clock, rand, fx {
+  a.c.run(a.retry, false, fn(h: List[(Str, Str)]) -> () ! gensupport.CallErr uses net.dial, clock, rand, fx, sync {
     a.c.svc.bucket_access_controls.update(a.bucket, entity, body, raw.BucketAccessControlsUpdateOptions{user_project: up, headers: h})?
     Ok(())
   }) ?? e => return Err(call_err(e))
@@ -113,7 +113,7 @@ pub fn (a: ACLHandle[fx]) set(entity: Str, role: Str) -> () ! StorageErr uses (n
 /// Removes entity's entry (Go's Delete). Retried only by the Always policy.
 pub fn (a: ACLHandle[fx]) delete(entity: Str) -> () ! StorageErr uses (net.dial, clock, rand, fx) {
   let up = opt_str(a.user_project)
-  a.c.run(a.retry, false, fn(h: List[(Str, Str)]) -> () ! gensupport.CallErr uses net.dial, clock, rand, fx {
+  a.c.run(a.retry, false, fn(h: List[(Str, Str)]) -> () ! gensupport.CallErr uses net.dial, clock, rand, fx, sync {
     if a.object != "" {
       a.c.svc.object_access_controls.delete(a.bucket, a.object, entity, raw.ObjectAccessControlsDeleteOptions{user_project: up, headers: h})
     } else if a.is_default {
@@ -189,7 +189,7 @@ fn to_hmac_key(md: raw.HmacKeyMetadata?, secret: Str, updated_can_be_nil: Bool) 
 
 /// The key's metadata (Go's Get).
 pub fn (k: HMACKeyHandle[fx]) get(opts: HMACKeyOptions = HMACKeyOptions{}) -> HMACKey ! StorageErr uses (net.dial, clock, rand, fx) {
-  let md = k.c.run(k.c.retry, true, fn(h: List[(Str, Str)]) -> raw.HmacKeyMetadata ! gensupport.CallErr uses net.dial, clock, rand, fx {
+  let md = k.c.run(k.c.retry, true, fn(h: List[(Str, Str)]) -> raw.HmacKeyMetadata ! gensupport.CallErr uses net.dial, clock, rand, fx, sync {
     k.c.svc.projects.hmac_keys.get(k.project_id, k.access_id, raw.ProjectsHmacKeysGetOptions{user_project: opt_str(opts.user_project), headers: h})
   }) ?? e => return Err(call_err(e))
   to_hmac_key(Some(md), "", false)
@@ -197,7 +197,7 @@ pub fn (k: HMACKeyHandle[fx]) get(opts: HMACKeyOptions = HMACKeyOptions{}) -> HM
 
 /// Deletes the key, which must be INACTIVE (Go's Delete).
 pub fn (k: HMACKeyHandle[fx]) delete(opts: HMACKeyOptions = HMACKeyOptions{}) -> () ! StorageErr uses (net.dial, clock, rand, fx) {
-  k.c.run(k.c.retry, true, fn(h: List[(Str, Str)]) -> () ! gensupport.CallErr uses net.dial, clock, rand, fx {
+  k.c.run(k.c.retry, true, fn(h: List[(Str, Str)]) -> () ! gensupport.CallErr uses net.dial, clock, rand, fx, sync {
     k.c.svc.projects.hmac_keys.delete(k.project_id, k.access_id, raw.ProjectsHmacKeysDeleteOptions{user_project: opt_str(opts.user_project), headers: h})
   }) ?? e => return Err(call_err(e))
   Ok(())
@@ -209,7 +209,7 @@ pub fn (k: HMACKeyHandle[fx]) update(au: HMACKeyAttrsToUpdate, opts: HMACKeyOpti
     return Err(invalid("storage: invalid state ${au.state.quote()} for update, must be either ${HMAC_ACTIVE.quote()} or ${HMAC_INACTIVE.quote()}"))
   }
   let body = raw.HmacKeyMetadata{etag: au.etag, state: au.state}
-  let md = k.c.run(k.c.retry, au.etag != "", fn(h: List[(Str, Str)]) -> raw.HmacKeyMetadata ! gensupport.CallErr uses net.dial, clock, rand, fx {
+  let md = k.c.run(k.c.retry, au.etag != "", fn(h: List[(Str, Str)]) -> raw.HmacKeyMetadata ! gensupport.CallErr uses net.dial, clock, rand, fx, sync {
     k.c.svc.projects.hmac_keys.update(k.project_id, k.access_id, body, raw.ProjectsHmacKeysUpdateOptions{user_project: opt_str(opts.user_project), headers: h})
   }) ?? e => return Err(call_err(e))
   to_hmac_key(Some(md), "", false)
@@ -224,7 +224,7 @@ pub fn (c: Client[fx]) create_hmac_key(project_id: Str, service_account_email: S
   if service_account_email == "" {
     return Err(invalid("storage: expecting a non-blank service account email"))
   }
-  let k = c.run(c.retry, false, fn(h: List[(Str, Str)]) -> raw.HmacKey ! gensupport.CallErr uses net.dial, clock, rand, fx {
+  let k = c.run(c.retry, false, fn(h: List[(Str, Str)]) -> raw.HmacKey ! gensupport.CallErr uses net.dial, clock, rand, fx, sync {
     c.svc.projects.hmac_keys.create(project_id, service_account_email, raw.ProjectsHmacKeysCreateOptions{user_project: opt_str(opts.user_project), headers: h})
   }) ?? e => return Err(call_err(e))
   to_hmac_key(k.metadata, k.secret, true)
@@ -259,7 +259,7 @@ pub fn (var it: HMACKeysIterator[fx]) next() -> HMACKey? ! StorageErr uses (net.
     let o = it.opts
     let p = it.project_id
     let tok = it.token
-    let page = c.run(c.retry, true, fn(h: List[(Str, Str)]) -> raw.HmacKeysMetadata ! gensupport.CallErr uses net.dial, clock, rand, fx {
+    let page = c.run(c.retry, true, fn(h: List[(Str, Str)]) -> raw.HmacKeysMetadata ! gensupport.CallErr uses net.dial, clock, rand, fx, sync {
       c.svc.projects.hmac_keys.list(p, raw.ProjectsHmacKeysListOptions{page_token: opt_str(tok), show_deleted_keys: if o.show_deleted_keys { Some(true) } else { None }, user_project: opt_str(o.user_project), service_account_email: opt_str(o.for_service_account_email), headers: h})
     })
     let r = match page {
@@ -352,7 +352,7 @@ pub fn (b: BucketHandle[fx]) add_notification(n: Notification) -> Notification !
     return Err(invalid("storage: AddNotification: missing TopicID"))
   }
   let body = raw.Notification{topic: "//pubsub.googleapis.com/projects/${n.topic_project_id}/topics/${n.topic_id}", event_types: n.event_types, object_name_prefix: n.object_name_prefix, custom_attributes: n.custom_attributes, payload_format: n.payload_format}
-  let r = b.c.run(b.retry, false, fn(h: List[(Str, Str)]) -> raw.Notification ! gensupport.CallErr uses net.dial, clock, rand, fx {
+  let r = b.c.run(b.retry, false, fn(h: List[(Str, Str)]) -> raw.Notification ! gensupport.CallErr uses net.dial, clock, rand, fx, sync {
     b.c.svc.notifications.insert(b.name, body, raw.NotificationsInsertOptions{user_project: opt_str(b.user_project), headers: h})
   }) ?? e => return Err(call_err(e))
   Ok(to_notification(r))
@@ -360,7 +360,7 @@ pub fn (b: BucketHandle[fx]) add_notification(n: Notification) -> Notification !
 
 /// The bucket's notifications by id (Go's Notifications).
 pub fn (b: BucketHandle[fx]) notifications() -> Map[Str, Notification] ! StorageErr uses (net.dial, clock, rand, fx) {
-  let r = b.c.run(b.retry, true, fn(h: List[(Str, Str)]) -> raw.Notifications ! gensupport.CallErr uses net.dial, clock, rand, fx {
+  let r = b.c.run(b.retry, true, fn(h: List[(Str, Str)]) -> raw.Notifications ! gensupport.CallErr uses net.dial, clock, rand, fx, sync {
     b.c.svc.notifications.list(b.name, raw.NotificationsListOptions{user_project: opt_str(b.user_project), headers: h})
   }) ?? e => return Err(call_err(e))
   var m: Map[Str, Notification] = {}
@@ -372,7 +372,7 @@ pub fn (b: BucketHandle[fx]) notifications() -> Map[Str, Notification] ! Storage
 
 /// Removes a notification (Go's DeleteNotification).
 pub fn (b: BucketHandle[fx]) delete_notification(id: Str) -> () ! StorageErr uses (net.dial, clock, rand, fx) {
-  b.c.run(b.retry, true, fn(h: List[(Str, Str)]) -> () ! gensupport.CallErr uses net.dial, clock, rand, fx {
+  b.c.run(b.retry, true, fn(h: List[(Str, Str)]) -> () ! gensupport.CallErr uses net.dial, clock, rand, fx, sync {
     b.c.svc.notifications.delete(b.name, id, raw.NotificationsDeleteOptions{user_project: opt_str(b.user_project), headers: h})
   }) ?? e => return Err(call_err(e))
   Ok(())
@@ -498,7 +498,7 @@ pub fn (h: IAMHandle[fx]) v3() -> IAMHandle[fx] { IAMHandle{b: h.b, version: 3} 
 pub fn (h: IAMHandle[fx]) policy() -> Policy ! StorageErr uses (net.dial, clock, rand, fx) {
   let b = h.b
   let v = h.version
-  let r = b.c.run(b.retry, true, fn(hs: List[(Str, Str)]) -> raw.Policy ! gensupport.CallErr uses net.dial, clock, rand, fx {
+  let r = b.c.run(b.retry, true, fn(hs: List[(Str, Str)]) -> raw.Policy ! gensupport.CallErr uses net.dial, clock, rand, fx, sync {
     b.c.svc.buckets.get_iam_policy(b.name, raw.BucketsGetIamPolicyOptions{options_requested_policy_version: Some(v), user_project: opt_str(b.user_project), headers: hs})
   }) ?? e => return Err(call_err(e))
   var bs: List[Binding] = []
@@ -525,7 +525,7 @@ pub fn (h: IAMHandle[fx]) set_policy(p: Policy) -> () ! StorageErr uses (net.dia
     bs.push(raw.PolicyBindings{role: x.role, members: x.members, condition: cond})
   }
   let body = raw.Policy{bindings: bs, etag: p.etag, version: if h.version == 3 { 3 } else { 0 }}
-  b.c.run(b.retry, p.etag != "", fn(hs: List[(Str, Str)]) -> () ! gensupport.CallErr uses net.dial, clock, rand, fx {
+  b.c.run(b.retry, p.etag != "", fn(hs: List[(Str, Str)]) -> () ! gensupport.CallErr uses net.dial, clock, rand, fx, sync {
     b.c.svc.buckets.set_iam_policy(b.name, body, raw.BucketsSetIamPolicyOptions{user_project: opt_str(b.user_project), headers: hs})?
     Ok(())
   }) ?? e => return Err(call_err(e))
@@ -535,7 +535,7 @@ pub fn (h: IAMHandle[fx]) set_policy(p: Policy) -> () ! StorageErr uses (net.dia
 /// The permissions the caller has of those given (Go's TestPermissions).
 pub fn (h: IAMHandle[fx]) test_permissions(permissions: List[Str]) -> List[Str] ! StorageErr uses (net.dial, clock, rand, fx) {
   let b = h.b
-  let r = b.c.run(b.retry, true, fn(hs: List[(Str, Str)]) -> raw.TestIamPermissionsResponse ! gensupport.CallErr uses net.dial, clock, rand, fx {
+  let r = b.c.run(b.retry, true, fn(hs: List[(Str, Str)]) -> raw.TestIamPermissionsResponse ! gensupport.CallErr uses net.dial, clock, rand, fx, sync {
     b.c.svc.buckets.test_iam_permissions(b.name, permissions, raw.BucketsTestIamPermissionsOptions{user_project: opt_str(b.user_project), headers: hs})
   }) ?? e => return Err(call_err(e))
   Ok(r.permissions)
